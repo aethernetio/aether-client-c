@@ -1,0 +1,374 @@
+
+[C client API/refactor invariants]
+Repository: /home/angel/projects/aether-client-c
+Goal: preserve already-working real C P2P wire behavior while simplifying public API and splitting src/aether_client.c by responsibility.
+Required module direction: aether_codec.c, aether_state.c, aether_cloud.c, aether_registration.c, aether_work.c, with src/aether_internal.h for non-public interfaces.
+Do not introduce heap allocation.
+Do not change FastMeta wire encoding. UUID encoding is canonical MSB big-endian + LSB big-endian; ordinary numeric primitives remain little-endian.
+Do not change persistent binary state format unless explicitly required.
+Keep low-level aether_client.h and advanced aether_client_app.h available.
+Final normal application API should be a small aether.h facade.
+README.md must not be modified unless the user explicitly asks.
+First refactor step is intentionally mechanical: extract codec primitives without changing protocol semantics.
+
+[Public API architecture correction]
+The high-level API must not wait for a hardcoded P256 production root key.
+Generic aether.h/aether.c should depend on a platform-provider boundary. A concrete platform adapter owns transport, persistence, crypto, PoW, trust roots, DNS and monotonic time.
+This allows the application surface to remain:
+  aether_t client;
+  aether_init(&client, on_message, user);
+  aether_start(&client);
+  aether_send(&client, destination, data, size);
+with optional stop/poll/uid/is_ready and advanced config.
+The monolithic src/aether_client.c remains unchanged.
+ESP32 will later provide the concrete default provider; host tests can provide a test provider.
+
+[FINAL public/platform API boundary]
+Do not split src/aether_client.c.
+
+Application-facing API and platform integration are separate layers.
+
+Application code must NOT construct aether_client_platform_t and must NOT know about sockets, DNS, clocks, crypto providers, PoW, trust roots or transport callbacks.
+
+Application-facing aether.h should require only application-owned information:
+- parent UID
+- persistence load/save callbacks and their context
+- message callback and application context
+- optional ready/error callbacks and advanced timing/registration overrides
+
+A ready platform port such as platform/esp32/aether_platform_esp32.c owns:
+- TCP/UDP sockets and framing
+- DNS resolver
+- monotonic clock
+- network polling/event integration
+- crypto backend
+- proof-of-work implementation
+- trusted root signing keys
+- binding transport callbacks to the core
+
+Thus an ESP32 user should be able to use approximately:
+  aether_config_t config;
+  aether_config_default(&config);
+  config.parent_uid = MY_PARENT;
+  config.storage.load = my_flash_load;
+  config.storage.save = my_flash_save;
+  config.on_message = on_message;
+  aether_init(&client, &config);
+  aether_start(&client);
+
+For common platforms we can ship ready integration files; only unusual/custom platforms need to implement the porting contract.
+
+[Public API/platform split implemented]
+The generic application-facing facade now exposes parent UID, persistence load/save, callbacks and optional application-level registration/timing settings only.
+
+Low-level platform plumbing moved behind include/aether_platform.h:
+  aether_platform_init()
+  aether_platform_deinit()
+
+A ready target integration supplies transport, DNS, monotonic time, crypto, PoW, trust roots and network pumping internally.
+
+Application code no longer constructs or references aether_client_platform_t.
+
+Next concrete target is platform/esp32/aether_platform_esp32.c, using ESP-IDF/lwIP and the existing ESP32 crypto backend. src/aether_client.c remains monolithic and unchanged.
+
+[SCOPE CORRECTION - public C API]
+The task is deliberately narrow.
+
+The existing C client implementation, protocol, FSM, persistence format, crypto behavior and tested P2P path are treated as working code and must not be redesigned or revalidated against Java.
+
+Do not inspect Java implementation to design the C public API.
+
+Required structure:
+
+1. Existing src/aether_client.c remains the working monolithic core.
+
+2. Existing aether_client_app remains the intermediate facade.
+
+3. New aether.h is the simple application API.
+
+4. Platform-specific integration files may be supplied for common targets.
+   For ESP32, such a file should only adapt already-existing C functionality:
+   - existing ESP32 P256/AES-GCM backend
+   - ESP-IDF/lwIP sockets
+   - DNS
+   - monotonic timer
+   - other mechanical platform callbacks already required by aether_client_platform_t
+
+5. Application code should only need application-owned configuration such as:
+   - parent UID
+   - flash/state load callback
+   - flash/state save callback
+   - message callback
+   - optional ready/error callbacks
+
+6. Do not make application code construct aether_client_platform_t.
+
+7. Do not reimplement crypto algorithms in the platform adapter.
+   ESP32 integration must reuse the existing:
+     platform/esp32/aether_crypto_p256_aes_gcm.c
+
+8. Trust/protocol/server design is outside this API task. Do not search Java or redesign trust merely to create the facade.
+
+9. Do not split the monolithic core.
+
+[Thin ESP32 public API integration]
+Implemented the narrow platform split requested by the user.
+
+Application API remains limited to:
+- parent UID
+- state load/save
+- message callback
+- optional ready/error callbacks
+- start/poll/send
+
+The ESP32 adapter is separate and mechanically wires:
+- existing aether_esp32_p256_aes_gcm_crypto()
+- lwIP TCP/UDP sockets
+- existing PackNumber TCP framing behavior
+- getaddrinfo DNS
+- esp_timer monotonic time
+- existing currently-supported PoW contract
+- transport bind/poll callbacks
+
+No Hydrogen is used by the ESP32 adapter.
+No crypto algorithm was reimplemented.
+src/aether_client.c remains monolithic.
+
+Trust provisioning is a platform-package hook, aether_esp32_trusted_sign_keys(), not application configuration. It therefore does not leak platform/trust plumbing into normal user code.
+
+[API simplification proven from existing P2P test]
+The existing working p2p_e2e.c was used as the source of truth.
+
+No protocol/crypto/FSM behavior was redesigned.
+
+The old test mixed:
+- actual P2P scenario
+- flash implementation
+- callbacks/state tracking
+- resolver/clock
+- transport bind/poll
+- PoW
+- crypto/root selection
+- platform construction
+
+Those responsibilities are now separated.
+
+tests/p2p_e2e.c is only the scenario:
+- create A and B
+- start
+- wait ready
+- send A->B
+- send B->A
+- validate
+- stop
+
+Existing platform behavior was moved unchanged behind host_aether_platform.c.
+Test-specific flash/callback/wait/assert boilerplate moved behind p2p_test_support.c.
+
+This is the intended model for application API design: normal application code must not repeat platform construction.
+
+[Minimal public API boundary]
+The simple application API is intentionally much smaller than aether_client_app.
+
+aether_config_t now contains only:
+- parent_uid
+- load
+- save
+- on_message
+- optional on_ready
+- optional on_error
+- ctx
+
+It does NOT expose:
+- registration URI
+- ping interval
+- RX window
+- request timeout
+- transport
+- crypto
+- PoW
+- trusted roots
+- resolver
+- clock
+- bind/poll platform construction
+
+Those already belong to the existing advanced/platform layers.
+
+The local P2P E2E needs localhost and special timing, so it correctly continues to use aether_client_app internally. Its visible scenario remains short, while the original working setup was moved unchanged into p2p_test_support.c.
+
+Do not force test-only/advanced configuration into the simple public API.
+
+[Public API simplification after Java comparison]
+
+The Java PointToPointTest makes the intended usability level clearer.
+
+For an ordinary Arduino/ESP32 application, persistence must also be hidden by the ready platform package. Requiring every sketch author to implement flash_load/flash_save defeats the purpose of a beginner-friendly library.
+
+New normal-user target:
+
+    aether_t client;
+
+    void on_message(
+        aether_t *client,
+        aether_uuid_t from,
+        const uint8_t *data,
+        size_t size) {
+        ...
+    }
+
+    void setup(void) {
+        aether_init(&client, parent_uid);
+        aether_on_message(&client, on_message);
+        aether_start(&client);
+    }
+
+    void loop(void) {
+        aether_poll(&client);
+    }
+
+    ...
+    aether_send(&client, peer_uid, data, size);
+
+The selected platform package owns:
+- persistence implementation
+- networking
+- DNS
+- clock
+- crypto
+- PoW
+- trust
+- framing/pumping
+
+The simple callback receives aether_t* instead of requiring an opaque user context. This is easier for Arduino users and still lets a callback identify which client fired it.
+
+Advanced/custom applications retain aether_client_app.h and the low-level platform API.
+
+[ESP32 persistence organization decision]
+
+Do not expose raw flash addresses/offsets in the beginner API.
+
+Use logical Aether storage slots.
+
+Default:
+    aether_init(&client, parent_uid);
+uses Aether storage slot 0.
+
+Optional multiple independent Aether identities should use a logical slot API, likely:
+    aether_init_slot(&client, parent_uid, slot);
+unless inspection shows state is first loaded only at start, in which case a pre-start setter may be cleaner.
+
+ESP32 implementation should map Aether slots to its own NVS namespace/keys, e.g. namespace "aether", keys "state0", "state1", etc.
+
+Application-owned persistent data is NOT stored through Aether. Arduino/ESP32 application code continues to use normal Preferences/NVS with its own namespace such as "myapp". Thus Aether state and application state coexist safely without exposing physical flash layout.
+
+Reasons:
+- no raw offset collisions;
+- NVS provides wear levelling and safer key/value persistence;
+- multiple Aether identities remain possible;
+- beginner API stays minimal;
+- Aether does not become an unrelated generic storage framework.
+
+[Final storage API shape]
+
+Persistent state is loaded only when the client is started, so storage selection can be fixed during client initialization.
+
+Beginner API:
+
+    aether_init(&client, parent_uid);
+
+This always uses logical Aether storage slot 0.
+
+Optional advanced-but-still-simple variant:
+
+    aether_init_slot(
+        &client,
+        parent_uid,
+        1);
+
+This selects another independent Aether identity/state.
+
+The slot is NOT a raw flash address and must never be interpreted by application code as an offset.
+
+Platform mapping examples:
+
+ESP32:
+    NVS namespace: "aether"
+    slot 0 -> key "state0"
+    slot 1 -> key "state1"
+
+Other MCU:
+    platform implementation may map the logical slot to EEPROM pages,
+    flash partitions, filesystem files, etc.
+
+Application persistent data is independent:
+
+    Arduino Preferences preferences;
+    preferences.begin("myapp", false);
+
+or equivalent ESP-IDF NVS calls.
+
+Thus both Aether and the application can share physical flash safely while using separate logical namespaces.
+
+Important safety rule for ESP32 implementation:
+Aether may initialize NVS if necessary but must NEVER erase the entire NVS partition automatically, because that could destroy application/WiFi/user data.
+
+[Storage slots verification]
+
+The selected design is intentionally simple:
+
+Normal application:
+    aether_init(&client, parent_uid);
+
+This selects logical Aether storage slot 0 automatically.
+
+Only applications that need another independent Aether identity use:
+    aether_init_slot(&other, parent_uid, 1);
+
+On ESP32 the ready platform integration owns persistence:
+    namespace "aether"
+    key "state<slot>"
+
+Application-owned persistent data remains completely independent and uses the normal Arduino Preferences / ESP-IDF NVS API with another namespace.
+
+No physical flash addresses are exposed.
+No application flash callbacks are required by the beginner API.
+No whole-NVS erase is performed by Aether.
+The existing serialized Aether state format and protocol core are unchanged.
+
+[AIEdit file-operation rule]
+
+Do NOT use Python for reading or editing project files.
+
+Use native AIEdit operations:
+- view / viewMethod / struct for reading;
+- findText / findFiles for searching;
+- replace / createFile / delete for modifications.
+
+bash is for builds, tests and normal command execution, not for implementing file edits through Python/sed/etc.
+
+[P2P test migrated to beginner public API]
+
+tests/p2p_e2e.c now exercises the same API intended for ordinary C/Arduino applications:
+- aether_t
+- aether_init() for the normal default persistent identity
+- aether_init_slot() only for the second independent test identity
+- aether_on_message()
+- aether_on_error()
+- aether_start()
+- aether_poll()
+- aether_send()
+- aether_uid()/readiness getters
+- aether_stop()
+
+The test scenario no longer constructs:
+- aether_client_app_t
+- aether_client_platform_t
+- transport vtables
+- flash callbacks
+- crypto callbacks
+- PoW callbacks
+- resolver callbacks
+- clock callbacks
+- registration URI configuration
+
+Host-only transport/Hydrogen/in-memory persistence and registration redirection live behind the same aether_platform_init/aether_platform_deinit boundary used by real platform packages.

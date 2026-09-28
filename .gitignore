@@ -1,0 +1,49 @@
+# ------------------------------------------------------------
+# Build output
+# ------------------------------------------------------------
+
+# Root CMake build directories used by this project.
+/build/
+/build-*/
+/cmake-build-*/
+
+# PlatformIO generated state and firmware build output.
+/esp32-size/.pio/
+
+# ------------------------------------------------------------
+# CMake generated files if an in-source configure is run
+# accidentally. Keep project CMakeLists.txt files tracked.
+# ------------------------------------------------------------
+
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/CTestTestfile.cmake
+/Makefile
+/compile_commands.json
+/install_manifest.txt
+
+# ------------------------------------------------------------
+# Local IDE / editor state
+# ------------------------------------------------------------
+
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------
+# OS / temporary files
+# ------------------------------------------------------------
+
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# ------------------------------------------------------------
+# AIEdit local runtime state
+# ------------------------------------------------------------
+
+/agent_context.state
