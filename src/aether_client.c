@@ -1,7 +1,39 @@
 
+
+
+
+
+
+/*
+ * Low-level Aether protocol state machine.
+ *
+ * This monolithic embedded core owns protocol sequencing, registration/work
+ * state, persistent Aether identity serialization, request tracking, crypto
+ * orchestration, bounded parsing and message transmission.
+ *
+ * It deliberately does not own physical sockets, platform persistence,
+ * cryptographic primitive implementations, application scheduling or
+ * heap-backed queues.
+ *
+ * Registration wire construction/decoding is delegated to protocol bindings and
+ * maintained registration adapters under src/generated/.
+ *
+ * Work RX can pin a borrowed platform frame while one application ingress item
+ * is exposed. The platform must preserve that frame until the ingress is
+ * consumed and aether_client_rx_active() becomes false.
+ */
 #include "aether_client.h"
+#include "generated/client_server_reg_direct_response_response.h"
+#include "generated/aether_reg_global.h"
+#include "generated/aether_reg_root_enter.h"
+#include "generated/aether_reg_root_key.h"
+#include "generated/aether_reg_safe.h"
+#include "generated/aether_reg_unsafe_local.h"
+#include "generated/client_server_api_api.h"
 
 #include <string.h>
+
+
 
 
 #define AETHER_STATE_MAGIC0 ((uint8_t)'A')
@@ -14,34 +46,26 @@
 #define CMD_RESULT 0u
 #define CMD_ERROR 1u
 
-#define REG_ROOT_GET_ASYMMETRIC_KEY 3u
-#define REG_ROOT_ENTER 4u
 
-#define REG_SAFE_REGISTRATION 3u
-#define REG_SAFE_REQUEST_POW 4u
-#define REG_SAFE_RESOLVE_SERVERS 5u
-#define REG_SAFE_SET_RETURN_KEY 6u
 
-#define REG_GLOBAL_SET_MASTER_KEY 3u
-#define REG_GLOBAL_FINISH 4u
 
-#define CLIENT_REG_UNSAFE_ENTER 3u
-#define CLIENT_REG_UNSAFE_ENTER_GLOBAL 4u
+
+
 
 #define LOGIN_BY_ALIAS 5u
 #define CLIENT_UNSAFE_SAFE_DATA_MULTI 3u
 #define CLIENT_UNSAFE_SAFE_DATA 4u
 
+
 #define AUTH_PING 4u
-#define AUTH_SEND_MESSAGE_WITH_RESULT 39u
 #define AUTH_SET_RECEIVE_WINDOW 45u
+
 
 #define CLIENT_SAFE_SEND_MESSAGES 6u
 #define CLIENT_SAFE_SEND_MESSAGE 20u
 
 
 
-#define POW_METHOD_AE_BCRYPT_CRC32 0u
 
 /*
  * Wire values understood only so unsupported server endpoints can be skipped.
@@ -390,16 +414,6 @@ static void w_i16le(
 }
 
 
-static void w_i32le(
-    writer_t *writer,
-    int32_t value) {
-
-    w_u32le(
-        writer,
-        (uint32_t)value);
-}
-
-
 static void w_i64le(
     writer_t *writer,
     int64_t value) {
@@ -547,25 +561,6 @@ static void w_uuid(
     w_u8(writer, (uint8_t)(uuid.lsb >> 16u));
     w_u8(writer, (uint8_t)(uuid.lsb >> 8u));
     w_u8(writer, (uint8_t)uuid.lsb);
-}
-
-
-static void w_symmetric_key(
-    writer_t *writer,
-    const aether_client_t *client,
-    const uint8_t key[AETHER_KEY_BYTES]) {
-
-    const aether_crypto_profile_t *profile =
-        &client->config.crypto->profile;
-
-    w_u8(
-        writer,
-        profile->symmetric_key_type);
-
-    w_bytes(
-        writer,
-        key,
-        profile->symmetric_key_bytes);
 }
 
 
@@ -1105,38 +1100,6 @@ static aether_status_t crypto_derive_server_keys(
 }
 
 
-static bool parse_cloud(
-    reader_t *reader,
-    aether_client_t *client) {
-
-    uint64_t count =
-        r_pack(reader);
-
-    if (reader->failed ||
-        count >
-            AETHER_MAX_SERVERS) {
-
-        reader->failed =
-            true;
-
-        return false;
-    }
-
-    client->cloud_count =
-        (uint8_t)count;
-
-    for (uint8_t i = 0u;
-         i <
-             client->cloud_count;
-         ++i) {
-
-        client->cloud_sids[i] =
-            r_i16le(reader);
-    }
-
-    return
-        !reader->failed;
-}
 
 
 static bool cloud_contains(
@@ -2130,42 +2093,35 @@ static aether_status_t begin_work(
 static aether_status_t send_get_server_key(
     aether_client_t *client) {
 
-    writer_t writer = {
-        client->tx_plain,
-        sizeof(client->tx_plain),
-        0u,
-        false
-    };
-
     client->req_server_key =
         next_request_id(
             client);
 
-    w_u8(
-        &writer,
-        REG_ROOT_GET_ASYMMETRIC_KEY);
+    size_t packet_length =
+        0u;
 
-    w_u32le(
-        &writer,
-        client->req_server_key);
+    aether_status_t status =
+        aether_generated_reg_root_build_get_key(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &packet_length,
+            client->req_server_key,
+            client->config.crypto
+                ->profile.crypto_lib);
 
-    w_u8(
-        &writer,
-        client->config.crypto->profile.crypto_lib);
-
-    if (writer.failed) {
+    if (status != AETHER_OK) {
         return
             fail(
                 client,
-                AETHER_ERR_OVERFLOW);
+                status);
     }
 
-    aether_status_t status =
+    status =
         transport_send(
             client,
             AETHER_CHANNEL_REGISTRATION,
-            writer.data,
-            writer.pos);
+            client->tx_plain,
+            packet_length);
 
     if (status != AETHER_OK) {
         return
@@ -2206,39 +2162,32 @@ static aether_status_t send_reg_enter(
                 AETHER_ERR_CRYPTO);
     }
 
-    writer_t writer = {
-        client->tx_plain,
-        sizeof(client->tx_plain),
-        0u,
-        false
-    };
+    size_t packet_length =
+        0u;
 
-    w_u8(
-        &writer,
-        REG_ROOT_ENTER);
+    aether_status_t status =
+        aether_generated_reg_root_build_enter(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &packet_length,
+            client->config.crypto
+                ->profile.crypto_lib,
+            client->tx_crypto,
+            cipher_len);
 
-    w_u8(
-        &writer,
-        client->config.crypto->profile.crypto_lib);
-
-    w_byte_array(
-        &writer,
-        client->tx_crypto,
-        cipher_len);
-
-    if (writer.failed) {
+    if (status != AETHER_OK) {
         return
             fail(
                 client,
-                AETHER_ERR_OVERFLOW);
+                status);
     }
 
-    aether_status_t status =
+    status =
         transport_send(
             client,
             AETHER_CHANNEL_REGISTRATION,
-            writer.data,
-            writer.pos);
+            client->tx_plain,
+            packet_length);
 
     if (status != AETHER_OK) {
         return
@@ -2254,54 +2203,38 @@ static aether_status_t send_reg_enter(
 static aether_status_t send_pow_request(
     aether_client_t *client) {
 
-    writer_t nested = {
-        client->tx_plain,
-        sizeof(client->tx_plain),
-        0u,
-        false
-    };
-
-    w_u8(
-        &nested,
-        REG_SAFE_SET_RETURN_KEY);
-
-    w_symmetric_key(
-        &nested,
-        client,
-        client->temp_key);
-
     client->req_pow =
         next_request_id(
             client);
 
-    w_u8(
-        &nested,
-        REG_SAFE_REQUEST_POW);
+    size_t nested_len =
+        0u;
 
-    w_u32le(
-        &nested,
-        client->req_pow);
+    aether_status_t status =
+        aether_generated_reg_safe_build_pow(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->req_pow,
+            client->config.parent_uid);
 
-    w_uuid(
-        &nested,
-        client->config.parent_uid);
-
-    w_u8(
-        &nested,
-        POW_METHOD_AE_BCRYPT_CRC32);
-
-    if (nested.failed) {
+    if (status != AETHER_OK) {
         return
             fail(
                 client,
-                AETHER_ERR_OVERFLOW);
+                status);
     }
 
-    aether_status_t status =
+    status =
         send_reg_enter(
             client,
-            nested.data,
-            nested.pos);
+            client->tx_plain,
+            nested_len);
 
     if (status == AETHER_OK) {
         set_registration_state(
@@ -2316,125 +2249,47 @@ static aether_status_t send_pow_request(
 static aether_status_t send_registration_payload(
     aether_client_t *client) {
 
-    writer_t global = {
-        client->tx_plain,
-        sizeof(client->tx_plain),
-        0u,
-        false
-    };
-
-    w_u8(
-        &global,
-        REG_GLOBAL_SET_MASTER_KEY);
-
-    w_symmetric_key(
-        &global,
-        client,
-        client->master_key);
-
     client->req_finish =
         next_request_id(
             client);
 
-    w_u8(
-        &global,
-        REG_GLOBAL_FINISH);
-
-    w_u32le(
-        &global,
-        client->req_finish);
-
-    if (global.failed) {
-        return
-            fail(
-                client,
-                AETHER_ERR_OVERFLOW);
-    }
-
-    size_t global_cipher_len =
+    size_t nested_len =
         0u;
 
-    if (crypto_asymmetric_encrypt(
-            client,
-            client->global_key.key,
-            global.data,
-            global.pos,
-            client->tx_crypto,
-            sizeof(client->tx_crypto),
-            &global_cipher_len) !=
-        AETHER_OK) {
-
-        return
-            fail(
-                client,
-                AETHER_ERR_CRYPTO);
-    }
-
-    writer_t nested = {
-        client->tx_plain,
-        sizeof(client->tx_plain),
-        0u,
-        false
-    };
-
-    w_u8(
-        &nested,
-        REG_SAFE_SET_RETURN_KEY);
-
-    w_symmetric_key(
-        &nested,
-        client,
-        client->temp_key);
-
-    w_u8(
-        &nested,
-        REG_SAFE_REGISTRATION);
-
-    w_byte_array(
-        &nested,
-        client->pow_salt,
-        client->pow_salt_len);
-
-    w_byte_array(
-        &nested,
-        client->pow_suffix,
-        client->pow_suffix_len);
-
-    w_pack(
-        &nested,
-        client->pow_password_count);
-
-    for (size_t i = 0u;
-         i <
-             client->pow_password_count;
-         ++i) {
-
-        w_i32le(
-            &nested,
-            client->pow_passwords[i]);
-    }
-
-    w_uuid(
-        &nested,
-        client->config.parent_uid);
-
-    w_byte_array(
-        &nested,
-        client->tx_crypto,
-        global_cipher_len);
-
-    if (nested.failed) {
-        return
-            fail(
-                client,
-                AETHER_ERR_OVERFLOW);
-    }
-
     aether_status_t status =
+        aether_generated_reg_safe_build_registration_direct(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->master_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->req_finish,
+            client->pow_salt,
+            client->pow_salt_len,
+            client->pow_suffix,
+            client->pow_suffix_len,
+            client->pow_passwords,
+            client->pow_password_count,
+            client->config.parent_uid);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    status =
         send_reg_enter(
             client,
-            nested.data,
-            nested.pos);
+            client->tx_plain,
+            nested_len);
 
     if (status == AETHER_OK) {
         set_registration_state(
@@ -2449,51 +2304,34 @@ static aether_status_t send_registration_payload(
 static aether_status_t send_resolve_servers(
     aether_client_t *client) {
 
-    writer_t nested = {
-        client->tx_plain,
-        sizeof(client->tx_plain),
-        0u,
-        false
-    };
-
     client->req_resolve =
         next_request_id(
             client);
 
-    w_u8(
-        &nested,
-        REG_SAFE_RESOLVE_SERVERS);
+    size_t nested_len =
+        0u;
 
-    w_u32le(
-        &nested,
-        client->req_resolve);
+    aether_status_t status =
+        aether_generated_reg_safe_build_resolve(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->req_resolve,
+            client->cloud_sids,
+            client->cloud_count);
 
-    w_pack(
-        &nested,
-        client->cloud_count);
-
-    for (uint8_t i = 0u;
-         i <
-             client->cloud_count;
-         ++i) {
-
-        w_i16le(
-            &nested,
-            client->cloud_sids[i]);
-    }
-
-    if (nested.failed) {
+    if (status != AETHER_OK) {
         return
             fail(
                 client,
-                AETHER_ERR_OVERFLOW);
+                status);
     }
 
-    aether_status_t status =
+    status =
         send_reg_enter(
             client,
-            nested.data,
-            nested.pos);
+            client->tx_plain,
+            nested_len);
 
     if (status == AETHER_OK) {
         set_registration_state(
@@ -2649,6 +2487,11 @@ static aether_status_t handle_reg_safe_plain(
            reader.pos <
                reader.length) {
 
+
+        size_t frame_start =
+            reader.pos;
+
+
         uint8_t command =
             r_u8(&reader);
 
@@ -2671,6 +2514,86 @@ static aether_status_t handle_reg_safe_plain(
                 if (status != AETHER_OK) {
                     return status;
                 }
+
+
+            } else if (
+                request_id ==
+                    client->req_finish &&
+                client->state ==
+                    AETHER_STATE_REG_WAIT_FINISH) {
+
+                server_registration_api_registration_direct_response_storage_t storage = {
+                    .cloud_data_storage =
+                        client->cloud_sids,
+                    .cloud_data_capacity =
+                        sizeof(client->cloud_sids) /
+                        sizeof(client->cloud_sids[0])
+                };
+
+                server_registration_api_registration_direct_response_frame_t frame = {
+                    0
+                };
+
+                size_t consumed =
+                    0u;
+
+                aether_status_t status =
+                    server_registration_api_registration_direct_response_decode(
+                        &storage,
+                        data + frame_start,
+                        length - frame_start,
+                        &frame,
+                        &consumed);
+
+                if (status != AETHER_OK ||
+                    consumed == 0u ||
+                    consumed > length - frame_start ||
+                    frame.kind !=
+                        SERVER_REGISTRATION_API_REGISTRATION_DIRECT_RESPONSE_RESULT ||
+                    frame.request_id !=
+                        request_id) {
+
+                    return
+                        fail(
+                            client,
+                            status != AETHER_OK
+                                ? status
+                                : AETHER_ERR_PROTOCOL);
+                }
+
+                client->alias =
+                    frame.result.alias;
+
+                client->uid =
+                    frame.result.uid;
+
+                client->cloud_count =
+                    frame.result.cloud.data.length;
+
+                aether_event_t event;
+
+                memset(
+                    &event,
+                    0,
+                    sizeof(event));
+
+                event.type =
+                    AETHER_EVENT_REGISTERED;
+
+                event.as.registered.uid =
+                    client->uid;
+
+                event.as.registered.alias =
+                    client->alias;
+
+                emit_event(
+                    client,
+                    &event);
+
+                return
+                    send_resolve_servers(
+                        client);
+
 
             } else if (
                 request_id ==
@@ -2757,110 +2680,13 @@ static aether_status_t handle_global_plain(
     const uint8_t *data,
     size_t length) {
 
-    reader_t reader = {
-        data,
-        length,
-        0u,
-        false
-    };
-
-    while (!reader.failed &&
-           reader.pos <
-               reader.length) {
-
-        uint8_t command =
-            r_u8(&reader);
-
-        if (command ==
-            CMD_RESULT) {
-
-            uint32_t request_id =
-                r_u32le(&reader);
-
-            if (request_id !=
-                    client->req_finish ||
-                client->state !=
-                    AETHER_STATE_REG_WAIT_FINISH) {
-
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
-
-            client->alias =
-                r_uuid(&reader);
-
-            client->uid =
-                r_uuid(&reader);
-
-            if (!parse_cloud(
-                    &reader,
-                    client) ||
-                reader.failed) {
-
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
-
-            aether_event_t event;
-
-            memset(
-                &event,
-                0,
-                sizeof(event));
-
-            event.type =
-                AETHER_EVENT_REGISTERED;
-
-            event.as.registered.uid =
-                client->uid;
-
-            event.as.registered.alias =
-                client->alias;
-
-            emit_event(
-                client,
-                &event);
-
-            return
-                send_resolve_servers(
-                    client);
-        }
-
-        if (command ==
-            CMD_ERROR) {
-
-            uint32_t request_id =
-                r_u32le(&reader);
-
-            if (reader.failed) {
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
-
-            return
-                fail_remote(
-                    client,
-                    request_id);
-        }
-
-        return
-            fail(
-                client,
-                AETHER_ERR_PROTOCOL);
-    }
+    (void)data;
+    (void)length;
 
     return
-        reader.failed
-            ? fail(
-                  client,
-                  AETHER_ERR_PROTOCOL)
-            : AETHER_OK;
+        fail(
+            client,
+            AETHER_ERR_PROTOCOL);
 }
 
 
@@ -2880,8 +2706,13 @@ static aether_status_t handle_registration_rx(
            reader.pos <
                reader.length) {
 
+
+size_t frame_start =
+            reader.pos;
+
         uint8_t command =
             r_u8(&reader);
+
 
         if (command ==
             CMD_RESULT) {
@@ -2967,68 +2798,98 @@ static aether_status_t handle_registration_rx(
                     request_id);
         }
 
-        if (command ==
-                CLIENT_REG_UNSAFE_ENTER ||
-            command ==
-                CLIENT_REG_UNSAFE_ENTER_GLOBAL) {
 
-            const uint8_t *cipher;
-            size_t cipher_len;
+aether_reg_unsafe_frame_t frame = {
+            0
+        };
 
-            if (!r_view(
-                    &reader,
-                    &cipher,
-                    &cipher_len)) {
+        size_t consumed =
+            0u;
 
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
+        aether_status_t decode_status =
+            aether_generated_reg_unsafe_decode(
+                &frame,
+                reader.data +
+                    frame_start,
+                reader.length -
+                    frame_start,
+                &consumed);
 
-            size_t plain_len =
-                0u;
+        if (decode_status != AETHER_OK ||
+            consumed == 0u ||
+            consumed >
+                reader.length -
+                    frame_start) {
 
-            const uint8_t *key =
-                command ==
-                    CLIENT_REG_UNSAFE_ENTER
-                    ? client->temp_key
-                    : client->master_key;
-
-            if (crypto_symmetric_decrypt(
+            return
+                fail(
                     client,
-                    key,
-                    cipher,
-                    cipher_len,
-                    client->tx_crypto,
-                    sizeof(client->tx_crypto),
-                    &plain_len) !=
-                AETHER_OK) {
-
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_CRYPTO);
-            }
-
-            aether_status_t status =
-                command ==
-                    CLIENT_REG_UNSAFE_ENTER
-                    ? handle_reg_safe_plain(
-                          client,
-                          client->tx_crypto,
-                          plain_len)
-                    : handle_global_plain(
-                          client,
-                          client->tx_crypto,
-                          plain_len);
-
-            if (status != AETHER_OK) {
-                return status;
-            }
-
-            continue;
+                    AETHER_ERR_PROTOCOL);
         }
+
+        const uint8_t *key;
+
+        if (frame.kind ==
+            AETHER_REG_UNSAFE_FRAME_ENTER) {
+
+            key =
+                client->temp_key;
+
+        } else if (
+            frame.kind ==
+            AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL) {
+
+            key =
+                client->master_key;
+
+        } else {
+            return
+                fail(
+                    client,
+                    AETHER_ERR_PROTOCOL);
+        }
+
+        size_t plain_len =
+            0u;
+
+        if (crypto_symmetric_decrypt(
+                client,
+                key,
+                frame.data,
+                frame.length,
+                client->tx_crypto,
+                sizeof(client->tx_crypto),
+                &plain_len) !=
+            AETHER_OK) {
+
+            return
+                fail(
+                    client,
+                    AETHER_ERR_CRYPTO);
+        }
+
+        aether_status_t status =
+            frame.kind ==
+                AETHER_REG_UNSAFE_FRAME_ENTER
+                ? handle_reg_safe_plain(
+                      client,
+                      client->tx_crypto,
+                      plain_len)
+                : handle_global_plain(
+                      client,
+                      client->tx_crypto,
+                      plain_len);
+
+        if (status != AETHER_OK) {
+            return status;
+        }
+
+        reader.pos =
+            frame_start +
+            consumed;
+
+        continue;
+
 
         return
             fail(
@@ -3128,6 +2989,7 @@ static aether_status_t send_authorized_plain(
         return AETHER_ERR_OVERFLOW;
     }
 
+
     return
         transport_send(
             client,
@@ -3135,6 +2997,23 @@ static aether_status_t send_authorized_plain(
             outer.data,
             outer.pos);
 }
+
+
+static aether_status_t generated_authorized_send(
+    void *ctx,
+    const uint8_t *data,
+    size_t length) {
+
+    if (ctx == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    return send_authorized_plain(
+        (aether_client_t *)ctx,
+        data,
+        length);
+}
+
 
 
 static aether_status_t send_ping(
@@ -4219,39 +4098,27 @@ aether_status_t aether_client_send_message(
         next_request_id(
             client);
 
-    writer_t inner = {
-        client->tx_plain,
-        sizeof(client->tx_plain),
-        0u,
-        false
+    message_t message = {
+        .uid = destination,
+        .data = {
+            .data = data,
+            .length = length
+        }
     };
 
-    w_u8(
-        &inner,
-        AUTH_SEND_MESSAGE_WITH_RESULT);
-
-    w_u32le(
-        &inner,
-        request_id);
-
-    w_uuid(
-        &inner,
-        destination);
-
-    w_byte_array(
-        &inner,
-        data,
-        length);
-
-    if (inner.failed) {
-        return AETHER_ERR_OVERFLOW;
-    }
+    authorized_api_remote_t authorized = {
+        .send_ctx = client,
+        .send = generated_authorized_send,
+        .tx = client->tx_plain,
+        .tx_capacity =
+            sizeof(client->tx_plain)
+    };
 
     aether_status_t status =
-        send_authorized_plain(
-            client,
-            inner.data,
-            inner.pos);
+        authorized_api_send_message_with_result(
+            &authorized,
+            request_id,
+            &message);
 
     if (status != AETHER_OK) {
         return status;

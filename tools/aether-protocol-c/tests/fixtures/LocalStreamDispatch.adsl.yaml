@@ -1,0 +1,24 @@
+
+api:
+  InnerApi:
+    methods:
+      ping:
+        id: 3
+
+  LocalApi:
+    methods:
+      enter:
+        id: 3
+        params:
+          stream:
+            name: SafeStream
+            stream:
+              api: InnerApi
+
+      enterGlobal:
+        id: 4
+        params:
+          stream:
+            name: GlobalStream
+            stream:
+              api: InnerApi

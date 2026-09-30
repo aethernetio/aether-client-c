@@ -1,0 +1,16 @@
+
+types:
+  Cloud:
+    fields:
+      data: short[]
+
+api:
+  GlobalApi:
+    methods:
+      finish:
+        id: 4
+        returns:
+          fields:
+            alias: uuid
+            uid: uuid
+            cloud: Cloud

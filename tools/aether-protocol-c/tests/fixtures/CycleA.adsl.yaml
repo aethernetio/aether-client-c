@@ -1,0 +1,8 @@
+
+include:
+  - CycleB
+
+types:
+  CycleTypeA:
+    fields:
+      value: int

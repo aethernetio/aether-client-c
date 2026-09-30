@@ -1,374 +1,585 @@
 
-[C client API/refactor invariants]
-Repository: /home/angel/projects/aether-client-c
-Goal: preserve already-working real C P2P wire behavior while simplifying public API and splitting src/aether_client.c by responsibility.
-Required module direction: aether_codec.c, aether_state.c, aether_cloud.c, aether_registration.c, aether_work.c, with src/aether_internal.h for non-public interfaces.
-Do not introduce heap allocation.
-Do not change FastMeta wire encoding. UUID encoding is canonical MSB big-endian + LSB big-endian; ordinary numeric primitives remain little-endian.
-Do not change persistent binary state format unless explicitly required.
-Keep low-level aether_client.h and advanced aether_client_app.h available.
-Final normal application API should be a small aether.h facade.
-README.md must not be modified unless the user explicitly asks.
-First refactor step is intentionally mechanical: extract codec primitives without changing protocol semantics.
-
-[Public API architecture correction]
-The high-level API must not wait for a hardcoded P256 production root key.
-Generic aether.h/aether.c should depend on a platform-provider boundary. A concrete platform adapter owns transport, persistence, crypto, PoW, trust roots, DNS and monotonic time.
-This allows the application surface to remain:
-  aether_t client;
-  aether_init(&client, on_message, user);
-  aether_start(&client);
-  aether_send(&client, destination, data, size);
-with optional stop/poll/uid/is_ready and advanced config.
-The monolithic src/aether_client.c remains unchanged.
-ESP32 will later provide the concrete default provider; host tests can provide a test provider.
-
-[FINAL public/platform API boundary]
-Do not split src/aether_client.c.
-
-Application-facing API and platform integration are separate layers.
-
-Application code must NOT construct aether_client_platform_t and must NOT know about sockets, DNS, clocks, crypto providers, PoW, trust roots or transport callbacks.
-
-Application-facing aether.h should require only application-owned information:
-- parent UID
-- persistence load/save callbacks and their context
-- message callback and application context
-- optional ready/error callbacks and advanced timing/registration overrides
-
-A ready platform port such as platform/esp32/aether_platform_esp32.c owns:
-- TCP/UDP sockets and framing
-- DNS resolver
-- monotonic clock
-- network polling/event integration
-- crypto backend
-- proof-of-work implementation
-- trusted root signing keys
-- binding transport callbacks to the core
-
-Thus an ESP32 user should be able to use approximately:
-  aether_config_t config;
-  aether_config_default(&config);
-  config.parent_uid = MY_PARENT;
-  config.storage.load = my_flash_load;
-  config.storage.save = my_flash_save;
-  config.on_message = on_message;
-  aether_init(&client, &config);
-  aether_start(&client);
-
-For common platforms we can ship ready integration files; only unusual/custom platforms need to implement the porting contract.
-
-[Public API/platform split implemented]
-The generic application-facing facade now exposes parent UID, persistence load/save, callbacks and optional application-level registration/timing settings only.
-
-Low-level platform plumbing moved behind include/aether_platform.h:
-  aether_platform_init()
-  aether_platform_deinit()
-
-A ready target integration supplies transport, DNS, monotonic time, crypto, PoW, trust roots and network pumping internally.
-
-Application code no longer constructs or references aether_client_platform_t.
-
-Next concrete target is platform/esp32/aether_platform_esp32.c, using ESP-IDF/lwIP and the existing ESP32 crypto backend. src/aether_client.c remains monolithic and unchanged.
-
-[SCOPE CORRECTION - public C API]
-The task is deliberately narrow.
-
-The existing C client implementation, protocol, FSM, persistence format, crypto behavior and tested P2P path are treated as working code and must not be redesigned or revalidated against Java.
-
-Do not inspect Java implementation to design the C public API.
-
-Required structure:
-
-1. Existing src/aether_client.c remains the working monolithic core.
-
-2. Existing aether_client_app remains the intermediate facade.
-
-3. New aether.h is the simple application API.
-
-4. Platform-specific integration files may be supplied for common targets.
-   For ESP32, such a file should only adapt already-existing C functionality:
-   - existing ESP32 P256/AES-GCM backend
-   - ESP-IDF/lwIP sockets
-   - DNS
-   - monotonic timer
-   - other mechanical platform callbacks already required by aether_client_platform_t
-
-5. Application code should only need application-owned configuration such as:
-   - parent UID
-   - flash/state load callback
-   - flash/state save callback
-   - message callback
-   - optional ready/error callbacks
-
-6. Do not make application code construct aether_client_platform_t.
-
-7. Do not reimplement crypto algorithms in the platform adapter.
-   ESP32 integration must reuse the existing:
-     platform/esp32/aether_crypto_p256_aes_gcm.c
+AETHER C CLIENT — ARCHITECTURE CONTEXT FOR AI
+=============================================
 
-8. Trust/protocol/server design is outside this API task. Do not search Java or redesign trust merely to create the facade.
+Purpose of this file
+--------------------
 
-9. Do not split the monolithic core.
+This file is the compact architectural context that should be supplied to an AI before it changes this repository.
 
-[Thin ESP32 public API integration]
-Implemented the narrow platform split requested by the user.
-
-Application API remains limited to:
-- parent UID
-- state load/save
-- message callback
-- optional ready/error callbacks
-- start/poll/send
-
-The ESP32 adapter is separate and mechanically wires:
-- existing aether_esp32_p256_aes_gcm_crypto()
-- lwIP TCP/UDP sockets
-- existing PackNumber TCP framing behavior
-- getaddrinfo DNS
-- esp_timer monotonic time
-- existing currently-supported PoW contract
-- transport bind/poll callbacks
-
-No Hydrogen is used by the ESP32 adapter.
-No crypto algorithm was reimplemented.
-src/aether_client.c remains monolithic.
-
-Trust provisioning is a platform-package hook, aether_esp32_trusted_sign_keys(), not application configuration. It therefore does not leak platform/trust plumbing into normal user code.
-
-[API simplification proven from existing P2P test]
-The existing working p2p_e2e.c was used as the source of truth.
-
-No protocol/crypto/FSM behavior was redesigned.
-
-The old test mixed:
-- actual P2P scenario
-- flash implementation
-- callbacks/state tracking
-- resolver/clock
-- transport bind/poll
-- PoW
-- crypto/root selection
-- platform construction
+It is intentionally NOT:
+- a development diary;
+- a task specification;
+- a list of old bugs;
+- a transcript of previous AI work;
+- a changelog.
 
-Those responsibilities are now separated.
-
-tests/p2p_e2e.c is only the scenario:
-- create A and B
-- start
-- wait ready
-- send A->B
-- send B->A
-- validate
-- stop
+Keep it current when the architecture changes. Prefer durable design facts, invariants, file locations, ownership rules, regeneration commands, and validation requirements.
 
-Existing platform behavior was moved unchanged behind host_aether_platform.c.
-Test-specific flash/callback/wait/assert boilerplate moved behind p2p_test_support.c.
+Repository purpose
+------------------
 
-This is the intended model for application API design: normal application code must not repeat platform construction.
+This repository contains the C implementation of the Aether client.
 
-[Minimal public API boundary]
-The simple application API is intentionally much smaller than aether_client_app.
+The runtime is designed for small systems, including MCUs. The core library is intentionally usable without a heap. Application-owned storage, fixed client state, caller-provided protocol buffers, and platform callbacks are preferred over hidden allocation.
 
-aether_config_t now contains only:
-- parent_uid
-- load
-- save
-- on_message
-- optional on_ready
-- optional on_error
-- ctx
+The repository also contains a C ADSL compiler/generator used to produce protocol bindings from the same ADSL schemas used by the other Aether implementations.
 
-It does NOT expose:
-- registration URI
-- ping interval
-- RX window
-- request timeout
-- transport
-- crypto
-- PoW
-- trusted roots
-- resolver
-- clock
-- bind/poll platform construction
+Primary design goals
+--------------------
 
-Those already belong to the existing advanced/platform layers.
+1. Small linked firmware footprint.
+2. No mandatory heap allocation in the client runtime.
+3. Explicit ownership and lifetime.
+4. Platform independence.
+5. Protocol compatibility with the Java/TypeScript Aether implementations.
+6. Generated protocol code must come from ADSL, not from manually duplicated API definitions.
+7. Generated code size is evaluated by linked firmware size, not by source size or static-library/object size.
+8. Common serialization code is shared only where sharing actually reduces linked size.
+9. `-ffunction-sections -fdata-sections` plus linker garbage collection is an important part of the size model.
 
-The local P2P E2E needs localhost and special timing, so it correctly continues to use aether_client_app internally. Its visible scenario remains short, while the original working setup was moved unchanged into p2p_test_support.c.
+Top-level architecture
+----------------------
 
-Do not force test-only/advanced configuration into the simple public API.
+The code can be understood as five layers:
 
-[Public API simplification after Java comparison]
+1. Public client/runtime API
+   - `include/aether_client.h`
+   - `src/aether_client.c`
 
-The Java PointToPointTest makes the intended usability level clearer.
+2. Application and asynchronous helpers
+   - `include/aether_client_app.h`
+   - `include/aether_rx.h`
+   - `include/aether_send_future.h`
+   - matching `src/*.c` files
 
-For an ordinary Arduino/ESP32 application, persistence must also be hidden by the ready platform package. Requiring every sketch author to implement flash_load/flash_save defeats the purpose of a beginner-friendly library.
+3. Platform/transport boundary
+   - `include/aether_platform.h`
+   - platform implementations such as the ESP32 port
 
-New normal-user target:
+4. Protocol and registration bindings
+   - production generated code under `src/generated/`
+   - shared wire primitives in:
+     - `include/aether_meta_runtime.h`
+     - `src/aether_meta_runtime.c`
 
-    aether_t client;
+5. ADSL compiler/generator
+   - `tools/aether-protocol-c/`
+   - parser/model: `src/adsl.c`
+   - emitter: `src/emitter.c`
+   - CLI: `src/main.c`
+   - public generator interface: `include/adslc.h`
+   - generator regression tests: `tests/`
 
-    void on_message(
-        aether_t *client,
-        aether_uuid_t from,
-        const uint8_t *data,
-        size_t size) {
-        ...
-    }
+Public client object and ownership
+----------------------------------
 
-    void setup(void) {
-        aether_init(&client, parent_uid);
-        aether_on_message(&client, on_message);
-        aether_start(&client);
-    }
+`aether_client_t` is the central runtime state object.
 
-    void loop(void) {
-        aether_poll(&client);
-    }
+Important ownership rule:
+- the caller owns the `aether_client_t` storage;
+- the client does not require dynamic allocation for its normal runtime state;
+- pointers passed as configuration/storage must remain valid for the documented lifetime;
+- transport/platform state is provided through explicit platform integration rather than hidden process-global allocation.
 
-    ...
-    aether_send(&client, peer_uid, data, size);
+Current measured `sizeof(aether_client_t)`:
+- 4432 bytes on the current host build.
 
-The selected platform package owns:
-- persistence implementation
-- networking
-- DNS
-- clock
-- crypto
-- PoW
-- trust
-- framing/pumping
+Do not casually add large arrays or platform-specific state to `aether_client_t`. MCU RAM footprint is a first-class constraint.
 
-The simple callback receives aether_t* instead of requiring an opaque user context. This is easier for Arduino users and still lets a callback identify which client fired it.
+Client lifecycle
+----------------
 
-Advanced/custom applications retain aether_client_app.h and the low-level platform API.
+The main lifecycle is implemented in `src/aether_client.c`.
 
-[ESP32 persistence organization decision]
+The important public/runtime stages are:
 
-Do not expose raw flash addresses/offsets in the beginner API.
+1. Initialize client state.
+2. Start the client/transport.
+3. Drive progress by polling and by transport callbacks.
+4. Receive transport state changes through the client transport-state entry point.
+5. Feed received bytes into the RX path.
+6. Run registration when persistent registration state is unavailable or invalid.
+7. Enter the authorized state.
+8. Send/receive application messages.
+9. Stop/tear down without assuming heap ownership.
 
-Use logical Aether storage slots.
+The implementation is event/state driven. Do not introduce blocking protocol loops into the core client.
 
-Default:
-    aether_init(&client, parent_uid);
-uses Aether storage slot 0.
+Transport callbacks and polling can interact with the same state machine. When changing transitions, reason about:
+- whether a callback may arrive immediately;
+- whether an operation can complete synchronously;
+- whether state is committed before invoking code that may re-enter the client;
+- whether a timeout/retry path can see partially updated state.
 
-Optional multiple independent Aether identities should use a logical slot API, likely:
-    aether_init_slot(&client, parent_uid, slot);
-unless inspection shows state is first loaded only at start, in which case a pre-start setter may be cleaner.
+RX architecture
+---------------
 
-ESP32 implementation should map Aether slots to its own NVS namespace/keys, e.g. namespace "aether", keys "state0", "state1", etc.
+RX code is split from the main client so different receive strategies can be linked independently.
 
-Application-owned persistent data is NOT stored through Aether. Arduino/ESP32 application code continues to use normal Preferences/NVS with its own namespace such as "myapp". Thus Aether state and application state coexist safely without exposing physical flash layout.
+Relevant files include:
+- `include/aether_rx.h`
+- `src/aether_rx_first.c`
+- `src/aether_rx_all.c`
+- `src/aether_rx_adaptive.c`
 
-Reasons:
-- no raw offset collisions;
-- NVS provides wear levelling and safer key/value persistence;
-- multiple Aether identities remain possible;
-- beginner API stays minimal;
-- Aether does not become an unrelated generic storage framework.
+`aether_client_on_rx()` is the important ingress point from the transport side.
 
-[Final storage API shape]
+Do not assume that an incoming transport chunk is exactly one logical protocol message unless the specific transport contract guarantees that. Preserve the existing framing/ingress semantics.
 
-Persistent state is loaded only when the client is started, so storage selection can be fixed during client initialization.
+Send/future architecture
+------------------------
 
-Beginner API:
+Asynchronous send tracking is implemented with the send-future layer:
+- `include/aether_send_future.h`
+- `src/aether_send_future.c`
 
-    aether_init(&client, parent_uid);
+The client supports both fire-and-forget style paths and paths that wait for a protocol result.
 
-This always uses logical Aether storage slot 0.
+Keep result/request identifiers and completion ownership explicit. Avoid allocating a future object per request on the heap.
 
-Optional advanced-but-still-simple variant:
+Platform boundary
+-----------------
 
-    aether_init_slot(
-        &client,
-        parent_uid,
-        1);
+`include/aether_platform.h` defines the platform-facing contract.
 
-This selects another independent Aether identity/state.
+Platform-specific code owns details such as:
+- transport creation and connection;
+- clocks/timers;
+- random/entropy integration where required;
+- platform context;
+- network I/O.
 
-The slot is NOT a raw flash address and must never be interpreted by application code as an offset.
+The core client must not include ESP-IDF/POSIX-specific behavior directly.
 
-Platform mapping examples:
+For MCU work, platform context is caller/fixed-storage oriented. Do not replace this with implicit heap state.
 
-ESP32:
-    NVS namespace: "aether"
-    slot 0 -> key "state0"
-    slot 1 -> key "state1"
+Registration architecture
+-------------------------
 
-Other MCU:
-    platform implementation may map the logical slot to EEPROM pages,
-    flash partitions, filesystem files, etc.
 
-Application persistent data is independent:
+Registration is a multi-stage protocol flow. The low-level client coordinates small registration adapter/build-helper modules with protocol bindings emitted from ADSL.
 
-    Arduino Preferences preferences;
-    preferences.begin("myapp", false);
+Directory naming warning
+------------------------
 
-or equivalent ESP-IDF NVS calls.
+`src/generated/` is currently a MIXED-PURPOSE directory for historical reasons.
 
-Thus both Aether and the application can share physical flash safely while using separate logical namespaces.
+It contains two different categories that must not be confused:
 
-Important safety rule for ESP32 implementation:
-Aether may initialize NVS if necessary but must NEVER erase the entire NVS partition automatically, because that could destroy application/WiFi/user data.
+1. Direct ADSL compiler output
 
-[Storage slots verification]
+   These files are produced by `tools/aether-protocol-c` and must be reproduced by changing the parser/emitter and regenerating:
 
-The selected design is intentionally simple:
+   - `client_server_api_api.*`
+   - `client_server_api_types.*`
+   - `client_server_reg_global_api.*`
+   - `client_server_reg_global_types.*`
+   - `client_server_reg_root_enter_api.*`
+   - `client_server_reg_root_enter_types.*`
+   - `client_server_reg_root_key_api.*`
+   - `client_server_reg_root_key_types.*`
+   - `client_server_reg_unsafe_local_local.*`
+   - `client_server_reg_unsafe_local_types.*`
+   - `client_server_reg_safe_api.*`
+   - `client_server_reg_safe_types.*`
+   - `client_server_reg_direct_response_response.*`
 
-Normal application:
-    aether_init(&client, parent_uid);
+2. Production registration adapters/build helpers
 
-This selects logical Aether storage slot 0 automatically.
+   These files live beside generated bindings but are not emitted by the current `aether-protocol-c` emitter:
 
-Only applications that need another independent Aether identity use:
-    aether_init_slot(&other, parent_uid, 1);
+   - `aether_reg_global.c/.h`
+   - `aether_reg_root_enter.c/.h`
+   - `aether_reg_root_key.c/.h`
+   - `aether_reg_unsafe_local.c/.h`
+   - `aether_reg_safe.c/.h`
 
-On ESP32 the ready platform integration owns persistence:
-    namespace "aether"
-    key "state<slot>"
+   They adapt the low-level client registration state machine to generated protocol bindings and contain production logic. Treat them as maintained source code unless/until a separate generator is explicitly introduced for them.
 
-Application-owned persistent data remains completely independent and uses the normal Arduino Preferences / ESP-IDF NVS API with another namespace.
+Do not infer edit policy from the directory name alone.
 
-No physical flash addresses are exposed.
-No application flash callbacks are required by the beginner API.
-No whole-NVS erase is performed by Aether.
-The existing serialized Aether state format and protocol core are unchanged.
+Conceptually the registration flow crosses different trust/protocol phases:
 
-[AIEdit file-operation rule]
+1. Global registration/bootstrap.
+2. Root entry/root key acquisition.
+3. Unsafe-local/bootstrap exchange where appropriate.
+4. Safe registration operations.
+5. Direct registration request.
+6. Direct registration response decoding.
+7. Commit registered identity/state.
+8. Continue as an authorized client.
 
-Do NOT use Python for reading or editing project files.
+Do not merge these stages merely to reduce the number of files. Their separation represents protocol/trust/state boundaries.
 
-Use native AIEdit operations:
-- view / viewMethod / struct for reading;
-- findText / findFiles for searching;
-- replace / createFile / delete for modifications.
+The production Java↔C integration test is the strongest registration compatibility gate:
 
-bash is for builds, tests and normal command execution, not for implementing file edits through Python/sed/etc.
+`:tests:test --tests io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages --rerun-tasks`
 
-[P2P test migrated to beginner public API]
+Run it from `/home/angel/projects/aether` after changes to:
+- registration adapters;
+- generated registration APIs;
+- response decoding;
+- wire primitives;
+- key serialization;
+- client registration state transitions.
 
-tests/p2p_e2e.c now exercises the same API intended for ordinary C/Arduino applications:
-- aether_t
-- aether_init() for the normal default persistent identity
-- aether_init_slot() only for the second independent test identity
-- aether_on_message()
-- aether_on_error()
-- aether_start()
-- aether_poll()
-- aether_send()
-- aether_uid()/readiness getters
-- aether_stop()
+Generated binding policy
+------------------------
 
-The test scenario no longer constructs:
-- aether_client_app_t
-- aether_client_platform_t
-- transport vtables
-- flash callbacks
-- crypto callbacks
-- PoW callbacks
-- resolver callbacks
-- clock callbacks
-- registration URI configuration
+Only the direct ADSL compiler outputs described above are generator-owned outputs.
 
-Host-only transport/Hydrogen/in-memory persistence and registration redirection live behind the same aether_platform_init/aether_platform_deinit boundary used by real platform packages.
+Rule:
+DO NOT hand-edit `client_server_*` generated protocol files as the primary fix.
+
+If direct generated output is wrong:
+1. change `tools/aether-protocol-c/src/emitter.c` or parser/model code;
+2. add/update a focused generator fixture/test;
+3. rebuild the generator;
+4. regenerate production output;
+5. run both generator and client tests.
+
+Generated production bindings are committed so consumers do not need the generator at runtime/build time.
+
+
+ADSL source of truth
+--------------------
+
+Production registration schemas are taken from the main Aether repository.
+
+Important schema:
+`/home/angel/projects/aether/client-server-reg-api/src/main/resources/ClientServerRegApi.adsl.yaml`
+
+Common include directory:
+`/home/angel/projects/aether/common-api/src/main/resources`
+
+The generator supports recursive ADSL includes and should preserve a single schema source of truth across languages.
+
+C ADSL generator
+----------------
+
+Generator root:
+`tools/aether-protocol-c/`
+
+Important files:
+- `include/adslc.h` — generator API/model-facing declarations;
+- `src/adsl.c` — ADSL parsing/model/include handling;
+- `src/emitter.c` — C type/API/local/response emission;
+- `src/main.c` — `aether-adslc` command line;
+- `tests/fixtures/` — small schemas for focused features;
+- `tests/test_generated_*.c` — generated wire/API regression tests.
+
+Important emitter responsibilities include:
+- C type generation;
+- API remote-call generation;
+- local dispatcher generation;
+- response-method decoding generation;
+- arrays;
+- enums;
+- nullable/collapsible fields;
+- hierarchy/polymorphic references;
+- stream handling;
+- intpack;
+- UUID;
+- reusable serializers where profitable.
+
+Keep generator tests small and feature-focused. A new wire-format feature should normally get a fixture plus an exact byte-level test.
+
+Wire runtime
+------------
+
+Shared serialization primitives:
+- `include/aether_meta_runtime.h`
+- `src/aether_meta_runtime.c`
+
+Writer design:
+- writers are out-of-line shared functions;
+- generated call sites pass:
+  - destination buffer;
+  - capacity;
+  - cursor/position;
+  - value;
+- no heap allocation is required;
+- writers return `aether_status_t`.
+
+The shared writer runtime is intentionally out-of-line because production generated code has many call sites and sharing reduces linked flash size.
+
+Current production generated writer usage is substantial:
+- UUID: 15 call sites;
+- pack: 14;
+- bytes: 14;
+- u16: 12;
+- u64: 9;
+- u8: 7;
+- u32: 7.
+
+Reader design:
+- `aether_meta_reader_t` is `{ data, length, position }`;
+- reader primitives are handwritten `static inline` functions in `aether_meta_runtime.h`;
+- this is deliberate.
+
+The registrationDirect response is currently the production consumer of these reader primitives. Keeping them header-inline lets `-Os` inline the profitable parts without requiring LTO while still maintaining one handwritten source of truth.
+
+Do not move readers back to per-generated-file copy/paste helpers.
+
+Current ESP32 output leaves only a small local `aether_meta_read_u16le` helper after optimization; the compiler inlines the rest where profitable. Do not force `always_inline` without measuring.
+
+Integer and byte ordering
+-------------------------
+
+Wire compatibility is more important than C-native representation.
+
+Current important rules:
+- integer primitives emitted by the shared runtime use explicit little-endian wire order;
+- UUID serialization preserves the Aether UUID wire representation: MSB and LSB halves are emitted bytewise in their required order rather than memcpy-ing a host struct;
+- variable-length byte/string data is length-prefixed through the Aether pack encoding;
+- never serialize C struct memory directly.
+
+Intpack
+-------
+
+The generator/runtime implements Aether's compact integer packing format.
+
+Do not substitute LEB128, protobuf varint, or a platform-native encoding.
+
+Both encode and decode changes require exact boundary-value tests.
+
+Polymorphic/hierarchy types
+----------------------------
+
+ADSL inheritance/hierarchy values are represented through generated reference/tagged-union style C types.
+
+The important optimization rule is selective sharing:
+
+- polymorphic hierarchy parameters such as `Key` use reusable generated serializers in `<base>_types.c`;
+- ordinary single-use concrete structs are currently serialized inline at API call sites;
+- concrete serializers can still be generated in types files and removed by linker GC when unused.
+
+This policy is measurement-driven.
+
+For the production registration API:
+- `setReturnKey` uses the shared Key serializer;
+- `registrationDirect` uses the same shared Key serializer;
+- only `client_server_reg_safe_serialize_key` survives in the linked ESP32 firmware from the generated serializer set.
+
+Do not blindly convert every concrete struct call site to an out-of-line serializer. A measured experiment increased firmware size for single-use `Cloud`.
+
+Linker garbage collection
+-------------------------
+
+The design assumes:
+- `-ffunction-sections`
+- `-fdata-sections`
+- linker section garbage collection
+
+Therefore:
+- the size of `client_server_reg_safe_types.c.o` is NOT the firmware cost;
+- the number of generated functions is NOT the firmware cost;
+- linked ELF/firmware measurements are authoritative.
+
+Always distinguish:
+1. source size;
+2. object/archive size;
+3. linked ELF text/data/bss;
+4. final firmware image size.
+
+No-heap rule
+------------
+
+The runtime must remain usable without heap allocation.
+
+Preferred patterns:
+- caller-owned structs;
+- caller-owned buffers;
+- fixed-size arrays where bounded by protocol/configuration;
+- views (`pointer + length`);
+- explicit storage passed into response decoding;
+- stack-local temporary state where bounded.
+
+Do not introduce malloc/calloc/realloc/free into the core client or generated protocol runtime without an explicit architectural decision.
+
+Crypto boundary
+---------------
+
+The client uses bundled crypto implementations/backends, including Hydrogen and the configured asymmetric backend.
+
+Crypto code is a significant part of generic object size, but object size is not equal to linked MCU footprint.
+
+Do not duplicate cryptographic primitives inside generated protocol code.
+
+Protocol code should serialize/transport keys; cryptographic operations remain behind the crypto/backend boundary.
+
+Application wrapper
+-------------------
+
+`aether_client_app` is a convenience/application layer around the lower-level client.
+
+Keep the low-level client usable without the app wrapper. Do not move fundamental transport/protocol ownership into the convenience layer.
+
+ESP32 footprint harness
+-----------------------
+
+Size harness:
+`esp32-size/`
+
+Authoritative environment:
+`esp32-port`
+
+The harness compiles the same production client pieces through small wrapper translation units so PlatformIO/ESP-IDF can measure linked footprint.
+
+Important wrapper files include:
+- `aether_client_wrap.c`
+- `aether_meta_runtime_wrap.c`
+- registration wrapper files;
+- `client_server_reg_safe_types_wrap.c`.
+
+Do not interpret an individual wrapper `.o` size as final flash usage.
+
+Current authoritative optimized checkpoint
+------------------------------------------
+
+ESP32 `esp32-port`:
+
+- `firmware.bin = 281392` bytes
+- ELF text/data/bss = `215739 / 65540 / 12001`
+- RAM reported by PlatformIO = 22752 bytes
+- `sizeof(aether_client_t) = 4432`
+
+Relevant pre-generator-optimization checkpoint:
+
+- `firmware.bin = 282080`
+- ELF text = `216431`
+
+Current optimization gain relative to that feature-equivalent baseline:
+
+- firmware: -688 bytes
+- text: -692 bytes
+- data/bss unchanged
+
+Historical commit `bce0fc3` produced a smaller 276928-byte firmware, but it predates significant registration/authorized functionality. Full linked-symbol A/B showed that almost all of that historical gap is newly added functionality, so it is NOT a valid regression target for the current feature set.
+
+Testing
+-------
+
+Host client tests:
+
+`cmake --build build-test -j2`
+`ctest --test-dir build-test --output-on-failure`
+
+Expected current result:
+6/6 tests pass.
+
+Generator tests:
+
+`cmake --build build-adsl-generator-release -j2`
+`ctest --test-dir build-adsl-generator-release --output-on-failure`
+
+Expected current result:
+15/15 tests pass.
+
+Java↔C integration:
+
+From `/home/angel/projects/aether` run:
+
+`:tests:test --tests io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages --rerun-tasks`
+
+Use the Gradle/AIEdit runner rather than inventing a different Gradle wrapper path.
+
+Expected result:
+`C public API P2P E2E PASS`
+
+ESP32 size:
+
+From `esp32-size/`:
+
+`pio run -e esp32-port`
+
+Report after meaningful runtime/generator changes:
+- `sizeof(aether_client_t)`;
+- firmware.bin size;
+- ELF text/data/bss;
+- PlatformIO RAM/flash;
+- relevant linked symbols when investigating code-size changes.
+
+Production regeneration
+-----------------------
+
+Safe ServerRegistration API:
+
+`build-adsl-generator-release/aether-adslc \
+  -I /home/angel/projects/aether/common-api/src/main/resources \
+  --api ServerRegistrationApi \
+  /home/angel/projects/aether/client-server-reg-api/src/main/resources/ClientServerRegApi.adsl.yaml \
+  /home/angel/projects/aether-client-c/src/generated \
+  client_server_reg_safe`
+
+registrationDirect response:
+
+`build-adsl-generator-release/aether-adslc \
+  -I /home/angel/projects/aether/common-api/src/main/resources \
+  --response-method ServerRegistrationApi.registrationDirect \
+  /home/angel/projects/aether/client-server-reg-api/src/main/resources/ClientServerRegApi.adsl.yaml \
+  /home/angel/projects/aether-client-c/src/generated \
+  client_server_reg_direct_response`
+
+Other generated registration modules follow the same generator model. Inspect the current CMake/source names before regenerating them rather than guessing output base names.
+
+Repository hygiene
+------------------
+
+Do not commit generator build trees:
+- `tools/aether-protocol-c/build/`
+- `tools/aether-protocol-c/build-debug/`
+- `tools/aether-protocol-c/build-release/`
+
+These contain CMake caches, generated test output, objects, archives, and executables.
+
+
+Do commit:
+- generator source;
+- generator fixtures/tests;
+- direct production ADSL bindings (`client_server_*`) under `src/generated/`;
+- maintained production registration adapters (`aether_reg_*`) currently colocated under `src/generated/`;
+- runtime source/headers;
+- intentionally maintained ESP32 size harness sources.
+
+
+`aiedit_context.yaml` is tooling context and should not be included in a feature commit unless the task explicitly changes repository tooling configuration.
+
+Editing rules for future AI work
+--------------------------------
+
+1. Read this file before changing architecture.
+2. Inspect the exact implementation before editing.
+3. Prefer surgical changes.
+4. Do not hand-edit generated production code as the primary fix.
+5. Preserve the no-heap runtime.
+6. Preserve public ownership/lifetime semantics.
+7. Treat wire compatibility as a hard requirement.
+8. Add generator fixtures/tests for generator behavior.
+9. Run host tests after runtime changes.
+10. Run generator tests after generator changes.
+11. Run Java↔C P2P after registration/wire changes.
+12. Measure ESP32 linked firmware after size-sensitive changes.
+13. Do not optimize from object-file size alone.
+14. Do not force abstraction merely for code aesthetics; measure linked size.
+15. Do not duplicate a shared runtime primitive inside generated files merely to make one translation unit look smaller.
+16. Conversely, do not force an out-of-line helper for a single-use path if it increases linked firmware.
+17. Keep README user-facing; keep AI-specific architectural detail here.
+18. Replace obsolete facts in this file instead of appending a chronological log.
+
+Current architectural conclusion
+--------------------------------
+
+The current measured size policy is intentionally hybrid:
+
+- shared out-of-line writer primitives;
+- shared out-of-line polymorphic Key serializer where reuse exists;
+- inline serialization for single-use concrete API structures;
+- generated concrete serializers remain available and are linker-GC-friendly;
+- shared handwritten header-inline reader primitives;
+- no mandatory heap allocation.
+
+This is not accidental inconsistency. It is the result of linked-size measurements on the actual ESP32 production path.
+
+When changing this policy, provide a linked A/B measurement and keep functional/wire tests green.

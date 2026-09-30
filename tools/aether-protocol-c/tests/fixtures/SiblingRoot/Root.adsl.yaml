@@ -1,0 +1,10 @@
+
+include:
+  - SiblingCommon
+
+api:
+  SiblingApi:
+    methods:
+      ping:
+        params:
+          value: SiblingValue

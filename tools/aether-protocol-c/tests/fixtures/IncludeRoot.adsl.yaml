@@ -1,0 +1,10 @@
+
+include:
+  - CommonTypes
+
+api:
+  SensorApi:
+    methods:
+      publish:
+        params:
+          reading: SensorReading

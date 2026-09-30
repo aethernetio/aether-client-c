@@ -1,6 +1,14 @@
 
+
+/*
+ * Optional caller-owned completion tracker for application send requests.
+ *
+ * Keeping this state outside aether_client_t means applications that do not need
+ * explicit request completion or timeout tracking pay no core RAM cost for it.
+ */
 #ifndef AETHER_SEND_FUTURE_H
 #define AETHER_SEND_FUTURE_H
+
 
 #include "aether_client_app.h"
 

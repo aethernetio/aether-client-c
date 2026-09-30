@@ -47,3 +47,6 @@ Thumbs.db
 # ------------------------------------------------------------
 
 /agent_context.state
+/tools/aether-protocol-c/build/
+/tools/aether-protocol-c/build-debug/
+/tools/aether-protocol-c/build-release/

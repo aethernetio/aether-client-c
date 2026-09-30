@@ -1,6 +1,37 @@
 
+
+/*
+- Low-level Aether protocol core.
+-
+- This header exposes the mechanism layer used by aether_client_app and by
+- platform integrations. Ordinary applications should prefer aether.h.
+-
+- Ownership model:
+-
+  - aether_client_t storage is owned by the caller;
+-
+  - the config structure is copied by aether_client_init();
+-
+  - pointers and callback contexts referenced by that config remain borrowed
+- and must stay valid while the client is running;
+-
+  - transport RX frames remain owned by the platform;
+-
+  - no malloc/free is required by the protocol core.
+-
+- Scheduling model:
+-
+  - the core has no background thread or hidden event loop;
+-
+  - the platform reports transport state and supplies received frames;
+-
+  - the application advances timers explicitly;
+-
+  - the core is non-reentrant. Do not recursively drive it from callbacks.
+     */
 #ifndef AETHER_CLIENT_H
 #define AETHER_CLIENT_H
+
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -152,6 +183,9 @@ typedef struct {
 
 
 
+
+
+
 /*
  * Legacy core events.
  *
@@ -247,7 +281,23 @@ typedef struct {
 
 
 
-typedef struct {
+
+/*
+- Asynchronous transport mechanism supplied by the platform.
+-
+- open() requests that a channel start connecting. Successful return means the
+- request was accepted, not that the channel is already writable. Completion
+- is reported later through aether_client_on_transport_state().
+-
+- close() releases the platform channel. It must be safe to call during error
+- recovery and shutdown.
+-
+- send() is synchronous with respect to the supplied byte span: before it
+- returns it must either transmit or copy the bytes because the core may reuse
+- its TX scratch buffer immediately.
+   */
+  typedef struct {
+
     void *ctx;
 
     /*
@@ -276,7 +326,20 @@ typedef struct {
 } aether_transport_vtable_t;
 
 
-typedef struct {
+
+/*
+- Persistent identity storage.
+-
+- load() copies the previously serialized Aether state into caller-provided
+- storage and reports the number of bytes written. A missing/empty identity is
+- handled by the higher layer as a reason to register.
+-
+- save() must persist the complete byte span before returning success. The
+- binary state format belongs to Aether; platform code should treat it as an
+- opaque blob.
+   */
+  typedef struct {
+
     void *ctx;
 
     aether_status_t (*load)(
@@ -308,7 +371,22 @@ typedef struct {
 } aether_crypto_profile_t;
 
 
-typedef struct {
+
+/*
+- Cryptographic mechanism table.
+-
+- The protocol core owns orchestration and wire semantics; the backend owns
+- primitive implementations and key material operations.
+-
+- All output is written into caller-provided buffers. A backend must never
+- retain pointers to temporary input/output spans after a call returns.
+-
+- profile describes the exact wire-visible algorithm/key identifiers and
+- lengths implemented by this backend. Changing the profile changes protocol
+- compatibility and must be validated against the canonical Aether API.
+   */
+  typedef struct {
+
     aether_crypto_profile_t profile;
 
     aether_status_t (*initialize)(
@@ -370,7 +448,17 @@ typedef struct {
 } aether_crypto_vtable_t;
 
 
-typedef struct {
+
+/*
+- Proof-of-work mechanism.
+-
+- The core supplies the server challenge and caller-owned password storage.
+- generate() writes at most capacity int32 values and returns their count.
+- Implementations may perform expensive computation internally, but ownership
+- of the challenge and result arrays remains with the caller.
+   */
+  typedef struct {
+
     void *ctx;
 
     aether_status_t (*generate)(
@@ -392,7 +480,26 @@ typedef void (*aether_event_callback_t)(
     const aether_event_t *event);
 
 
-typedef struct {
+
+/*
+- Complete low-level client configuration.
+-
+- Values are copied into aether_client_t by aether_client_init(). Pointer
+- members remain borrowed:
+-
+  - crypto and crypto_ctx must remain valid while the client is active;
+-
+  - trusted_sign_keys must remain valid for registration;
+-
+  - vtable ctx pointers are owned by their respective platform components.
+-
+- Timing values are milliseconds. A zero timing value is interpreted by the
+- implementation according to its configured/default behavior; callers should
+- normally use the higher-level configuration helpers instead of constructing
+- this structure manually.
+   */
+  typedef struct {
+
     aether_uuid_t parent_uid;
     aether_endpoint_t registration_endpoint;
 
@@ -423,7 +530,25 @@ typedef struct {
 
 
 
-typedef struct aether_client {
+
+/*
+- Caller-owned low-level client state.
+-
+- This structure intentionally contains the bounded RAM needed by the protocol
+- state machine. It is public so embedded applications can allocate it
+- statically, in a parent object, or in another explicitly controlled storage
+- region without a heap.
+-
+- Do not copy a live aether_client_t with memcpy: parser state can contain
+- borrowed transport-frame pointers and the configuration contains borrowed
+- platform contexts.
+-
+- rx_frame_data points into platform-owned storage only while rx_active is
+- true. tx_plain/tx_crypto are reusable scratch buffers. A MESSAGE ingress can
+- borrow decrypted bytes from tx_crypto until the ingress is consumed.
+   */
+  typedef struct aether_client {
+
     aether_client_config_t config;
 
     aether_state_t state;
@@ -508,81 +633,140 @@ typedef struct aether_client {
 } aether_client_t;
 
 
-void aether_client_init(
-    aether_client_t *client,
-    const aether_client_config_t *config);
-
-aether_status_t aether_client_start(
-    aether_client_t *client);
-
-aether_status_t aether_client_retry(
-    aether_client_t *client);
-
-void aether_client_stop(
-    aether_client_t *client);
-
-void aether_client_poll(
-    aether_client_t *client,
-    uint64_t now_ms);
-
-void aether_client_on_transport_state(
-    aether_client_t *client,
-    aether_channel_t channel,
-    bool writable);
-
 
 /*
- * Process/resume one borrowed transport frame.
- *
- * For work traffic this function may stop after producing one ingress item.
- * In that case aether_client_rx_active() stays true and the caller must NOT
- * release or mutate data.
- *
- * After the ingress has been consumed, call this function again with the same
- * channel/data/length to resume parsing.
- *
- * The frame is completely consumed only when aether_client_rx_active() becomes
- * false.
- */
-aether_status_t aether_client_on_rx(
-    aether_client_t *client,
-    aether_channel_t channel,
-    const uint8_t *data,
-    size_t length);
-
-
+- Initialize caller-owned client storage.
+-
+- No network operation is started here. The config value is copied, but
+- pointer/context members inside it remain borrowed for the lifetime of the
+- initialized client.
+   */
+  void aether_client_init(
+   aether_client_t *client,
+   const aether_client_config_t *config);
 /*
- * Inspect/consume the single yielded application item.
- */
-const aether_ingress_t *aether_client_ingress(
-    const aether_client_t *client);
-
-void aether_client_consume_ingress(
-    aether_client_t *client);
-
-
+- Start or restore the protocol state machine.
+-
+- Persistent state is loaded when available. Otherwise the client enters
+- registration. Transport establishment is asynchronous; AETHER_OK means that
+- startup was accepted, not that the client is already READY.
+   */
+  aether_status_t aether_client_start(
+   aether_client_t *client);
 /*
- * True while a borrowed work frame remains pinned by the parser.
- */
-bool aether_client_rx_active(
-    const aether_client_t *client);
-
-aether_channel_t aether_client_rx_channel(
-    const aether_client_t *client);
-
-
-aether_status_t aether_client_send_message(
-    aether_client_t *client,
-    aether_uuid_t destination,
-    const uint8_t *data,
-    size_t length,
-    uint32_t *request_id_out);
-
+- Retry after a recoverable client error using the existing configuration and
+- persistent state. The caller remains responsible for driving transport/timers
+- afterwards.
+   */
+  aether_status_t aether_client_retry(
+   aether_client_t *client);
+/*
+- Stop protocol activity and close active channels.
+-
+- This does not free caller-owned client or platform storage.
+   */
+  void aether_client_stop(
+   aether_client_t *client);
+/*
+- Advance protocol timers using a monotonic millisecond clock.
+-
+- now_ms must not be wall-clock time and must not move backwards during a
+- running client lifetime. This function does not create a background scheduler;
+- the application/platform decides how often it is called.
+   */
+  void aether_client_poll(
+   aether_client_t *client,
+   uint64_t now_ms);
+/*
+- Report a platform transport state transition.
+-
+- writable=true means that send() can be used on this channel and may cause the
+- core to emit the next protocol request immediately.
+-
+- writable=false reports disconnect/failure and can trigger reconnect logic.
+-
+- Do not call this recursively while the core is already executing a client
+- callback or parser step.
+   */
+  void aether_client_on_transport_state(
+   aether_client_t *client,
+   aether_channel_t channel,
+   bool writable);
+/*
+- Process or resume one borrowed transport frame.
+-
+- The frame is owned by the platform. For work traffic the parser can stop
+- after yielding one application ingress item. In that case:
+-
+-
+  - aether_client_rx_active() remains true;
+-
+  - data/length must remain unchanged and alive;
+-
+  - the caller processes and consumes the ingress;
+-
+  - the same channel/data/length is passed again to resume parsing.
+-
+- The frame may be released only after aether_client_rx_active() becomes false.
+-
+- A non-OK result invalidates the current parser step and the implementation
+- clears the pinned RX state before propagating the error.
+   */
+  aether_status_t aether_client_on_rx(
+   aether_client_t *client,
+   aether_channel_t channel,
+   const uint8_t *data,
+   size_t length);
+/*
+- Return the single application-visible item currently yielded by the parser.
+-
+- The returned pointer belongs to client. MESSAGE payload bytes are borrowed
+- from client scratch storage and remain valid only until
+- aether_client_consume_ingress().
+   */
+  const aether_ingress_t *aether_client_ingress(
+   const aether_client_t *client);
+/*
+- Release the current ingress item so parsing of a pinned frame can continue.
+- Calling this function transfers no memory ownership to the core; it only
+- releases the parser's logical hold on the yielded item.
+   */
+  void aether_client_consume_ingress(
+   aether_client_t *client);
+/*
+- Return true while the parser still owns a borrow of the current transport
+- frame. Platform code must not recycle or mutate that frame while true.
+   */
+  bool aether_client_rx_active(
+   const aether_client_t *client);
+/*
+- Return the channel associated with the currently pinned RX frame.
+- The value is meaningful when aether_client_rx_active() is true.
+   */
+  aether_channel_t aether_client_rx_channel(
+   const aether_client_t *client);
+/*
+- Serialize and send one application message through the READY work channel.
+-
+- data is borrowed only for the duration of this call. The generated request ID
+- is written to request_id_out when that pointer is non-NULL.
+-
+- Completion, remote error and local timeout can be observed through ingress or
+- through the optional caller-owned send-future component.
+   */
+  aether_status_t aether_client_send_message(
+   aether_client_t *client,
+   aether_uuid_t destination,
+   const uint8_t *data,
+   size_t length,
+   uint32_t *request_id_out);
+/* Return the current protocol state without advancing the client. */
 aether_state_t aether_client_state(
     const aether_client_t *client);
-
+/* Return whether a persistent/active Aether identity has been established. */
 bool aether_client_is_registered(
     const aether_client_t *client);
+
 
 
 #ifdef __cplusplus

@@ -1,6 +1,14 @@
 
+
+/*
+ * Optional caller-owned receive policies for already-decoded ingress.
+ *
+ * These components contain application policy only. They never parse protocol
+ * bytes and never own the borrowed MESSAGE payload.
+ */
 #ifndef AETHER_RX_H
 #define AETHER_RX_H
+
 
 #include "aether_client.h"
 

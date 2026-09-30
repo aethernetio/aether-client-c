@@ -1,0 +1,7 @@
+
+api:
+  TemperatureSensorApi:
+    methods:
+      reportTemperature:
+        params:
+          temperature: float

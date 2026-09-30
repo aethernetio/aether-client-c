@@ -1,6 +1,15 @@
 
+
+/*
+ * Internal target-port contract used by the beginner facade.
+ *
+ * A ready platform package translates opaque fixed storage into the complete
+ * aether_client_platform_t mechanism bundle. This keeps application code free
+ * from sockets, flash drivers, clocks, crypto providers and trust configuration.
+ */
 #ifndef AETHER_PLATFORM_H
 #define AETHER_PLATFORM_H
+
 
 #include "aether.h"
 

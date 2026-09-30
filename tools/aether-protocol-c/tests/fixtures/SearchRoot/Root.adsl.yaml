@@ -1,0 +1,11 @@
+
+include:
+  - shared
+
+api:
+  SearchRootApi:
+    methods:
+      send:
+        id: 3
+        params:
+          value: SharedValue

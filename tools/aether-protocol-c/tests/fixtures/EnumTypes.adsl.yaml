@@ -1,0 +1,22 @@
+
+types:
+  Mode:
+    enum:
+      - OFF
+      - ON
+      - AUTO
+
+  DeviceState:
+    fields:
+      mode: Mode
+      value: short
+
+api:
+  EnumApi:
+    methods:
+      setMode:
+        params:
+          mode: Mode
+      sendState:
+        params:
+          state: DeviceState

@@ -4,17 +4,25 @@ project(aether_client_c C)
 
 
 
+
 add_library(aether_client STATIC
+
     src/aether_client.c
+    src/aether_meta_runtime.c
     src/aether_client_app.c
+
     src/aether_rx_first.c
     src/aether_rx_all.c
     src/aether_rx_adaptive.c
 
     src/aether_send_future.c
 
+
+    src/generated/client_server_api_api.c
+
     src/aether.c
 )
+
 
 
 
@@ -321,3 +329,35 @@ target_link_libraries(
         COMMAND aether_hydrogen_test
     )
 endif()
+
+
+target_sources(aether_client PRIVATE
+    src/generated/client_server_reg_global_api.c
+    src/generated/aether_reg_global.c
+)
+
+
+target_sources(aether_client PRIVATE
+    src/generated/client_server_reg_safe_api.c
+    src/generated/client_server_reg_safe_types.c
+    src/generated/aether_reg_safe.c
+)
+
+
+target_sources(aether_client PRIVATE
+    src/generated/client_server_reg_root_key_api.c
+    src/generated/aether_reg_root_key.c
+    src/generated/client_server_reg_root_enter_api.c
+    src/generated/aether_reg_root_enter.c
+)
+
+
+target_sources(aether_client PRIVATE
+    src/generated/client_server_reg_unsafe_local_local.c
+    src/generated/aether_reg_unsafe_local.c
+)
+
+
+target_sources(aether_client PRIVATE
+    src/generated/client_server_reg_direct_response_response.c
+)

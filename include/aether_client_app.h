@@ -1,6 +1,19 @@
 
+
+/*
+ * Advanced application/platform facade.
+ *
+ * This layer connects the low-level protocol state machine to an explicit bundle
+ * of platform mechanisms while keeping scheduling and optional ingress policy in
+ * caller-owned code.
+ *
+ * It is useful for custom ports, host tests and applications that need direct
+ * access to borrowed ingress items. Ordinary applications should prefer
+ * aether.h.
+ */
 #ifndef AETHER_CLIENT_APP_H
 #define AETHER_CLIENT_APP_H
+
 
 #include "aether_client.h"
 

@@ -1,0 +1,42 @@
+
+types:
+  Event:
+    abstract: true
+    fields:
+      source: byte
+      note: String?
+
+  SensorEvent:
+    abstract: true
+    parent: Event
+    fields:
+      sequence: short
+
+  TemperatureEvent:
+    id: 7
+    parent: SensorEvent
+    fields:
+      temperature: float
+
+  TextEvent:
+    id: 9
+    parent: Event
+    fields:
+      text: String
+
+  EventEnvelope:
+    fields:
+      event: Event
+
+api:
+  HierarchyApi:
+    methods:
+      sendEvent:
+        params:
+          event: Event
+      sendEnvelope:
+        params:
+          envelope: EventEnvelope
+      sendTemperature:
+        params:
+          event: TemperatureEvent

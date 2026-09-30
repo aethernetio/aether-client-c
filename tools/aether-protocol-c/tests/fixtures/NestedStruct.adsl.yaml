@@ -1,0 +1,23 @@
+
+types:
+  Outer:
+    fields:
+      middle: Middle
+      name: String
+      count: intpack
+
+  Middle:
+    fields:
+      inner: Inner
+      id: UUID
+
+  Inner:
+    fields:
+      sample: short
+
+api:
+  NestedApi:
+    methods:
+      send:
+        params:
+          value: Outer

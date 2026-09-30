@@ -1,0 +1,96 @@
+
+types:
+  NullableInner:
+    fields:
+      code: short
+
+  NullableMixed:
+    fields:
+      maybeShort: short?
+      required: byte
+      maybeName: String?
+      maybeInner: NullableInner?
+
+  Mask9:
+    fields:
+      n0: byte?
+      n1: byte?
+      n2: byte?
+      n3: byte?
+      n4: byte?
+      n5: byte?
+      n6: byte?
+      n7: byte?
+      n8: byte?
+
+  Mask17:
+    fields:
+      n0: byte?
+      n1: byte?
+      n2: byte?
+      n3: byte?
+      n4: byte?
+      n5: byte?
+      n6: byte?
+      n7: byte?
+      n8: byte?
+      n9: byte?
+      n10: byte?
+      n11: byte?
+      n12: byte?
+      n13: byte?
+      n14: byte?
+      n15: byte?
+      n16: byte?
+
+  Mask33:
+    fields:
+      n0: byte?
+      n1: byte?
+      n2: byte?
+      n3: byte?
+      n4: byte?
+      n5: byte?
+      n6: byte?
+      n7: byte?
+      n8: byte?
+      n9: byte?
+      n10: byte?
+      n11: byte?
+      n12: byte?
+      n13: byte?
+      n14: byte?
+      n15: byte?
+      n16: byte?
+      n17: byte?
+      n18: byte?
+      n19: byte?
+      n20: byte?
+      n21: byte?
+      n22: byte?
+      n23: byte?
+      n24: byte?
+      n25: byte?
+      n26: byte?
+      n27: byte?
+      n28: byte?
+      n29: byte?
+      n30: byte?
+      n31: byte?
+      n32: byte?
+
+api:
+  NullableApi:
+    methods:
+      sendMixed:
+        params:
+          value: NullableMixed
+      sendMask9:
+        params:
+          value: Mask9
+      sendMask17:
+        params:
+          value: Mask17
+      sendMask33:
+        params:
+          value: Mask33

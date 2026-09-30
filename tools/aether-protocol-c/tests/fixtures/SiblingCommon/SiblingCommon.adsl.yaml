@@ -1,0 +1,5 @@
+
+types:
+  SiblingValue:
+    fields:
+      value: int

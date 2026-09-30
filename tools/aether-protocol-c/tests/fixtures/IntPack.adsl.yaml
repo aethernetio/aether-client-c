@@ -1,0 +1,15 @@
+
+types:
+  PackHolder:
+    fields:
+      value: intpack
+
+api:
+  PackApi:
+    methods:
+      sendValue:
+        params:
+          value: intpack
+      sendHolder:
+        params:
+          holder: PackHolder

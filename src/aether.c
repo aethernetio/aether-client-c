@@ -1,8 +1,24 @@
 
+
+/*
+ * Beginner facade implementation.
+ *
+ * This file contains policy glue, not protocol implementation:
+ *
+ *     aether.h -> aether_client_app -> aether_client core
+ *
+ * Target-specific mechanisms enter only through aether_platform_init() and
+ * aether_platform_deinit().
+ *
+ * The weak platform definitions below are an unsupported fallback for builds
+ * that do not select a real target package. Production ports override them with
+ * strong definitions. Do not add ESP32/POSIX-specific mechanisms here.
+ */
 #include "aether.h"
 #include "aether_platform.h"
 
 #include <string.h>
+
 
 
 #if defined(__GNUC__) || defined(__clang__)

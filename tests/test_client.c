@@ -933,10 +933,16 @@ static void test_full_registration_and_message(void) {
         c.temp_key,
         32u);
 
+
     assert(take8(
         registration_plain,
         registration_plain_len,
-        &registration_pos)==3u); /* registration */
+        &registration_pos)==7u); /* registrationDirect */
+
+    assert(take32(
+        registration_plain,
+        registration_plain_len,
+        &registration_pos)==c.req_finish);
 
     size_t sent_salt_len=0u;
     const uint8_t *sent_salt=
@@ -979,58 +985,20 @@ static void test_full_registration_and_message(void) {
         &registration_pos,
         cfg.parent_uid);
 
-    size_t global_cipher_len=0u;
-    const uint8_t *global_cipher=
-        take_array(
-            registration_plain,
-            registration_plain_len,
-            &registration_pos,
-            &global_cipher_len);
-
-    assert(registration_pos==registration_plain_len);
-
-    uint8_t global_plain[512];
-    size_t global_plain_len=0u;
-
-    assert(aether_hydrogen_asymmetric_decrypt(
-        f.global_kx.pk,
-        f.global_kx.sk,
-        global_cipher,
-        global_cipher_len,
-        global_plain,
-        sizeof(global_plain),
-        &global_plain_len)==0);
-
-    size_t global_pos=0u;
-
     assert(take8(
-        global_plain,
-        global_plain_len,
-        &global_pos)==3u); /* setMasterKey */
-
-    assert(take8(
-        global_plain,
-        global_plain_len,
-        &global_pos)==3u); /* HydrogenSecretBox */
+        registration_plain,
+        registration_plain_len,
+        &registration_pos)==3u); /* HydrogenSecretBox masterKey */
 
     expect_bytes(
-        global_plain,
-        global_plain_len,
-        &global_pos,
+        registration_plain,
+        registration_plain_len,
+        &registration_pos,
         c.master_key,
         32u);
 
-    assert(take8(
-        global_plain,
-        global_plain_len,
-        &global_pos)==4u); /* finish */
+    assert(registration_pos==registration_plain_len);
 
-    assert(take32(
-        global_plain,
-        global_plain_len,
-        &global_pos)==c.req_finish);
-
-    assert(global_pos==global_plain_len);
 
 
     aether_uuid_t alias={0x0102030405060708ULL,0x1112131415161718ULL};
@@ -1044,8 +1012,10 @@ static void test_full_registration_and_message(void) {
     put_pack(pow_plain,&q,1);
     put16(pow_plain,&q,7);
 
+
     put_encrypted_packet(
-        packet,&p,4,c.master_key,pow_plain,q);
+        packet,&p,3,c.temp_key,pow_plain,q);
+
 
     assert(aether_client_on_rx(
         &c,AETHER_CHANNEL_REGISTRATION,packet,p)==AETHER_OK);

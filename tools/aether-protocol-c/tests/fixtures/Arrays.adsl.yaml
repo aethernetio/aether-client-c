@@ -1,0 +1,29 @@
+
+types:
+  ArrayItem:
+    fields:
+      code: short
+
+  ArrayHolder:
+    fields:
+      bytes: byte[]
+      shorts: short[]
+      ids: UUID[]
+      names: String[]
+      items: ArrayItem[]
+      fixedBytes: byte[4]
+      fixedShorts: short[3]
+      maybeBytes: byte[]?
+
+api:
+  ArrayApi:
+    methods:
+      sendHolder:
+        params:
+          value: ArrayHolder
+      sendShorts:
+        params:
+          values: short[]
+      sendFixed:
+        params:
+          values: byte[4]

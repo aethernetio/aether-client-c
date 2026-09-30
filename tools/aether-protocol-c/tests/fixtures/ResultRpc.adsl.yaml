@@ -1,0 +1,20 @@
+
+api:
+  ResultApi:
+    methods:
+      notify:
+        id: 3
+        params:
+          value: int
+
+      finish:
+        id: 4
+        returns: void
+        params:
+          value: int
+
+      query:
+        id: 5
+        returns: bool
+        params:
+          code: short

@@ -1,7 +1,17 @@
 
+
+/*
+ * Advanced application facade.
+ *
+ * This layer owns URI/DNS/platform scheduling glue and converts low-level
+ * protocol state into the pull-ingress application model. It copies the supplied
+ * config/platform mechanism tables into caller-owned aether_client_app_t and
+ * performs no heap allocation.
+ */
 #include "aether_client_app.h"
 
 #include <string.h>
+
 
 
 const aether_uuid_t AETHER_ANONYMOUS_UID = {

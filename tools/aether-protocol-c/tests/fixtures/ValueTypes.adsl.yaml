@@ -1,0 +1,12 @@
+
+api:
+  ValueApi:
+    methods:
+      sendValues:
+        params:
+          id: UUID
+          name: String
+          endpoint: URI
+      sendText:
+        params:
+          text: string

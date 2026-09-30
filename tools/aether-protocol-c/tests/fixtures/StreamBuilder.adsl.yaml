@@ -1,0 +1,19 @@
+
+types:
+  CommandStream:
+    stream:
+      api: StreamApi
+
+api:
+  StreamApi:
+    methods:
+      appendValue:
+        id: 3
+        params:
+          value: int
+
+      query:
+        id: 4
+        returns: bool
+        params:
+          code: short
