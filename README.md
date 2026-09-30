@@ -199,20 +199,21 @@ tools/aether-protocol-c/src/main.c
 tools/aether-protocol-c/tests/
 
 
-Production ADSL compiler output is stored under:
 
-```text
-src/generated/
 
-The same directory currently also contains maintained aether_reg_*
+Production ADSL compiler output is stored under `src/generated/`.
+
+The same directory currently also contains maintained `aether_reg_*`
 registration adapter/build-helper sources. Those files consume generated
 bindings but are not direct output of the current ADSL emitter.
-Generated client_server_* protocol files should not be manually patched to fix
-generator behavior.
 
-behavior. Fix the parser/emitter, add a focused generator regression test, and
-regenerate the production output.
+Generated `client_server_*` protocol files should not be manually patched to fix
+generator behavior. Fix the parser/emitter, add a focused generator regression
+test, and regenerate the production output.
+
 The generator is a development tool. It is not part of the MCU runtime.
+
+
 Shared wire runtime
 Generated bindings use a small handwritten wire runtime:
 include/aether_meta_runtime.h
