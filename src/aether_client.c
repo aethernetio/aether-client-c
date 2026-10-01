@@ -23,6 +23,8 @@
  * consumed and aether_client_rx_active() becomes false.
  */
 #include "aether_client.h"
+#include "aether_registration.h"
+#include "aether_credentials.h"
 #include "generated/client_server_reg_direct_response_response.h"
 #include "generated/aether_reg_global.h"
 #include "generated/aether_reg_root_enter.h"
@@ -1808,14 +1810,14 @@ static bool load_state(
 static aether_status_t ensure_required_callbacks(
     aether_client_t *client) {
 
+
     if (client->config.transport.open ==
             NULL ||
         client->config.transport.send ==
             NULL ||
-        client->config.pow.generate ==
-            NULL ||
         client->config.crypto ==
             NULL) {
+
 
         return AETHER_ERR_ARGUMENT;
     }
@@ -1888,17 +1890,22 @@ static bool registration_in_progress(
     aether_state_t state) {
 
     return
-        state ==
-            AETHER_STATE_REG_CONNECTING ||
-        state ==
-            AETHER_STATE_REG_WAIT_SERVER_KEY ||
-        state ==
-            AETHER_STATE_REG_WAIT_POW ||
-        state ==
-            AETHER_STATE_REG_WAIT_FINISH ||
-        state ==
-            AETHER_STATE_REG_WAIT_SERVERS;
+        state == AETHER_STATE_REG_CONNECTING ||
+        state == AETHER_STATE_REG_WAIT_SERVER_KEY ||
+        state == AETHER_STATE_REG_WAIT_POW ||
+        state == AETHER_STATE_REG_WAIT_FINISH;
 }
+
+
+static bool credentials_in_progress(
+    aether_state_t state) {
+
+    return
+        state == AETHER_STATE_CREDENTIALS_CONNECTING ||
+        state == AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY ||
+        state == AETHER_STATE_CREDENTIALS_WAIT_RESULT;
+}
+
 
 
 static void set_registration_state(
@@ -1955,20 +1962,177 @@ static aether_status_t restart_registration(
 }
 
 
-static aether_status_t connect_next_work_server(
-    aether_client_t *client,
-    int previous_index) {
+static aether_status_t begin_credentials(
+    aether_client_t *client) {
 
-    if (client->server_count ==
-        0u) {
+    if (client == NULL ||
+        client->credentials == NULL) {
 
+        return AETHER_ERR_STATE;
+    }
+
+    client->registered =
+        false;
+
+    set_registration_state(
+        client,
+        AETHER_STATE_CREDENTIALS_CONNECTING);
+
+    aether_status_t status =
+        transport_open(
+            client,
+            AETHER_CHANNEL_REGISTRATION,
+            &client->config.registration_endpoint);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    return AETHER_OK;
+}
+
+
+static aether_status_t restart_credentials(
+    aether_client_t *client) {
+
+    transport_close(
+        client,
+        AETHER_CHANNEL_REGISTRATION);
+
+    return
+        begin_credentials(
+            client);
+}
+
+
+aether_status_t aether_client_begin_credentials_internal(
+    aether_client_t *client) {
+
+    if (client == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (client->callback_active) {
+        return AETHER_ERR_BUSY;
+    }
+
+    if (client->credentials == NULL ||
+        (client->state != AETHER_STATE_NO_IDENTITY &&
+         client->state != AETHER_STATE_STOPPED)) {
+
+        return AETHER_ERR_STATE;
+    }
+
+    return
+        begin_credentials(
+            client);
+}
+
+
+
+aether_status_t aether_client_begin_registration_internal(
+    aether_client_t *client) {
+
+    if (client == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (client->callback_active) {
+        return AETHER_ERR_BUSY;
+    }
+
+    if (client->state !=
+        AETHER_STATE_NO_IDENTITY) {
+
+        return AETHER_ERR_STATE;
+    }
+
+    if (client->registration == NULL ||
+        client->config.pow.generate == NULL) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    return
+        begin_registration(
+            client);
+}
+
+
+
+
+static aether_status_t begin_server_resolving(
+    aether_client_t *client) {
+
+    if (!client->registered) {
+        return
+            fail(
+                client,
+                AETHER_ERR_STATE);
+    }
+
+    if (client->cloud_count == 0u) {
         return
             fail(
                 client,
                 AETHER_ERR_PROTOCOL);
     }
 
-    uint8_t start = 0u;
+    client->active_server_index =
+        -1;
+
+    transport_close(
+        client,
+        AETHER_CHANNEL_REGISTRATION);
+
+    client->state_started_at_ms =
+        (uint32_t)
+            client->now_ms;
+
+    set_state(
+        client,
+        AETHER_STATE_SERVER_RESOLVING);
+
+    aether_status_t status =
+        transport_open(
+            client,
+            AETHER_CHANNEL_REGISTRATION,
+            &client->config.registration_endpoint);
+
+
+    if (status != AETHER_OK) {
+        /*
+         * Bootstrap availability is ordinary SERVER_RESOLVING state, not a
+         * terminal client error. poll() will retry after the operation timeout.
+         */
+        transport_close(
+            client,
+            AETHER_CHANNEL_REGISTRATION);
+
+        return AETHER_OK;
+    }
+
+
+    return AETHER_OK;
+}
+
+
+
+static aether_status_t connect_next_work_server(
+    aether_client_t *client,
+    int previous_index) {
+
+    if (client->server_count == 0u) {
+        return
+            begin_server_resolving(
+                client);
+    }
+
+    uint8_t start =
+        0u;
 
     if (previous_index >= 0) {
         start =
@@ -1978,15 +2142,8 @@ static aether_status_t connect_next_work_server(
                 client->server_count);
     }
 
-    bool found_valid =
-        false;
-
-    aether_status_t last_open_status =
-        AETHER_ERR_TRANSPORT;
-
     for (uint8_t offset = 0u;
-         offset <
-             client->server_count;
+         offset < client->server_count;
          ++offset) {
 
         uint8_t index =
@@ -2000,9 +2157,6 @@ static aether_status_t connect_next_work_server(
         if (!server->valid) {
             continue;
         }
-
-        found_valid =
-            true;
 
         if (crypto_derive_server_keys(
                 client,
@@ -2039,25 +2193,18 @@ static aether_status_t connect_next_work_server(
         if (status == AETHER_OK) {
             return AETHER_OK;
         }
-
-        last_open_status =
-            status;
     }
 
+    /*
+     * The complete cached descriptor set was exhausted. Treat it as stale
+     * topology, not as a terminal transport error.
+     */
     client->active_server_index =
         -1;
 
-    if (!found_valid) {
-        return
-            fail(
-                client,
-                AETHER_ERR_PROTOCOL);
-    }
-
     return
-        fail(
-            client,
-            last_open_status);
+        begin_server_resolving(
+            client);
 }
 
 
@@ -2070,9 +2217,8 @@ static aether_status_t begin_work(
 
     if (preferred < 0) {
         return
-            fail(
-                client,
-                AETHER_ERR_PROTOCOL);
+            begin_server_resolving(
+                client);
     }
 
     client->active_server_index =
@@ -2092,6 +2238,10 @@ static aether_status_t begin_work(
 
 static aether_status_t send_get_server_key(
     aether_client_t *client) {
+
+    bool credentials =
+        client->state ==
+        AETHER_STATE_CREDENTIALS_CONNECTING;
 
     client->req_server_key =
         next_request_id(
@@ -2124,15 +2274,40 @@ static aether_status_t send_get_server_key(
             packet_length);
 
     if (status != AETHER_OK) {
+        if (client->state ==
+            AETHER_STATE_SERVER_RESOLVING) {
+
+            transport_close(
+                client,
+                AETHER_CHANNEL_REGISTRATION);
+
+            client->state_started_at_ms =
+                (uint32_t)
+                    client->now_ms;
+
+            return AETHER_OK;
+        }
+
         return
             fail(
                 client,
                 status);
     }
 
-    set_registration_state(
-        client,
-        AETHER_STATE_REG_WAIT_SERVER_KEY);
+    if (client->state ==
+        AETHER_STATE_SERVER_RESOLVING) {
+
+        client->state_started_at_ms =
+            (uint32_t)
+                client->now_ms;
+
+    } else {
+        set_registration_state(
+            client,
+            credentials
+                ? AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY
+                : AETHER_STATE_REG_WAIT_SERVER_KEY);
+    }
 
     return AETHER_OK;
 }
@@ -2189,12 +2364,28 @@ static aether_status_t send_reg_enter(
             client->tx_plain,
             packet_length);
 
+
     if (status != AETHER_OK) {
+        if (client->state ==
+            AETHER_STATE_SERVER_RESOLVING) {
+
+            transport_close(
+                client,
+                AETHER_CHANNEL_REGISTRATION);
+
+            client->state_started_at_ms =
+                (uint32_t)
+                    client->now_ms;
+
+            return AETHER_OK;
+        }
+
         return
             fail(
                 client,
                 status);
     }
+
 
     return AETHER_OK;
 }
@@ -2203,9 +2394,11 @@ static aether_status_t send_reg_enter(
 static aether_status_t send_pow_request(
     aether_client_t *client) {
 
-    client->req_pow =
+
+    client->registration->req_pow =
         next_request_id(
             client);
+
 
     size_t nested_len =
         0u;
@@ -2220,7 +2413,7 @@ static aether_status_t send_pow_request(
             client->temp_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
-            client->req_pow,
+            client->registration->req_pow,
             client->config.parent_uid);
 
     if (status != AETHER_OK) {
@@ -2249,9 +2442,11 @@ static aether_status_t send_pow_request(
 static aether_status_t send_registration_payload(
     aether_client_t *client) {
 
-    client->req_finish =
+
+    client->registration->req_finish =
         next_request_id(
             client);
+
 
     size_t nested_len =
         0u;
@@ -2269,13 +2464,15 @@ static aether_status_t send_registration_payload(
             client->master_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
-            client->req_finish,
-            client->pow_salt,
-            client->pow_salt_len,
-            client->pow_suffix,
-            client->pow_suffix_len,
-            client->pow_passwords,
-            client->pow_password_count,
+
+            client->registration->req_finish,
+            client->registration->pow_salt,
+            client->registration->pow_salt_len,
+            client->registration->pow_suffix,
+            client->registration->pow_suffix_len,
+            client->registration->pow_passwords,
+            client->registration->pow_password_count,
+
             client->config.parent_uid);
 
     if (status != AETHER_OK) {
@@ -2301,10 +2498,17 @@ static aether_status_t send_registration_payload(
 }
 
 
-static aether_status_t send_resolve_servers(
+
+static aether_status_t send_credentials_request(
     aether_client_t *client) {
 
-    client->req_resolve =
+    if (client == NULL ||
+        client->credentials == NULL) {
+
+        return AETHER_ERR_STATE;
+    }
+
+    client->credentials->request_id =
         next_request_id(
             client);
 
@@ -2312,13 +2516,20 @@ static aether_status_t send_resolve_servers(
         0u;
 
     aether_status_t status =
-        aether_generated_reg_safe_build_resolve(
+        aether_generated_reg_safe_build_recovery(
             client->tx_plain,
             sizeof(client->tx_plain),
             &nested_len,
-            client->req_resolve,
-            client->cloud_sids,
-            client->cloud_count);
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->master_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->credentials->request_id,
+            client->uid);
 
     if (status != AETHER_OK) {
         return
@@ -2336,8 +2547,67 @@ static aether_status_t send_resolve_servers(
     if (status == AETHER_OK) {
         set_registration_state(
             client,
-            AETHER_STATE_REG_WAIT_SERVERS);
+            AETHER_STATE_CREDENTIALS_WAIT_RESULT);
     }
+
+    return status;
+}
+
+
+
+static aether_status_t send_resolve_servers(
+    aether_client_t *client) {
+
+    if (client->cloud_count == 0u) {
+        return
+            fail(
+                client,
+                AETHER_ERR_PROTOCOL);
+    }
+
+    client->req_resolve =
+        next_request_id(
+            client);
+
+    size_t nested_len =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_safe_build_resolve_with_return_key(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->req_resolve,
+            client->cloud_sids,
+            client->cloud_count);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+
+    client->state_started_at_ms =
+        (uint32_t)
+            client->now_ms;
+
+    set_state(
+        client,
+        AETHER_STATE_SERVER_RESOLVING);
+
+    status =
+        send_reg_enter(
+            client,
+            client->tx_plain,
+            nested_len);
+
 
     return status;
 }
@@ -2346,6 +2616,13 @@ static aether_status_t send_resolve_servers(
 static bool parse_work_proof(
     reader_t *reader,
     aether_client_t *client) {
+
+    if (reader == NULL ||
+        client == NULL ||
+        client->registration == NULL) {
+
+        return false;
+    }
 
     const uint8_t *salt;
     size_t salt_len;
@@ -2366,40 +2643,40 @@ static bool parse_work_proof(
     }
 
     if (salt_len >
-            sizeof(client->pow_salt) ||
+            sizeof(client->registration->pow_salt) ||
         suffix_len >
-            sizeof(client->pow_suffix)) {
+            sizeof(client->registration->pow_suffix)) {
 
         return false;
     }
 
     memcpy(
-        client->pow_salt,
+        client->registration->pow_salt,
         salt,
         salt_len);
 
     memcpy(
-        client->pow_suffix,
+        client->registration->pow_suffix,
         suffix,
         suffix_len);
 
-    client->pow_salt_len =
+    client->registration->pow_salt_len =
         salt_len;
 
-    client->pow_suffix_len =
+    client->registration->pow_suffix_len =
         suffix_len;
 
-    client->pow_pool_size =
+    client->registration->pow_pool_size =
         r_u8(reader);
 
-    client->pow_max_hash =
+    client->registration->pow_max_hash =
         r_i32le(reader);
 
     return
         parse_signed_key(
             reader,
             client,
-            &client->global_key) &&
+            &client->registration->global_key) &&
         !reader->failed;
 }
 
@@ -2420,7 +2697,7 @@ static aether_status_t handle_pow_response(
 
     if (!verify_signed_key(
             client,
-            &client->global_key)) {
+            &client->registration->global_key)) {
 
         return
             fail_with_origin(
@@ -2435,15 +2712,17 @@ static aether_status_t handle_pow_response(
     aether_status_t status =
         client->config.pow.generate(
             client->config.pow.ctx,
-            client->pow_salt,
-            client->pow_salt_len,
-            client->pow_suffix,
-            client->pow_suffix_len,
-            client->pow_pool_size,
-            client->pow_max_hash,
-            client->pow_passwords,
+
+            client->registration->pow_salt,
+            client->registration->pow_salt_len,
+            client->registration->pow_suffix,
+            client->registration->pow_suffix_len,
+            client->registration->pow_pool_size,
+            client->registration->pow_max_hash,
+            client->registration->pow_passwords,
             AETHER_MAX_POW_PASSWORDS,
             &count);
+
 
     if (status != AETHER_OK) {
         return
@@ -2462,8 +2741,10 @@ static aether_status_t handle_pow_response(
                 AETHER_ERR_OVERFLOW);
     }
 
-    client->pow_password_count =
+
+    client->registration->pow_password_count =
         count;
+
 
     return
         send_registration_payload(
@@ -2501,10 +2782,12 @@ static aether_status_t handle_reg_safe_plain(
             uint32_t request_id =
                 r_u32le(&reader);
 
-            if (request_id ==
-                    client->req_pow &&
-                client->state ==
-                    AETHER_STATE_REG_WAIT_POW) {
+
+            if (client->state ==
+                    AETHER_STATE_REG_WAIT_POW &&
+                request_id ==
+                    client->registration->req_pow) {
+
 
                 aether_status_t status =
                     handle_pow_response(
@@ -2516,11 +2799,13 @@ static aether_status_t handle_reg_safe_plain(
                 }
 
 
+
             } else if (
-                request_id ==
-                    client->req_finish &&
                 client->state ==
-                    AETHER_STATE_REG_WAIT_FINISH) {
+                    AETHER_STATE_REG_WAIT_FINISH &&
+                request_id ==
+                    client->registration->req_finish) {
+
 
                 server_registration_api_registration_direct_response_storage_t storage = {
                     .cloud_data_storage =
@@ -2561,6 +2846,7 @@ static aether_status_t handle_reg_safe_plain(
                                 : AETHER_ERR_PROTOCOL);
                 }
 
+
                 client->alias =
                     frame.result.alias;
 
@@ -2569,6 +2855,22 @@ static aether_status_t handle_reg_safe_plain(
 
                 client->cloud_count =
                     frame.result.cloud.data.length;
+
+                client->registered =
+                    true;
+
+                /*
+                 * Identity + Cloud must become durable before descriptor
+                 * recovery. ServerDescriptor[] is only a refreshable cache.
+                 */
+                if (save_state(client) !=
+                    AETHER_OK) {
+
+                    return
+                        fail(
+                            client,
+                            AETHER_ERR_STORAGE);
+                }
 
                 aether_event_t event;
 
@@ -2595,15 +2897,67 @@ static aether_status_t handle_reg_safe_plain(
                         client);
 
 
+
+
+
             } else if (
-                request_id ==
-                    client->req_resolve &&
                 client->state ==
-                    AETHER_STATE_REG_WAIT_SERVERS) {
+                    AETHER_STATE_CREDENTIALS_WAIT_RESULT &&
+                client->credentials != NULL &&
+                request_id ==
+                    client->credentials->request_id) {
+
+
+                struct aether_credentials *credentials =
+                    client->credentials;
+
+                client->alias =
+                    r_uuid(
+                        &reader);
+
+                uint64_t cloud_count =
+                    r_pack(
+                        &reader);
+
+                if (reader.failed ||
+                    cloud_count == 0u ||
+                    cloud_count >
+                        AETHER_MAX_SERVERS) {
+
+                    return
+                        fail(
+                            client,
+                            AETHER_ERR_PROTOCOL);
+                }
+
+                client->cloud_count =
+                    (uint8_t)cloud_count;
+
+                for (uint8_t i = 0u;
+                     i < client->cloud_count;
+                     ++i) {
+
+                    client->cloud_sids[i] =
+                        r_i16le(
+                            &reader);
+                }
+
+                if (reader.failed) {
+                    return
+                        fail(
+                            client,
+                            AETHER_ERR_PROTOCOL);
+                }
 
                 if (!parse_server_array(
                         &reader,
                         client)) {
+
+                    client->server_count =
+                        0u;
+
+                    client->credentials =
+                        credentials;
 
                     return
                         fail(
@@ -2617,11 +2971,38 @@ static aether_status_t handle_reg_safe_plain(
                 if (save_state(client) !=
                     AETHER_OK) {
 
+                    client->registered =
+                        false;
+                    client->server_count =
+                        0u;
+                    client->credentials =
+                        credentials;
+
                     return
                         fail(
                             client,
                             AETHER_ERR_STORAGE);
                 }
+
+                aether_event_t event;
+
+                memset(
+                    &event,
+                    0,
+                    sizeof(event));
+
+                event.type =
+                    AETHER_EVENT_REGISTERED;
+
+                event.as.registered.uid =
+                    client->uid;
+
+                event.as.registered.alias =
+                    client->alias;
+
+                emit_event(
+                    client,
+                    &event);
 
                 transport_close(
                     client,
@@ -2637,6 +3018,7 @@ static aether_status_t handle_reg_safe_plain(
                         client,
                         AETHER_ERR_PROTOCOL);
             }
+
 
             continue;
         }
@@ -2720,10 +3102,18 @@ size_t frame_start =
             uint32_t request_id =
                 r_u32le(&reader);
 
+
+
             if (request_id !=
                     client->req_server_key ||
-                client->state !=
-                    AETHER_STATE_REG_WAIT_SERVER_KEY) {
+                (client->state !=
+                     AETHER_STATE_REG_WAIT_SERVER_KEY &&
+                 client->state !=
+                     AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY &&
+                 client->state !=
+                     AETHER_STATE_SERVER_RESOLVING)) {
+
+
 
                 return
                     fail(
@@ -2753,6 +3143,53 @@ size_t frame_start =
                         AETHER_ERROR_ORIGIN_TRUST);
             }
 
+
+            if (client->state ==
+                AETHER_STATE_SERVER_RESOLVING) {
+
+                if (client->config.crypto
+                            ->random_symmetric_key(
+                        client->config.crypto_ctx,
+                        client->temp_key,
+                        client->config.crypto
+                            ->profile.symmetric_key_bytes) !=
+                    AETHER_OK) {
+
+                    return
+                        fail(
+                            client,
+                            AETHER_ERR_CRYPTO);
+                }
+
+                return
+                    send_resolve_servers(
+                        client);
+            }
+
+
+            if (client->state ==
+                AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY) {
+
+                if (client->config.crypto
+                            ->random_symmetric_key(
+                        client->config.crypto_ctx,
+                        client->temp_key,
+                        client->config.crypto
+                            ->profile.symmetric_key_bytes) !=
+                    AETHER_OK) {
+
+                    return
+                        fail(
+                            client,
+                            AETHER_ERR_CRYPTO);
+                }
+
+                return
+                    send_credentials_request(
+                        client);
+            }
+
+
             if (client->config.crypto
                         ->random_symmetric_key(
                     client->config.crypto_ctx,
@@ -2777,6 +3214,7 @@ size_t frame_start =
             return
                 send_pow_request(
                     client);
+
         }
 
         if (command ==
@@ -2904,6 +3342,509 @@ aether_reg_unsafe_frame_t frame = {
                   AETHER_ERR_PROTOCOL)
             : AETHER_OK;
 }
+
+
+
+static aether_status_t handle_server_resolve_plain(
+    aether_client_t *client,
+    const uint8_t *data,
+    size_t length) {
+
+    reader_t reader = {
+        data,
+        length,
+        0u,
+        false
+    };
+
+    while (!reader.failed &&
+           reader.pos <
+               reader.length) {
+
+        uint8_t command =
+            r_u8(
+                &reader);
+
+        if (command ==
+            CMD_RESULT) {
+
+            uint32_t request_id =
+                r_u32le(
+                    &reader);
+
+            if (request_id !=
+                    client->req_resolve ||
+                client->state !=
+                    AETHER_STATE_SERVER_RESOLVING) {
+
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            if (!parse_server_array(
+                    &reader,
+                    client)) {
+
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            client->registered =
+                true;
+
+            if (save_state(client) !=
+                AETHER_OK) {
+
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_STORAGE);
+            }
+
+            transport_close(
+                client,
+                AETHER_CHANNEL_REGISTRATION);
+
+            return
+                begin_work(
+                    client);
+        }
+
+        if (command ==
+            CMD_ERROR) {
+
+            uint32_t request_id =
+                r_u32le(
+                    &reader);
+
+            if (reader.failed) {
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            return
+                fail_remote(
+                    client,
+                    request_id);
+        }
+
+        return
+            fail(
+                client,
+                AETHER_ERR_PROTOCOL);
+    }
+
+    return
+        reader.failed
+            ? fail(
+                  client,
+                  AETHER_ERR_PROTOCOL)
+            : AETHER_OK;
+}
+
+
+static aether_status_t handle_server_resolving_rx(
+    aether_client_t *client,
+    const uint8_t *data,
+    size_t length) {
+
+    reader_t reader = {
+        data,
+        length,
+        0u,
+        false
+    };
+
+    while (!reader.failed &&
+           reader.pos <
+               reader.length) {
+
+        size_t frame_start =
+            reader.pos;
+
+        uint8_t command =
+            r_u8(
+                &reader);
+
+        if (command ==
+            CMD_RESULT) {
+
+            uint32_t request_id =
+                r_u32le(
+                    &reader);
+
+            if (request_id !=
+                    client->req_server_key ||
+                client->state !=
+                    AETHER_STATE_SERVER_RESOLVING) {
+
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            if (!parse_signed_key(
+                    &reader,
+                    client,
+                    &client->registration_server_key)) {
+
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            if (!verify_signed_key(
+                    client,
+                    &client->registration_server_key)) {
+
+                return
+                    fail_with_origin(
+                        client,
+                        AETHER_ERR_CRYPTO,
+                        AETHER_ERROR_ORIGIN_TRUST);
+            }
+
+            if (client->config.crypto
+                        ->random_symmetric_key(
+                    client->config.crypto_ctx,
+                    client->temp_key,
+                    client->config.crypto
+                        ->profile.symmetric_key_bytes) !=
+                AETHER_OK) {
+
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_CRYPTO);
+            }
+
+            return
+                send_resolve_servers(
+                    client);
+        }
+
+        if (command ==
+            CMD_ERROR) {
+
+            uint32_t request_id =
+                r_u32le(
+                    &reader);
+
+            if (reader.failed) {
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            return
+                fail_remote(
+                    client,
+                    request_id);
+        }
+
+        aether_reg_unsafe_frame_t frame = {
+            0
+        };
+
+        size_t consumed =
+            0u;
+
+        aether_status_t decode_status =
+            aether_generated_reg_unsafe_decode(
+                &frame,
+                reader.data +
+                    frame_start,
+                reader.length -
+                    frame_start,
+                &consumed);
+
+        if (decode_status != AETHER_OK ||
+            consumed == 0u ||
+            consumed >
+                reader.length -
+                    frame_start ||
+            frame.kind !=
+                AETHER_REG_UNSAFE_FRAME_ENTER) {
+
+            return
+                fail(
+                    client,
+                    AETHER_ERR_PROTOCOL);
+        }
+
+        size_t plain_len =
+            0u;
+
+        if (crypto_symmetric_decrypt(
+                client,
+                client->temp_key,
+                frame.data,
+                frame.length,
+                client->tx_crypto,
+                sizeof(client->tx_crypto),
+                &plain_len) !=
+            AETHER_OK) {
+
+            return
+                fail(
+                    client,
+                    AETHER_ERR_CRYPTO);
+        }
+
+        aether_status_t status =
+            handle_server_resolve_plain(
+                client,
+                client->tx_crypto,
+                plain_len);
+
+        if (status != AETHER_OK) {
+            return status;
+        }
+
+        reader.pos =
+            frame_start +
+            consumed;
+    }
+
+    return
+        reader.failed
+            ? fail(
+                  client,
+                  AETHER_ERR_PROTOCOL)
+            : AETHER_OK;
+}
+
+
+
+static uint32_t operation_timeout_ms(
+    const aether_client_t *client);
+
+
+
+aether_status_t aether_client_registration_on_rx_internal(
+    struct aether_registration *registration,
+    const uint8_t *data,
+    size_t length) {
+
+    if (registration == NULL ||
+        registration->client == NULL ||
+        registration->client->registration !=
+            registration) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_client_t *client =
+        registration->client;
+
+    if (client->state ==
+        AETHER_STATE_REG_CONNECTING) {
+
+        return AETHER_OK;
+    }
+
+    if (!registration_in_progress(
+            client->state)) {
+
+        return AETHER_ERR_STATE;
+    }
+
+    return
+        handle_registration_rx(
+            client,
+            data,
+            length);
+}
+
+
+void aether_client_registration_on_transport_state_internal(
+    struct aether_registration *registration,
+    bool writable) {
+
+    if (registration == NULL ||
+        registration->client == NULL ||
+        registration->client->registration !=
+            registration) {
+
+        return;
+    }
+
+    aether_client_t *client =
+        registration->client;
+
+    if (!registration_in_progress(
+            client->state)) {
+
+        return;
+    }
+
+    if (!writable) {
+        (void)begin_registration(
+            client);
+
+        return;
+    }
+
+    if (client->state ==
+        AETHER_STATE_REG_CONNECTING) {
+
+        (void)send_get_server_key(
+            client);
+    }
+}
+
+
+bool aether_client_registration_on_poll_internal(
+    struct aether_registration *registration,
+    uint64_t now_ms) {
+
+    if (registration == NULL ||
+        registration->client == NULL ||
+        registration->client->registration !=
+            registration) {
+
+        return false;
+    }
+
+    aether_client_t *client =
+        registration->client;
+
+    if (!registration_in_progress(
+            client->state)) {
+
+        return false;
+    }
+
+    uint32_t elapsed =
+        (uint32_t)now_ms -
+        client->state_started_at_ms;
+
+    if (elapsed <
+        operation_timeout_ms(
+            client)) {
+
+        return false;
+    }
+
+    (void)restart_registration(
+        client);
+
+    return true;
+}
+
+
+aether_status_t aether_client_credentials_on_rx_internal(
+    struct aether_credentials *credentials,
+    const uint8_t *data,
+    size_t length) {
+
+    if (credentials == NULL ||
+        credentials->client == NULL ||
+        credentials->client->credentials !=
+            credentials) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (!credentials_in_progress(
+            credentials->client->state)) {
+
+        return AETHER_ERR_STATE;
+    }
+
+    return
+        handle_registration_rx(
+            credentials->client,
+            data,
+            length);
+}
+
+
+void aether_client_credentials_on_transport_state_internal(
+    struct aether_credentials *credentials,
+    bool writable) {
+
+    if (credentials == NULL ||
+        credentials->client == NULL ||
+        credentials->client->credentials !=
+            credentials) {
+
+        return;
+    }
+
+    aether_client_t *client =
+        credentials->client;
+
+    if (!credentials_in_progress(
+            client->state)) {
+
+        return;
+    }
+
+    if (!writable) {
+        (void)restart_credentials(
+            client);
+
+        return;
+    }
+
+    if (client->state ==
+        AETHER_STATE_CREDENTIALS_CONNECTING) {
+
+        (void)send_get_server_key(
+            client);
+    }
+}
+
+
+bool aether_client_credentials_on_poll_internal(
+    struct aether_credentials *credentials,
+    uint64_t now_ms) {
+
+    if (credentials == NULL ||
+        credentials->client == NULL ||
+        credentials->client->credentials !=
+            credentials) {
+
+        return false;
+    }
+
+    aether_client_t *client =
+        credentials->client;
+
+    if (!credentials_in_progress(
+            client->state)) {
+
+        return false;
+    }
+
+    uint32_t elapsed =
+        (uint32_t)now_ms -
+        client->state_started_at_ms;
+
+    if (elapsed <
+        operation_timeout_ms(
+            client)) {
+
+        return false;
+    }
+
+    (void)restart_credentials(
+        client);
+
+    return true;
+}
+
+
 
 
 
@@ -3571,10 +4512,166 @@ aether_status_t aether_client_start(
                 client);
     }
 
+
+    if (client->credentials != NULL) {
+        return
+            begin_credentials(
+                client);
+    }
+
+
+    client->registered =
+        false;
+
+    client->active_server_index =
+        -1;
+
+    set_state(
+        client,
+        AETHER_STATE_NO_IDENTITY);
+
+    return AETHER_OK;
+}
+
+
+
+aether_status_t aether_client_provision_identity(
+    aether_client_t *client,
+    aether_uuid_t uid,
+    aether_uuid_t alias,
+    const uint8_t master_key[AETHER_KEY_BYTES],
+    const int16_t *cloud_sids,
+    size_t cloud_count) {
+
+    if (client == NULL ||
+        master_key == NULL ||
+        cloud_sids == NULL ||
+        cloud_count == 0u) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (cloud_count >
+        AETHER_MAX_SERVERS) {
+
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    if (client->callback_active) {
+        return AETHER_ERR_BUSY;
+    }
+
+    if (client->state !=
+            AETHER_STATE_NO_IDENTITY ||
+        client->registered) {
+
+        return AETHER_ERR_STATE;
+    }
+
+    client->uid =
+        uid;
+
+    client->alias =
+        alias;
+
+    memcpy(
+        client->master_key,
+        master_key,
+        AETHER_KEY_BYTES);
+
+    memset(
+        client->temp_key,
+        0,
+        sizeof(client->temp_key));
+
+    memset(
+        client->work_tx_key,
+        0,
+        sizeof(client->work_tx_key));
+
+    memset(
+        client->work_rx_key,
+        0,
+        sizeof(client->work_rx_key));
+
+    memset(
+        &client->registration_server_key,
+        0,
+        sizeof(client->registration_server_key));
+
+    memset(
+        client->cloud_sids,
+        0,
+        sizeof(client->cloud_sids));
+
+    memcpy(
+        client->cloud_sids,
+        cloud_sids,
+        cloud_count *
+            sizeof(client->cloud_sids[0]));
+
+    client->cloud_count =
+        (uint8_t)cloud_count;
+
+    memset(
+        client->servers,
+        0,
+        sizeof(client->servers));
+
+    client->server_count =
+        0u;
+
+    client->active_server_index =
+        -1;
+
+    client->req_server_key =
+        0u;
+
+    client->req_resolve =
+        0u;
+
+    client->next_ping_at_ms =
+        0u;
+
+    client->registered =
+        true;
+
+    aether_status_t status =
+        save_state(
+            client);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    aether_event_t event;
+
+    memset(
+        &event,
+        0,
+        sizeof(event));
+
+    event.type =
+        AETHER_EVENT_REGISTERED;
+
+    event.as.registered.uid =
+        client->uid;
+
+    event.as.registered.alias =
+        client->alias;
+
+    emit_event(
+        client,
+        &event);
+
     return
-        begin_registration(
+        begin_server_resolving(
             client);
 }
+
 
 
 aether_status_t aether_client_retry(
@@ -3618,9 +4715,15 @@ aether_status_t aether_client_retry(
                 client);
     }
 
-    return
-        begin_registration(
-            client);
+    /*
+     * Retry does not choose registration policy. Without an identity the
+     * mandatory client returns to its stable hand-off state.
+     */
+    set_state(
+        client,
+        AETHER_STATE_NO_IDENTITY);
+
+    return AETHER_OK;
 }
 
 
@@ -3682,10 +4785,18 @@ void aether_client_poll(
         uint32_t now32 =
             (uint32_t)now_ms;
 
+
+
         if (registration_in_progress(
                 client->state) ||
+            credentials_in_progress(
+                client->state) ||
+            client->state ==
+                AETHER_STATE_SERVER_RESOLVING ||
             client->state ==
                 AETHER_STATE_WORK_CONNECTING) {
+
+
 
             client->state_started_at_ms =
                 now32;
@@ -3717,8 +4828,9 @@ void aether_client_poll(
         return;
     }
 
-    if (registration_in_progress(
-            client->state)) {
+
+    if (client->state ==
+        AETHER_STATE_SERVER_RESOLVING) {
 
         uint32_t elapsed =
             (uint32_t)now_ms -
@@ -3728,12 +4840,43 @@ void aether_client_poll(
             operation_timeout_ms(
                 client)) {
 
-            (void)restart_registration(
+            (void)begin_server_resolving(
                 client);
 
             return;
         }
     }
+
+
+
+
+
+    if (credentials_in_progress(
+            client->state) &&
+        client->credentials != NULL &&
+        client->credentials->internal != NULL &&
+        client->credentials->internal->on_poll != NULL &&
+        client->credentials->internal->on_poll(
+            client->credentials,
+            now_ms)) {
+
+        return;
+    }
+
+
+    if (registration_in_progress(
+            client->state) &&
+        client->registration != NULL &&
+        client->registration->internal != NULL &&
+        client->registration->internal->on_poll != NULL &&
+        client->registration->internal->on_poll(
+            client->registration,
+            now_ms)) {
+
+
+        return;
+    }
+
 
     if (client->state ==
         AETHER_STATE_WORK_CONNECTING) {
@@ -3801,7 +4944,7 @@ void aether_client_on_transport_state(
     /*
      * Current pull adapters call transport-state notifications only from
      * platform.poll(). app_tick() pauses platform.poll() while rx_active, so a
-     * pinned borrowed frame cannot be invalidated by reconnect.
+     * pinned borrowed work frame cannot be invalidated by reconnect.
      */
     if (client->rx_active &&
         channel ==
@@ -3810,19 +4953,63 @@ void aether_client_on_transport_state(
         return;
     }
 
-    if (!writable) {
-        if (channel ==
-            AETHER_CHANNEL_REGISTRATION) {
+    if (channel ==
+        AETHER_CHANNEL_REGISTRATION) {
 
-            if (registration_in_progress(
-                    client->state)) {
+        if (client->state ==
+            AETHER_STATE_SERVER_RESOLVING) {
 
-                (void)begin_registration(
+            if (!writable) {
+                (void)begin_server_resolving(
+                    client);
+
+            } else {
+                (void)send_get_server_key(
                     client);
             }
 
-        } else if (
-            channel ==
+            return;
+        }
+
+
+
+        if (credentials_in_progress(
+                client->state) &&
+            client->credentials != NULL &&
+            client->credentials->internal != NULL &&
+            client->credentials->internal
+                    ->on_transport_state !=
+                NULL) {
+
+            client->credentials->internal
+                ->on_transport_state(
+                    client->credentials,
+                    writable);
+
+            return;
+        }
+
+
+        if (registration_in_progress(
+                client->state) &&
+            client->registration != NULL &&
+            client->registration->internal != NULL &&
+            client->registration->internal
+                    ->on_transport_state !=
+                NULL) {
+
+            client->registration->internal
+                ->on_transport_state(
+                    client->registration,
+                    writable);
+
+        }
+
+        return;
+    }
+
+    if (!writable) {
+        if (channel ==
                 AETHER_CHANNEL_WORK &&
             client->registered) {
 
@@ -3835,15 +5022,6 @@ void aether_client_on_transport_state(
     }
 
     if (channel ==
-            AETHER_CHANNEL_REGISTRATION &&
-        client->state ==
-            AETHER_STATE_REG_CONNECTING) {
-
-        (void)send_get_server_key(
-            client);
-
-    } else if (
-        channel ==
             AETHER_CHANNEL_WORK &&
         client->state ==
             AETHER_STATE_WORK_CONNECTING) {
@@ -3895,6 +5073,7 @@ aether_status_t aether_client_on_rx(
         return AETHER_OK;
     }
 
+
     if (channel ==
         AETHER_CHANNEL_REGISTRATION) {
 
@@ -3903,17 +5082,62 @@ aether_status_t aether_client_on_rx(
         }
 
         if (client->state ==
+            AETHER_STATE_SERVER_RESOLVING) {
+
+            return
+                handle_server_resolving_rx(
+                    client,
+                    data,
+                    length);
+        }
+
+
+        if (client->state ==
+            AETHER_STATE_CREDENTIALS_CONNECTING) {
+
+            return AETHER_OK;
+        }
+
+        if (credentials_in_progress(
+                client->state) &&
+            client->credentials != NULL &&
+            client->credentials->internal != NULL &&
+            client->credentials->internal->on_rx !=
+                NULL) {
+
+            return
+                client->credentials->internal->on_rx(
+                    client->credentials,
+                    data,
+                    length);
+        }
+
+
+        if (client->state ==
             AETHER_STATE_REG_CONNECTING) {
 
             return AETHER_OK;
         }
 
-        return
-            handle_registration_rx(
-                client,
-                data,
-                length);
+
+        if (registration_in_progress(
+                client->state) &&
+            client->registration != NULL &&
+            client->registration->internal != NULL &&
+            client->registration->internal->on_rx !=
+                NULL) {
+
+            return
+                client->registration->internal->on_rx(
+                    client->registration,
+                    data,
+                    length);
+
+        }
+
+        return AETHER_ERR_STATE;
     }
+
 
     if (channel !=
         AETHER_CHANNEL_WORK) {

@@ -1,4 +1,5 @@
 #include "aether_client.h"
+#include "aether_registration.h"
 
 #include "aether_hydrogen.h"
 #include "aether_test_crypto_hydrogen.h"
@@ -20,6 +21,7 @@ typedef struct {
     unsigned closes;
     aether_channel_t last_open_channel;
     uint16_t fail_open_port;
+    unsigned fail_sends_remaining;
     aether_endpoint_t last_endpoint;
 
     uint8_t flash[4096];
@@ -294,9 +296,10 @@ static aether_status_t t_open(void *ctx, aether_channel_t channel, const aether_
     f->opens++;
     f->last_open_channel = channel;
     f->last_endpoint = *ep;
-    if (channel == AETHER_CHANNEL_WORK &&
-        f->fail_open_port != 0u &&
+
+    if (f->fail_open_port != 0u &&
         ep->port == f->fail_open_port) {
+
         return AETHER_ERR_TRANSPORT;
     }
     return AETHER_OK;
@@ -305,13 +308,40 @@ static aether_status_t t_open(void *ctx, aether_channel_t channel, const aether_
 static void t_close(void *ctx, aether_channel_t channel) {
     fixture_t *f = ctx; (void)channel; f->closes++;
 }
-static aether_status_t t_send(void *ctx, aether_channel_t channel, const uint8_t *data, size_t length) {
-    fixture_t *f = ctx;
-    assert(length <= sizeof(f->packet));
-    memcpy(f->packet, data, length);
-    f->packet_len = length;
-    f->packet_channel = channel;
+static aether_status_t t_send(
+    void *ctx,
+    aether_channel_t channel,
+    const uint8_t *data,
+    size_t length) {
+
+    fixture_t *f =
+        ctx;
+
+    assert(
+        length <=
+        sizeof(f->packet));
+
+    memcpy(
+        f->packet,
+        data,
+        length);
+
+    f->packet_len =
+        length;
+
+    f->packet_channel =
+        channel;
+
     f->sends++;
+
+    if (f->fail_sends_remaining !=
+        0u) {
+
+        f->fail_sends_remaining--;
+
+        return AETHER_ERR_TRANSPORT;
+    }
+
     return AETHER_OK;
 }
 static aether_status_t flash_load(void *ctx, uint8_t *dst, size_t capacity, size_t *length) {
@@ -417,11 +447,347 @@ static aether_client_config_t config_for(fixture_t *f) {
 
 
 
+
+static void start_registration_component(
+    aether_registration_t *registration,
+    aether_client_t *client) {
+
+    aether_registration_init(
+        registration,
+        client);
+
+    assert(
+        aether_registration_poll(
+            registration) ==
+        AETHER_OK);
+}
+
+
+static void start_self_registration(
+    aether_registration_t *registration,
+    aether_client_t *client) {
+
+    assert(
+        aether_client_start(client) ==
+        AETHER_OK);
+
+    assert(
+        client->state ==
+        AETHER_STATE_NO_IDENTITY);
+
+    start_registration_component(
+        registration,
+        client);
+}
+
+
+
+
+static void test_provisioned_identity(void) {
+    fixture_t f;
+    memset(
+        &f,
+        0,
+        sizeof(f));
+
+    hydro_sign_keygen(
+        &f.root_signer);
+
+    aether_client_config_t cfg =
+        config_for(
+            &f);
+
+    cfg.pow.generate =
+        NULL;
+
+    aether_client_t client;
+
+    aether_client_init(
+        &client,
+        &cfg);
+
+    assert(
+        aether_client_start(
+            &client) ==
+        AETHER_OK);
+
+    assert(
+        client.state ==
+        AETHER_STATE_NO_IDENTITY);
+
+    assert(
+        !client.registered);
+
+    assert(
+        f.flash_len ==
+        0u);
+
+    uint8_t master_key[AETHER_KEY_BYTES];
+
+    for (size_t i = 0u;
+         i < sizeof(master_key);
+         ++i) {
+
+        master_key[i] =
+            (uint8_t)(0x40u + i);
+    }
+
+    const int16_t cloud[] = {
+        7,
+        11
+    };
+
+    const aether_uuid_t uid = {
+        UINT64_C(0x1122334455667788),
+        UINT64_C(0x99aabbccddeeff00)
+    };
+
+    const aether_uuid_t alias = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    assert(
+        aether_client_provision_identity(
+            &client,
+            uid,
+            alias,
+            NULL,
+            cloud,
+            2u) ==
+        AETHER_ERR_ARGUMENT);
+
+    assert(
+        aether_client_provision_identity(
+            &client,
+            uid,
+            alias,
+            master_key,
+            NULL,
+            2u) ==
+        AETHER_ERR_ARGUMENT);
+
+    assert(
+        aether_client_provision_identity(
+            &client,
+            uid,
+            alias,
+            master_key,
+            cloud,
+            0u) ==
+        AETHER_ERR_ARGUMENT);
+
+    assert(
+        aether_client_provision_identity(
+            &client,
+            uid,
+            alias,
+            master_key,
+            cloud,
+            AETHER_MAX_SERVERS + 1u) ==
+        AETHER_ERR_OVERFLOW);
+
+    assert(
+        client.state ==
+        AETHER_STATE_NO_IDENTITY);
+
+    assert(
+        !client.registered);
+
+    assert(
+        f.flash_len ==
+        0u);
+
+    assert(
+        f.registered_events ==
+        0u);
+
+    assert(
+        aether_client_provision_identity(
+            &client,
+            uid,
+            alias,
+            master_key,
+            cloud,
+            2u) ==
+        AETHER_OK);
+
+    assert(
+        client.registered);
+
+    assert(
+        client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+    assert(
+        client.uid.msb ==
+            uid.msb &&
+        client.uid.lsb ==
+            uid.lsb);
+
+    assert(
+        client.alias.msb ==
+            alias.msb &&
+        client.alias.lsb ==
+            alias.lsb);
+
+    assert(
+        memcmp(
+            client.master_key,
+            master_key,
+            sizeof(master_key)) ==
+        0);
+
+    assert(
+        client.cloud_count ==
+        2u);
+
+    assert(
+        client.cloud_sids[0] ==
+        7);
+
+    assert(
+        client.cloud_sids[1] ==
+        11);
+
+    assert(
+        client.server_count ==
+        0u);
+
+    assert(
+        client.active_server_index ==
+        -1);
+
+    assert(
+        f.registered_events ==
+        1u);
+
+    assert(
+        f.flash_len >
+        0u);
+
+    assert(
+        f.opens ==
+        1u);
+
+    assert(
+        f.last_open_channel ==
+        AETHER_CHANNEL_REGISTRATION);
+
+    assert(
+        aether_client_provision_identity(
+            &client,
+            uid,
+            alias,
+            master_key,
+            cloud,
+            2u) ==
+        AETHER_ERR_STATE);
+
+    assert(
+        f.registered_events ==
+        1u);
+
+    /*
+     * Simulate a fresh process/MCU boot. Only the ordinary persisted client
+     * state is copied; there is deliberately no registration component.
+     */
+    fixture_t restored;
+    memset(
+        &restored,
+        0,
+        sizeof(restored));
+
+    memcpy(
+        restored.flash,
+        f.flash,
+        f.flash_len);
+
+    restored.flash_len =
+        f.flash_len;
+
+    restored.root_signer =
+        f.root_signer;
+
+    aether_client_config_t restored_cfg =
+        config_for(
+            &restored);
+
+    restored_cfg.pow.generate =
+        NULL;
+
+    aether_client_t restored_client;
+
+    aether_client_init(
+        &restored_client,
+        &restored_cfg);
+
+    assert(
+        aether_client_start(
+            &restored_client) ==
+        AETHER_OK);
+
+    assert(
+        restored_client.registered);
+
+    assert(
+        restored_client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+    assert(
+        restored_client.uid.msb ==
+            uid.msb &&
+        restored_client.uid.lsb ==
+            uid.lsb);
+
+    assert(
+        restored_client.alias.msb ==
+            alias.msb &&
+        restored_client.alias.lsb ==
+            alias.lsb);
+
+    assert(
+        memcmp(
+            restored_client.master_key,
+            master_key,
+            sizeof(master_key)) ==
+        0);
+
+    assert(
+        restored_client.cloud_count ==
+        2u);
+
+    assert(
+        restored_client.cloud_sids[0] ==
+        7);
+
+    assert(
+        restored_client.cloud_sids[1] ==
+        11);
+
+    assert(
+        restored_client.server_count ==
+        0u);
+
+    assert(
+        restored.opens ==
+        1u);
+
+    assert(
+        restored.last_open_channel ==
+        AETHER_CHANNEL_REGISTRATION);
+}
+
+
+
 static void test_rejects_untrusted_registration_key(void) {
     fixture_t f;
     memset(&f,0,sizeof(f));
 
     assert(aether_hydrogen_init()==0);
+
+    test_provisioned_identity();
+
 
     /*
      * config_for() trusts only f.root_signer. The attacker produces a
@@ -436,11 +802,12 @@ static void test_rejects_untrusted_registration_key(void) {
     hydro_kx_keygen(&f.registration_kx);
 
     aether_client_t c;
+    aether_registration_t registration;
     aether_client_config_t cfg=config_for(&f);
 
     aether_client_init(&c,&cfg);
 
-    assert(aether_client_start(&c)==AETHER_OK);
+    start_self_registration(&registration,&c);
     assert(c.state==AETHER_STATE_REG_CONNECTING);
 
     aether_client_on_transport_state(
@@ -511,11 +878,17 @@ static void test_rejects_untrusted_registration_key(void) {
     /*
      * Recovery happens only after the application explicitly requests it.
      */
+
     assert(aether_client_retry(&c)==AETHER_OK);
+    assert(c.state==AETHER_STATE_NO_IDENTITY);
+    assert(f.opens==opens_after_security_error);
+
+    start_registration_component(&registration,&c);
 
     assert(c.state==AETHER_STATE_REG_CONNECTING);
     assert(f.opens==opens_after_security_error+1u);
     assert(f.last_open_channel==AETHER_CHANNEL_REGISTRATION);
+
 
     /*
      * retry() is valid only at the ERROR hand-off boundary.
@@ -699,10 +1072,11 @@ static void test_full_registration_and_message(void) {
     hydro_kx_keygen(&f.global_kx);
 
     aether_client_t c;
+    aether_registration_t registration;
     aether_client_config_t cfg=config_for(&f);
     aether_client_init(&c,&cfg);
 
-    assert(aether_client_start(&c)==AETHER_OK);
+    start_self_registration(&registration,&c);
     assert(c.state==AETHER_STATE_REG_CONNECTING && f.last_open_channel==AETHER_CHANNEL_REGISTRATION);
 
     aether_client_on_transport_state(&c,AETHER_CHANNEL_REGISTRATION,true);
@@ -761,7 +1135,7 @@ static void test_full_registration_and_message(void) {
     assert(take32(
         request_pow_plain,
         request_pow_plain_len,
-        &request_pow_pos)==c.req_pow);
+        &request_pow_pos)==registration.req_pow);
 
     expect_uuid(
         request_pow_plain,
@@ -787,7 +1161,7 @@ static void test_full_registration_and_message(void) {
      * establishes the client's timebase rather than treating started_at=0 as
      * an ancient request.
      */
-    uint32_t timed_out_pow_req=c.req_pow;
+    uint32_t timed_out_pow_req=registration.req_pow;
     unsigned timeout_opens_before=f.opens;
     unsigned timeout_closes_before=f.closes;
     uint64_t first_monotonic_now=UINT64_C(987654321000);
@@ -826,7 +1200,7 @@ static void test_full_registration_and_message(void) {
         &c,AETHER_CHANNEL_REGISTRATION,packet,p)==AETHER_OK);
 
     assert(c.state==AETHER_STATE_REG_WAIT_POW);
-    assert(c.req_pow!=timed_out_pow_req);
+    assert(registration.req_pow!=timed_out_pow_req);
 
 
 
@@ -883,7 +1257,7 @@ static void test_full_registration_and_message(void) {
     p=0;
     uint8_t pow_plain[512]; size_t q=0;
     put8(pow_plain,&q,0);
-    put32(pow_plain,&q,c.req_pow);
+    put32(pow_plain,&q,registration.req_pow);
     put_array(pow_plain,&q,(const uint8_t*)"salt",4);
     put_array(pow_plain,&q,(const uint8_t*)"suffix",6);
     put8(pow_plain,&q,2);
@@ -898,7 +1272,7 @@ static void test_full_registration_and_message(void) {
         &c,AETHER_CHANNEL_REGISTRATION,packet,p)==AETHER_OK);
 
     assert(c.state==AETHER_STATE_REG_WAIT_FINISH);
-    assert(c.pow_password_count==2 && c.pow_passwords[0]==123);
+    assert(registration.pow_password_count==2 && registration.pow_passwords[0]==123);
 
 
     /*
@@ -942,7 +1316,7 @@ static void test_full_registration_and_message(void) {
     assert(take32(
         registration_plain,
         registration_plain_len,
-        &registration_pos)==c.req_finish);
+        &registration_pos)==registration.req_finish);
 
     size_t sent_salt_len=0u;
     const uint8_t *sent_salt=
@@ -1006,7 +1380,7 @@ static void test_full_registration_and_message(void) {
 
     p=0; q=0;
     put8(pow_plain,&q,0);
-    put32(pow_plain,&q,c.req_finish);
+    put32(pow_plain,&q,registration.req_finish);
     put_uuid(pow_plain,&q,alias);
     put_uuid(pow_plain,&q,uid);
     put_pack(pow_plain,&q,1);
@@ -1016,12 +1390,339 @@ static void test_full_registration_and_message(void) {
     put_encrypted_packet(
         packet,&p,3,c.temp_key,pow_plain,q);
 
+    unsigned resolve_send_errors_before =
+        f.errors;
+
+    f.fail_sends_remaining =
+        1u;
+
+
 
     assert(aether_client_on_rx(
         &c,AETHER_CHANNEL_REGISTRATION,packet,p)==AETHER_OK);
 
-    assert(c.state==AETHER_STATE_REG_WAIT_SERVERS);
+    assert(
+        f.fail_sends_remaining ==
+        0u);
+
+    assert(
+        f.errors ==
+        resolve_send_errors_before);
+
+
+    assert(c.state==AETHER_STATE_SERVER_RESOLVING);
     assert(f.registered_events==1);
+
+
+    /*
+     * Crash/restart exactly between registrationDirect and resolveServers.
+     *
+     * Identity + Cloud are durable already, while ServerDescriptor[] is still
+     * an empty disposable cache. A restored mandatory client must recover the
+     * descriptors without invoking the optional PoW/registration policy.
+     */
+    fixture_t recovered;
+    memset(&recovered,0,sizeof(recovered));
+
+    memcpy(
+        recovered.flash,
+        f.flash,
+        f.flash_len);
+
+    recovered.flash_len =
+        f.flash_len;
+
+    recovered.root_signer =
+        f.root_signer;
+
+    recovered.registration_kx =
+        f.registration_kx;
+
+    recovered.global_kx =
+        f.global_kx;
+
+    recovered.fail_open_port =
+        9010u;
+
+
+    aether_client_config_t recovered_cfg =
+        config_for(&recovered);
+
+    recovered_cfg.pow.generate =
+        NULL;
+
+    aether_client_t recovered_client;
+
+    aether_client_init(
+        &recovered_client,
+        &recovered_cfg);
+
+    assert(
+        aether_client_start(
+            &recovered_client) ==
+        AETHER_OK);
+
+    assert(
+        recovered_client.registered);
+
+    assert(
+        recovered_client.uid.msb ==
+            uid.msb &&
+        recovered_client.uid.lsb ==
+            uid.lsb);
+
+    assert(
+        recovered_client.alias.msb ==
+            alias.msb &&
+        recovered_client.alias.lsb ==
+            alias.lsb);
+
+    assert(
+        recovered_client.cloud_count ==
+        1u);
+
+    assert(
+        recovered_client.cloud_sids[0] ==
+        7);
+
+    assert(
+        recovered_client.server_count ==
+        0u);
+
+    assert(
+        recovered_client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+    assert(
+        recovered.opens ==
+        1u);
+
+    assert(
+        recovered.last_open_channel ==
+        AETHER_CHANNEL_REGISTRATION);
+
+    /*
+     * A missing bootstrap endpoint is a normal SERVER_RESOLVING condition.
+     * Startup succeeds, no ERROR event is emitted, and poll retries later.
+     */
+    assert(
+        recovered.errors ==
+        0u);
+
+    recovered.fail_open_port =
+        0u;
+
+    aether_client_poll(
+        &recovered_client,
+        UINT64_C(1000));
+
+    assert(
+        recovered.opens ==
+        1u);
+
+    aether_client_poll(
+        &recovered_client,
+        UINT64_C(1000000));
+
+    assert(
+        recovered.opens ==
+        2u);
+
+    assert(
+        recovered.last_open_channel ==
+        AETHER_CHANNEL_REGISTRATION);
+
+    assert(
+        recovered_client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+    /*
+     * A synchronous getServerKey send failure is equally transient.
+     * The failed send consumes no state-machine identity and emits no error.
+     */
+    recovered.fail_sends_remaining =
+        1u;
+
+    unsigned bootstrap_sends_before =
+        recovered.sends;
+
+    aether_client_on_transport_state(
+        &recovered_client,
+        AETHER_CHANNEL_REGISTRATION,
+        true);
+
+    assert(
+        recovered.sends ==
+        bootstrap_sends_before +
+        1u);
+
+    assert(
+        recovered.fail_sends_remaining ==
+        0u);
+
+    assert(
+        recovered_client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+    assert(
+        recovered.errors ==
+        0u);
+
+    aether_client_poll(
+        &recovered_client,
+        UINT64_C(2000000));
+
+    assert(
+        recovered.opens ==
+        3u);
+
+    assert(
+        recovered.last_open_channel ==
+        AETHER_CHANNEL_REGISTRATION);
+
+    assert(
+        recovered_client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+
+    /*
+     * A writable bootstrap transport first requests the signed registration
+     * server key.
+     */
+    aether_client_on_transport_state(
+        &recovered_client,
+        AETHER_CHANNEL_REGISTRATION,
+        true);
+
+    assert(
+        recovered_client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+    assert(
+        recovered.packet_channel ==
+        AETHER_CHANNEL_REGISTRATION);
+
+    assert(
+        recovered.packet_len ==
+        6u);
+
+    assert(
+        recovered.packet[0] ==
+        3u);
+
+    /*
+     * Feed the trusted registration-server public key. SERVER_RESOLVING must
+     * now create only a temporary return key and immediately issue
+     * setReturnKey + resolveServers. No PoW callback exists in recovered_cfg.
+     */
+    size_t recovered_packet_pos =
+        0u;
+
+    put8(
+        packet,
+        &recovered_packet_pos,
+        0u);
+
+    put32(
+        packet,
+        &recovered_packet_pos,
+        recovered_client.req_server_key);
+
+    put_signed_hydrogen_key(
+        packet,
+        &recovered_packet_pos,
+        recovered.registration_kx.pk,
+        &recovered.root_signer);
+
+    assert(
+        aether_client_on_rx(
+            &recovered_client,
+            AETHER_CHANNEL_REGISTRATION,
+            packet,
+            recovered_packet_pos) ==
+        AETHER_OK);
+
+    assert(
+        recovered_client.state ==
+        AETHER_STATE_SERVER_RESOLVING);
+
+    assert(
+        recovered.packet_channel ==
+        AETHER_CHANNEL_REGISTRATION);
+
+    uint8_t recovered_resolve_plain[512];
+
+    size_t recovered_resolve_plain_len =
+        decrypt_registration_enter(
+            recovered.packet,
+            recovered.packet_len,
+            &recovered.registration_kx,
+            recovered_resolve_plain,
+            sizeof(recovered_resolve_plain));
+
+    size_t recovered_resolve_pos =
+        0u;
+
+    assert(
+        take8(
+            recovered_resolve_plain,
+            recovered_resolve_plain_len,
+            &recovered_resolve_pos) ==
+        6u); /* setReturnKey */
+
+    assert(
+        take8(
+            recovered_resolve_plain,
+            recovered_resolve_plain_len,
+            &recovered_resolve_pos) ==
+        3u); /* HydrogenSecretBox */
+
+    expect_bytes(
+        recovered_resolve_plain,
+        recovered_resolve_plain_len,
+        &recovered_resolve_pos,
+        recovered_client.temp_key,
+        32u);
+
+    assert(
+        take8(
+            recovered_resolve_plain,
+            recovered_resolve_plain_len,
+            &recovered_resolve_pos) ==
+        5u); /* resolveServers */
+
+    assert(
+        take32(
+            recovered_resolve_plain,
+            recovered_resolve_plain_len,
+            &recovered_resolve_pos) ==
+        recovered_client.req_resolve);
+
+    assert(
+        take_pack(
+            recovered_resolve_plain,
+            recovered_resolve_plain_len,
+            &recovered_resolve_pos) ==
+        1u);
+
+    assert(
+        take8(
+            recovered_resolve_plain,
+            recovered_resolve_plain_len,
+            &recovered_resolve_pos) ==
+        7u);
+
+    assert(
+        take8(
+            recovered_resolve_plain,
+            recovered_resolve_plain_len,
+            &recovered_resolve_pos) ==
+        0u);
+
+    assert(
+        recovered_resolve_pos ==
+        recovered_resolve_plain_len);
+
 
 
     p=0; q=0;

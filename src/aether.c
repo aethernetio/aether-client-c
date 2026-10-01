@@ -210,6 +210,10 @@ void aether_on_message(
 }
 
 
+
+
+
+
 void aether_on_ready(
     aether_t *client,
     aether_ready_fn callback) {
@@ -336,7 +340,8 @@ aether_status_t aether_poll(
 }
 
 
-aether_status_t aether_send(
+
+aether_status_t aether_send_message(
     aether_t *client,
     aether_uuid_t destination,
     const uint8_t *data,
@@ -349,13 +354,28 @@ aether_status_t aether_send(
     if (client->init_status !=
         AETHER_OK) {
 
-        return
-            client->init_status;
+        return client->init_status;
     }
 
     return
         aether_client_app_send(
             &client->app,
+            destination,
+            data,
+            size);
+}
+
+
+
+aether_status_t aether_send(
+    aether_t *client,
+    aether_uuid_t destination,
+    const uint8_t *data,
+    size_t size) {
+
+    return
+        aether_send_message(
+            client,
             destination,
             data,
             size);

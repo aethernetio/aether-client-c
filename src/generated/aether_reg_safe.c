@@ -1,7 +1,7 @@
 
 #include "aether_reg_safe.h"
 
-#include "client_server_reg_safe_api.h"
+#include "client_server_api_api.h"
 
 #include <string.h>
 
@@ -485,6 +485,197 @@ aether_status_t aether_generated_reg_safe_build_registration_direct(
             password_view,
             parent,
             &master_key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    *length =
+        produced;
+
+    return AETHER_OK;
+}
+
+
+
+aether_status_t aether_generated_reg_safe_build_recovery(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t symmetric_key_type,
+    const uint8_t *return_key,
+    size_t return_key_length,
+    const uint8_t *master_key,
+    size_t master_key_length,
+    uint32_t request_id,
+    aether_uuid_t uid) {
+
+    if (length == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_reg_safe_key_storage_t return_key_storage;
+    key_ref_t return_key_ref;
+
+    aether_status_t status =
+        aether_reg_safe_key(
+            symmetric_key_type,
+            return_key,
+            return_key_length,
+            &return_key_storage,
+            &return_key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    aether_reg_safe_key_storage_t master_key_storage;
+    key_ref_t master_key_ref;
+
+    status =
+        aether_reg_safe_key(
+            symmetric_key_type,
+            master_key,
+            master_key_length,
+            &master_key_storage,
+            &master_key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    size_t produced;
+    aether_reg_safe_commit_t commit;
+    server_registration_api_remote_t remote;
+
+    status =
+        aether_reg_safe_remote(
+            data,
+            capacity,
+            &produced,
+            &commit,
+            &remote);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    status =
+        server_registration_api_set_return_key(
+            &remote,
+            &return_key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    aether_reg_safe_advance(
+        &remote,
+        &commit,
+        data,
+        capacity,
+        produced);
+
+    status =
+        server_registration_api_recovery(
+            &remote,
+            request_id,
+            uid,
+            &master_key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    *length =
+        produced;
+
+    return AETHER_OK;
+}
+
+
+
+
+
+aether_status_t aether_generated_reg_safe_build_resolve_with_return_key(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t symmetric_key_type,
+    const uint8_t *return_key,
+    size_t return_key_length,
+    uint32_t request_id,
+    const int16_t *server_ids,
+    size_t server_count) {
+
+    if (length == NULL ||
+        (server_ids == NULL &&
+         server_count != 0u)) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_reg_safe_key_storage_t key_storage;
+    key_ref_t key_ref;
+
+    aether_status_t status =
+        aether_reg_safe_key(
+            symmetric_key_type,
+            return_key,
+            return_key_length,
+            &key_storage,
+            &key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    size_t produced;
+    aether_reg_safe_commit_t commit;
+    server_registration_api_remote_t remote;
+
+    status =
+        aether_reg_safe_remote(
+            data,
+            capacity,
+            &produced,
+            &commit,
+            &remote);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    status =
+        server_registration_api_set_return_key(
+            &remote,
+            &key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    aether_reg_safe_advance(
+        &remote,
+        &commit,
+        data,
+        capacity,
+        produced);
+
+    short_array_view_t server_id_view = {
+        .data = server_ids,
+        .length = server_count
+    };
+
+    cloud_t cloud = {
+        .data = server_id_view
+    };
+
+    status =
+        server_registration_api_resolve_servers(
+            &remote,
+            request_id,
+            &cloud);
 
     if (status != AETHER_OK) {
         return status;

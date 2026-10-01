@@ -98,17 +98,51 @@ typedef enum {
 } aether_channel_t;
 
 
+
+
 typedef enum {
     AETHER_STATE_STOPPED = 0,
+
+    /*
+     * The client has no persistent Aether identity.
+     *
+     * This is a normal stable state. Core never chooses registration policy
+     * automatically. An application may provision an identity directly or
+     * drive the optional registration component.
+     */
+    AETHER_STATE_NO_IDENTITY,
+
+    /*
+     * Existing identity has routing Cloud metadata but no usable cached
+     * ServerDescriptor. Core refreshes descriptors through the registration
+     * endpoint without running PoW or creating a new identity.
+     */
+    AETHER_STATE_SERVER_RESOLVING,
+
+    /*
+     * Temporary self-registration transaction substates.
+     *
+     * Mandatory client startup never enters these automatically.
+     */
     AETHER_STATE_REG_CONNECTING,
     AETHER_STATE_REG_WAIT_SERVER_KEY,
     AETHER_STATE_REG_WAIT_POW,
+
     AETHER_STATE_REG_WAIT_FINISH,
-    AETHER_STATE_REG_WAIT_SERVERS,
+
+
+    AETHER_STATE_CREDENTIALS_CONNECTING,
+    AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY,
+    AETHER_STATE_CREDENTIALS_WAIT_RESULT,
+
+
+
     AETHER_STATE_WORK_CONNECTING,
     AETHER_STATE_READY,
     AETHER_STATE_ERROR
 } aether_state_t;
+
+
 
 
 
@@ -547,6 +581,12 @@ typedef void (*aether_event_callback_t)(
 - true. tx_plain/tx_crypto are reusable scratch buffers. A MESSAGE ingress can
 - borrow decrypted bytes from tx_crypto until the ingress is consumed.
    */
+
+struct aether_registration;
+struct aether_credentials;
+
+
+
   typedef struct aether_client {
 
     aether_client_config_t config;
@@ -570,32 +610,42 @@ typedef void (*aether_event_callback_t)(
     uint8_t work_tx_key[AETHER_KEY_BYTES];
     uint8_t work_rx_key[AETHER_KEY_BYTES];
 
+
     aether_signed_key_t registration_server_key;
-    aether_signed_key_t global_key;
 
     uint8_t cloud_count;
     int16_t cloud_sids[AETHER_MAX_SERVERS];
 
+
     uint8_t server_count;
-    aether_server_t servers[AETHER_MAX_SERVERS];
+
+    /*
+     * Mutually exclusive storage:
+     *
+     * - while there is no identity / self-registration is running, servers[]
+     *   is unused and the optional component may occupy this storage with its
+     *   bridge pointer;
+     *
+     * - once identity creation completes, state becomes SERVER_RESOLVING and
+     *   the registration pointer is never read again. Descriptor resolution
+     *   then reclaims the same bytes as servers[].
+     *
+     * This keeps optional self-registration at zero incremental RAM cost for a
+     * provisioned client without coupling platform transport routing to the
+     * optional component.
+     */
+    union {
+        aether_server_t servers[AETHER_MAX_SERVERS];
+        struct aether_registration *registration;
+        struct aether_credentials *credentials;
+    };
+
     int8_t active_server_index;
 
     uint32_t req_server_key;
-    uint32_t req_pow;
-    uint32_t req_finish;
     uint32_t req_resolve;
 
-    uint8_t pow_salt[AETHER_MAX_POW_TEXT];
-    size_t pow_salt_len;
 
-    uint8_t pow_suffix[AETHER_MAX_POW_TEXT];
-    size_t pow_suffix_len;
-
-    uint8_t pow_pool_size;
-    int32_t pow_max_hash;
-
-    int32_t pow_passwords[AETHER_MAX_POW_PASSWORDS];
-    size_t pow_password_count;
 
 
 
@@ -647,12 +697,43 @@ typedef void (*aether_event_callback_t)(
 /*
 - Start or restore the protocol state machine.
 -
-- Persistent state is loaded when available. Otherwise the client enters
-- registration. Transport establishment is asynchronous; AETHER_OK means that
-- startup was accepted, not that the client is already READY.
+
+ * Persistent state is loaded when available. Otherwise the client enters
+ * AETHER_STATE_NO_IDENTITY. Self-registration is optional caller-owned policy;
+ * the mandatory client never starts it automatically.
+
    */
   aether_status_t aether_client_start(
    aether_client_t *client);
+
+
+/*
+ * Install a pre-provisioned Aether identity.
+ *
+ * This is the non-registration producer of client identity. It is valid only
+ * while the mandatory client is in AETHER_STATE_NO_IDENTITY.
+ *
+ * Current routing state requires all four pieces:
+ *   - uid;
+ *   - alias;
+ *   - AETHER_KEY_BYTES master key;
+ *   - non-empty Cloud SID list.
+ *
+ * ServerDescriptor[] is intentionally not accepted here. It is a disposable
+ * cache and is cleared by this call. After persistence the client immediately
+ * enters AETHER_STATE_SERVER_RESOLVING and refreshes descriptors through the
+ * normal mandatory bootstrap path.
+ *
+ * No aether_registration_t or PoW callback is required.
+ */
+aether_status_t aether_client_provision_identity(
+    aether_client_t *client,
+    aether_uuid_t uid,
+    aether_uuid_t alias,
+    const uint8_t master_key[AETHER_KEY_BYTES],
+    const int16_t *cloud_sids,
+    size_t cloud_count);
+
 /*
 - Retry after a recoverable client error using the existing configuration and
 - persistent state. The caller remains responsible for driving transport/timers

@@ -2979,20 +2979,28 @@ static bool emit_api_source(
                 "        return AETHER_ERR_ARGUMENT;\n"
                 "    }\n\n"
 
-                "    uint8_t *tx = api->tx;\n"
-                "    size_t tx_capacity = api->tx_capacity;\n\n"
 
+
+                "%s"
+                "%s"
                 "    if (api->tx_capacity < %uu) {\n"
                 "        return AETHER_ERR_OVERFLOW;\n"
                 "    }\n\n"
                 "    size_t pos = 0u;\n"
                 "    api->tx[pos++] = %uu;\n",
 
-
+                method->param_count != 0u
+                    ? "    uint8_t *tx = api->tx;\n"
+                    : "",
+                method->param_count != 0u
+                    ? "    size_t tx_capacity = api->tx_capacity;\n\n"
+                    : "",
                 has_response
                     ? 5u
                     : 1u,
                 (unsigned int)method->id);
+
+
 
             if (has_response) {
                 fputs(

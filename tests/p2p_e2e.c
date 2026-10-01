@@ -1,5 +1,6 @@
 
 #include "aether.h"
+#include "aether_registration.h"
 #include "p2p_test_support.h"
 
 #include <stdbool.h>
@@ -19,6 +20,10 @@ typedef struct {
 
 static aether_t client_a;
 static aether_t client_b;
+
+static aether_registration_t registration_a;
+static aether_registration_t registration_b;
+
 
 static received_message_t received_a;
 static received_message_t received_b;
@@ -88,6 +93,36 @@ static void on_error(
 
 
 static int poll_pair(void) {
+    if (registration_a.client == NULL) {
+        aether_registration_init(
+            &registration_a,
+            &client_a.app.core);
+    }
+
+    if (registration_b.client == NULL) {
+        aether_registration_init(
+            &registration_b,
+            &client_b.app.core);
+    }
+
+    if (!aether_is_registered(&client_a)) {
+        if (aether_registration_poll(
+                &registration_a) !=
+            AETHER_OK) {
+
+            return -1;
+        }
+    }
+
+    if (!aether_is_registered(&client_b)) {
+        if (aether_registration_poll(
+                &registration_b) !=
+            AETHER_OK) {
+
+            return -1;
+        }
+    }
+
     if (aether_poll(&client_a) != AETHER_OK) {
         return -1;
     }

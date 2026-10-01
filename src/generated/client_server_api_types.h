@@ -854,6 +854,14 @@ typedef struct {
 } int_array_view_t;
 #endif
 
+#ifndef AETHER_ADSLC_INT_ARRAY_VIEW_T_DEFINED
+#define AETHER_ADSLC_INT_ARRAY_VIEW_T_DEFINED
+typedef struct {
+    const int32_t *data;
+    size_t length;
+} int_array_view_t;
+#endif
+
 #ifndef AETHER_ADSLC_SERVER_DESCRIPTOR_ARRAY_VIEW_T_DEFINED
 #define AETHER_ADSLC_SERVER_DESCRIPTOR_ARRAY_VIEW_T_DEFINED
 typedef struct {
@@ -1147,5 +1155,413 @@ struct probe_report_t {
     int32_t count;
     probe_sample_array_view_t samples;
 };
+
+aether_status_t client_server_api_serialize_key(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_ref_t *value);
+
+aether_status_t client_server_api_serialize_key_symmetric(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_symmetric_ref_t *value);
+
+aether_status_t client_server_api_serialize_key_asymmetric(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_asymmetric_ref_t *value);
+
+aether_status_t client_server_api_serialize_key_asymmetric_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_asymmetric_public_ref_t *value);
+
+aether_status_t client_server_api_serialize_key_asymmetric_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_asymmetric_private_ref_t *value);
+
+aether_status_t client_server_api_serialize_key_sign(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_sign_ref_t *value);
+
+aether_status_t client_server_api_serialize_key_sign_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_sign_public_ref_t *value);
+
+aether_status_t client_server_api_serialize_key_sign_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_sign_private_ref_t *value);
+
+aether_status_t client_server_api_serialize_sodium_chacha20_poly1305(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sodium_chacha20_poly1305_t *value);
+
+aether_status_t client_server_api_serialize_hydrogen_curve_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const hydrogen_curve_private_t *value);
+
+aether_status_t client_server_api_serialize_hydrogen_curve_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const hydrogen_curve_public_t *value);
+
+aether_status_t client_server_api_serialize_hydrogen_secret_box(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const hydrogen_secret_box_t *value);
+
+aether_status_t client_server_api_serialize_sodium_curve_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sodium_curve_public_t *value);
+
+aether_status_t client_server_api_serialize_sodium_curve_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sodium_curve_private_t *value);
+
+aether_status_t client_server_api_serialize_sodium_sign_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sodium_sign_private_t *value);
+
+aether_status_t client_server_api_serialize_sodium_sign_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sodium_sign_public_t *value);
+
+aether_status_t client_server_api_serialize_hydrogen_sign_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const hydrogen_sign_private_t *value);
+
+aether_status_t client_server_api_serialize_hydrogen_sign_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const hydrogen_sign_public_t *value);
+
+aether_status_t client_server_api_serialize_sign(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sign_ref_t *value);
+
+aether_status_t client_server_api_serialize_sign_a_e_e_d25519(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sign_a_e_e_d25519_t *value);
+
+aether_status_t client_server_api_serialize_sign_h_y_d_r_o_g_e_n(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sign_h_y_d_r_o_g_e_n_t *value);
+
+aether_status_t client_server_api_serialize_signed_key(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const signed_key_t *value);
+
+aether_status_t client_server_api_serialize_work_proof_config(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const work_proof_config_ref_t *value);
+
+aether_status_t client_server_api_serialize_work_proof_b_crypt(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const work_proof_b_crypt_t *value);
+
+aether_status_t client_server_api_serialize_work_proof_d_t_o(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const work_proof_d_t_o_t *value);
+
+aether_status_t client_server_api_serialize_i_p_address(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const i_p_address_ref_t *value);
+
+aether_status_t client_server_api_serialize_i_p_address_v4(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const i_p_address_v4_t *value);
+
+aether_status_t client_server_api_serialize_i_p_address_v6(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const i_p_address_v6_t *value);
+
+aether_status_t client_server_api_serialize_i_p_address_web(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const i_p_address_web_t *value);
+
+aether_status_t client_server_api_serialize_coder_and_port(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const coder_and_port_t *value);
+
+aether_status_t client_server_api_serialize_i_p_address_and_ports(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const i_p_address_and_ports_t *value);
+
+aether_status_t client_server_api_serialize_i_p_address_and_ports_list(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const i_p_address_and_ports_list_t *value);
+
+aether_status_t client_server_api_serialize_server_descriptor(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const server_descriptor_t *value);
+
+aether_status_t client_server_api_serialize_server_descriptor_with_geo(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const server_descriptor_with_geo_t *value);
+
+aether_status_t client_server_api_serialize_cloud(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const cloud_t *value);
+
+aether_status_t client_server_api_serialize_money_operation(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const money_operation_t *value);
+
+aether_status_t client_server_api_serialize_access_group(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const access_group_t *value);
+
+aether_status_t client_server_api_serialize_u_u_i_d_and_cloud(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const u_u_i_d_and_cloud_t *value);
+
+aether_status_t client_server_api_serialize_cloud_config(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const cloud_config_t *value);
+
+aether_status_t client_server_api_serialize_applied_config(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const applied_config_t *value);
+
+aether_status_t client_server_api_serialize_pair_keys(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const pair_keys_ref_t *value);
+
+aether_status_t client_server_api_serialize_pair_keys_sign(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const pair_keys_sign_t *value);
+
+aether_status_t client_server_api_serialize_pair_keys_asym(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const pair_keys_asym_t *value);
+
+aether_status_t client_server_api_serialize_pair_keys_asym_signed(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const pair_keys_asym_signed_t *value);
+
+aether_status_t client_server_api_serialize_pair_keys_sym(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const pair_keys_sym_t *value);
+
+aether_status_t client_server_api_serialize_access_check_pair(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const access_check_pair_t *value);
+
+aether_status_t client_server_api_serialize_access_check_result(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const access_check_result_t *value);
+
+aether_status_t client_server_api_serialize_ip_info(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const ip_info_t *value);
+
+aether_status_t client_server_api_serialize_p256_aes_gcm_symmetric(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const p256_aes_gcm_symmetric_t *value);
+
+aether_status_t client_server_api_serialize_p256_aes_gcm_curve_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const p256_aes_gcm_curve_private_t *value);
+
+aether_status_t client_server_api_serialize_p256_aes_gcm_curve_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const p256_aes_gcm_curve_public_t *value);
+
+aether_status_t client_server_api_serialize_p256_aes_gcm_sign_private(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const p256_aes_gcm_sign_private_t *value);
+
+aether_status_t client_server_api_serialize_p256_aes_gcm_sign_public(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const p256_aes_gcm_sign_public_t *value);
+
+aether_status_t client_server_api_serialize_sign_p256_aes_gcm(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const sign_p256_aes_gcm_t *value);
+
+aether_status_t client_server_api_serialize_telemetry(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const telemetry_ref_t *value);
+
+aether_status_t client_server_api_serialize_telemetry_c_p_p(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const telemetry_c_p_p_t *value);
+
+aether_status_t client_server_api_serialize_message(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const message_t *value);
+
+aether_status_t client_server_api_serialize_client_activity(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const client_activity_t *value);
+
+aether_status_t client_server_api_serialize_key_value_pair(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const key_value_pair_t *value);
+
+aether_status_t client_server_api_serialize_client_log_entry(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const client_log_entry_t *value);
+
+aether_status_t client_server_api_serialize_client_connection_info(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const client_connection_info_t *value);
+
+aether_status_t client_server_api_serialize_message_info(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const message_info_t *value);
+
+aether_status_t client_server_api_serialize_uap(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const uap_t *value);
+
+aether_status_t client_server_api_serialize_ice_candidate(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const ice_candidate_t *value);
+
+aether_status_t client_server_api_serialize_web_rtc_session(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const web_rtc_session_t *value);
+
+aether_status_t client_server_api_serialize_client_timing(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const client_timing_t *value);
+
+aether_status_t client_server_api_serialize_probe_sample(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const probe_sample_t *value);
+
+aether_status_t client_server_api_serialize_probe_report(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const probe_report_t *value);
 
 #endif

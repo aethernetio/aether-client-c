@@ -53,6 +53,9 @@ typedef void (*aether_message_fn)(
     const uint8_t *data,
     size_t size);
 
+
+
+
 typedef void (*aether_ready_fn)(
     aether_t *client,
     aether_uuid_t uid);
@@ -88,9 +91,11 @@ typedef void (*aether_error_fn)(
 struct aether {
     aether_client_app_t app;
 
+
     aether_rx_all_t rx;
 
     aether_message_fn on_message;
+
     aether_ready_fn on_ready;
     aether_error_fn on_error;
 
@@ -144,6 +149,9 @@ void aether_on_message(
     aether_t *client,
     aether_message_fn callback);
 
+
+
+
 void aether_on_ready(
     aether_t *client,
     aether_ready_fn callback);
@@ -186,12 +194,31 @@ aether_status_t aether_poll(
     aether_t *client);
 
 
+
 /*
  * Send one application message to another Aether UID.
  *
- * data is borrowed only for this call. Applications requiring explicit
- * request-result/timeout tracking should use the advanced
- * aether_send_future_t component.
+ * Readiness/writability is checked inside the library; applications do not
+ * need to guard this call with aether_is_ready().
+ *
+ * This is an immediate, zero-extra-state operation. data is borrowed only for
+ * this call because the transport consumes/copies it before returning.
+ *
+ * Applications requiring explicit request-result/timeout tracking can use
+ * aether_send_future_t. Bidirectional relationships should normally use
+ * aether_peer_t from aether_messages.h.
+ */
+aether_status_t aether_send_message(
+    aether_t *client,
+    aether_uuid_t destination,
+    const uint8_t *data,
+    size_t size);
+
+/*
+ * Compatibility alias for the original API.
+ *
+ * New code should prefer aether_send_message(), whose name makes the operation
+ * explicit.
  */
 aether_status_t aether_send(
     aether_t *client,
@@ -200,7 +227,8 @@ aether_status_t aether_send(
     size_t size);
 
 
-/* True only when an authenticated writable work connection is ready. */
+
+/* Informational only; normal send/message components check readiness internally. */
 bool aether_is_ready(
     const aether_t *client);
 

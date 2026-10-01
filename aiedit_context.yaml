@@ -38,7 +38,9 @@
   roots: [
     /home/angel/projects/aether-client-c,
     /home/angel/projects/aether,
-    /home/angel/projects/aether-client-java
+    /home/angel/projects/aether-client-java,
+    /home/angel/projects/client-ts,
+    /home/angel/projects/aiedit
   ]
   ,
   provod: {
