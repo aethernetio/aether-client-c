@@ -39,23 +39,6 @@ bool aether_client_registration_on_poll_internal(
 
 
 
-struct aether_credentials;
-
-aether_status_t aether_client_begin_credentials_internal(
-    aether_client_t *client);
-
-aether_status_t aether_client_credentials_on_rx_internal(
-    struct aether_credentials *credentials,
-    const uint8_t *data,
-    size_t length);
-
-void aether_client_credentials_on_transport_state_internal(
-    struct aether_credentials *credentials,
-    bool writable);
-
-bool aether_client_credentials_on_poll_internal(
-    struct aether_credentials *credentials,
-    uint64_t now_ms);
 
 
 

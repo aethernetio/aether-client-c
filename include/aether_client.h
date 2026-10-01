@@ -131,9 +131,11 @@ typedef enum {
     AETHER_STATE_REG_WAIT_FINISH,
 
 
-    AETHER_STATE_CREDENTIALS_CONNECTING,
-    AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY,
-    AETHER_STATE_CREDENTIALS_WAIT_RESULT,
+
+    AETHER_STATE_RECOVERY_CONNECTING,
+    AETHER_STATE_RECOVERY_WAIT_SERVER_KEY,
+    AETHER_STATE_RECOVERY_WAIT_RESULT,
+
 
 
 
@@ -583,7 +585,6 @@ typedef void (*aether_event_callback_t)(
    */
 
 struct aether_registration;
-struct aether_credentials;
 
 
 
@@ -637,13 +638,13 @@ struct aether_credentials;
     union {
         aether_server_t servers[AETHER_MAX_SERVERS];
         struct aether_registration *registration;
-        struct aether_credentials *credentials;
     };
 
     int8_t active_server_index;
 
     uint32_t req_server_key;
     uint32_t req_resolve;
+    bool topology_refreshed;
 
 
 

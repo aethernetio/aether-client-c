@@ -1897,14 +1897,49 @@ static bool registration_in_progress(
 }
 
 
-static bool credentials_in_progress(
+
+static bool recovery_in_progress(
     aether_state_t state) {
 
     return
-        state == AETHER_STATE_CREDENTIALS_CONNECTING ||
-        state == AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY ||
-        state == AETHER_STATE_CREDENTIALS_WAIT_RESULT;
+        state == AETHER_STATE_RECOVERY_CONNECTING ||
+        state == AETHER_STATE_RECOVERY_WAIT_SERVER_KEY ||
+        state == AETHER_STATE_RECOVERY_WAIT_RESULT;
 }
+
+
+
+static bool caller_credentials_present(
+    const aether_client_t *client) {
+
+    /*
+     * This predicate describes only a caller-supplied identity candidate that
+     * is not backed by persistent state. It is consulted after load_state()
+     * fails, before the client decides between mandatory recovery and the
+     * stable NO_IDENTITY hand-off.
+     */
+
+    bool has_uid =
+        client->uid.msb != UINT64_C(0) ||
+        client->uid.lsb != UINT64_C(0);
+
+    if (!has_uid) {
+        return false;
+    }
+
+    for (size_t i = 0u;
+         i < AETHER_KEY_BYTES;
+         ++i) {
+        if (client->master_key[i] != 0u) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+
 
 
 
@@ -1962,21 +1997,17 @@ static aether_status_t restart_registration(
 }
 
 
-static aether_status_t begin_credentials(
+
+static aether_status_t begin_recovery(
     aether_client_t *client) {
 
-    if (client == NULL ||
-        client->credentials == NULL) {
-
+    if (client == NULL) {
         return AETHER_ERR_STATE;
     }
 
-    client->registered =
-        false;
-
     set_registration_state(
         client,
-        AETHER_STATE_CREDENTIALS_CONNECTING);
+        AETHER_STATE_RECOVERY_CONNECTING);
 
     aether_status_t status =
         transport_open(
@@ -1985,17 +2016,27 @@ static aether_status_t begin_credentials(
             &client->config.registration_endpoint);
 
     if (status != AETHER_OK) {
-        return
-            fail(
-                client,
-                status);
+        /*
+         * Bootstrap availability is ordinary retryable state, not a terminal
+         * client error. poll() retries after the operation timeout.
+         */
+        transport_close(
+            client,
+            AETHER_CHANNEL_REGISTRATION);
+
+        client->state_started_at_ms =
+            (uint32_t)client->now_ms;
+
+        return AETHER_OK;
     }
 
     return AETHER_OK;
 }
 
 
-static aether_status_t restart_credentials(
+
+
+static aether_status_t restart_recovery(
     aether_client_t *client) {
 
     transport_close(
@@ -2003,33 +2044,12 @@ static aether_status_t restart_credentials(
         AETHER_CHANNEL_REGISTRATION);
 
     return
-        begin_credentials(
+        begin_recovery(
             client);
 }
 
 
-aether_status_t aether_client_begin_credentials_internal(
-    aether_client_t *client) {
 
-    if (client == NULL) {
-        return AETHER_ERR_ARGUMENT;
-    }
-
-    if (client->callback_active) {
-        return AETHER_ERR_BUSY;
-    }
-
-    if (client->credentials == NULL ||
-        (client->state != AETHER_STATE_NO_IDENTITY &&
-         client->state != AETHER_STATE_STOPPED)) {
-
-        return AETHER_ERR_STATE;
-    }
-
-    return
-        begin_credentials(
-            client);
-}
 
 
 
@@ -2074,12 +2094,27 @@ static aether_status_t begin_server_resolving(
                 AETHER_ERR_STATE);
     }
 
+
     if (client->cloud_count == 0u) {
         return
-            fail(
-                client,
-                AETHER_ERR_PROTOCOL);
+            begin_recovery(
+                client);
     }
+
+
+    if (client->topology_refreshed) {
+        /*
+         * resolveServers already returned a fresh topology and the complete
+         * resulting set still failed to reach a usable work server. Escalate
+         * to authoritative recovery instead of looping on a stale Cloud.
+         */
+        return
+            begin_recovery(
+                client);
+    }
+
+
+
 
     client->active_server_index =
         -1;
@@ -2092,9 +2127,12 @@ static aether_status_t begin_server_resolving(
         (uint32_t)
             client->now_ms;
 
+
     set_state(
         client,
         AETHER_STATE_SERVER_RESOLVING);
+
+
 
     aether_status_t status =
         transport_open(
@@ -2239,9 +2277,11 @@ static aether_status_t begin_work(
 static aether_status_t send_get_server_key(
     aether_client_t *client) {
 
-    bool credentials =
+
+    bool recovery =
         client->state ==
-        AETHER_STATE_CREDENTIALS_CONNECTING;
+        AETHER_STATE_RECOVERY_CONNECTING;
+
 
     client->req_server_key =
         next_request_id(
@@ -2304,9 +2344,11 @@ static aether_status_t send_get_server_key(
     } else {
         set_registration_state(
             client,
-            credentials
-                ? AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY
+
+            recovery
+                ? AETHER_STATE_RECOVERY_WAIT_SERVER_KEY
                 : AETHER_STATE_REG_WAIT_SERVER_KEY);
+
     }
 
     return AETHER_OK;
@@ -2499,18 +2541,18 @@ static aether_status_t send_registration_payload(
 
 
 
-static aether_status_t send_credentials_request(
+
+static aether_status_t send_recovery_request(
     aether_client_t *client) {
 
-    if (client == NULL ||
-        client->credentials == NULL) {
-
+    if (client == NULL) {
         return AETHER_ERR_STATE;
     }
 
-    client->credentials->request_id =
+    client->req_resolve =
         next_request_id(
             client);
+
 
     size_t nested_len =
         0u;
@@ -2528,7 +2570,7 @@ static aether_status_t send_credentials_request(
             client->master_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
-            client->credentials->request_id,
+            client->req_resolve,
             client->uid);
 
     if (status != AETHER_OK) {
@@ -2547,7 +2589,7 @@ static aether_status_t send_credentials_request(
     if (status == AETHER_OK) {
         set_registration_state(
             client,
-            AETHER_STATE_CREDENTIALS_WAIT_RESULT);
+            AETHER_STATE_RECOVERY_WAIT_RESULT);
     }
 
     return status;
@@ -2900,16 +2942,12 @@ static aether_status_t handle_reg_safe_plain(
 
 
 
+
             } else if (
                 client->state ==
-                    AETHER_STATE_CREDENTIALS_WAIT_RESULT &&
-                client->credentials != NULL &&
+                    AETHER_STATE_RECOVERY_WAIT_RESULT &&
                 request_id ==
-                    client->credentials->request_id) {
-
-
-                struct aether_credentials *credentials =
-                    client->credentials;
+                    client->req_resolve) {
 
                 client->alias =
                     r_uuid(
@@ -2953,11 +2991,7 @@ static aether_status_t handle_reg_safe_plain(
                         &reader,
                         client)) {
 
-                    client->server_count =
-                        0u;
 
-                    client->credentials =
-                        credentials;
 
                     return
                         fail(
@@ -2965,6 +2999,19 @@ static aether_status_t handle_reg_safe_plain(
                             AETHER_ERR_PROTOCOL);
                 }
 
+                client->topology_refreshed =
+                    false;
+
+
+
+
+
+                /*
+                 * Mark the commit attempt. save_state() serializes this flag,
+                 * so it must be set before persistence. If persistence fails,
+                 * the marker is rolled back below so a retry re-runs recovery
+                 * instead of assuming a committed WORK routing state.
+                 */
                 client->registered =
                     true;
 
@@ -2973,10 +3020,6 @@ static aether_status_t handle_reg_safe_plain(
 
                     client->registered =
                         false;
-                    client->server_count =
-                        0u;
-                    client->credentials =
-                        credentials;
 
                     return
                         fail(
@@ -2984,25 +3027,8 @@ static aether_status_t handle_reg_safe_plain(
                             AETHER_ERR_STORAGE);
                 }
 
-                aether_event_t event;
 
-                memset(
-                    &event,
-                    0,
-                    sizeof(event));
 
-                event.type =
-                    AETHER_EVENT_REGISTERED;
-
-                event.as.registered.uid =
-                    client->uid;
-
-                event.as.registered.alias =
-                    client->alias;
-
-                emit_event(
-                    client,
-                    &event);
 
                 transport_close(
                     client,
@@ -3109,7 +3135,7 @@ size_t frame_start =
                 (client->state !=
                      AETHER_STATE_REG_WAIT_SERVER_KEY &&
                  client->state !=
-                     AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY &&
+                     AETHER_STATE_RECOVERY_WAIT_SERVER_KEY &&
                  client->state !=
                      AETHER_STATE_SERVER_RESOLVING)) {
 
@@ -3168,7 +3194,7 @@ size_t frame_start =
 
 
             if (client->state ==
-                AETHER_STATE_CREDENTIALS_WAIT_SERVER_KEY) {
+                AETHER_STATE_RECOVERY_WAIT_SERVER_KEY) {
 
                 if (client->config.crypto
                             ->random_symmetric_key(
@@ -3184,9 +3210,11 @@ size_t frame_start =
                             AETHER_ERR_CRYPTO);
                 }
 
+
                 return
-                    send_credentials_request(
+                    send_recovery_request(
                         client);
+
             }
 
 
@@ -3392,6 +3420,17 @@ static aether_status_t handle_server_resolve_plain(
                         client,
                         AETHER_ERR_PROTOCOL);
             }
+
+
+            /*
+             * A resolveServers response is a cheap refresh of the known Cloud,
+             * not authoritative recovery. Remember that it was already used so
+             * that exhausting its result escalates to mandatory recovery.
+             */
+            client->topology_refreshed =
+                true;
+
+
 
             client->registered =
                 true;
@@ -3742,107 +3781,6 @@ bool aether_client_registration_on_poll_internal(
 }
 
 
-aether_status_t aether_client_credentials_on_rx_internal(
-    struct aether_credentials *credentials,
-    const uint8_t *data,
-    size_t length) {
-
-    if (credentials == NULL ||
-        credentials->client == NULL ||
-        credentials->client->credentials !=
-            credentials) {
-
-        return AETHER_ERR_ARGUMENT;
-    }
-
-    if (!credentials_in_progress(
-            credentials->client->state)) {
-
-        return AETHER_ERR_STATE;
-    }
-
-    return
-        handle_registration_rx(
-            credentials->client,
-            data,
-            length);
-}
-
-
-void aether_client_credentials_on_transport_state_internal(
-    struct aether_credentials *credentials,
-    bool writable) {
-
-    if (credentials == NULL ||
-        credentials->client == NULL ||
-        credentials->client->credentials !=
-            credentials) {
-
-        return;
-    }
-
-    aether_client_t *client =
-        credentials->client;
-
-    if (!credentials_in_progress(
-            client->state)) {
-
-        return;
-    }
-
-    if (!writable) {
-        (void)restart_credentials(
-            client);
-
-        return;
-    }
-
-    if (client->state ==
-        AETHER_STATE_CREDENTIALS_CONNECTING) {
-
-        (void)send_get_server_key(
-            client);
-    }
-}
-
-
-bool aether_client_credentials_on_poll_internal(
-    struct aether_credentials *credentials,
-    uint64_t now_ms) {
-
-    if (credentials == NULL ||
-        credentials->client == NULL ||
-        credentials->client->credentials !=
-            credentials) {
-
-        return false;
-    }
-
-    aether_client_t *client =
-        credentials->client;
-
-    if (!credentials_in_progress(
-            client->state)) {
-
-        return false;
-    }
-
-    uint32_t elapsed =
-        (uint32_t)now_ms -
-        client->state_started_at_ms;
-
-    if (elapsed <
-        operation_timeout_ms(
-            client)) {
-
-        return false;
-    }
-
-    (void)restart_credentials(
-        client);
-
-    return true;
-}
 
 
 
@@ -4513,11 +4451,14 @@ aether_status_t aether_client_start(
     }
 
 
-    if (client->credentials != NULL) {
+
+    if (caller_credentials_present(
+            client)) {
         return
-            begin_credentials(
+            begin_recovery(
                 client);
     }
+
 
 
     client->registered =
@@ -4709,9 +4650,23 @@ aether_status_t aether_client_retry(
         (uint32_t)
             client->now_ms;
 
+
     if (client->registered) {
         return
             begin_work(
+                client);
+    }
+
+    /*
+     * If a recovery commit could not be persisted, the client is left with
+     * registered == false but still owns caller/persisted UID + masterKey.
+     * Retry must re-run authoritative recovery rather than fall back to the
+     * stable NO_IDENTITY hand-off.
+     */
+    if (caller_credentials_present(
+            client)) {
+        return
+            begin_recovery(
                 client);
     }
 
@@ -4724,6 +4679,7 @@ aether_status_t aether_client_retry(
         AETHER_STATE_NO_IDENTITY);
 
     return AETHER_OK;
+
 }
 
 
@@ -4789,8 +4745,10 @@ void aether_client_poll(
 
         if (registration_in_progress(
                 client->state) ||
-            credentials_in_progress(
+
+            recovery_in_progress(
                 client->state) ||
+
             client->state ==
                 AETHER_STATE_SERVER_RESOLVING ||
             client->state ==
@@ -4851,17 +4809,25 @@ void aether_client_poll(
 
 
 
-    if (credentials_in_progress(
-            client->state) &&
-        client->credentials != NULL &&
-        client->credentials->internal != NULL &&
-        client->credentials->internal->on_poll != NULL &&
-        client->credentials->internal->on_poll(
-            client->credentials,
-            now_ms)) {
+
+    if (recovery_in_progress(
+            client->state)) {
+
+        uint32_t elapsed =
+            (uint32_t)now_ms -
+            client->state_started_at_ms;
+
+        if (elapsed >=
+            operation_timeout_ms(
+                client)) {
+
+            (void)restart_recovery(
+                client);
+        }
 
         return;
     }
+
 
 
     if (registration_in_progress(
@@ -4973,21 +4939,24 @@ void aether_client_on_transport_state(
 
 
 
-        if (credentials_in_progress(
-                client->state) &&
-            client->credentials != NULL &&
-            client->credentials->internal != NULL &&
-            client->credentials->internal
-                    ->on_transport_state !=
-                NULL) {
 
-            client->credentials->internal
-                ->on_transport_state(
-                    client->credentials,
-                    writable);
+        if (recovery_in_progress(
+                client->state)) {
+
+            if (!writable) {
+                (void)begin_recovery(
+                    client);
+
+            } else if (client->state ==
+                AETHER_STATE_RECOVERY_CONNECTING) {
+
+                (void)send_get_server_key(
+                    client);
+            }
 
             return;
         }
+
 
 
         if (registration_in_progress(
@@ -5029,6 +4998,11 @@ void aether_client_on_transport_state(
         set_state(
             client,
             AETHER_STATE_READY);
+
+
+        client->topology_refreshed =
+            false;
+
 
         client->next_ping_at_ms =
             0u;
@@ -5092,25 +5066,23 @@ aether_status_t aether_client_on_rx(
         }
 
 
+
         if (client->state ==
-            AETHER_STATE_CREDENTIALS_CONNECTING) {
+            AETHER_STATE_RECOVERY_CONNECTING) {
 
             return AETHER_OK;
         }
 
-        if (credentials_in_progress(
-                client->state) &&
-            client->credentials != NULL &&
-            client->credentials->internal != NULL &&
-            client->credentials->internal->on_rx !=
-                NULL) {
+        if (recovery_in_progress(
+                client->state)) {
 
             return
-                client->credentials->internal->on_rx(
-                    client->credentials,
+                handle_registration_rx(
+                    client,
                     data,
                     length);
         }
+
 
 
         if (client->state ==

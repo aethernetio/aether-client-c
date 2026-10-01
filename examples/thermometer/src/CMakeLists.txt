@@ -14,10 +14,30 @@ set(
     "../../../src/aether_messages.c"
 )
 
-file(
-    GLOB AETHER_GENERATED_SOURCES
-    "../../../src/generated/*.c"
+
+
+# Generated protocol sources.
+#
+# The unified generated API (client_server_api_api.c + _types.c) is the single
+# source of truth for all registration endpoints. The obsolete selective
+# generated API/types units are intentionally NOT listed here: they duplicate
+# symbols now provided by the unified API. Only the generated helper units that
+# the maintained adapters still depend on are included explicitly.
+set(
+    AETHER_GENERATED_SOURCES
+    "../../../src/generated/client_server_api_api.c"
+    "../../../src/generated/client_server_api_types.c"
+    "../../../src/generated/client_server_reg_unsafe_local_local.c"
+    "../../../src/generated/client_server_reg_direct_response_response.c"
+    "../../../src/generated/aether_reg_global.c"
+    "../../../src/generated/aether_reg_root_enter.c"
+    "../../../src/generated/aether_reg_root_key.c"
+    "../../../src/generated/aether_reg_safe.c"
+    "../../../src/generated/aether_reg_unsafe_local.c"
 )
+
+
+
 
 idf_component_register(
     SRCS

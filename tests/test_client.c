@@ -1,3 +1,6 @@
+
+#include "aether_credentials.h"
+
 #include "aether_client.h"
 #include "aether_registration.h"
 
@@ -26,6 +29,7 @@ typedef struct {
 
     uint8_t flash[4096];
     size_t flash_len;
+    unsigned fail_flash_saves;
 
     unsigned messages;
     aether_uuid_t last_from;
@@ -290,6 +294,27 @@ static size_t decrypt_registration_enter(
 
 
 
+static uint32_t test_crc32(const uint8_t *data, size_t length) {
+    uint32_t crc = UINT32_C(0xffffffff);
+
+    for (size_t i = 0u; i < length; ++i) {
+        crc ^= data[i];
+
+        for (unsigned j = 0u; j < 8u; ++j) {
+            uint32_t mask =
+                (uint32_t)-(int32_t)(crc & 1u);
+
+            crc = (crc >> 1u) ^
+                (UINT32_C(0xedb88320) & mask);
+        }
+    }
+
+    return ~crc;
+}
+
+
+
+
 
 static aether_status_t t_open(void *ctx, aether_channel_t channel, const aether_endpoint_t *ep) {
     fixture_t *f = ctx;
@@ -352,13 +377,19 @@ static aether_status_t flash_load(void *ctx, uint8_t *dst, size_t capacity, size
     *length = f->flash_len;
     return AETHER_OK;
 }
+
 static aether_status_t flash_save(void *ctx, const uint8_t *src, size_t length) {
     fixture_t *f = ctx;
+    if (f->fail_flash_saves != 0u) {
+        f->fail_flash_saves--;
+        return AETHER_ERR_STORAGE;
+    }
     assert(length <= sizeof(f->flash));
     memcpy(f->flash, src, length);
     f->flash_len = length;
     return AETHER_OK;
 }
+
 static aether_status_t pow_cb(void *ctx, const uint8_t *salt, size_t salt_len,
                               const uint8_t *suffix, size_t suffix_len,
                               uint8_t pool_size, int32_t max_hash,
@@ -2191,9 +2222,609 @@ static void test_work_frame_yields_messages_one_by_one(void) {
 
 
 
+static void make_persisted_identity(
+    fixture_t *f,
+    aether_uuid_t uid,
+    aether_uuid_t alias,
+    const uint8_t key[AETHER_KEY_BYTES]) {
+    uint8_t blob[256];
+    size_t p = 0u;
+
+    put8(blob, &p, 'A'); put8(blob, &p, 'E');
+    put8(blob, &p, 'C'); put8(blob, &p, '1');
+    put8(blob, &p, 1u);                 /* version */
+    put8(blob, &p, 1u);                 /* crypto_lib = Hydrogen */
+    put8(blob, &p, 1u);                 /* registered */
+    put8(blob, &p, 0u);                 /* reserved */
+
+    put_uuid(blob, &p, uid);
+    put_uuid(blob, &p, alias);
+
+    for (size_t i = 0u; i < AETHER_KEY_BYTES; ++i) {
+        put8(blob, &p, key[i]);
+    }
+
+    put8(blob, &p, 0u);                 /* cloud_count = 0 */
+    put8(blob, &p, 0u);                 /* server_count = 0 */
+
+    uint32_t crc = test_crc32(blob, p);
+    put32(blob, &p, crc);
+
+    memcpy(f->flash, blob, p);
+    f->flash_len = p;
+}
+
+
+static void recovery_exchange_server_key(
+    aether_client_t *c,
+    fixture_t *f) {
+    aether_client_on_transport_state(
+        c, AETHER_CHANNEL_REGISTRATION, true);
+    assert(c->state == AETHER_STATE_RECOVERY_WAIT_SERVER_KEY);
+
+    uint8_t packet[2048];
+    size_t p = 0u;
+    put8(packet, &p, 0);
+    put32(packet, &p, c->req_server_key);
+    put_signed_hydrogen_key(
+        packet, &p, f->registration_kx.pk, &f->root_signer);
+
+    assert(aether_client_on_rx(
+        c, AETHER_CHANNEL_REGISTRATION, packet, p) == AETHER_OK);
+    assert(c->state == AETHER_STATE_RECOVERY_WAIT_RESULT);
+}
+
+
+static aether_status_t recovery_exchange_result(
+    aether_client_t *c,
+    aether_uuid_t new_alias) {
+    uint8_t plain[1024];
+    size_t q = 0u;
+    put8(plain, &q, 0);                       /* CMD_RESULT */
+    put32(plain, &q, c->req_resolve);         /* request id */
+    put_uuid(plain, &q, new_alias);
+    put_pack(plain, &q, 1);                   /* cloud count */
+    put16(plain, &q, 9);                      /* cloud sid */
+
+    put_pack(plain, &q, 1);                   /* ServerDescriptor[] */
+    put16(plain, &q, 9);                      /* sid */
+    put_pack(plain, &q, 1);                   /* addresses */
+    put8(plain, &q, 1);                       /* IPv4 */
+    put8(plain, &q, 127); put8(plain, &q, 0); put8(plain, &q, 0); put8(plain, &q, 3);
+    put_pack(plain, &q, 1);                   /* codecs */
+    put8(plain, &q, 1);                       /* UDP */
+    put16(plain, &q, 9500);
+
+    uint8_t enc[2048];
+    size_t enc_len = 0u;
+    put_encrypted_packet(
+        enc, &enc_len, 3, c->temp_key, plain, q);
+
+    return aether_client_on_rx(
+        c, AETHER_CHANNEL_REGISTRATION, enc, enc_len);
+}
+
+
+static void test_recovery_response_updates_routing_not_identity(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+    aether_uuid_t old_alias = {
+        UINT64_C(0x3132333435363738),
+        UINT64_C(0x4142434445464748)
+    };
+
+    uint8_t key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(key); ++i) {
+        key[i] = (uint8_t)(0x40u + i);
+    }
+
+    /*
+     * Start from an ALREADY REGISTERED persisted identity. Recovery here is a
+     * topology refresh of an existing client, not initial credential
+     * provisioning.
+     */
+    make_persisted_identity(&f, uid, old_alias, key);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.registered);
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+
+
+    /* No Cloud in the persisted state: escalate to recovery immediately. */
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(f.registered_events == 0u);
+
+    recovery_exchange_server_key(&c, &f);
+
+    aether_uuid_t new_alias = {
+        UINT64_C(0x2122232425262728),
+        UINT64_C(0x5152535455565758)
+    };
+
+    assert(recovery_exchange_result(&c, new_alias) == AETHER_OK);
+
+    /* identity must be preserved */
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+    assert(memcmp(c.master_key, key, sizeof(key)) == 0);
+
+    /* routing must be updated */
+    assert(c.alias.msb == new_alias.msb && c.alias.lsb == new_alias.lsb);
+    assert(c.cloud_count == 1u);
+    assert(c.cloud_sids[0] == 9);
+    assert(c.server_count == 1u);
+    assert(c.servers[0].sid == 9);
+    assert(f.flash_len > 0u);
+    assert(c.state == AETHER_STATE_WORK_CONNECTING);
+
+    /* Recovery never creates an identity: no REGISTERED event. */
+    assert(f.registered_events == 0u);
+}
+
+
+
+
+
+static void test_recovery_save_failure_is_not_committed(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    uint8_t key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(key); ++i) {
+        key[i] = (uint8_t)(0x40u + i);
+    }
+
+    assert(aether_set_credentials(&c, uid, key) == AETHER_OK);
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+
+    recovery_exchange_server_key(&c, &f);
+
+    aether_uuid_t new_alias = {
+        UINT64_C(0x2122232425262728),
+        UINT64_C(0x3132333435363738)
+    };
+
+    unsigned errors_before = f.errors;
+
+    /*
+     * Force persistence to fail at recovery commit time.
+     */
+    f.fail_flash_saves = 1u;
+
+    assert(recovery_exchange_result(&c, new_alias) == AETHER_ERR_STORAGE);
+
+    assert(c.state == AETHER_STATE_ERROR);
+    assert(f.errors == errors_before + 1u);
+    assert(f.last_error_code == AETHER_ERR_STORAGE);
+
+    /* identity must be preserved and not marked committed */
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+    assert(memcmp(c.master_key, key, sizeof(key)) == 0);
+    assert(!c.registered);
+
+    /*
+     * Explicit retry must re-run authoritative recovery, not jump to WORK.
+     */
+    assert(aether_client_retry(&c) == AETHER_OK);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+
+    assert(f.registered_events == 0u);
+
+    /*
+     * Complete the second recovery handshake. Persistence now succeeds.
+     */
+    recovery_exchange_server_key(&c, &f);
+
+    assert(recovery_exchange_result(&c, new_alias) == AETHER_OK);
+
+    assert(c.registered);
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+    assert(memcmp(c.master_key, key, sizeof(key)) == 0);
+    assert(c.cloud_count == 1u);
+    assert(c.cloud_sids[0] == 9);
+    assert(c.server_count == 1u);
+    assert(c.state == AETHER_STATE_WORK_CONNECTING);
+
+    /* Recovery never creates an identity: no REGISTERED event. */
+    assert(f.registered_events == 0u);
+}
+
+
+
+
+
+
+static void test_set_credentials_first_time(void) {
+    aether_client_t c;
+    memset(&c, 0, sizeof(c));
+    c.state = AETHER_STATE_STOPPED;
+
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    uint8_t key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(key); ++i) {
+        key[i] = (uint8_t)(0x40u + i);
+    }
+
+    assert(aether_set_credentials(&c, uid, key) == AETHER_OK);
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+    assert(memcmp(c.master_key, key, sizeof(key)) == 0);
+}
+
+
+
+static void test_persisted_state_wins_over_caller_candidate(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    /*
+     * Produce a valid persisted identity whose master key is B.
+     */
+    aether_client_t writer;
+    aether_client_init(&writer, &cfg);
+
+    assert(aether_client_start(&writer) == AETHER_OK);
+    assert(writer.state == AETHER_STATE_NO_IDENTITY);
+
+
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    aether_uuid_t alias = {
+        UINT64_C(0x2122232425262728),
+        UINT64_C(0x3132333435363738)
+    };
+
+    uint8_t key_b[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(key_b); ++i) {
+        key_b[i] = (uint8_t)(0x80u + i);
+    }
+
+    const int16_t cloud[] = {7};
+
+    assert(aether_client_provision_identity(
+        &writer, uid, alias, key_b, cloud, 1u) == AETHER_OK);
+    assert(f.flash_len > 0u);
+
+    /*
+     * Fresh boot: caller supplies a different candidate key A before start.
+     * load_state() must let persisted key B win.
+     */
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    uint8_t key_a[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(key_a); ++i) {
+        key_a[i] = (uint8_t)(0x10u + i);
+    }
+
+    assert(aether_set_credentials(&c, uid, key_a) == AETHER_OK);
+
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.registered);
+    assert(memcmp(c.master_key, key_b, sizeof(key_b)) == 0);
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+
+    /*
+     * A repeated call after identity load must not roll the key back.
+     */
+    assert(aether_set_credentials(&c, uid, key_a) == AETHER_OK);
+    assert(memcmp(c.master_key, key_b, sizeof(key_b)) == 0);
+}
+
+
+
+static void test_set_credentials_does_not_overwrite_existing(void) {
+    aether_client_t c;
+    memset(&c, 0, sizeof(c));
+    c.state = AETHER_STATE_STOPPED;
+
+    aether_uuid_t uid_a = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    uint8_t key_a[AETHER_KEY_BYTES];
+    uint8_t key_b[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < AETHER_KEY_BYTES; ++i) {
+        key_a[i] = (uint8_t)(0x10u + i);
+        key_b[i] = (uint8_t)(0x80u + i);
+    }
+
+    assert(aether_set_credentials(&c, uid_a, key_a) == AETHER_OK);
+
+    aether_uuid_t uid_b = {
+        UINT64_C(0xa1a2a3a4a5a6a7a8),
+        UINT64_C(0xb1b2b3b4b5b6b7b8)
+    };
+
+    assert(aether_set_credentials(&c, uid_b, key_b) == AETHER_OK);
+    assert(c.uid.msb == uid_a.msb && c.uid.lsb == uid_a.lsb);
+    assert(memcmp(c.master_key, key_a, sizeof(key_a)) == 0);
+}
+
+
+static void test_caller_credentials_start_enters_recovery(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    uint8_t key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(key); ++i) {
+        key[i] = (uint8_t)(0x40u + i);
+    }
+
+    assert(aether_set_credentials(&c, uid, key) == AETHER_OK);
+    assert(!c.registered);
+
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(f.opens == 1u);
+    assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+    assert(f.errors == 0u);
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+    assert(memcmp(c.master_key, key, sizeof(key)) == 0);
+}
+
+
+
+static void test_cached_servers_exhausted_escalates_to_recovery(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    c.registered = true;
+    c.state = AETHER_STATE_READY;
+    c.cloud_count = 1u;
+    c.cloud_sids[0] = 7;
+
+    /*
+     * One stale cached descriptor for the known Cloud. It is valid, so the
+     * first work connection attempt targets it, but its endpoint is refused by
+     * the platform transport.
+     */
+    c.server_count = 1u;
+    c.active_server_index = -1;
+    c.servers[0].valid = true;
+    c.servers[0].sid = 7;
+    c.servers[0].endpoint.codec = AETHER_CODEC_UDP;
+    c.servers[0].endpoint.address.kind = AETHER_ADDR_IPV4;
+    c.servers[0].endpoint.address.length = 4u;
+    c.servers[0].endpoint.address.bytes[0] = 127u;
+    c.servers[0].endpoint.address.bytes[1] = 0u;
+    c.servers[0].endpoint.address.bytes[2] = 0u;
+    c.servers[0].endpoint.address.bytes[3] = 1u;
+    c.servers[0].endpoint.port = 9011u;
+
+    for (size_t i = 0u; i < AETHER_KEY_BYTES; ++i) {
+        c.master_key[i] = (uint8_t)(0x20u + i);
+    }
+
+    assert(!c.topology_refreshed);
+
+    /*
+     * A resolveServers refresh was NOT yet consumed for this Cloud. Exhausting
+     * the cached descriptor must first trigger the cheap resolveServers path,
+     * not recovery.
+     */
+    f.fail_open_port = 9011u;
+    aether_client_on_transport_state(&c, AETHER_CHANNEL_WORK, false);
+
+    assert(c.state == AETHER_STATE_SERVER_RESOLVING);
+    assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+
+    /*
+     * Registration channel becomes writable -> getServerKey.
+     */
+    aether_client_on_transport_state(
+        &c, AETHER_CHANNEL_REGISTRATION, true);
+    assert(c.state == AETHER_STATE_SERVER_RESOLVING);
+
+    uint8_t packet[2048];
+    size_t p = 0u;
+    put8(packet, &p, 0);
+    put32(packet, &p, c.req_server_key);
+    put_signed_hydrogen_key(
+        packet, &p, f.registration_kx.pk, &f.root_signer);
+    assert(aether_client_on_rx(
+        &c, AETHER_CHANNEL_REGISTRATION, packet, p) == AETHER_OK);
+
+    /*
+     * Server responds to resolveServers with the SAME single stale descriptor.
+     * This is the real transition that must set topology_refreshed.
+     */
+    uint8_t plain[1024];
+    size_t q = 0u;
+    put8(plain, &q, 0);
+    put32(plain, &q, c.req_resolve);
+    put_pack(plain, &q, 1);                   /* ServerDescriptor[] */
+    put16(plain, &q, 7);                      /* sid */
+    put_pack(plain, &q, 1);                   /* addresses */
+    put8(plain, &q, 1);                       /* IPv4 */
+    put8(plain, &q, 127); put8(plain, &q, 0); put8(plain, &q, 0); put8(plain, &q, 1);
+    put_pack(plain, &q, 1);                   /* codecs */
+    put8(plain, &q, 1);                       /* UDP */
+    put16(plain, &q, 9011);
+
+    uint8_t enc[2048];
+    size_t enc_len = 0u;
+    put_encrypted_packet(
+        enc, &enc_len, 3, c.temp_key, plain, q);
+
+
+    /*
+     * The refreshed descriptor is now reachable, so the first work attempt
+     * succeeds synchronously in transport.open().
+     */
+    f.fail_open_port = 0u;
+
+    assert(aether_client_on_rx(
+        &c, AETHER_CHANNEL_REGISTRATION, enc, enc_len) == AETHER_OK);
+
+    /*
+     * The refresh response was consumed: the flag must now be set by core
+     * itself, not by the test.
+     */
+    assert(c.topology_refreshed);
+    assert(c.state == AETHER_STATE_WORK_CONNECTING);
+
+    /*
+     * The refreshed descriptor endpoint is then refused. Every valid server
+     * fails to open, so the refreshed topology is exhausted and core must
+     * escalate to mandatory recovery instead of repeating resolveServers.
+     */
+    f.fail_open_port = 9011u;
+    aether_client_on_transport_state(&c, AETHER_CHANNEL_WORK, false);
+
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+}
+
+
+
+static void test_persisted_identity_empty_cloud_enters_recovery(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+
+    /*
+     * Craft a persisted identity blob directly: registered=true, valid UID and
+     * master key, but cloud_count == 0. This is the "identity exists, routing
+     * is lost" case that mandatory recovery must handle without registration.
+     */
+    uint8_t blob[256];
+    size_t p = 0u;
+
+    put8(blob, &p, 'A'); put8(blob, &p, 'E');
+    put8(blob, &p, 'C'); put8(blob, &p, '1');
+    put8(blob, &p, 1u);                 /* version */
+    put8(blob, &p, 1u);                 /* crypto_lib = Hydrogen */
+    put8(blob, &p, 1u);                 /* registered */
+    put8(blob, &p, 0u);                 /* reserved */
+
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+    aether_uuid_t alias = {
+        UINT64_C(0x2122232425262728),
+        UINT64_C(0x3132333435363738)
+    };
+    put_uuid(blob, &p, uid);
+    put_uuid(blob, &p, alias);
+
+    for (size_t i = 0u; i < AETHER_KEY_BYTES; ++i) {
+        put8(blob, &p, (uint8_t)(0x50u + i));
+    }
+
+    put8(blob, &p, 0u);                 /* cloud_count = 0 */
+    put8(blob, &p, 0u);                 /* server_count = 0 */
+
+    uint32_t crc = test_crc32(blob, p);
+    put32(blob, &p, crc);
+
+    memcpy(f.flash, blob, p);
+    f.flash_len = p;
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.registered);
+    assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
+    assert(c.cloud_count == 0u);
+
+    /* No Cloud means the cheap resolveServers path is impossible: recovery. */
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+    assert(f.errors == 0u);
+}
+
+
+
+
+
+
+
+
 int main(void) {
     test_work_frame_yields_messages_one_by_one();
     test_full_registration_and_message();
+
+    test_set_credentials_first_time();
+    test_set_credentials_does_not_overwrite_existing();
+    test_caller_credentials_start_enters_recovery();
+    test_cached_servers_exhausted_escalates_to_recovery();
+    test_persisted_state_wins_over_caller_candidate();
+    test_persisted_identity_empty_cloud_enters_recovery();
+    test_recovery_response_updates_routing_not_identity();
+    test_recovery_save_failure_is_not_committed();
+
     puts("aether_client_test: OK");
     return 0;
 }
