@@ -37,17 +37,16 @@ The real secrets file is ignored by Git.
 Peer UUID
 ---------
 
-The UID of the peer this board talks to is supplied at build time in canonical
-UUID form, not hand-written as bytes:
+
+The UID of the peer this board talks to is required and supplied at build
+time in canonical UUID form, not hand-written as bytes:
 
     THERMOMETER_PEER_UUID=01020304-0506-0708-1112-131415161718 pio run -e esp32
 
 CMake parses it at configure time and the firmware uses the generated
 THERMOMETER_PEER_UID symbol directly; nothing UUID-related is parsed on the
-device. When the variable is not set, the peer UUID is all zeros. See the main
-README section "Compile-time UUID and secrets" for details.
-
-
+device. If THERMOMETER_PEER_UUID is missing or empty, the configure step fails
+with a clear error.
 PlatformIO environments
 -----------------------
 
@@ -65,9 +64,12 @@ We will select the real environment after identifying the chip.
 Build
 -----
 
-Compile-only validation for a generic classic ESP32:
 
-    pio run -e esp32
+Compile-only validation for a generic classic ESP32 (the peer UUID is
+required):
+
+    THERMOMETER_PEER_UUID=01020304-0506-0708-1112-131415161718 pio run -e esp32
+
 
 After the actual board is identified:
 

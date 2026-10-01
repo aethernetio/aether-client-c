@@ -12,10 +12,20 @@
 # target include path.
 #
 # One helper covers every UUID a user has: parent UID, own UID and the
-# peer/destination UID. Separators (dashes/colons/spaces) are ignored. An empty
-# value yields the zero UUID.
+# peer/destination UID.
+#
+# Only '-' , ':' and spaces are accepted as separators; any other non-hex
+# character is a configure-time error, so a typo can never be silently dropped.
+# An empty value yields the zero UUID (useful e.g. for an anonymous parent).
 function(aether_define_uuid target symbol value)
-    string(REGEX REPLACE "[^0-9a-fA-F]" "" _hex "${value}")
+    string(REGEX REPLACE "[-: ]" "" _hex "${value}")
+
+    if(NOT _hex MATCHES "^[0-9a-fA-F]*$")
+        message(FATAL_ERROR
+            "aether_define_uuid(${symbol}): '${value}' contains characters "
+            "that are neither hex digits nor allowed separators (-, :, space)")
+    endif()
+
     string(TOLOWER "${_hex}" _hex)
 
     if(_hex STREQUAL "")

@@ -31,16 +31,25 @@ static void on_peer_message(
 }
 
 
+
 void app_main(void) {
-    nvs_flash_init();
+    if (nvs_flash_init() != ESP_OK) {
+        return;
+    }
 
-    aether_init(&client, (aether_uuid_t){0u, 0u});
+    if (aether_init(&client, (aether_uuid_t){0u, 0u}) != AETHER_OK) {
+        return;
+    }
 
-    aether_peer_init(&peer, &client, THERMOMETER_PEER_UID);
+    if (aether_peer_init(&peer, &client, THERMOMETER_PEER_UID) != AETHER_OK) {
+        return;
+    }
 
     aether_peer_on_message(&peer, on_peer_message, NULL);
 
-    aether_start(&client);
+    if (aether_start(&client) != AETHER_OK) {
+        return;
+    }
 
     for (;;) {
         aether_esp32_wifi_connect(

@@ -17,7 +17,10 @@ set(
 
 
 
+
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/aether_uuid.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/aether_hex.cmake)
+
 
 
 # Generated protocol sources.
@@ -71,13 +74,22 @@ idf_component_register(
 
 
 
-# Peer UUID, parsed at configure time from a canonical string.
+
+# Peer UUID, required, parsed at configure time from a canonical string.
 # Provides `THERMOMETER_PEER_UID` (aether_uuid_t) via a generated header.
+if("$ENV{THERMOMETER_PEER_UUID}" STREQUAL "")
+    message(FATAL_ERROR
+        "THERMOMETER_PEER_UUID is required: pass the destination client UUID "
+        "in canonical form, e.g. "
+        "THERMOMETER_PEER_UUID=01020304-0506-0708-1112-131415161718 pio run -e esp32")
+endif()
+
 aether_define_uuid(
     ${COMPONENT_LIB}
     THERMOMETER_PEER_UID
     "$ENV{THERMOMETER_PEER_UUID}"
 )
+
 
 
 

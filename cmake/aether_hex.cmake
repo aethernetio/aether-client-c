@@ -5,17 +5,28 @@
 # array at CONFIGURE time, written to a generated header in the target's build
 # directory. The build directory is added to the target include path.
 #
-# Use this for SECRETS such as a master key: unlike a compile definition, the
-# value never appears in compile_commands.json or verbose build logs. The
-# generated header lives under the (git-ignored) build tree.
-#
 #   aether_define_hex_bytes(my_target MY_MASTER_KEY 32 "0a0b0c...")
 #   -> #include "aether_hex_MY_MASTER_KEY.h"
 #
-# Separators (dashes/colons/spaces) are ignored. An empty value yields an
+# NOTE: this is NOT secure storage. The value still ends up in the generated
+# header and in the firmware image in plaintext. The only benefit is that the
+# secret is kept off the compiler command line / compile_commands.json / verbose
+# build logs.
+#
+# Only '-' , ':' and spaces are accepted as separators; any other non-hex
+# character is a configure-time error, so a typo can never be silently dropped.
+# This matters most for secrets such as a master key. An empty value yields an
 # all-zero array of <byte_count> bytes.
 function(aether_define_hex_bytes target symbol byte_count hex_value)
-    string(REGEX REPLACE "[^0-9a-fA-F]" "" _hex "${hex_value}")
+    string(REGEX REPLACE "[-: ]" "" _hex "${hex_value}")
+
+    if(NOT _hex MATCHES "^[0-9a-fA-F]*$")
+        message(FATAL_ERROR
+            "aether_define_hex_bytes(${symbol}): '${hex_value}' contains "
+            "characters that are neither hex digits nor allowed separators "
+            "(-, :, space)")
+    endif()
+
     string(TOLOWER "${_hex}" _hex)
 
     math(EXPR _expected "${byte_count} * 2")

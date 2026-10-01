@@ -367,6 +367,12 @@ target_link_libraries(
         COMMAND aether_hydrogen_test
     )
 
+    add_test(
+        NAME cmake_helpers_check
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake_helpers_check.sh
+    )
+
+
 endif()
 
 
