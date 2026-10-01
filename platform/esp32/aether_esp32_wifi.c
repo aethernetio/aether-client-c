@@ -13,6 +13,8 @@
 #define AETHER_ESP32_WIFI_CONNECTED_BIT BIT0
 
 static EventGroupHandle_t s_wifi_events;
+static esp_netif_t *s_sta_netif;
+static esp_netif_t *s_ap_netif;
 static bool s_wifi_initialized;
 static bool s_handlers_registered;
 
@@ -58,16 +60,22 @@ static void aether_esp32_wifi_event(
 
 static esp_err_t aether_esp32_wifi_prepare(void) {
 
-    esp_err_t status =
-        esp_netif_init();
+    if (s_wifi_events == NULL) {
+        s_wifi_events = xEventGroupCreate();
+
+        if (s_wifi_events == NULL) {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    esp_err_t status = esp_netif_init();
 
     if (status != ESP_OK &&
         status != ESP_ERR_INVALID_STATE) {
         return status;
     }
 
-    status =
-        esp_event_loop_create_default();
+    status = esp_event_loop_create_default();
 
     if (status != ESP_OK &&
         status != ESP_ERR_INVALID_STATE) {
@@ -75,11 +83,9 @@ static esp_err_t aether_esp32_wifi_prepare(void) {
     }
 
     if (!s_wifi_initialized) {
-        wifi_init_config_t init =
-            WIFI_INIT_CONFIG_DEFAULT();
+        wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
 
-        status =
-            esp_wifi_init(&init);
+        status = esp_wifi_init(&init);
 
         if (status != ESP_OK) {
             return status;
@@ -89,23 +95,21 @@ static esp_err_t aether_esp32_wifi_prepare(void) {
     }
 
     if (!s_handlers_registered) {
-        status =
-            esp_event_handler_register(
-                WIFI_EVENT,
-                ESP_EVENT_ANY_ID,
-                aether_esp32_wifi_event,
-                NULL);
+        status = esp_event_handler_register(
+            WIFI_EVENT,
+            ESP_EVENT_ANY_ID,
+            aether_esp32_wifi_event,
+            NULL);
 
         if (status != ESP_OK) {
             return status;
         }
 
-        status =
-            esp_event_handler_register(
-                IP_EVENT,
-                IP_EVENT_STA_GOT_IP,
-                aether_esp32_wifi_event,
-                NULL);
+        status = esp_event_handler_register(
+            IP_EVENT,
+            IP_EVENT_STA_GOT_IP,
+            aether_esp32_wifi_event,
+            NULL);
 
         if (status != ESP_OK) {
             return status;
@@ -115,6 +119,36 @@ static esp_err_t aether_esp32_wifi_prepare(void) {
     }
 
     return ESP_OK;
+}
+
+
+static esp_err_t aether_esp32_wifi_netif_sta(void) {
+
+    if (s_sta_netif != NULL) {
+        return ESP_OK;
+    }
+
+    s_sta_netif = esp_netif_create_default_wifi_sta();
+
+    return
+        s_sta_netif != NULL
+            ? ESP_OK
+            : ESP_FAIL;
+}
+
+
+static esp_err_t aether_esp32_wifi_netif_ap(void) {
+
+    if (s_ap_netif != NULL) {
+        return ESP_OK;
+    }
+
+    s_ap_netif = esp_netif_create_default_wifi_ap();
+
+    return
+        s_ap_netif != NULL
+            ? ESP_OK
+            : ESP_FAIL;
 }
 
 
@@ -146,8 +180,10 @@ esp_err_t aether_esp32_wifi_connect(
         return status;
     }
 
-    if (esp_netif_create_default_wifi_sta() == NULL) {
-        return ESP_FAIL;
+    status = aether_esp32_wifi_netif_sta();
+
+    if (status != ESP_OK) {
+        return status;
     }
 
     memcpy(config.sta.ssid, ssid, ssid_len);
@@ -168,15 +204,15 @@ esp_err_t aether_esp32_wifi_connect(
         return status;
     }
 
-    s_wifi_events = xEventGroupCreate();
-
-    if (s_wifi_events == NULL) {
-        return ESP_ERR_NO_MEM;
-    }
+    xEventGroupClearBits(
+        s_wifi_events,
+        AETHER_ESP32_WIFI_CONNECTED_BIT);
 
     status = esp_wifi_start();
 
-    if (status != ESP_OK) {
+    if (status != ESP_OK &&
+        status != ESP_ERR_WIFI_CONN &&
+        status != ESP_ERR_INVALID_STATE) {
         return status;
     }
 
@@ -232,8 +268,10 @@ esp_err_t aether_esp32_wifi_start_ap(
         return status;
     }
 
-    if (esp_netif_create_default_wifi_ap() == NULL) {
-        return ESP_FAIL;
+    status = aether_esp32_wifi_netif_ap();
+
+    if (status != ESP_OK) {
+        return status;
     }
 
     memcpy(config.ap.ssid, ssid, ssid_len);
@@ -263,5 +301,13 @@ esp_err_t aether_esp32_wifi_start_ap(
         return status;
     }
 
-    return esp_wifi_start();
+    status = esp_wifi_start();
+
+    if (status != ESP_OK &&
+        status != ESP_ERR_WIFI_CONN &&
+        status != ESP_ERR_INVALID_STATE) {
+        return status;
+    }
+
+    return ESP_OK;
 }

@@ -47,6 +47,7 @@ idf_component_register(
         "../../../platform/esp32/aether_platform_esp32.c"
         "../../../platform/esp32/aether_crypto_p256_aes_gcm.c"
         "../../../platform/esp32/aether_esp32_wifi.c"
+        "wifi_api_contract.c"
 
     INCLUDE_DIRS
         "."
