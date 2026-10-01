@@ -230,6 +230,52 @@ them heavily.
 Reader primitives are handwritten static inline functions so the compiler can
 inline the single-use response-decoding path where that produces smaller
 firmware.
+
+Compile-time UUID and secrets
+Aether identities, parent UIDs and peer/destination UIDs are naturally written
+by users in canonical UUID form such as:
+
+    01020304-0506-0708-1112-131415161718
+
+The build system parses these strings at CMake configure time and emits a small
+generated header, so the device never parses UUID text at runtime and there is
+no parser or string in the firmware.
+
+Two helpers are provided under cmake/:
+
+    aether_define_uuid(<target> <symbol> "<canonical-uuid>")
+    aether_define_hex_bytes(<target> <symbol> <byte_count> "<hex>")
+
+aether_define_uuid writes aether_uuid_<symbol>.h defining
+
+    static const aether_uuid_t <symbol>;
+
+One helper therefore covers every UUID an application has: the parent UID, the
+client's own UID, and the peer/destination UID.
+
+aether_define_hex_bytes converts a hex string into
+
+    static const uint8_t <symbol>[<byte_count>];
+
+Use it for secrets such as the master key. Unlike a compile definition, the
+value never appears in compile_commands.json or verbose build logs; the
+generated header lives in the (git-ignored) build tree.
+
+Both helpers ignore separators (dashes, colons, spaces) and validate the length,
+failing the configure step with a clear message. An empty value yields the zero
+UUID or an all-zero byte array.
+
+The ESP32 thermometer example uses aether_define_uuid for its peer UID and can
+be built with:
+
+    THERMOMETER_PEER_UUID=01020304-0506-0708-1112-131415161718 pio run -e esp32
+
+Application code then uses the generated symbol directly:
+
+    #include "aether_uuid_THERMOMETER_PEER_UID.h"
+
+    aether_peer_init(&peer, &client, THERMOMETER_PEER_UID);
+
 Building
 A normal host build uses CMake:
 cmake -S . -B build

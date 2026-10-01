@@ -13,11 +13,19 @@
 #define THERMOMETER_WIFI_PASSWORD "your-wifi-password"
 
 
+
 /*
- * UID of the other Aether client.
+ * The peer UUID is NOT defined here.
+ *
+ * Provide it at build time in canonical form, e.g.
+ *
+ *     THERMOMETER_PEER_UUID=01020304-0506-0708-1112-131415161718 pio run -e esp32
+ *
+ * CMake parses it at configure time and passes the two uint64 halves to the
+ * firmware, so the device never parses UUID text at runtime.
+ * If unset, the peer UUID is all zeros.
  */
-#define THERMOMETER_PEER_UID_MSB 0x0000000000000000ULL
-#define THERMOMETER_PEER_UID_LSB 0x0000000000000000ULL
+
 
 
 

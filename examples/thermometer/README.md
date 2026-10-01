@@ -33,6 +33,21 @@ and enter the Wi-Fi credentials.
 
 The real secrets file is ignored by Git.
 
+
+Peer UUID
+---------
+
+The UID of the peer this board talks to is supplied at build time in canonical
+UUID form, not hand-written as bytes:
+
+    THERMOMETER_PEER_UUID=01020304-0506-0708-1112-131415161718 pio run -e esp32
+
+CMake parses it at configure time and the firmware uses the generated
+THERMOMETER_PEER_UID symbol directly; nothing UUID-related is parsed on the
+device. When the variable is not set, the peer UUID is all zeros. See the main
+README section "Compile-time UUID and secrets" for details.
+
+
 PlatformIO environments
 -----------------------
 

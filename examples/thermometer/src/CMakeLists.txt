@@ -16,6 +16,10 @@ set(
 
 
 
+
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/aether_uuid.cmake)
+
+
 # Generated protocol sources.
 #
 # The unified generated API (client_server_api_api.c + _types.c) is the single
@@ -64,6 +68,18 @@ idf_component_register(
         mbedtls
         nvs_flash
 )
+
+
+
+# Peer UUID, parsed at configure time from a canonical string.
+# Provides `THERMOMETER_PEER_UID` (aether_uuid_t) via a generated header.
+aether_define_uuid(
+    ${COMPONENT_LIB}
+    THERMOMETER_PEER_UID
+    "$ENV{THERMOMETER_PEER_UUID}"
+)
+
+
 
 target_compile_definitions(
     ${COMPONENT_LIB}

@@ -1,24 +1,17 @@
 
-#include <inttypes.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "esp_err.h"
-#include "esp_log.h"
 #include "nvs_flash.h"
 
 #include "aether.h"
 #include "aether_messages.h"
+
 #include "aether_esp32_wifi.h"
 #include "thermometer_secrets.h"
+#include "aether_uuid_THERMOMETER_PEER_UID.h"
 
 
-static const char *TAG = "thermometer";
 
 static aether_t client;
 static aether_peer_t peer;
@@ -30,109 +23,24 @@ static void on_peer_message(
     size_t size,
     void *ctx
 ) {
+    /* handle an incoming message here */
+    (void)peer;
     (void)data;
+    (void)size;
     (void)ctx;
-
-    aether_uuid_t from =
-        aether_peer_uid(
-            peer
-        );
-
-    ESP_LOGI(
-        TAG,
-        "Aether message from=%016" PRIx64 "%016" PRIx64
-        " bytes=%u",
-        from.msb,
-        from.lsb,
-        (unsigned)size
-    );
-}
-
-
-static aether_status_t initialize_aether(void) {
-    aether_status_t status =
-        aether_init(
-            &client,
-            (aether_uuid_t){0u, 0u}
-        );
-
-    if (status != AETHER_OK) {
-        return status;
-    }
-
-    aether_uuid_t peer_uid = {
-        THERMOMETER_PEER_UID_MSB,
-        THERMOMETER_PEER_UID_LSB
-    };
-
-    if (peer_uid.msb == 0u &&
-        peer_uid.lsb == 0u) {
-
-        ESP_LOGE(
-            TAG,
-            "THERMOMETER_PEER_UID is not configured"
-        );
-
-        return AETHER_ERR_ARGUMENT;
-    }
-
-    status =
-        aether_peer_init(
-            &peer,
-            &client,
-            peer_uid
-        );
-
-    if (status != AETHER_OK) {
-        return status;
-    }
-
-    aether_peer_on_message(
-        &peer,
-        on_peer_message,
-        NULL
-    );
-
-    return aether_start(
-        &client
-    );
 }
 
 
 void app_main(void) {
-    ESP_LOGI(
-        TAG,
-        "Aether thermometer boot"
-    );
+    nvs_flash_init();
 
-    esp_err_t nvs_status =
-        nvs_flash_init();
+    aether_init(&client, (aether_uuid_t){0u, 0u});
 
-    if (nvs_status != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "NVS initialization failed: %s",
-            esp_err_to_name(nvs_status)
-        );
+    aether_peer_init(&peer, &client, THERMOMETER_PEER_UID);
 
-        return;
-    }
+    aether_peer_on_message(&peer, on_peer_message, NULL);
 
-
-    aether_status_t status =
-        initialize_aether();
-
-    if (status != AETHER_OK) {
-        ESP_LOGE(
-            TAG,
-            "Aether start failed: %d",
-            (int)status
-        );
-
-        return;
-    }
-
-    uint32_t status_ticks = 0u;
+    aether_start(&client);
 
     for (;;) {
         aether_esp32_wifi_connect(
@@ -140,36 +48,8 @@ void app_main(void) {
             THERMOMETER_WIFI_PASSWORD
         );
 
-        status =
-            aether_poll(
-                &client
-            );
+        aether_poll(&client);
 
-        if (status != AETHER_OK) {
-            ESP_LOGW(
-                TAG,
-                "aether_poll returned %d",
-                (int)status
-            );
-        }
-
-        ++status_ticks;
-
-        if (status_ticks >= 500u) {
-            status_ticks = 0u;
-
-            ESP_LOGI(
-                TAG,
-                "Aether state=%d registered=%d ready=%d wifi=%d",
-                (int)aether_state(&client),
-                aether_is_registered(&client) ? 1 : 0,
-                aether_is_ready(&client) ? 1 : 0,
-                aether_esp32_wifi_connected() ? 1 : 0
-            );
-        }
-
-        vTaskDelay(
-            pdMS_TO_TICKS(10)
-        );
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
