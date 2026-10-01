@@ -18,6 +18,19 @@
 # This matters most for secrets such as a master key. An empty value yields an
 # all-zero array of <byte_count> bytes.
 function(aether_define_hex_bytes target symbol byte_count hex_value)
+
+    if(NOT symbol MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
+        message(FATAL_ERROR
+            "aether_define_hex_bytes: '${symbol}' is not a valid C identifier "
+            "(symbol is used as a C name, include guard and file name)")
+    endif()
+
+    if(NOT byte_count MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR
+            "aether_define_hex_bytes(${symbol}): byte_count '${byte_count}' "
+            "must be a positive integer")
+    endif()
+
     string(REGEX REPLACE "[-: ]" "" _hex "${hex_value}")
 
     if(NOT _hex MATCHES "^[0-9a-fA-F]*$")

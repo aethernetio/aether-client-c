@@ -18,6 +18,13 @@
 # character is a configure-time error, so a typo can never be silently dropped.
 # An empty value yields the zero UUID (useful e.g. for an anonymous parent).
 function(aether_define_uuid target symbol value)
+
+    if(NOT symbol MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
+        message(FATAL_ERROR
+            "aether_define_uuid: '${symbol}' is not a valid C identifier "
+            "(symbol is used as a C name, include guard and file name)")
+    endif()
+
     string(REGEX REPLACE "[-: ]" "" _hex "${value}")
 
     if(NOT _hex MATCHES "^[0-9a-fA-F]*$")
@@ -55,4 +62,23 @@ function(aether_define_uuid target symbol value)
     file(APPEND "${_header}" "#endif\n")
 
     target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+endfunction()
+
+
+# aether_define_required_uuid(<target> <symbol> <env_var>)
+#
+# Like aether_define_uuid, but the value is taken from the named environment
+# variable and an unset/empty value is a configure-time FATAL_ERROR instead of
+# the zero UUID. Use this when a UUID is mandatory for the build (for example
+# the thermometer peer UID), so a missing value can never silently produce a
+# meaningless zero destination.
+function(aether_define_required_uuid target symbol env_var)
+    if("$ENV{${env_var}}" STREQUAL "")
+        message(FATAL_ERROR
+            "aether_define_required_uuid(${symbol}): environment variable "
+            "${env_var} is required: pass the UUID in canonical form, e.g. "
+            "${env_var}=01020304-0506-0708-1112-131415161718")
+    endif()
+
+    aether_define_uuid(${target} ${symbol} "$ENV{${env_var}}")
 endfunction()
