@@ -28,6 +28,7 @@ static bool s_handlers_registered;
 static volatile bool s_sta_desired;
 static volatile bool s_sta_connected;
 static volatile bool s_sta_config_applied;
+static volatile bool s_ap_transition;
 static wifi_mode_t s_mode = WIFI_MODE_NULL;
 
 static char s_ssid[33];
@@ -54,11 +55,13 @@ static void aether_esp32_wifi_event(
         }
 
         /*
-         * Auto-reconnect only while STA is desired. In AP mode (or during a
-         * STA -> AP transition) a stale disconnect must not fight the AP.
+         * Auto-reconnect only while STA is desired, the real ESP-IDF mode is
+         * STA, and no STA -> AP transition is in progress. A stale disconnect
+         * must not fight an AP bring-up.
          */
         if (s_sta_desired &&
-            s_mode == WIFI_MODE_STA) {
+            s_mode == WIFI_MODE_STA &&
+            !s_ap_transition) {
 
             (void)esp_wifi_connect();
         }
@@ -218,18 +221,17 @@ esp_err_t aether_esp32_wifi_connect(
         return status;
     }
 
-    s_sta_desired = true;
-
-
     bool same_credentials =
         s_sta_config_applied &&
         s_mode == WIFI_MODE_STA &&
         strcmp(s_ssid, ssid) == 0 &&
         strcmp(s_password, password != NULL ? password : "") == 0;
 
-
     if (same_credentials &&
         s_sta_connected) {
+
+        s_sta_desired = true;
+
         return ESP_OK;
     }
 
@@ -239,14 +241,16 @@ esp_err_t aether_esp32_wifi_connect(
          * (or being auto-retried by the disconnect handler). Do not touch
          * set_config()/esp_wifi_connect() again on every loop iteration.
          */
+        s_sta_desired = true;
+
         return ESP_ERR_WIFI_NOT_CONNECT;
     }
+
 
     /*
      * Credentials changed, or we are coming back from AP mode. Reset stale
      * state and apply the new STA configuration exactly once.
      */
-    s_sta_connected = false;
 
     status = aether_esp32_wifi_configure_sta(ssid, password);
 
@@ -254,6 +258,12 @@ esp_err_t aether_esp32_wifi_connect(
         return status;
     }
 
+    /*
+     * Config is applied successfully; only now commit the desired STA state
+     * and reset the stale connected marker.
+     */
+    s_sta_connected = false;
+    s_sta_desired = true;
     xEventGroupClearBits(
         s_wifi_events,
         AETHER_ESP32_WIFI_CONNECTED_BIT);
@@ -377,23 +387,28 @@ esp_err_t aether_esp32_wifi_start_ap(
         max_connections != 0u ? max_connections : 4u;
 
     /*
-     * Suspend the STA reconnect policy before switching mode so a stale STA
-     * disconnect does not fight the AP.
+     * Suspend STA auto-reconnect during the STA -> AP transition so a stale
+     * STA disconnect does not fight the AP bring-up. The permanent software
+     * state (s_sta_desired=false, s_mode=AP) is committed only after the mode
+     * switch actually succeeds.
      */
-    s_sta_desired = false;
+    s_ap_transition = true;
     s_sta_connected = false;
 
     status = esp_wifi_set_mode(WIFI_MODE_AP);
 
     if (status != ESP_OK) {
+        s_ap_transition = false;
         return status;
     }
 
     s_mode = WIFI_MODE_AP;
+    s_sta_desired = false;
 
     status = esp_wifi_set_config(WIFI_IF_AP, &config);
 
     if (status != ESP_OK) {
+        s_ap_transition = false;
         return status;
     }
 
@@ -402,8 +417,11 @@ esp_err_t aether_esp32_wifi_start_ap(
     if (status != ESP_OK &&
         status != ESP_ERR_WIFI_CONN &&
         status != ESP_ERR_INVALID_STATE) {
+        s_ap_transition = false;
         return status;
     }
+
+    s_ap_transition = false;
 
     return ESP_OK;
 }
