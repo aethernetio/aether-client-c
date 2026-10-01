@@ -18,6 +18,21 @@ static esp_netif_t *s_ap_netif;
 static bool s_wifi_initialized;
 static bool s_handlers_registered;
 
+/*
+ * Minimal reconnect policy state.
+ *
+ * s_sta_desired : the application wants a STA connection.
+ * s_sta_connected: an IPv4 address is currently held.
+ * s_mode : currently programmed Wi-Fi mode.
+ */
+static volatile bool s_sta_desired;
+static volatile bool s_sta_connected;
+static volatile bool s_sta_config_applied;
+static wifi_mode_t s_mode = WIFI_MODE_NULL;
+
+static char s_ssid[33];
+static char s_password[65];
+
 static void aether_esp32_wifi_event(
     void *arg,
     esp_event_base_t base,
@@ -28,14 +43,9 @@ static void aether_esp32_wifi_event(
     (void)data;
 
     if (base == WIFI_EVENT &&
-        id == WIFI_EVENT_STA_START) {
-
-        (void)esp_wifi_connect();
-        return;
-    }
-
-    if (base == WIFI_EVENT &&
         id == WIFI_EVENT_STA_DISCONNECTED) {
+
+        s_sta_connected = false;
 
         if (s_wifi_events != NULL) {
             xEventGroupClearBits(
@@ -43,12 +53,23 @@ static void aether_esp32_wifi_event(
                 AETHER_ESP32_WIFI_CONNECTED_BIT);
         }
 
-        (void)esp_wifi_connect();
+        /*
+         * Auto-reconnect only while STA is desired. In AP mode (or during a
+         * STA -> AP transition) a stale disconnect must not fight the AP.
+         */
+        if (s_sta_desired &&
+            s_mode == WIFI_MODE_STA) {
+
+            (void)esp_wifi_connect();
+        }
+
         return;
     }
 
     if (base == IP_EVENT &&
         id == IP_EVENT_STA_GOT_IP) {
+
+        s_sta_connected = true;
 
         if (s_wifi_events != NULL) {
             xEventGroupSetBits(
@@ -118,49 +139,21 @@ static esp_err_t aether_esp32_wifi_prepare(void) {
         s_handlers_registered = true;
     }
 
+    if (s_sta_netif == NULL) {
+        s_sta_netif = esp_netif_create_default_wifi_sta();
+
+        if (s_sta_netif == NULL) {
+            return ESP_FAIL;
+        }
+    }
+
     return ESP_OK;
 }
 
 
-static esp_err_t aether_esp32_wifi_netif_sta(void) {
-
-    if (s_sta_netif != NULL) {
-        return ESP_OK;
-    }
-
-    s_sta_netif = esp_netif_create_default_wifi_sta();
-
-    return
-        s_sta_netif != NULL
-            ? ESP_OK
-            : ESP_FAIL;
-}
-
-
-static esp_err_t aether_esp32_wifi_netif_ap(void) {
-
-    if (s_ap_netif != NULL) {
-        return ESP_OK;
-    }
-
-    s_ap_netif = esp_netif_create_default_wifi_ap();
-
-    return
-        s_ap_netif != NULL
-            ? ESP_OK
-            : ESP_FAIL;
-}
-
-
-esp_err_t aether_esp32_wifi_connect(
+static esp_err_t aether_esp32_wifi_configure_sta(
     const char *ssid,
-    const char *password,
-    uint32_t timeout_ms) {
-
-    if (ssid == NULL ||
-        ssid[0] == '\0') {
-        return ESP_ERR_INVALID_ARG;
-    }
+    const char *password) {
 
     wifi_config_t config = {0};
 
@@ -173,32 +166,89 @@ esp_err_t aether_esp32_wifi_connect(
         return ESP_ERR_INVALID_ARG;
     }
 
-    esp_err_t status =
-        aether_esp32_wifi_prepare();
-
-    if (status != ESP_OK) {
-        return status;
-    }
-
-    status = aether_esp32_wifi_netif_sta();
-
-    if (status != ESP_OK) {
-        return status;
-    }
-
     memcpy(config.sta.ssid, ssid, ssid_len);
 
     if (password_len != 0u) {
         memcpy(config.sta.password, password, password_len);
     }
 
-    status = esp_wifi_set_mode(WIFI_MODE_STA);
+    esp_err_t status = esp_wifi_set_mode(WIFI_MODE_STA);
 
     if (status != ESP_OK) {
         return status;
     }
 
+    s_mode = WIFI_MODE_STA;
+
     status = esp_wifi_set_config(WIFI_IF_STA, &config);
+
+    if (status != ESP_OK) {
+        return status;
+    }
+
+    memcpy(s_ssid, ssid, ssid_len);
+    s_ssid[ssid_len] = '\0';
+
+    if (password_len != 0u) {
+        memcpy(s_password, password, password_len);
+    }
+    s_password[password_len] = '\0';
+
+
+    s_sta_config_applied = true;
+
+    return ESP_OK;
+
+}
+
+
+
+esp_err_t aether_esp32_wifi_connect(
+    const char *ssid,
+    const char *password) {
+
+    if (ssid == NULL ||
+        ssid[0] == '\0') {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    esp_err_t status = aether_esp32_wifi_prepare();
+
+    if (status != ESP_OK) {
+        return status;
+    }
+
+    s_sta_desired = true;
+
+
+    bool same_credentials =
+        s_sta_config_applied &&
+        s_mode == WIFI_MODE_STA &&
+        strcmp(s_ssid, ssid) == 0 &&
+        strcmp(s_password, password != NULL ? password : "") == 0;
+
+
+    if (same_credentials &&
+        s_sta_connected) {
+        return ESP_OK;
+    }
+
+    if (same_credentials) {
+        /*
+         * Credentials are unchanged and a connection is already in progress
+         * (or being auto-retried by the disconnect handler). Do not touch
+         * set_config()/esp_wifi_connect() again on every loop iteration.
+         */
+        return ESP_ERR_WIFI_NOT_CONNECT;
+    }
+
+    /*
+     * Credentials changed, or we are coming back from AP mode. Reset stale
+     * state and apply the new STA configuration exactly once.
+     */
+    s_sta_connected = false;
+
+    status = aether_esp32_wifi_configure_sta(ssid, password);
 
     if (status != ESP_OK) {
         return status;
@@ -213,6 +263,37 @@ esp_err_t aether_esp32_wifi_connect(
     if (status != ESP_OK &&
         status != ESP_ERR_WIFI_CONN &&
         status != ESP_ERR_INVALID_STATE) {
+        return status;
+    }
+
+    /*
+     * Explicit first/again connect. The STA_START event is intentionally not
+     * used as a connect trigger to avoid a double esp_wifi_connect().
+     */
+    status = esp_wifi_connect();
+
+    if (status != ESP_OK) {
+        return status;
+    }
+
+    return ESP_ERR_WIFI_NOT_CONNECT;
+}
+
+
+
+esp_err_t aether_esp32_wifi_connect_wait(
+    const char *ssid,
+    const char *password,
+    uint32_t timeout_ms) {
+
+    esp_err_t status =
+        aether_esp32_wifi_connect(ssid, password);
+
+    if (status == ESP_OK) {
+        return ESP_OK;
+    }
+
+    if (status != ESP_ERR_WIFI_NOT_CONNECT) {
         return status;
     }
 
@@ -239,6 +320,11 @@ esp_err_t aether_esp32_wifi_connect(
 }
 
 
+bool aether_esp32_wifi_connected(void) {
+    return s_sta_connected;
+}
+
+
 esp_err_t aether_esp32_wifi_start_ap(
     const char *ssid,
     const char *password,
@@ -261,17 +347,18 @@ esp_err_t aether_esp32_wifi_start_ap(
         return ESP_ERR_INVALID_ARG;
     }
 
-    esp_err_t status =
-        aether_esp32_wifi_prepare();
+    esp_err_t status = aether_esp32_wifi_prepare();
 
     if (status != ESP_OK) {
         return status;
     }
 
-    status = aether_esp32_wifi_netif_ap();
+    if (s_ap_netif == NULL) {
+        s_ap_netif = esp_netif_create_default_wifi_ap();
 
-    if (status != ESP_OK) {
-        return status;
+        if (s_ap_netif == NULL) {
+            return ESP_FAIL;
+        }
     }
 
     memcpy(config.ap.ssid, ssid, ssid_len);
@@ -289,11 +376,20 @@ esp_err_t aether_esp32_wifi_start_ap(
     config.ap.max_connection =
         max_connections != 0u ? max_connections : 4u;
 
+    /*
+     * Suspend the STA reconnect policy before switching mode so a stale STA
+     * disconnect does not fight the AP.
+     */
+    s_sta_desired = false;
+    s_sta_connected = false;
+
     status = esp_wifi_set_mode(WIFI_MODE_AP);
 
     if (status != ESP_OK) {
         return status;
     }
+
+    s_mode = WIFI_MODE_AP;
 
     status = esp_wifi_set_config(WIFI_IF_AP, &config);
 

@@ -8,6 +8,9 @@
 /cmake-build-*/
 
 # PlatformIO generated state and firmware build output.
+
+# Any PlatformIO project (thermometer, size harness, compile-contract, ...).
+.pio/
 /esp32-size/.pio/
 
 # ------------------------------------------------------------

@@ -118,32 +118,6 @@ void app_main(void) {
         return;
     }
 
-    ESP_LOGI(
-        TAG,
-        "Connecting to Wi-Fi"
-    );
-
-    esp_err_t wifi_status =
-        aether_esp32_wifi_connect(
-            THERMOMETER_WIFI_SSID,
-            THERMOMETER_WIFI_PASSWORD,
-            AETHER_ESP32_WIFI_WAIT_FOREVER
-        );
-
-    if (wifi_status != ESP_OK) {
-        ESP_LOGE(
-            TAG,
-            "Wi-Fi connection failed: %s",
-            esp_err_to_name(wifi_status)
-        );
-
-        return;
-    }
-
-    ESP_LOGI(
-        TAG,
-        "Starting Aether client"
-    );
 
     aether_status_t status =
         initialize_aether();
@@ -161,6 +135,11 @@ void app_main(void) {
     uint32_t status_ticks = 0u;
 
     for (;;) {
+        aether_esp32_wifi_connect(
+            THERMOMETER_WIFI_SSID,
+            THERMOMETER_WIFI_PASSWORD
+        );
+
         status =
             aether_poll(
                 &client
@@ -181,10 +160,11 @@ void app_main(void) {
 
             ESP_LOGI(
                 TAG,
-                "Aether state=%d registered=%d ready=%d",
+                "Aether state=%d registered=%d ready=%d wifi=%d",
                 (int)aether_state(&client),
                 aether_is_registered(&client) ? 1 : 0,
-                aether_is_ready(&client) ? 1 : 0
+                aether_is_ready(&client) ? 1 : 0,
+                aether_esp32_wifi_connected() ? 1 : 0
             );
         }
 
