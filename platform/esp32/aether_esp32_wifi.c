@@ -393,7 +393,6 @@ esp_err_t aether_esp32_wifi_start_ap(
      * switch actually succeeds.
      */
     s_ap_transition = true;
-    s_sta_connected = false;
 
     status = esp_wifi_set_mode(WIFI_MODE_AP);
 
@@ -404,7 +403,7 @@ esp_err_t aether_esp32_wifi_start_ap(
 
     s_mode = WIFI_MODE_AP;
     s_sta_desired = false;
-
+    s_sta_connected = false;
     status = esp_wifi_set_config(WIFI_IF_AP, &config);
 
     if (status != ESP_OK) {
