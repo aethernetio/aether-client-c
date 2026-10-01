@@ -4944,8 +4944,9 @@ void aether_client_on_transport_state(
                 client->state)) {
 
             if (!writable) {
-                (void)begin_recovery(
+                (void)restart_recovery(
                     client);
+
 
             } else if (client->state ==
                 AETHER_STATE_RECOVERY_CONNECTING) {

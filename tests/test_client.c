@@ -2462,6 +2462,55 @@ static void test_recovery_save_failure_is_not_committed(void) {
 
 
 
+static void test_recovery_transport_loss_restarts(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    uint8_t key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(key); ++i) {
+        key[i] = (uint8_t)(0x40u + i);
+    }
+
+    assert(aether_set_credentials(&c, uid, key) == AETHER_OK);
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+
+    recovery_exchange_server_key(&c, &f);
+    assert(c.state == AETHER_STATE_RECOVERY_WAIT_RESULT);
+
+    /*
+     * Losing the registration transport mid-recovery must close the old
+     * channel and open a fresh one, ending in RECOVERY_CONNECTING.
+     */
+    unsigned closes_before = f.closes;
+    unsigned opens_before = f.opens;
+
+    aether_client_on_transport_state(
+        &c, AETHER_CHANNEL_REGISTRATION, false);
+
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(f.closes == closes_before + 1u);
+    assert(f.opens == opens_before + 1u);
+    assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+}
+
+
+
+
 
 
 
@@ -2824,6 +2873,7 @@ int main(void) {
     test_persisted_identity_empty_cloud_enters_recovery();
     test_recovery_response_updates_routing_not_identity();
     test_recovery_save_failure_is_not_committed();
+    test_recovery_transport_loss_restarts();
 
     puts("aether_client_test: OK");
     return 0;
