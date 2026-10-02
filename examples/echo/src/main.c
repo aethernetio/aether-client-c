@@ -143,10 +143,15 @@ void app_main(void) {
 
 
 
-    if (aether_start(&client) != AETHER_OK) {
-        printf("AETHER_ECHO_FATAL=start\n");
+
+    aether_status_t start_status = aether_start(&client);
+    if (start_status != AETHER_OK) {
+        printf("AETHER_ECHO_FATAL=start status=%d state=%d\n",
+            (int)start_status,
+            (int)client.app.core.state);
         return;
     }
+
 
     for (;;) {
         esp_err_t wifi_status =
