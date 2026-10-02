@@ -2275,3 +2275,389 @@ is zero.
 
 ================================================================
 ================================================================
+
+================================================================
+LAN DISCOVERY + DIRECT DELIVERY — RESEARCH CHECKPOINT
+No LAN code written. Only findings + design proposal.
+================================================================
+
+## 1. POSIX UDP discovery options
+
+Codebase uses plain BSD sockets (see tests/host_posix_transport.c).
+Available in POSIX:
+- socket(AF_INET, SOCK_DGRAM, 0)
+- setsockopt SO_REUSEADDR (needed to bind two clients on one host)
+- setsockopt SO_BROADCAST (needed for 255.255.255.255 / subnet broadcast)
+- sendto / recvfrom
+- Non-blocking via fcntl(O_NONBLOCK) or MSG_DONTWAIT.
+- Multicast: IP_ADD_MEMBERSHIP, struct ip_mreq { imr_multiaddr, imr_interface }.
+
+Two clients on the same host binding the same UDP port:
+- Without SO_REUSEADDR/SO_REUSEPORT: EADDRINUSE.
+- With SO_REUSEADDR alone: undefined; on Linux only one gets broadcasts.
+- With SO_REUSEPORT: both receive; Linux/BSD ok, macOS quirks.
+Conclusion: same-host multi-client tests are easier with multicast + SO_REUSEPORT
+than with broadcast + SO_REUSEADDR.
+
+## 2. ESP32 UDP discovery options
+
+platform/esp32/aether_platform_esp32.c uses lwip sockets already
+(`#include <lwip/sockets.h>`). lwip supports:
+- broadcast (255.255.255.255) after SO_BROADCAST.
+- IPv4 multicast: IP_ADD_MEMBERSHIP; requires CONFIG_LWIP_IPV4 + mDNS-like
+  stack is not mandatory.
+- SO_REUSEADDR is available; SO_REUSEPORT semantics on lwip is limited.
+- Wi-Fi station: subnet-directed broadcast reaches AP-connected peers in
+  most AP configurations; some APs drop 255.255.255.255.
+- Multicast over Wi-Fi: reliably reachable only with IGMP snooping disabled
+  or IP_MULTICAST_TTL >= 1; many consumer APs forward multicast by default.
+- mDNS/IGMP: ESP-IDF mDNS component exists but adds ~30-40 KiB flash and
+  couples us to that component; not desirable for our needs.
+
+## 3. Broadcast vs multicast recommendation
+
+Recommendation: **multicast (239.x.y.z IPv4)** for v1.
+Reasons:
+- same-host multi-client test feasible with SO_REUSEADDR/SO_REUSEPORT;
+- WiFi APs usually forward link-local multicast by default;
+- broadcast (255.255.255.255) is filtered by many consumer APs;
+- subnet-directed broadcast requires interface discovery code;
+- multicast address is a project-wide constant (single source of truth).
+
+Fallback plan: if a target network breaks multicast (rare in v1 scope),
+add a broadcast sender option later without changing packet format.
+
+## 4. Discovery / direct port proposal
+
+No existing allocation found for LAN.
+Because Aether already uses a well-known registration URI on
+`registration.aethernet.io:9010`, and work channels are per-server,
+the LAN port is unrelated.
+
+Proposal:
+- new constant: `AETHER_LAN_DISCOVERY_PORT = 57321` (UDP)
+  (unprivileged, non-ephemeral range, single-port discovery + direct)
+- one UDP socket used for both discovery beacons and direct messages, so
+  the peer endpoint advertised in a beacon is exactly the port they
+  already use for RX.
+Rationale: fewer sockets, simpler on MCU; verification and direct msg
+share the same socket demux by a message-type tag.
+
+## 5. Current Aether identity / key model
+
+From include/aether_client.h, src/aether_client.c,
+src/aether_credentials.c, platform/esp32/aether_crypto_p256_aes_gcm.c:
+
+aether_uuid_t: 128-bit (msb:lsb).
+- Assigned by server (self-registration) or provisioned by caller.
+- Represented as opaque UUID; no visible commitment to a public key.
+
+master_key[32]:
+- Long-lived symmetric secret owned by the client.
+- Not unique per peer; not a network credential.
+- Used ONLY as KDF input: derive_server_keys(master_key, server_id,
+  key_number) -> {client_to_server, server_to_client}.
+- Never sent on wire.
+- Reused for cloud work path with each server.
+
+Trust anchor: `trusted_sign_keys` (P256 root signer pubkeys) — used ONLY
+to verify the registration server's signed global key; not per-client.
+
+## 6. Candidate key for peer authentication
+
+**There is currently NO per-client asymmetric identity key bound to a
+UID.** The master key is symmetric and universal per client, but:
+- cannot be published to peers (any peer could then derive server keys
+  of the owner);
+- cannot be used to authenticate a peer to another peer without a
+  PKI-like trust fabric.
+
+Available primitives in the codebase:
+- libhydrogen (third_party/libhydrogen/hydrogen.h):
+  - hydro_sign_keypair (pk 32, sk 64), hydro_sign_create/verify
+  - hydro_kx_keypair (pk 32, sk 32), hydro_kx_n_1 / hydro_kx_n_2 (Noise_N)
+  - hydro_kdf_derive_from_key
+- The exposed `aether_crypto_vtable_t` **does not** include sign or
+  asymmetric_decrypt; only verify_signature + asymmetric_encrypt +
+  symmetric_encrypt/decrypt + derive_server_keys.
+
+UID is **not cryptographically bound** to any key that we can currently
+use for peer authentication. Any LAN authentication design must therefore
+introduce its own per-client LAN signing keypair (deterministically derived
+from master_key via a LAN-specific KDF context, or stored at provisioning
+time). This must be resolved before direct delivery is implemented.
+
+## 7. Proposed minimal identity for LAN
+
+Option A (recommended):
+- Derive a per-client LAN signing keypair deterministically from
+  master_key via a LAN-specific HKDF context (e.g.
+  "aether-lan-id-v1").
+- Derive a per-client LAN key-exchange (kx) keypair the same way.
+- Publish only the LAN sign pubkey in the discovery beacon, bound to UID.
+- Require peer to sign a challenge containing its UID + beacon nonce +
+  sender UID; the receiving side verifies with the pubkey it derived for
+  that UID (using our own derivation? No — we cannot derive another
+  client's keys).
+
+Problem: we do NOT have a shared directory to map UID -> LAN sign pubkey.
+Solution: the discovery beacon carries both UID and the proposed LAN sign
+pubkey. Trust is established through the signature check later, but a
+MITM can substitute its own pubkey and UID pair. Without a UID binding
+we cannot distinguish a real peer from an impersonator purely locally.
+
+Therefore the design **must** include UID <-> key binding. Options:
+
+B1. Server-issued certificate: server signs (UID, LAN sign pubkey) at
+    registration/provisioning. Client stores it. Beacon includes the
+    certificate. Any peer verifies against the trusted root sign keys
+    already known to the client (same `trusted_sign_keys`).
+    Cost: server + wire changes — out of scope for v1.
+
+B2. UID derivation from pubkey: define UID = hash(LAN sign pubkey)[..16].
+    But current UID is server-issued and not derived from keys; changing
+    it breaks existing wire/Java/TS. Not acceptable.
+
+B3. Local trust-on-first-use (TOFU) per peer: first successful
+    authenticated key exchange with a UID pins that UID's LAN pubkey
+    for the session/afterwards. Acceptable only with explicit caveats.
+
+For v1 we can implement B1-compatible design but temporarily require
+caller to provide a per-UID LAN pubkey (or accept B3 with documented
+limitation). The full solution belongs to the eventual server-side
+extension; this research notes the dependency.
+
+## 8. Proposed handshake (abstract, to be refined after B1 lands)
+
+  A -> broadcast beacon {uid_a, lan_pk_a, nonce_a, ver}
+  B receives, records peer_a = {uid_a, endpoint_a, lan_pk_a, nonce_a}
+  B -> unicast   {uid_a, uid_b, lan_pk_b, nonce_b, sig_b}
+       where sig_b = sign_B(uid_a | lan_pk_a | nonce_a | uid_b | lan_pk_b | nonce_b)
+  A verifies sig_b with lan_pk_b (obtained in the same packet, see 7 for
+    trust caveat).
+  A -> unicast   {uid_b, uid_a, nonce_b, sig_a}
+       sig_a = sign_A(uid_b | lan_pk_b | nonce_b | uid_a)
+  B verifies sig_a with lan_pk_a.
+
+After the handshake both sides:
+- have authenticated the other (given 7);
+- derive a session key via hydro_kx_n_1/n_2 or via HKDF over
+    (shared_ephemeral, lan_pk_a, lan_pk_b, nonce_a, nonce_b).
+- have a 32-byte symmetric session key for direct messages.
+
+Timeouts: beacon every N seconds; handshake window M seconds; on failure
+state returns to DISCOVERED (retry once) or EMPTY.
+
+## 9. Replay protection
+
+Per session:
+- session_id = first 8 bytes of hash(nonce_a | nonce_b | lan_pk_a | lan_pk_b)
+- 64-bit monotonic tx_sequence per direction, starts at 1.
+- Receiver keeps last_valid_seq and accepts only strictly increasing seq.
+- Session expires on inactivity (TTL) or on peer disappearance.
+Costs: 8 (sid) + 8 (tx) + 8 (rx) = 24 bytes per peer entry.
+
+## 10. Session encryption plan
+
+Direct message packet:
+  magic (1) | version (1) | type=0x03 (1) | reserved (1)
+  session_id (8)
+  sequence (8)
+  ciphertext (variable)  // hydro_secretbox-style, using session key
+  tag (16)               // if not already inside ciphertext framing
+
+Cipher choice: hydro_secretbox with `AETHER_LAN_SECRETBOX_CONTEXT`
+("aether-lan-msg-1") — same libhydrogen already vendored. Per-packet
+overhead: 36 (secretbox header: msg_id 8 + nonce 24 + ...) + 16 tag
+= ~52 bytes; adjust with a compact AEAD (AES-GCM via PSA / libhydrogen
+secretbox) once design is finalized.
+
+Do NOT sign every message: symmetric AEAD after authenticated KX is
+sufficient and cheap; signatures are only used during handshake.
+
+## 11. Peer state machine
+
+EMPTY -> DISCOVERED (beacon seen; identity not verified)
+DISCOVERED -> VERIFYING (handshake outbound)
+VERIFYING -> VERIFIED (sig check ok, session key established)
+VERIFIED -> STALE (no valid packet for TTL_VERIFIED, default 30 s)
+STALE -> EMPTY (after second TTL, default 30 s)
+Any -> EMPTY (explicit eviction on ROUTE_LOST)
+
+Bounded transitions. No "auth proxy" state.
+
+## 12. Peer table layout (conceptual)
+
+struct aether_lan_peer_t {
+    aether_uuid_t uid;                  // 16
+    aether_lan_endpoint_t endpoint;     // ipv4/ipv6 addr + port ~ 20
+    uint8_t  lan_pk[32];                // 32
+    uint8_t  session_key[32];           // 32
+    uint64_t session_id;                // 8
+    uint64_t tx_seq;                    // 8
+    uint64_t rx_last_seq;               // 8
+    uint64_t last_seen_ms;              // 8
+    uint8_t  state;                     // 1
+    uint8_t  reserved[7];
+};  // ~ 176 bytes / peer on 64-bit; ~ 140 on 32-bit.
+
+N=4    ->  ~560 B (32-bit)
+N=16   -> ~2.2 KiB
+N=32   -> ~4.5 KiB
+Caller chooses N.
+
+## 13. Direct packet conceptual format (see 10)
+
+## 14. Common ingress integration point
+
+Ingress path today:
+  aether_client_on_rx(transport_frame)
+   -> decoder -> aether_client_ingress()
+   -> aether_poll() in aether.c:355-372:
+        if ingress.kind == AETHER_INGRESS_MESSAGE:
+           aether_rx_all_accept(&client->rx, ingress, facade_message, client)
+        -> client->on_message(client, from, data, size)
+
+There is **no existing public entry point to inject an already-decoded
+logical message**. The cleanest future direction:
+
+  new internal: aether_client_dispatch_message_internal(
+      aether_t *client, aether_uuid_t from,
+      const uint8_t *payload, size_t size);
+
+that:
+  - sets callback_active = true;
+  - calls client->on_message;
+  - sets callback_active = false.
+
+Reuse of existing ingress machinery is not required because a direct
+message has no transport frame to parse and no crypto orchestration.
+But lifecycle guard (`callback_active`) must be honored.
+
+Also must not be called while core `rx_active == true` (would violate
+parser state); LAN component work runs during component pass, after core
+step, so the guard is naturally satisfied.
+
+No code until design is confirmed.
+
+## 15. LAN provider result mapping
+
+unknown UID / empty slot                 -> NOT_APPLICABLE
+DISCOVERED only (not verified)           -> NOT_APPLICABLE
+VERIFYING (in-flight)                    -> RETRY_LATER
+VERIFIED, socket EWOULDBLOCK / ENOBUFS   -> RETRY_LATER
+VERIFIED, endpoint unreachable (EHOSTUNREACH / ENETUNREACH) -> ROUTE_LOST
+VERIFIED, direct send accepted by kernel -> ACCEPTED
+VERIFIED, session invalid / handshake failed -> ROUTE_LOST
+payload > LAN_MTU                         -> NOT_APPLICABLE (deterministic
+                                                    route limitation)
+
+Invariant preserved: fallback to next provider only after NOT_APPLICABLE
+/ RETRY_LATER / ROUTE_LOST (all strict no-handoff). ERROR stays terminal.
+
+## 16. Zero-provider registry lock recommendation
+
+Current v1: registry locks on first successful `aether_delivery_send`.
+With zero providers this means: message READY forever, cannot add
+providers. That's a valid deterministic config but awkward for late
+hardware init (BLE/LoRa dongles).
+
+Recommendation: **variant C** — lock the registry the first time a
+delivery attempt is actually made (i.e. when the coordinator would scan
+providers for a READY slot). Until then the provider list is mutable.
+Effect:
+- producer can enqueue even with zero providers (message READY);
+- caller may still add providers before the first aether_work() tick;
+- from the first attempt onward, policy is frozen.
+This matches the requirement that routing policy is deterministic for
+every message that has ever been attempted.
+
+Not changing code now; only recording the recommendation.
+
+## 17. LoRa compatibility check
+
+Every design decision above passes:
+- LAN provider API uses only (ctx, uid, payload, len) — no IP/socket in
+  the provider signature.
+- Discovery is a separate component; LoRa can have its own discovery
+  (or no discovery, fixed addressing).
+- async provider ownership: LAN does not need it now (sync sendto), but
+  the contract (ACCEPTED = provider owns the payload / copied it) is
+  already satisfied by the generic API.
+- MTU mismatch handled via NOT_APPLICABLE (deterministic), not ERROR.
+
+## 18. RAM estimates
+
+aether_lan_t (excluding peers and socket buffers):
+  client ptr         8
+  peer array ptr     8
+  peer capacity      4
+  peer count         4
+  discovery socket   4
+  last beacon ms     8
+  random state       32
+  config (ports etc) 16
+  ~ 88 B (64-bit) / ~60 B (32-bit)
+
+peer_t: ~176 B (64-bit) / ~140 B (32-bit) — see (12).
+
+UDP RX buffer: AETHER_MAX_PACKET (1536) is bigger than needed; LAN packets
+can be capped at e.g. 512 B; still must handle MTU for direct payload.
+Estimated LAN RX buffer: 576 B (typical IPv4 UDP safe MTU).
+
+TX scratch: ~576 B.
+
+Total MCU RAM (N=16, 32-bit): ~60 + 16*140 + 576 + 576 ≈ 3.5 KiB caller-owned.
+
+## 19. Test plan (for later implementation)
+
+Discovery:
+- beacon encode / decode roundtrip;
+- peer insert / refresh / expiry;
+- table-full rejection does not corrupt existing entries;
+- spoofed UID beacon (wrong sig) never leaves DISCOVERED.
+
+Verification:
+- valid signature -> VERIFIED;
+- invalid signature -> back to DISCOVERED or EMPTY;
+- replayed handshake rejected;
+- stale session rejected.
+
+Provider:
+- unknown UID -> NOT_APPLICABLE, cloud tried next;
+- unverified -> NOT_APPLICABLE, cloud tried;
+- verified + send ok -> ACCEPTED, cloud NOT tried;
+- verified + EHOSTUNREACH -> ROUTE_LOST, cloud tried;
+- verified + ENOBUFS -> RETRY_LATER, policy decides;
+- payload > MTU -> NOT_APPLICABLE, cloud tried.
+
+Receive:
+- verified direct packet -> common ingress -> on_message;
+- sender UID and payload exact;
+- replayed seq rejected;
+- tag failure rejected;
+- unknown session_id rejected.
+
+Scheduler / order independence:
+- LAN before delivery: reply may go out same tick;
+- delivery before LAN: reply goes out next tick;
+- both orders eventually deliver the echo reply.
+
+## 20. Recommendation summary
+
+- multicast IPv4, one socket for discovery + direct
+- AETHER_LAN_DISCOVERY_PORT = 57321 (to be reserved project-wide)
+- per-client LAN sign/kx keys derived from master_key via a
+  LAN-specific HKDF context
+- UID -> pubkey binding requires either server-side certificate (future)
+  or TOFU with explicit caveat; flagged as open issue
+- peer state machine EMPTY / DISCOVERED / VERIFYING / VERIFIED / STALE
+- AEAD with derived session key; per-direction monotonic sequence
+- inject verified message via a new internal
+  aether_client_dispatch_message_internal(...) guarded by callback_active
+- provider result mapping as in (15)
+- zero-provider lock variant C recommended
+- implementation NOT started; this is research only
+
+================================================================
+================================================================
