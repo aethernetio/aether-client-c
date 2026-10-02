@@ -647,7 +647,36 @@ aether_status_t aether_client_app_start(
         return status;
     }
 
+
     aether_client_config_t core_config;
+
+    /*
+     * aether_client_init() performs a full memset() of the core object.
+     * Credentials installed by the caller through aether_set_credentials*()
+     * before aether_start() live in that same object, so they must be
+     * preserved across the destructive core (re)initialization.
+     *
+     * Only caller-provisioned identity is preserved: uid, master_key and
+     * master_key_type. Persistent registration/recovery state, cloud and
+     * server caches are not carried over.
+     */
+    bool had_caller_credentials =
+        aether_client_has_caller_credentials(
+            &client->core);
+
+    aether_uuid_t saved_uid;
+    uint8_t saved_master_key[AETHER_KEY_BYTES];
+    uint8_t saved_master_key_type = 0u;
+
+    if (had_caller_credentials) {
+        saved_uid = client->core.uid;
+        memcpy(
+            saved_master_key,
+            client->core.master_key,
+            AETHER_KEY_BYTES);
+        saved_master_key_type =
+            client->core.master_key_type;
+    }
 
     fill_core_config(
         client,
@@ -657,6 +686,17 @@ aether_status_t aether_client_app_start(
     aether_client_init(
         &client->core,
         &core_config);
+
+    if (had_caller_credentials) {
+        client->core.uid = saved_uid;
+        memcpy(
+            client->core.master_key,
+            saved_master_key,
+            AETHER_KEY_BYTES);
+        client->core.master_key_type =
+            saved_master_key_type;
+    }
+
 
     if (client->platform.bind != NULL) {
         status =

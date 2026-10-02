@@ -1987,31 +1987,7 @@ static bool recovery_in_progress(
 
 static bool caller_credentials_present(
     const aether_client_t *client) {
-
-    /*
-     * This predicate describes only a caller-supplied identity candidate that
-     * is not backed by persistent state. It is consulted after load_state()
-     * fails, before the client decides between mandatory recovery and the
-     * stable NO_IDENTITY hand-off.
-     */
-
-    bool has_uid =
-        client->uid.msb != UINT64_C(0) ||
-        client->uid.lsb != UINT64_C(0);
-
-    if (!has_uid) {
-        return false;
-    }
-
-    for (size_t i = 0u;
-         i < AETHER_KEY_BYTES;
-         ++i) {
-        if (client->master_key[i] != 0u) {
-            return true;
-        }
-    }
-
-    return false;
+    return aether_client_has_caller_credentials(client);
 }
 
 
@@ -4799,6 +4775,36 @@ aether_status_t aether_client_provision_identity(
     return
         begin_server_resolving(
             client);
+}
+
+
+
+
+bool aether_client_has_caller_credentials(
+    const aether_client_t *client) {
+
+    if (client == NULL) {
+        return false;
+    }
+
+    bool has_uid =
+        client->uid.msb != UINT64_C(0) ||
+        client->uid.lsb != UINT64_C(0);
+
+    if (!has_uid) {
+        return false;
+    }
+
+    for (size_t i = 0u;
+         i < AETHER_KEY_BYTES;
+         ++i) {
+
+        if (client->master_key[i] != 0u) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 

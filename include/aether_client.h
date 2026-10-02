@@ -716,6 +716,20 @@ struct aether_registration;
 
 
 /*
+ * Predicate: does the client currently hold a caller-supplied identity
+ * candidate (non-zero UID and at least one non-zero master-key byte)?
+ *
+ * This describes an in-RAM identity candidate that is not yet backed by
+ * persistent state. It is consulted to decide between mandatory recovery
+ * and the stable NO_IDENTITY hand-off, and to preserve caller-provisioned
+ * credentials across destructive core reinitialization.
+ */
+bool aether_client_has_caller_credentials(
+    const aether_client_t *client);
+
+
+
+/*
  * Install a pre-provisioned Aether identity.
  *
  * This is the non-registration producer of client identity. It is valid only

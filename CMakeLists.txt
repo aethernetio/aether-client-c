@@ -198,6 +198,50 @@ target_link_libraries(
     )
 
 
+    add_executable(
+        aether_facade_lifecycle_test
+        tests/test_facade_lifecycle.c
+    )
+
+    target_link_libraries(
+        aether_facade_lifecycle_test
+        PRIVATE
+
+            aether_client
+            aether_hydrogen_test_support
+
+    )
+
+    target_compile_features(
+        aether_facade_lifecycle_test
+        PRIVATE
+            c_std_11
+    )
+
+    target_include_directories(
+        aether_facade_lifecycle_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_facade_lifecycle_test
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Werror
+        )
+    endif()
+
+    add_test(
+        NAME aether_facade_lifecycle_test
+        COMMAND aether_facade_lifecycle_test
+    )
+
+
+
 
 
 
