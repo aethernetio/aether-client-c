@@ -205,19 +205,30 @@ aether_status_t aether_init_slot(
  * storage slot selects an identity namespace, while the component
  * registry is a separate axis. Keeping them separate avoids a
  * combinatorial init API such as aether_init_slot_with_components().
- *
+
  * Typical sequence:
  *
  *     aether_init(&aether, parent_uid);
- *     aether_set_components(&aether, storage, N);
- *     aether_register_component(&aether, ctx, work);   // x N
+ *     aether_set_components(&aether, storage, N);   // pre-start only
+ *     ...component-specific lifecycle for each component...
  *     aether_start(&aether);
+ *
+ * aether_set_components() must be called before aether_start(). Once
+ * the client is started, replacing the registry would orphan live
+ * component contexts and is rejected with AETHER_ERR_STATE.
+ *
+ * How a component's context is initialised is component-specific. Most
+ * components are bound to the client before aether_start(); the
+ * registration component is a special case because aether_start()
+ * reinitialises the underlying core and it must therefore be bound to
+ * the live aether.app.core afterwards. See aether_registration.h.
  *
  * components must point to storage of at least component_capacity
  * entries. Passing components == NULL with component_capacity == 0
  * leaves the registry empty (the default behaviour of aether_init()).
  *
  * No heap allocation, no hidden dynamic list, no fixed global limit.
+
  */
 aether_status_t aether_set_components(
     aether_t *client,

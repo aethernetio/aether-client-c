@@ -87,24 +87,43 @@ aether_status_t aether_registration_poll(
     aether_registration_t *registration);
 
 
+
 /*
  * Component-style adapter for the unified aether_work() lifecycle.
  *
- * Register with:
+ * Canonical sequence:
+ *
+ *     aether_init(&aether, parent_uid);
+ *     aether_set_components(&aether, storage, N);
+ *
+ *     aether_start(&aether);
+ *
+ *     aether_registration_init(
+ *         &registration,
+ *         &aether.app.core);
  *
  *     aether_register_component(
  *         &aether,
  *         &registration,
  *         aether_registration_work);
  *
- * This lets the registration state machine advance inside the normal
- * aether_work() step instead of requiring an explicit
- * aether_registration_poll() call in the application loop. The
- * underlying implementation is the same function; there is exactly
- * one state-machine step.
+ *     for (;;) {
+ *         aether_work(&aether);
+ *     }
+ *
+ * aether_registration_init() must run after aether_start(): start
+ * reinitialises the underlying core, so the registration context
+ * cannot be bound to aether.app.core before then. The registry
+ * storage itself, by contrast, is attached before start.
+ *
+ * Once registered, this adapter drives the registration state machine
+ * inside the normal aether_work() step. Do not also call
+ * aether_registration_poll() for the same context: there is exactly
+ * one state-machine step per tick.
  *
  * The context argument must be the matching aether_registration_t*.
  */
+
 
 aether_status_t aether_registration_work(
     struct aether *client,

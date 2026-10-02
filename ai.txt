@@ -860,10 +860,16 @@ aether_poll() status:
 - Single implementation; aether_work() calls it.
 - Examples/p2p_e2e demonstrate aether_work() as the only user-facing loop entry.
 
-registration component behavior:
-- aether_registration_init() then aether_register_component(&aether, &registration, aether_registration_work).
-- Register before aether_start(); aether_work() drives REG_* substates.
+
+registration component behavior (final, corrected):
+- set component registry storage before aether_start();
+- call aether_start();
+- then aether_registration_init(&registration, &aether.app.core);
+- then aether_register_component(&aether, &registration, aether_registration_work);
+- aether_work() drives REG_* substates.
 - Do not call aether_registration_poll() for a registered context.
+- Reason: aether_start() reinitialises the underlying core, so the registration context cannot be bound to aether.app.core before start. Earlier guidance "register before aether_start()" was wrong and is superseded by this.
+
 
 Future message-delivery seam (Phase E, not implemented):
 - Today: aether_send_message() (src/aether.c) -> aether_client_app_send -> aether_client_app_send_with_id -> aether_client_send_message (src/aether_client.c).
