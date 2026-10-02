@@ -36,6 +36,48 @@ extern "C" {
 typedef struct aether aether_t;
 
 
+
+/*
+
+ * Unified component lifecycle contract.
+ *
+ * aether_t is the core runtime. Ordinary components (network, transport,
+ * reconnect state machines, future RPC, ...) register a context pointer
+ * and a single periodic work callback through the caller-owned registry.
+ *
+ * A component work function performs at most one bounded state-machine
+ * step. It must not block the outer loop, must not allocate, must not
+ * rely on hidden global state, and must not rely on registration order
+ * for correctness.
+ *
+ * Waiting states are normal, not special. If a component's prerequisite
+ * (network up, route known, cloud resolving, queue non-empty, ...) is
+ * not yet ready, the component returns AETHER_OK and advances again on
+ * the next step. The scheduler does not interpret component-internal
+ * waiting semantics; there is no "retry next tick" status.
+
+ */
+typedef aether_status_t (*aether_component_work_fn)(
+    aether_t *aether,
+    void *context);
+
+
+typedef struct {
+    void *context;
+    aether_component_work_fn work;
+} aether_component_t;
+
+
+/*
+ * Convenience recommendation only. The registry capacity is not bounded
+ * by this value: callers may supply any storage size they choose.
+ */
+#ifndef AETHER_COMPONENT_CAPACITY_DEFAULT
+#define AETHER_COMPONENT_CAPACITY_DEFAULT 10
+#endif
+
+
+
 /*
  * Application callbacks.
  *
@@ -105,6 +147,22 @@ struct aether {
         max_align_t alignment;
         uint8_t bytes[AETHER_PLATFORM_CONTEXT_BYTES];
     } platform_context;
+
+
+    /*
+     * Caller-owned component registry.
+     *
+     * components points to caller-supplied storage of at least
+     * component_capacity entries. A caller that does not use the
+     * registry leaves components == NULL and component_capacity == 0.
+     *
+     * No heap allocation, no hidden dynamic list, no fixed global
+     * limit.
+     */
+    aether_component_t *components;
+    size_t component_capacity;
+    size_t component_count;
+
 };
 
 
@@ -135,6 +193,38 @@ aether_status_t aether_init_slot(
     aether_t *client,
     aether_uuid_t parent_uid,
     uint32_t slot);
+
+
+
+
+/*
+ * Attach a caller-owned component registry to an already-initialized
+ * client.
+ *
+ * Deliberately orthogonal to aether_init() / aether_init_slot(): the
+ * storage slot selects an identity namespace, while the component
+ * registry is a separate axis. Keeping them separate avoids a
+ * combinatorial init API such as aether_init_slot_with_components().
+ *
+ * Typical sequence:
+ *
+ *     aether_init(&aether, parent_uid);
+ *     aether_set_components(&aether, storage, N);
+ *     aether_register_component(&aether, ctx, work);   // x N
+ *     aether_start(&aether);
+ *
+ * components must point to storage of at least component_capacity
+ * entries. Passing components == NULL with component_capacity == 0
+ * leaves the registry empty (the default behaviour of aether_init()).
+ *
+ * No heap allocation, no hidden dynamic list, no fixed global limit.
+ */
+aether_status_t aether_set_components(
+    aether_t *client,
+    aether_component_t *components,
+    size_t component_capacity);
+
+
 
 
 
@@ -180,18 +270,89 @@ void aether_stop(
     aether_t *client);
 
 
+
+
 /*
- * Execute one bounded scheduling step.
+ * Register a component in the caller-owned registry.
  *
- * Call regularly from the application's normal loop/task. One call lets the
- * platform collect available physical input, advances protocol/parser state,
- * handles at most one yielded ingress item through this facade's RX_ALL policy,
- * and advances mandatory timers when RX storage is not pinned.
+ * work must be non-NULL. Registration fills the registry in call order.
+ * That order influences only the dispatch order inside aether_work(); it
+ * must not affect correctness. A component that depends on another
+ * component should return AETHER_OK while waiting for it and re-check
+ * on the next step rather than rely on registration order.
  *
- * There is no hidden scheduler.
+ * Lifetime: the component's context pointer is borrowed. It must remain
+ * valid at least until the client is stopped (aether_stop()) or the
+ * caller stops calling aether_work() for this client. The registry does
+ * not copy or own the context.
+ *
+ * Returns AETHER_ERR_OVERFLOW when the registry is full.
+ */
+
+aether_status_t aether_register_component(
+    aether_t *client,
+    void *context,
+    aether_component_work_fn work);
+
+
+
+
+/*
+ * Low-level core step: platform poll + parser + mandatory timers.
+ *
+ * Prefer aether_work(): that is the only entry point an ordinary
+ * application should call, and it drives both the core step and every
+ * registered component in one bounded call.
+ *
+ * This function is kept for:
+ *   - advanced callers that want explicit control over component
+ *     dispatch (for example, a custom scheduler);
+ *   - backwards compatibility with existing integrations.
+ *
+ * There is exactly one core-step implementation; aether_work() calls
+ * this function internally rather than duplicating it.
  */
 aether_status_t aether_poll(
     aether_t *client);
+
+
+
+
+
+/*
+ * Unified scheduling step for the entire client.
+ *
+ * This is the single function an application's main loop needs to call:
+ *
+ *     for (;;) {
+ *         aether_work(&aether);
+ *     }
+ *
+ * It executes:
+ *
+ *   1. one core aether_poll() step;
+ *   2. one bounded work step for every registered component, in
+ *      registration order.
+ *
+ * Core temporary statuses (retryable transport/protocol errors) do not
+ * starve components: the dispatch loop still runs and the core status
+ * is returned to the caller afterwards. Only AETHER_ERR_ARGUMENT or
+ * AETHER_ERR_STATE from the core prevent component work entirely.
+ *
+ * Every registered component receives one tick per call. A component
+ * that is waiting for a prerequisite simply returns AETHER_OK and
+ * re-checks on the next step; there is no special "retry next tick"
+ * status. If any component reports a non-OK status, the first such
+ * status is remembered and returned after the full pass, so one
+ * component's failure does not starve the rest.
+ *
+ * aether_t itself is not a component: it is the runtime that drives
+ * them. The core entry point therefore remains aether_work(), not
+ * aether_component_work().
+ */
+aether_status_t aether_work(
+    aether_t *client);
+
 
 
 

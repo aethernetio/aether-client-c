@@ -15,6 +15,9 @@
 
 #include "aether_client.h"
 
+struct aether;
+
+
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -82,6 +85,32 @@ void aether_registration_init(
 
 aether_status_t aether_registration_poll(
     aether_registration_t *registration);
+
+
+/*
+ * Component-style adapter for the unified aether_work() lifecycle.
+ *
+ * Register with:
+ *
+ *     aether_register_component(
+ *         &aether,
+ *         &registration,
+ *         aether_registration_work);
+ *
+ * This lets the registration state machine advance inside the normal
+ * aether_work() step instead of requiring an explicit
+ * aether_registration_poll() call in the application loop. The
+ * underlying implementation is the same function; there is exactly
+ * one state-machine step.
+ *
+ * The context argument must be the matching aether_registration_t*.
+ */
+
+aether_status_t aether_registration_work(
+    struct aether *client,
+    void *context);
+
+
 
 bool aether_registration_done(
     const aether_registration_t *registration);

@@ -197,6 +197,55 @@ aether_status_t aether_init_slot(
 }
 
 
+
+
+aether_status_t aether_set_components(
+    aether_t *client,
+    aether_component_t *components,
+    size_t component_capacity) {
+
+    if (client == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (components == NULL &&
+        component_capacity != 0u) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (client->init_status !=
+        AETHER_OK) {
+
+        return client->init_status;
+    }
+
+    /*
+     * Registry attachment is a pre-start operation.
+     *
+     * Once the client has started, replacing the registry would
+     * silently orphan live component contexts. Reject the call
+     * instead of allowing an unsafe mutation of a running client.
+     */
+    if (client->app.started) {
+        return AETHER_ERR_STATE;
+    }
+
+    /*
+     * Replacing the registry pre-start resets the count. This is the
+     * documented single-shot setup path and is intentionally not
+     * additive.
+     */
+    client->components = components;
+    client->component_capacity = component_capacity;
+    client->component_count = 0u;
+
+    return AETHER_OK;
+}
+
+
+
+
 void aether_on_message(
     aether_t *client,
     aether_message_fn callback) {
@@ -338,6 +387,165 @@ aether_status_t aether_poll(
         aether_client_app_consume_ingress(
             &client->app);
 }
+
+
+
+aether_status_t aether_register_component(
+    aether_t *client,
+    void *context,
+    aether_component_work_fn work) {
+
+    if (client == NULL ||
+        work == NULL) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (client->init_status !=
+        AETHER_OK) {
+
+        return client->init_status;
+    }
+
+    if (client->components == NULL ||
+        client->component_count >=
+            client->component_capacity) {
+
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    /*
+     * Reject an exact duplicate (context, work) pair.
+     *
+     * The same context with two different work callbacks is a legal
+     * (if unusual) shape and stays allowed. The same pair twice would
+     * only cause the same state machine to tick twice per
+     * aether_work() call, which is never the caller's intent.
+     */
+    for (size_t i = 0u;
+         i < client->component_count;
+         ++i) {
+
+        if (client->components[i].context == context &&
+            client->components[i].work == work) {
+
+            return AETHER_ERR_STATE;
+        }
+    }
+
+    aether_component_t *slot =
+        &client->components[
+            client->component_count];
+
+    slot->context = context;
+    slot->work = work;
+
+    client->component_count += 1u;
+
+    return AETHER_OK;
+}
+
+
+
+aether_status_t aether_work(
+    aether_t *client) {
+
+    if (client == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (client->init_status !=
+        AETHER_OK) {
+
+        return client->init_status;
+    }
+
+    /*
+     * One bounded core step.
+     *
+     * Hard-fail core statuses stop the whole aether_work() call:
+     * AETHER_ERR_ARGUMENT means the client is unusable,
+     * AETHER_ERR_STATE means the lifecycle has entered an unexpected
+     * phase. Both make ticking components structurally unsafe.
+     *
+     * Every other non-OK core status is a temporary protocol/
+     * transport/remote condition (per the core state machine) and
+     * components must still get their tick so they can make progress
+     * on the conditions the core is waiting for.
+     */
+    aether_status_t core_status =
+        aether_poll(
+            client);
+
+    if (core_status == AETHER_ERR_ARGUMENT ||
+        core_status == AETHER_ERR_STATE) {
+
+        return core_status;
+    }
+
+    /*
+     * Snapshot the component count at the start of the pass.
+     *
+     * A component may register another component during its own tick
+     * (for example a driver lazily attaching a reconnect helper). The
+     * new entry becomes visible only on the next aether_work() call,
+     * so a single pass has deterministic, non-recursive semantics.
+     */
+    size_t component_count =
+        client->component_count;
+
+    /*
+     * Every registered component gets exactly one bounded step.
+     *
+     * Component errors are collected, not propagated mid-pass: the
+     * first non-OK status is remembered and returned after the full
+     * pass. This keeps component dispatch order-independent and
+     * prevents one failing component from starving the rest.
+     *
+     * Waiting is the component's own business: a component that is
+     * not yet able to make progress returns AETHER_OK and re-checks
+     * on the next step. There is no special scheduler status for
+     * "waiting".
+     */
+    aether_status_t component_error =
+        AETHER_OK;
+
+    for (size_t i = 0u;
+         i < component_count;
+         ++i) {
+
+        aether_component_t *component =
+            &client->components[i];
+
+        if (component->work == NULL) {
+            continue;
+        }
+
+        aether_status_t component_status =
+            component->work(
+                client,
+                component->context);
+
+        if (component_status != AETHER_OK &&
+            component_error == AETHER_OK) {
+
+            component_error = component_status;
+        }
+    }
+
+    /*
+     * Core non-OK status has precedence over component errors: the
+     * caller needs to know that the core step itself did not complete
+     * cleanly.
+     */
+    if (core_status != AETHER_OK) {
+        return core_status;
+    }
+
+    return component_error;
+}
+
+
 
 
 

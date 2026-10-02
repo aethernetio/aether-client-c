@@ -112,3 +112,48 @@ bool aether_registration_done(
         aether_client_is_registered(
             registration->client);
 }
+
+
+
+aether_status_t aether_registration_work(
+    struct aether *client,
+    void *context) {
+
+    aether_registration_t *registration =
+        (aether_registration_t *)context;
+
+    if (registration == NULL ||
+        client == NULL) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if ((struct aether *)registration->client !=
+        client) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    /*
+     * Component lifecycle rule: a state machine that is waiting for
+     * a prerequisite returns AETHER_OK and re-checks on the next
+     * step. aether_registration_poll() already returns AETHER_OK for
+     * its own REG_* waiting states, but the underlying
+     * begin_registration path can transiently report AETHER_ERR_BUSY
+     * while a core callback is active. That is a waiting condition,
+     * not a real failure, so it is normalized here.
+     *
+     * All other non-OK statuses are real errors (missing POW
+     * provider, wrong state, wrong client) and are passed through
+     * unchanged so the caller sees them.
+     */
+    aether_status_t status =
+        aether_registration_poll(
+            registration);
+
+    if (status == AETHER_ERR_BUSY) {
+        return AETHER_OK;
+    }
+
+    return status;
+}

@@ -195,7 +195,55 @@ target_link_libraries(
     add_test(
         NAME aether_api_test
         COMMAND aether_api_test
+
     )
+
+
+
+    add_executable(
+        aether_components_test
+        tests/test_components.c
+    )
+
+
+    target_link_libraries(
+        aether_components_test
+        PRIVATE
+            aether_client
+            aether_hydrogen_test_support
+    )
+
+
+    target_compile_features(
+        aether_components_test
+        PRIVATE
+            c_std_11
+    )
+
+
+    target_include_directories(
+        aether_components_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    )
+
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_components_test
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Werror
+        )
+    endif()
+
+    add_test(
+        NAME aether_components_test
+        COMMAND aether_components_test
+    )
+
 
 
     add_executable(

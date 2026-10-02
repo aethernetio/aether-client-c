@@ -40,7 +40,7 @@ static bool credentials_installed;
  *
  * The callback therefore only copies the borrowed payload into this
  * caller-owned staging slot; the main loop performs the actual send after
- * aether_poll() has fully returned.
+ * aether_work() has fully returned.
  *
  * Single-slot policy: a second message that arrives before the pending one
  * is sent is dropped with an explicit error, never silently overwritten.
@@ -244,13 +244,15 @@ void app_main(void) {
 
 
 
+
             aether_status_t poll_status =
-                aether_poll(
+                aether_work(
                     &client);
+
 
             if (poll_status != AETHER_OK) {
                 printf(
-                    "AETHER_ECHO_POLL_ERROR=%d\n",
+                    "AETHER_ECHO_WORK_ERROR=%d\n",
                     (int)poll_status);
             }
 

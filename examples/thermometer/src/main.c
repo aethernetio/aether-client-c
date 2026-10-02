@@ -57,7 +57,7 @@ void app_main(void) {
             THERMOMETER_WIFI_PASSWORD
         );
 
-        aether_poll(&client);
+        aether_work(&client);
 
         vTaskDelay(pdMS_TO_TICKS(10));
     }

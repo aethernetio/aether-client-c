@@ -24,6 +24,10 @@ static aether_t client_b;
 static aether_registration_t registration_a;
 static aether_registration_t registration_b;
 
+static aether_component_t components_a[2];
+static aether_component_t components_b[2];
+
+
 
 static received_message_t received_a;
 static received_message_t received_b;
@@ -93,48 +97,16 @@ static void on_error(
 
 
 static int poll_pair(void) {
-    if (registration_a.client == NULL) {
-        aether_registration_init(
-            &registration_a,
-            &client_a.app.core);
-    }
 
-    if (registration_b.client == NULL) {
-        aether_registration_init(
-            &registration_b,
-            &client_b.app.core);
-    }
-
-    if (!aether_is_registered(&client_a)) {
-        if (aether_registration_poll(
-                &registration_a) !=
-            AETHER_OK) {
-
-            return -1;
-        }
-    }
-
-    if (!aether_is_registered(&client_b)) {
-        if (aether_registration_poll(
-                &registration_b) !=
-            AETHER_OK) {
-
-            return -1;
-        }
-    }
-
-    if (aether_poll(&client_a) != AETHER_OK) {
+    if (aether_work(&client_a) != AETHER_OK) {
         return -1;
     }
 
-    if (aether_poll(&client_b) != AETHER_OK) {
+    if (aether_work(&client_b) != AETHER_OK) {
         return -1;
     }
 
-    return
-        errors == 0u
-            ? 0
-            : -1;
+    return 0;
 }
 
 
@@ -270,6 +242,48 @@ int main(void) {
     aether_on_error(
         &client_b,
         on_error);
+
+
+    if (aether_set_components(
+            &client_a,
+            components_a,
+            2u) != AETHER_OK ||
+        aether_set_components(
+            &client_b,
+            components_b,
+            2u) != AETHER_OK) {
+
+        fprintf(
+            stderr,
+            "Failed to attach component registry\n");
+
+        return 1;
+    }
+
+    aether_registration_init(
+        &registration_a,
+        &client_a.app.core);
+
+    aether_registration_init(
+        &registration_b,
+        &client_b.app.core);
+
+    if (aether_register_component(
+            &client_a,
+            &registration_a,
+            aether_registration_work) != AETHER_OK ||
+        aether_register_component(
+            &client_b,
+            &registration_b,
+            aether_registration_work) != AETHER_OK) {
+
+        fprintf(
+            stderr,
+            "Failed to register registration component\n");
+
+        return 1;
+    }
+
 
     int result = 1;
 

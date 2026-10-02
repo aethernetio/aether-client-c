@@ -761,3 +761,151 @@ ESP32 firmware: P256 root sign public key baked in. aether_esp32_trusted_sign_ke
 PHYSICAL P256 EXPERIMENT SUCCESS. ESP32 (UID 60b94134-...) с P256 backend и вкомпилированным P256 root trust anchor: (1) открыл TCP к registration.aethernet.io:9010; (2) прошёл P256 registration handshake (get asymmetric public key for P256_AES_GCM); (3) выполнил recovery HYDROGEN->P256 (cmd local before/after recovery); (4) сервер ротировал master key и persisted client (uid=60B94134); (5) ESP подключился к work SID 21 (los.aethernet.io), login is done + стабильный ping каждые 6 сек от IP 31.44.245.67. Production P256 infrastructure (rootSigners.key + init-script globalAsymKey на dbservice + ESP firmware trust key) работает end-to-end. Клиент в WORK/READY. Следующий шаг - physical echo test.
 CASE 2 (physical echo). serial capture: AETHER_ECHO_RX from=<java-uid> size=8 state=11 (READY); AETHER_ECHO_TX_ERROR status=-9 state=11. -9 = AETHER_ERR_BUSY. Root cause доказан кодом в aether_client.c:5484: aether_client_send_message возвращает AETHER_ERR_BUSY если client->callback_active || client->rx_active. on_message вызывается изнутри RX processing, rx_active==true. Это не ESP-баг и не P256-баг — это архитектурный API design: C facade не поддерживает reentrant send из RX callback, но пример echo его делает. p2p_e2e.c работает только потому, что send из main loop после poll, не из callback. Server-side доказано: sendSafeApiData(clientUid=60B94134) доставляется; P256 recovery/registration/пинг работают. Нужен архитектурный fix, не вносил до получения вердикта.
 PHYSICAL P256 ESP32 ECHO PASSED. Echo fix: deferred send. on_message copy borrowed RX payload + sender UUID в caller-owned single-slot staging (echo_pending_data[AETHER_MAX_PACKET]); main loop после aether_poll() вызывает drain_echo(); AETHER_ERR_BUSY retryable (pending остаётся); другие статусы → AETHER_ECHO_SEND_ERROR + drop pending; overflow/queue-full диагностируются. Server-side доказательство: 15:56:13.0399 GRID offer {f:36E3CAF4, t:60B94134, msg:0001027F80FF55AA} + sendSafeApiData; 15:56:13.0738 GRID offer {f:60B94134, t:36E3CAF4, msg:0001027F80FF55AA} byte-for-byte identical. physicalEsp32Echo PASSED. Core reentrancy guard (callback_active||rx_active) не менялся. ESP32 final build: RAM 42180 (12.9%), Flash 890504 (84.9%). Host: 9/9 tests PASS.
+=== Phase A: Inventory of periodically-serviced subsystems (aether-client-c) ===
+
+[1] aether_client_poll(client, now_ms) — core protocol timers/ping/state machine.
+    Decl: include/aether_client.h:780. Impl: src/aether_client.c:4926. Return: void.
+    Caller: aether_client_app_tick(). Part of core. Not a component.
+    Order-independence: N/A (core).
+
+[2] aether_client_app_tick(client) — advanced facade step (platform poll + RX + core poll).
+    Decl: include/aether_client_app.h:247. Impl: src/aether_client_app.c:853. Return: aether_status_t.
+    Caller: aether_poll() in src/aether.c:332. Part of core facade.
+[3] aether_client_app_poll(client) — alias for aether_client_app_tick. src/aether_client_app.c:922.
+[4] aether_poll(client) — beginner facade single step. src/aether.c:281.
+    Does: aether_client_app_tick + RX_ALL policy dispatch + consume_ingress.
+    Return: propagated from tick/ingress path. This is the future aether_work() core-step.
+
+[5] aether_registration_poll(...) — optional self-registration state machine.
+    Decl: include/aether_registration.h:83. Impl: src/aether_registration.c:53. Return: aether_status_t.
+    Component candidate: stateful, caller-owned, driven via aether_registration_t* + client.
+    Not currently called by facade (registration is opt-in).
+    Order-independence: registration depends on transport being up; could return OK while waiting.
+
+[6] aether_send_future_tick(future, now_ms) — optional request-result tracker.
+    Decl: include/aether_send_future.h:91. Impl: src/aether_send_future.c:183. Return: bool.
+    Component candidate: per-future object, but caller-driven one-shot rather than global periodic.
+    Probably NOT a registry component; lifecycle is per-future, not per-client.
+
+[7] Platform: aether_esp32_wifi_connect / _connect_wait — WiFi connect (blocking helper).
+    Not periodic; NOT a component candidate (blocking init-only).
+    platform/esp32/
+
+[8] Transport (aether_transport_vtable_t) — open/close/send only.
+    No periodic hook; driven via aether_client_on_transport_state() from platform poll.
+    Platform.poll (aether_client_platform_poll_fn) is invoked inside aether_client_app_tick().
+    => transport/wifi tick already lives inside core step via platform.poll.
+
+[9] Timers/reconnect/ping: internal to aether_client_poll(). No separate component.
+
+
+=== aether_poll() status contract ===
+aether_poll() returns:
+- AETHER_ERR_ARGUMENT if client NULL or init_status != AETHER_OK.
+- Otherwise the status of aether_client_app_tick():
+  - AETHER_ERR_STATE only if !started.
+  - AETHER_ERR_UNSUPPORTED for unexpected ingress kinds.
+  - AETHER_ERR_ARGUMENT from platform missing now_ms or asymmetric receive/consume pair.
+  - Any status propagated from platform.poll, receive, consume, or aether_client_on_rx.
+  - Otherwise AETHER_OK.
+Hard-fail in aether_work(): AETHER_ERR_ARGUMENT, AETHER_ERR_STATE.
+All other non-OK statuses are treated as transient and components still get their tick.
+
+=== Migration status (final) ===
+Already migrated to unified lifecycle:
+- examples/echo/src/main.c: aether_poll -> aether_work
+- examples/thermometer/src/main.c: aether_poll -> aether_work
+- tests/p2p_e2e.c: registration wired as a registered component via aether_registration_work
+- esp32-size/src/main.c: intentionally kept as-is (size probe includes every public symbol)
+
+Real subsystem candidates for registry migration:
+aether_registration_poll: opted in by the application; p2p_e2e wires it as a component.
+No other existing subsystem fits the registry (transport/wifi live inside the core step via platform.poll).
+
+
+
+=== Final component architecture summary (Phase B/C, complete) ===
+
+Registry semantics:
+- Caller-owned storage: aether_component_t *components, size_t component_capacity, size_t component_count on aether_t.
+- aether_component_t = { void *context; aether_component_work_fn work; }.
+- No heap, no hidden list, no fixed global max. AETHER_COMPONENT_CAPACITY_DEFAULT = 10 is a recommendation.
+- aether_set_components() only before aether_start(); after start returns AETHER_ERR_STATE.
+- Replacing registry pre-start resets count.
+- Duplicate exact (context, work) rejected with AETHER_ERR_STATE. Same work diff ctx and same ctx diff work allowed.
+
+aether_work() error precedence:
+- Core step via aether_poll() first.
+- AETHER_ERR_ARGUMENT or AETHER_ERR_STATE from core -> immediate return, no component ticks.
+- Any other non-OK core status recorded, components still tick.
+- Component pass: all get one tick; first non-OK status remembered.
+- Return precedence: core non-OK > component error > AETHER_OK.
+
+aether_work() mutation semantics:
+- component_count snapshotted at pass start.
+- Components registered during a tick become active on next aether_work() call.
+
+Waiting convention:
+- Prerequisite not ready == AETHER_OK. No special scheduler status.
+- aether_registration_work normalizes transient AETHER_ERR_BUSY to AETHER_OK; real errors pass through.
+
+Migrated public loops (aether_poll -> aether_work):
+- examples/echo/src/main.c
+- examples/thermometer/src/main.c
+- tests/p2p_e2e.c (registration wired as a registered component)
+- esp32-size/src/main.c left as-is: intentional size probe, includes every public symbol.
+
+aether_poll() status:
+- Public low-level core step for advanced callers and backwards compatibility.
+- Single implementation; aether_work() calls it.
+- Examples/p2p_e2e demonstrate aether_work() as the only user-facing loop entry.
+
+registration component behavior:
+- aether_registration_init() then aether_register_component(&aether, &registration, aether_registration_work).
+- Register before aether_start(); aether_work() drives REG_* substates.
+- Do not call aether_registration_poll() for a registered context.
+
+Future message-delivery seam (Phase E, not implemented):
+- Today: aether_send_message() (src/aether.c) -> aether_client_app_send -> aether_client_app_send_with_id -> aether_client_send_message (src/aether_client.c).
+- aether_client_send_message() does readiness check, cloud/server resolution, cipher, transport send.
+- Reuses caller-owned tx_plain/tx_crypto scratch (AETHER_MAX_PACKET = 1536), does not copy caller payload.
+- Creation and delivery currently fused.
+- Future outbox component seam: caller-owned aether_outbox_t registered as a component, owning copied payload buffers (bounded capacity, no heap).
+- Send path would become: producer enqueues (recipient UID + payload copy) -> outbox work tick resolves cloud/server readiness and calls aether_client_send_message() when writable.
+- AETHER_ERR_BUSY from aether_client_send_message inside the outbox is a legitimate waiting condition; outbox returns AETHER_OK and retries next tick.
+- AETHER_MAX_PACKET remains the per-message size ceiling; outbox capacity * per-message bytes is the caller-chosen RAM cost.
+=== Final verification summary ===
+Host tests: 10/10 ctest passed (Debug/default build).
+Release-mode library builds cleanly; Release-mode test binaries fail to compile due to pre-existing unused-variable errors in tests (test_rx.c, test_send_future.c, test_app.c) that only appear when NDEBUG strips assert() — unrelated to this task.
+
+=== Sizes (Release, x86_64) ===
+sizeof(aether_client_t) = 4040 (unchanged, baseline match)
+sizeof(aether_t) = 4384 (was 4224 pre-change; +160 bytes = 3 pointers + padding)
+sizeof(aether_component_t) = 16 (2 pointers)
+AETHER_COMPONENT_CAPACITY_DEFAULT = 10
+table_default_10_bytes = 160
+aether.c.o .text = 2869 (was 2xxx, delta from new registry/scheduler/adapter)
+aether_client.c.o .text = 29607 (was 27235 baseline; delta +2372 — larger due to generated registration code/tables, not part of this task)
+libaether_client.a (Release) = 290156 bytes (baseline 288646, delta +1510)
+
+=== ESP32-C3 footprint ===
+Not re-measured. Message/transport/core RX internals unchanged; aether_work() simply wraps the same aether_poll() plus an extra loop over the (typically empty for firmware) component registry.
+Physical ESP E2E not re-run — scope excludes message/transport changes.
+
+=== Final deliverables ===
+1. tests/test_components.c added (10+ tests: registry storage, capacity, replace, duplicate, mutation, error semantics, order independence, waiting-is-ok, no-op, after-start rejection)
+2. include/aether.h: aether_component_t, aether_component_work_fn, aether_set_components, aether_register_component, aether_work, AETHER_COMPONENT_CAPACITY_DEFAULT
+3. src/aether.c: registry impl, pre-start guard, duplicate rejection, component-count snapshot
+4. include/aether_registration.h + src/aether_registration.c: aether_registration_work adapter with BUSY normalization
+5. tests/p2p_e2e.c: registration component wired via aether_register_component
+6. examples/echo, examples/thermometer: aether_poll -> aether_work
+7. esp32-size/src/main.c: intentionally keeps aether_poll (size probe includes every public symbol)
+8. ai.txt updated with final semantics, migration status, future message-delivery seam
+
+=== Future message-delivery seam (Phase E, prepared not implemented) ===
+Files: src/aether.c (aether_send_message), src/aether_client_app.c (aether_client_app_send, _with_id), src/aether_client.c (aether_client_send_message).
+Currently fused: readiness check + cloud/server resolution + cipher + transport send in aether_client_send_message.
+Future seam: caller-owned aether_outbox_t registered as a component, own copied payloads, retry via BUSY->OK normalization.
+Per-message ceiling: AETHER_MAX_PACKET = 1536.
+
+Scope respected: no RPC, no generator changes, no outbox implementation, no P256 changes, no README changes, no other repos.
