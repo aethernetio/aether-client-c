@@ -2661,3 +2661,454 @@ Scheduler / order independence:
 
 ================================================================
 ================================================================
+
+================================================================
+LAN DIRECT — RESEARCH v2 (identity binding + socket/session)
+No code. Only research and design proposal.
+================================================================
+
+# 1. Production UID<->key binding
+
+Existing model (from aether_client.h, aether_credentials.c,
+platform/esp32/aether_crypto_p256_aes_gcm.c, server-cloud/LService.java,
+core/crypto/PairAsymKeysSigned.java, admin-shell/AdminShell.java):
+
+- rootSigners: Map<CryptoLib, Signer> lives server-side (admin-shell).
+- Server config carries `globalAsymKey` (PairKeysAsymSigned[]):
+  signed public keys of the registration server, signed by the root
+  signer.
+- Client is provisioned with `trusted_sign_keys` = root sign pub keys.
+- At registration, the client verifies the registration server's
+  globalAsymKey with `trusted_sign_keys`. This exact signed-key
+  structure is already the project's "certificate" idiom.
+
+Therefore the natural production binding is:
+
+    peer_identity_certificate = SignedKey(peer_sign_public_key)
+    signed by the same root signer whose public keys clients already
+    hold in trusted_sign_keys.
+
+- Cert binds a signing public key to a UID (UID is included in the
+  signed payload).
+- Any peer with the same `trusted_sign_keys` can verify it fully
+  offline, on any transport (LAN, LoRa, BLE, mesh).
+- No server involvement is needed at authentication time; only at
+  issuance time.
+
+# 2. Certificate format proposal
+
+  version         1  (0x01)
+  key_type        1  (matches aether crypto_lib ordinal)
+  uid            16
+  peer_sign_pk   32  (X25519 sign public key, hydro_sign_PUBLICKEYBYTES)
+  capabilities    2  (bit flags: LAN, LoRa, BLE, ...)
+  issued_at_s     4  (unix-like seconds, for rotation bookkeeping)
+  root_signature 64  (hydro_sign_BYTES)
+  ─── total      120 bytes
+
+No persistent KX key is included. The session key is derived from
+ephemeral-ephemeral X25519 during handshake (see 11).
+
+# 3. Issuance/storage lifecycle
+
+v1 (no server change):
+  Caller supplies:
+      aether_set_peer_identity(client, sign_sk[64], cert[120]);
+  Test/CI environments can mint self-signed certs against a caller-
+  configured root signer inside `trusted_sign_keys`. TOFU never
+  enabled implicitly.
+
+v2 (server change required; not implemented now):
+  - server-cloud/RegistrationDirectResponse grows optional field:
+      peer_identity_certificate: bytes
+  - LService.java: at registration, root-signer signs (uid, sign_pk,
+    capabilities); result goes into the response.
+  - common-api: extend registration-direct-response definition
+    (YAML/ADSL) with the new field.
+  - client-c: parse and store cert alongside master_key on save_state().
+  - client-ts / aether-client-java: parity later.
+  - admin-shell: no change (rootSigners already exists).
+
+Rotation: cert has issued_at_s; rotate by asking registration server to
+re-sign. Old certs remain valid until removed from any local policy.
+
+Recovery: master_key recovery does not invalidate the cert; cert is
+independent of master_key. If peer identity key is regenerated, the
+caller must obtain a fresh cert (server or offline root ceremony).
+
+# 4. Deterministic vs random peer identity key
+
+Deterministic (HKDF from master_key, context "aether-peer-id-v1"):
+  + no extra persistent storage
+  - key compromise domain overlaps with master_key domain: a leaked
+    peer_sk allows impersonation on every transport forever until
+    master_key itself is rotated
+  - if the same HKDF is (mistakenly) used across transports, crypto
+    contexts collapse
+
+Random persistent (caller-owned / platform-provisioned):
+  + separate compromise domain
+  + can be rotated without touching master_key
+  + allows hardware-backed keys later (ATECC, secure element)
+  - 96 bytes of persistent storage (or 64 if cert supplies pk)
+
+Recommendation: **random persistent**. MCU without RNG at provisioning
+time may derive via hydro_sign_keygen_deterministic() with seed = HKDF
+(master_key, "aether-peer-id-v1"), but that is an explicit fallback.
+
+# 5. Exact libhydrogen APIs and constants (verified from vendored headers)
+
+sign:
+  hydro_sign_PUBLICKEYBYTES 32
+  hydro_sign_SECRETKEYBYTES 64
+  hydro_sign_SEEDBYTES      32
+  hydro_sign_BYTES          64
+  hydro_sign_CONTEXTBYTES   8
+  hydro_sign_keygen(kp)
+  hydro_sign_keygen_deterministic(kp, seed[32])
+  hydro_sign_create(sig, m, mlen, ctx[8], sk)
+  hydro_sign_verify(sig, m, mlen, ctx[8], pk)
+
+kx:
+  hydro_kx_PUBLICKEYBYTES 32, SECRETKEYBYTES 32, SEEDBYTES 32
+  hydro_kx_SESSIONKEYBYTES 32
+  hydro_kx_n_1 / n_2 (Noise_N, server-static key required)
+  hydro_kx_kk_1/2/3 (mutual static): PACKET1BYTES 48, PACKET2BYTES 48
+  hydro_kx_xx_1/2/3/4: PACKET1 48, PACKET2 96, PACKET3 64
+  hydro_kx_keygen_deterministic(kp, seed[32])
+
+secretbox (AEAD):
+  hydro_secretbox_KEYBYTES 32
+  hydro_secretbox_CONTEXTBYTES 8
+  hydro_secretbox_HEADERBYTES 36
+  encrypt(c, m, mlen, msg_id, ctx[8], key)   // c = header(36) + m
+  decrypt(m, c, clen, msg_id, ctx[8], key)
+
+kdf:
+  hydro_kdf_KEYBYTES 32, CONTEXTBYTES 8
+  hydro_kdf_derive_from_key(subkey, len, subkey_id, ctx[8], key)
+
+hash:
+  hydro_hash_BYTES 32, CONTEXTBYTES 8
+
+# 6. Discovery beacon format proposal
+
+  magic          4  (e.g. 'A','E','L','N')
+  version        1  (0x01)
+  type           1  (0x01 beacon)
+  flags          2  (bitmask: DIRECT_READY, SUPPORTS_IPV6, ...)
+  sender uid    16
+  cert fp        8  (= hydro_hash(cert)[..8])
+  beacon nonce   8  (per-beacon, used for freshness)
+  direct port    2  (uint16, network order)
+  ─── total     46 bytes
+
+The full certificate is NOT in the periodic beacon: 46 vs 166 bytes.
+Full cert is delivered in the handshake (packet1/packet2, section 7).
+
+# 7. Handshake packets (concrete, X25519 ephemeral + signatures)
+
+Assumption: each side has its peer_sign_keypair(pk32,sk64) and a cert.
+
+Packet 1: INIT (unicast to peer's direct port)
+  magic 4, ver 1, type 0x10, reserved 1
+  sender uid                 16
+  sender cert              120
+  sender eph X25519 pk       32
+  sender nonce               16
+  sig with sender sign sk    64  over (type || uid || cert || eph_pk || nonce)
+  ─── total                254
+
+Packet 2: ACK (unicast back to initiator's direct port, taken from P1
+source endpoint)
+  magic 4, ver 1, type 0x11, reserved 1
+  sender uid                 16
+  sender cert              120
+  sender eph X25519 pk       32
+  sender nonce               16
+  sig with sender sign sk    64  over (type || uid || cert || eph_pk || nonce ||
+                                    sha256(P1))
+  ─── total                254
+
+Session key derivation (both sides, using constants already available):
+  shared = X25519(own_eph_sk, peer_eph_pk)   // = X25519(other pair)
+  transcript_hash = sha256(P1 || P2)         // via hydro_hash
+  session_key = HKDF(
+      ikm   = shared,
+      salt  = transcript_hash,
+      info  = "aether-peer-v1",
+      out   = 32 bytes)
+
+After P1+P2 both sides are mutually authenticated (cert verified
+against trusted_sign_keys, signatures verified against peer_sign_pk),
+agree on a fresh symmetric key, and can drop all handshake state.
+
+Forward secrecy: yes for the session (both ephemeral keys are fresh).
+Reflection/duplicate: P2 includes sha256(P1) inside the signed
+transcript, so replay or reflection of P1 as P2 fails signature.
+
+# 8. Direct message packet format
+
+  magic 4, ver 1, type 0x20, reserved 1
+  session_id       8  (first 8 bytes of transcript_hash)
+  sequence         8  (uint64, strictly increasing)
+  ciphertext     36 + payload_len  (hydro_secretbox: header(36) + AEAD-encrypted payload)
+  ─── total      58 + payload_len
+
+With 576-byte LAN target MTU: max payload = 518 bytes.
+With typical 1472-byte IPv4 UDP payload: max payload = 1414 bytes.
+With AETHER_MAX_PACKET = 1536: exceeds typical MTU; provider must
+reject with NOT_APPLICABLE if payload > min(MTU - 58, LAN_SAFE_PAYLOAD).
+
+# 9. Replay window (64-bit) algorithm
+
+State per peer per direction:
+  highest_seq (u64, init 0)
+  bitmap      (u64, init 0)  // bit i == 1 means (highest_seq - i) seen
+
+  accept(seq):
+    if seq == 0:            return REJECT
+    if seq > highest_seq:
+        delta = seq - highest_seq
+        if delta >= 64: bitmap = 0
+        else:           bitmap = (bitmap << delta) | (1ull << (delta - 1))
+        highest_seq = seq
+        return ACCEPT
+    gap = highest_seq - seq
+    if gap >= 64:           return TOO_OLD
+    mask = 1ull << (gap - 1)
+    if bitmap & mask:       return DUPLICATE
+    bitmap |= mask
+    return ACCEPT
+
+RAM per peer per direction: 8 + 8 = 16 bytes (per session).
+Both sides keep their own receive window.
+Works identically for LAN, LoRa, BLE, mesh.
+
+# 10. Peer state machine (final)
+
+EMPTY -> DISCOVERED   (beacon seen, certificate not yet fetched)
+DISCOVERED -> VERIFYING (handshake P1 sent or P1 received)
+VERIFYING -> VERIFIED  (P1+P2 complete, signatures ok, session key derived)
+VERIFIED -> EMPTY      (no valid packet for TTL_VERIFIED, default 30 s)
+DISCOVERED -> EMPTY    (no beacon for TTL_DISCOVERED, default 45 s)
+VERIFYING -> EMPTY     (handshake timeout, default 5 s)
+
+No STALE state. Session expiry is handled by VERIFIED -> EMPTY, at
+which point the provider returns NOT_APPLICABLE (unknown UID) and the
+next attempt falls back to cloud/whatever.
+
+# 11. Common ingress
+
+Current cloud path (src/aether.c:355-372) dispatches the already
+decoded ingress via aether_rx_all_accept -> facade_message.
+There is no public/internal injector for an already-verified message.
+
+Proposed minimal internal API:
+
+  // src/aether_internal.h
+  aether_status_t aether_dispatch_message_internal(
+      aether_t *client,
+      aether_uuid_t from,
+      const uint8_t *payload,
+      size_t length);
+
+Semantics:
+  - guard: client == NULL -> AETHER_ERR_ARGUMENT
+  - guard: client->app.core.callback_active -> AETHER_ERR_BUSY
+  - guard: client->app.core.rx_active       -> AETHER_ERR_BUSY
+  - if client->on_message != NULL:
+      set callback_active, call on_message, clear callback_active
+  - payload is borrowed; valid only during the call
+
+Reuses the exact same callback the cloud path uses (currently
+facade_message is a static helper with the same body). LAN component
+runs in component phase after the core step, so callback_active is
+false and rx_active is false; guard succeeds.
+
+If the callback calls aether_delivery_send(), that is safe (copies the
+payload). Actual send happens either later in the same component pass
+or in the next aether_work(), depending on registration order.
+
+Component order independence holds: LAN before or after delivery both
+produce eventual delivery; only the exact tick count differs.
+
+# 12. LAN provider result mapping
+
+  unknown UID / EMPTY                    -> NOT_APPLICABLE
+  DISCOVERED (cert not verified)         -> NOT_APPLICABLE
+  VERIFYING                              -> RETRY_LATER
+  VERIFIED, socket EWOULDBLOCK/ENOBUFS   -> RETRY_LATER
+  VERIFIED, EHOSTUNREACH/ENETUNREACH     -> ROUTE_LOST
+  VERIFIED, sendto fully accepted        -> ACCEPTED
+  VERIFIED, session invalid/handshake    -> ROUTE_LOST
+  payload > LAN_SAFE_PAYLOAD             -> NOT_APPLICABLE
+
+Strict no-handoff preserved for NOT_APPLICABLE / RETRY_LATER /
+ROUTE_LOST; ERROR stays terminal.
+
+# 13. Socket topology (fixes same-host ambiguity)
+
+Discovery: single well-known multicast address/port. Multiple
+processes on the same host can bind it with SO_REUSEADDR (and
+optionally SO_REUSEPORT) because multicast is naturally shared.
+
+Direct: NOT a shared port. Each LAN component binds its own ephemeral
+unicast UDP port at init via bind(0.0.0.0:0), reads back the assigned
+port via getsockname(), and advertises that port inside every beacon.
+
+Consequences:
+- same-host tests are unambiguous: A sends P1 to B's unique direct port
+- no reliance on SO_REUSEPORT unicast dispatch semantics
+- one extra socket per LAN component; on ESP32 this is fine (~few KiB
+  of driver buffers each)
+
+Multicast address recommendation: administratively scoped 239.255.x.y
+range (IANA "site-local", non-routable, doesn't leak to the internet).
+Concrete address to be reserved by the project, e.g.
+239.255.72.65 ('A','E'), TTL=1 (link-local only).
+
+Discovery port: AETHER_LAN_DISCOVERY_PORT, unprivileged, e.g. 57321,
+to be declared once in a project header. Direct port is ephemeral.
+
+# 14. LoRa / BLE / mesh compatibility check
+
+Every design element above is transport-agnostic except:
+- `endpoint` in beacon and peer table holds an IPv4 address + port.
+  For LoRa/BLE this becomes a radio address (u16/u32).
+  -> Generalize before implementation to:
+       aether_peer_endpoint_t { uint8_t type; uint8_t addr[8]; }
+  with `type` values reserved for LAN-IPv4, LAN-IPv6, LoRa-radio,
+  BLE-mac, mesh-route.
+
+Everything else — certificate, handshake, session key derivation,
+sequence windows, provider mapping, ingress — reuses as-is.
+
+async LoRa provider ownership: unchanged contract. ACCEPTED means the
+provider (LoRa component) copied the payload into its own caller-owned
+TX queue, or took ownership by other means. After ACCEPTED the generic
+delivery slot is released.
+
+MTU mismatch handled identically via NOT_APPLICABLE.
+
+# 15. MCU RAM estimate (32-bit, N = peer count)
+
+aether_lan_t (with cert pointer, not inline cert):
+    client ptr      4
+    peers ptr       4
+    peer_capacity   4
+    peer_count      4
+    disc_sock fd    4
+    direct_sock fd  4
+    my_sign_kp     96
+    my_eph_kp      64   (kept only during handshake; can be temp)
+    my_cert ptr     4
+    beacon_ms       4
+    random_state   32
+    ───             228 bytes
+
+aether_peer_t (32-bit):
+    uid            16
+    endpoint        8   (type+addr+port)
+    peer_sign_pk   32
+    session_key    32
+    session_id      8
+    tx_seq          8
+    rx highest      8
+    rx bitmap       8
+    last_seen_ms    4   (uint32 ms wraps after ~49 days; enough)
+    state           1
+    ───            ~125 bytes
+
+UDP RX buffer: 576 bytes (IPv4 safe payload)
+TX scratch:    576 bytes
+cert:          120 bytes (caller-owned)
+root keys:     provisioned already by client
+
+N=4  :  228 + 4*125 + 576 + 576 + 120 ≈ 2000 B
+N=16 :  228 + 16*125 + 576 + 576 + 120 ≈ 3500 B
+N=32 :  228 + 32*125 + 576 + 576 + 120 ≈ 5500 B
+
+Caller-owned; no heap; no library .bss growth.
+
+# 16. Recommended zero-provider lock semantics
+
+Variant C: registry becomes immutable the first time the coordinator
+actually attempts delivery of a READY slot (not on the first enqueue).
+Effect:
+  - producer may enqueue before any provider is registered (message
+    stays READY);
+  - caller may register providers before the first aether_work() tick;
+  - from the first attempt onward, routing policy is frozen.
+
+Not changing code now; documenting the recommendation for the eventual
+generic-delivery semantic update.
+
+# 17. Test plan
+
+Discovery:
+  - beacon encode/decode exact bytes
+  - cert fingerprint matches cert
+  - peer insert / refresh / expiry (TTL)
+  - table-full rejection does not corrupt existing entries
+  - spoofed cert (unknown root signer) never leaves DISCOVERED
+
+Verification:
+  - valid cert + valid signature -> VERIFIED
+  - tampered signature -> back to DISCOVERED
+  - replayed P1 does not produce a fresh session
+  - reflection of P2 as P1 fails signature check
+  - handshake timeout -> EMPTY
+
+Provider:
+  - unknown UID -> NOT_APPLICABLE -> cloud tried next
+  - DISCOVERED only -> NOT_APPLICABLE -> cloud tried
+  - VERIFYING -> RETRY_LATER
+  - VERIFIED + sendto ok -> ACCEPTED, cloud not tried
+  - VERIFIED + EHOSTUNREACH -> ROUTE_LOST, cloud tried
+  - payload > LAN_SAFE_PAYLOAD -> NOT_APPLICABLE, cloud tried
+  - session expired -> NOT_APPLICABLE, cloud tried
+
+Receive:
+  - verified direct packet -> common ingress -> on_message
+  - sender UID and payload exact
+  - replayed seq -> rejected
+  - out-of-window old seq -> rejected
+  - reordered but in-window seq -> accepted once
+  - tag failure -> rejected
+  - unknown session_id -> rejected
+
+Scheduler / order independence:
+  - LAN before delivery: reply may leave in same tick
+  - delivery before LAN: reply leaves next tick
+  - both orders eventually deliver the same echo reply
+
+Same-host integration:
+  - two processes on one host with the topology from (13):
+    discovery via multicast, direct via ephemeral unicast ports
+  - A discovers B, verifies cert, exchanges one direct packet end-to-end
+  - cloud provider explicitly not registered; message still delivered
+
+# 18. Summary of decisions for implementation stage (not started)
+
+- Certificate-based peer identity, root-signed, same trust anchor as
+  registration.
+- Random persistent peer sign keypair (deterministic fallback only).
+- 120-byte cert, 46-byte beacon, 254-byte handshake P1/P2, 58-byte
+  overhead per direct data packet.
+- Ephemeral-ephemeral X25519 + HKDF session key; both sides sign the
+  transcript.
+- 64-bit replay window per peer per direction.
+- States EMPTY / DISCOVERED / VERIFYING / VERIFIED; no STALE.
+- Multicast discovery (239.255.x.y, TTL=1) on a shared port; direct
+  unicast on a per-instance ephemeral port.
+- Common ingress: internal aether_dispatch_message_internal() guarded
+  by callback_active && rx_active.
+- Transport-agnostic peer endpoint type reserved for LoRa/BLE/mesh.
+- Provider mapping and zero-provider lock variant C documented.
+
+LAN implementation still NOT started; awaiting review of this
+checkpoint.
+
+================================================================
+================================================================
