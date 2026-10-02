@@ -10,6 +10,7 @@ set(
     "../../../src/aether_rx_adaptive.c"
     "../../../src/aether_send_future.c"
     "../../../src/aether_messages.c"
+    "../../../src/aether_delivery.c"
 
     "../../../src/aether_credentials.c"
 )

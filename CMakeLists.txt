@@ -17,6 +17,7 @@ add_library(aether_client STATIC
 
     src/aether_send_future.c
     src/aether_messages.c
+    src/aether_delivery.c
     src/aether_registration.c
     src/aether_credentials.c
 
@@ -460,6 +461,40 @@ target_link_libraries(
         NAME aether_messages_test
         COMMAND aether_messages_test
     )
+
+    add_executable(
+        aether_delivery_test
+        tests/test_delivery.c
+    )
+
+    target_link_libraries(
+        aether_delivery_test
+        PRIVATE
+            aether_client
+    )
+
+    target_compile_features(
+        aether_delivery_test
+        PRIVATE
+            c_std_11
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_delivery_test
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Werror
+        )
+    endif()
+
+    add_test(
+        NAME aether_delivery_test
+        COMMAND aether_delivery_test
+    )
+
 
     add_test(
         NAME aether_hydrogen_test

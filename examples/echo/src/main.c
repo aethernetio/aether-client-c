@@ -21,6 +21,7 @@
 #include "client_server_api_types.h"
 #include "aether_esp32_wifi.h"
 #include "echo_secrets.h"
+#include "aether_delivery.h"
 
 #include "aether_uuid_ECHO_UID.h"
 #include "aether_hex_ECHO_MASTER_KEY.h"
@@ -31,29 +32,40 @@
 static aether_t client;
 static bool credentials_installed;
 
+
 /*
- * Deferred echo staging.
- *
- * on_message runs inside RX processing, while the core is holding pinned RX
- * buffers and has rx_active == true. aether_send_message() must not be
- * called reentrantly from that context (it would return AETHER_ERR_BUSY).
- *
- * The callback therefore only copies the borrowed payload into this
- * caller-owned staging slot; the main loop performs the actual send after
- * aether_work() has fully returned.
- *
- * Single-slot policy: a second message that arrives before the pending one
- * is sent is dropped with an explicit error, never silently overwritten.
+ * Transport-agnostic delivery: producer callback only enqueues a copy of
+ * the borrowed payload into caller-owned storage. The actual echo send is
+ * performed later by aether_delivery_work() as a normal component driven by
+ * aether_work().
  */
-static bool echo_pending;
-static aether_uuid_t echo_pending_from;
-static uint8_t echo_pending_data[AETHER_MAX_PACKET];
-static size_t echo_pending_size;
+static aether_delivery_t delivery;
+static aether_delivery_slot_t delivery_slots[4];
+static uint8_t delivery_payload_storage[4 * AETHER_MAX_PACKET];
+static aether_component_t components[1];
 
 
 
 
 
+
+
+
+
+static void on_delivery_error(
+    void *ctx,
+    aether_uuid_t recipient,
+    aether_status_t status) {
+
+    (void)ctx;
+
+    printf(
+        "AETHER_ECHO_DELIVERY_ERROR to=%016" PRIx64 ":%016" PRIx64
+        " status=%d\n",
+        (uint64_t)recipient.msb,
+        (uint64_t)recipient.lsb,
+        (int)status);
+}
 
 
 static void on_message(
@@ -64,70 +76,26 @@ static void on_message(
 
     (void)aether;
 
-    if (size > sizeof(echo_pending_data)) {
-        printf(
-            "AETHER_ECHO_OVERFLOW size=%u max=%u\n",
-            (unsigned)size,
-            (unsigned)sizeof(echo_pending_data));
-        return;
-    }
-
-    if (echo_pending) {
-        printf("AETHER_ECHO_QUEUE_FULL\n");
-        return;
-    }
-
-    echo_pending_from = from;
-    echo_pending_size = size;
-
-    if (size != 0u) {
-        memcpy(
-            echo_pending_data,
+    /*
+     * Producer API is transport-agnostic and callback-safe: it only copies
+     * the borrowed payload into caller-owned storage. The actual send is
+     * performed later by aether_delivery_work() driven by aether_work().
+     */
+    aether_status_t status =
+        aether_delivery_send(
+            &delivery,
+            from,
             data,
             size);
-    }
 
-    echo_pending = true;
+    if (status != AETHER_OK) {
+        printf(
+            "AETHER_ECHO_ENQUEUE_ERROR status=%d size=%u\n",
+            (int)status,
+            (unsigned)size);
+    }
 }
 
-
-static void drain_echo(void) {
-
-    if (!echo_pending) {
-        return;
-    }
-
-    aether_status_t status =
-        aether_send_message(
-            &client,
-            echo_pending_from,
-            echo_pending_data,
-            echo_pending_size);
-
-    if (status == AETHER_OK) {
-        echo_pending = false;
-        return;
-    }
-
-    if (status == AETHER_ERR_BUSY) {
-        /*
-         * Core still busy with RX/lifecycle scratch state. Keep the
-         * pending slot and retry on the next main-loop iteration.
-         */
-        return;
-    }
-
-    printf(
-        "AETHER_ECHO_SEND_ERROR status=%d state=%d\n",
-        (int)status,
-        (int)client.app.core.state);
-
-    /*
-     * Any other status is not retryable for this single-slot staging
-     * contract: drop the pending message rather than spinning on it.
-     */
-    echo_pending = false;
-}
 
 
 
@@ -194,6 +162,30 @@ void app_main(void) {
         return;
     }
 
+
+    aether_set_components(
+        &client,
+        components,
+        1u);
+
+    aether_delivery_init(
+        &delivery,
+        &client,
+        delivery_slots,
+        4u,
+        delivery_payload_storage,
+        AETHER_MAX_PACKET);
+
+    aether_delivery_set_error_callback(
+        &delivery,
+        on_delivery_error,
+        NULL);
+
+    aether_register_component(
+        &client,
+        &delivery,
+        aether_delivery_work);
+
     aether_on_message(
         &client,
         on_message);
@@ -201,6 +193,7 @@ void app_main(void) {
     aether_on_error(
         &client,
         on_error);
+
 
 
 
@@ -256,7 +249,7 @@ void app_main(void) {
                     (int)poll_status);
             }
 
-            drain_echo();
+
 
         }
 

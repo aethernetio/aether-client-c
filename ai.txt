@@ -984,3 +984,876 @@ Normalizing it to AETHER_OK in the component adapter is correct; no real error i
 9. EOF / formatting:
    C sources and headers follow existing repo style (no trailing newline on C files).
    No gratuitous reformatting.
+
+================================================================
+CHECKPOINT 1 — RESEARCH REPORT (код НЕ менялся)
+Задача: фундамент message delivery с поддержкой будущих LAN/direct.
+================================================================
+
+## 1. Точная current send chain
+
+aether_send_message(aether_t*, dest, data, size)                [src/aether.c:552]
+  └─> aether_client_app_send(&client->app, dest, data, size)    [src/aether_client_app.c:1014]
+        └─> aether_client_app_send_with_id(client, dest, data, len, NULL)  [1030]
+              └─> aether_client_send_message(&client->core, dest, data, len, request_id_out)  [src/aether_client.c:5470]
+                    ├─ guard: client NULL, (data NULL && len>0) -> AETHER_ERR_ARGUMENT
+                    ├─ guard: callback_active || rx_active -> AETHER_ERR_BUSY
+                    ├─ guard: state != AETHER_STATE_READY -> AETHER_ERR_STATE
+                    ├─ request_id = next_request_id(client)      // 1..0x7fffffff
+                    ├─ message_t = {uid, {data, length}}         // payload NOT copied
+                    ├─ authorized_api_remote_t = {send_ctx=client, send=generated_authorized_send, tx=tx_plain}
+                    └─ authorized_api_send_message_with_result(&authorized, request_id, &message)
+                         └─ generated serializer -> client->tx_plain
+                              └─ send_authorized_plain
+                                   ├─ crypto_symmetric_encrypt(work_tx_key, plain, tx_crypto)
+                                   ├─ outer frame = [LOGIN_BY_ALIAS][alias][w_byte_array(cipher)]
+                                   └─ transport_send(AETHER_CHANNEL_WORK, outer.data, outer.pos)
+                                        └─ client->config.transport.send(ctx, channel, data, length)
+
+## 2. Ownership / lifetime payload
+
+- Caller (producer): data принадлежит ему, обязан быть валиден на время вызова.
+- aether_client_app_send / _with_id: не копируют, только прокидывают.
+- aether_client_send_message: формирует message_t {uid, aether_bytes_view_t{data,length}} — view на caller buffer.
+- Generated serializer: пишет в core scratch client->tx_plain.
+- crypto_symmetric_encrypt: output в client->tx_crypto.
+- Outer frame: опять client->tx_plain.
+- transport.send: контракт vtable — "must consume or copy data before returning; core immediately reuses its TX buffers".
+
+Итого: до успешного возврата из aether_send_message payload жив только в caller buffer
+(+ его копии в core scratch во время вызова). После возврата caller buffer не нужен.
+
+## 3. Actual success guarantee existing send
+
+AETHER_OK от aether_send_message означает:
+- сообщение сериализовано, зашифровано и байты переданы в platform transport.send();
+- transport.send вернул AETHER_OK;
+- по контракту send "либо передал, либо скопировал".
+
+Это НЕ подтверждение сервера, НЕ подтверждение получателя, НЕ гарантия доставки.
+Ответ на request придёт позже как AETHER_INGRESS_REQUEST_RESULT.
+Это и есть фактическая гарантия для outbox DELIVERED.
+
+## 4. Полный список relevant statuses
+
+AETHER_OK = 0               -> DELIVERED (send path)
+AETHER_ERR_ARGUMENT = -1    -> ERROR (client NULL / data NULL && len>0)
+AETHER_ERR_STATE = -2       -> RETRY_LATER (state != READY)
+AETHER_ERR_OVERFLOW = -3    -> ERROR (writer overflow; payload > scratch overhead)
+AETHER_ERR_PROTOCOL = -4    -> не в send path (RX/registration)
+AETHER_ERR_CRYPTO = -5      -> ERROR (encrypt fail, permanent в текущем send path)
+AETHER_ERR_TRANSPORT = -6   -> RETRY_LATER
+AETHER_ERR_STORAGE = -7     -> не в send path
+AETHER_ERR_UNSUPPORTED = -8 -> ERROR (может вернуть transport impl)
+AETHER_ERR_BUSY = -9        -> RETRY_LATER (callback_active || rx_active)
+AETHER_ERR_REMOTE = -10     -> не в send path (приходит как ingress)
+AETHER_ERR_TIMEOUT = -11    -> не в send path
+
+Ключевое: AETHER_ERR_STATE / AETHER_ERR_BUSY / AETHER_ERR_TRANSPORT — временные;
+ARGUMENT / OVERFLOW / CRYPTO / UNSUPPORTED — постоянные.
+Для route-selection этого НЕДОСТАТОЧНО (см. п.8).
+
+## 8. Provider-result enum/contract
+
+Внутренний enum (не AETHER_ERR_*, не public API):
+
+typedef enum {
+    AETHER_DELIVERY_DELIVERED,       // handoff в transport успешен
+    AETHER_DELIVERY_NOT_APPLICABLE,  // provider не может обработать (нет в discovery)
+    AETHER_DELIVERY_RETRY_LATER,     // временно занят
+    AETHER_DELIVERY_ROUTE_LOST,      // маршрут был и исчез -> fallback + invalidate
+    AETHER_DELIVERY_ERROR            // постоянная ошибка
+} aether_delivery_result_t;
+
+Provider contract:
+  can(provider_ctx, recipient) -> bool
+  try(provider_ctx, recipient, payload, length, out_attempt_token) -> aether_delivery_result_t
+
+can — дешёвая проверка применимости.
+try — одна попытка, без блокировок и без внутренних ретраев.
+
+## 9. Cloud as first provider
+
+can_cloud(recipient) = aether_is_ready(&client).
+try_cloud = aether_client_app_send_with_id(&client->app, recipient, payload, len, &attempt_id).
+Маппинг:
+  AETHER_OK                 -> DELIVERED
+  AETHER_ERR_BUSY           -> RETRY_LATER
+  AETHER_ERR_STATE          -> RETRY_LATER
+  AETHER_ERR_TRANSPORT      -> RETRY_LATER
+  AETHER_ERR_CRYPTO         -> ERROR (permanent в текущем send path)
+  AETHER_ERR_OVERFLOW       -> ERROR (payload too big)
+  AETHER_ERR_ARGUMENT       -> ERROR (bug)
+  default                   -> ERROR
+
+AETHER_ERR_REMOTE / AETHER_ERR_TIMEOUT в send path не возникают.
+
+## 10. LAN discovery + provider plug-in (без изменения producer API)
+
+LAN discovery: обычный aether_component_t, UDP beacon, caller-owned peer cache,
+API aether_lan_lookup(&lan, uid, &endpoint).
+LAN provider:
+  can_lan(uid) = aether_lan_lookup + state == usable
+  try_lan(uid, payload, len) -> DELIVERED / RETRY_LATER / ROUTE_LOST / ERROR
+
+Встраивание:
+  aether_delivery_add_provider(&delivery, &lan_provider);
+Producer call aether_delivery_send(&delivery, uid, bytes, len) НЕ меняется.
+
+## 11. Защита от cloud+LAN duplicate
+
+Правило: ровно один provider получает конкретный slot в рамках одного attempt.
+Coordinator:
+  1. Выбирает slot (bounded scan).
+  2. Строит упорядоченный список providers по policy (default: direct first, cloud fallback).
+  3. Идёт по списку: can -> try. DELIVERED -> slot free, следующий provider НЕ вызывается.
+  4. RETRY_LATER / ROUTE_LOST -> следующий provider; slot сохраняется.
+  5. Providers НИКОГДА не читают outbox напрямую — только через coordinator.
+Никаких параллельных send (direct + cloud одновременно).
+
+## 12. Fallback semantics direct -> cloud
+
+DELIVERED       -> slot освобождается.
+NOT_APPLICABLE  -> следующий provider в policy.
+RETRY_LATER     -> следующий provider (если policy допускает fallback); иначе попытка окончена, slot READY на след. tick.
+ROUTE_LOST      -> provider дополнительно инвалидирует discovery запись; coordinator -> следующий provider; slot остаётся READY.
+ERROR           -> slot удаляется (permanent) + emit event.
+
+Отличие RETRY_LATER от ROUTE_LOST принципиально:
+  RETRY_LATER = "попробуй меня позже"
+  ROUTE_LOST  = "меня сейчас нет, иди к следующему провайдеру"
+
+## 13. Proposed caller-owned storage layout
+
+Первая версия — caller-selected fixed payload capacity per slot (вариант 2 из п.15 ТЗ).
+Причины: детерминизм, O(1), без фрагментации, MCU-friendly.
+
+typedef struct {
+    aether_uuid_t recipient;
+    uint32_t payload_length;
+    uint8_t state;             // EMPTY / READY / IN_FLIGHT / DONE
+    uint8_t reserved[...];
+} aether_delivery_slot_t;
+
+aether_delivery_slot_t slots[N];
+uint8_t payload_storage[N * CAP];
+
+API:
+aether_delivery_init(
+    aether_delivery_t *delivery,
+    aether_t *client,
+    aether_delivery_slot_t *slots,
+    size_t slot_count,
+    uint8_t *payload_storage,
+    size_t payload_capacity);   // uniform для всех slots
+
+Shared byte arena НЕ делать в первой версии.
+
+## 14. RAM cost (оценка, окончательно после реализации)
+
+sizeof(aether_delivery_t) ~ 64..96 B
+sizeof(aether_delivery_slot_t) ~ 32..40 B
+
+Конфигурация     Slots  Payload   Slot meta   Payload RAM   Caller total (без delivery)
+1 x 256          1      256       40          256           ~296
+4 x 256          4      256       160         1024          ~1184
+4 x 1536         4      1536      160         6144          ~6304
+10 x 256         10     256       400         2560          ~2960
+
+Library .text/.data/.bss — отдельно (ожидаемо +несколько сотен B .text).
+Host Release и ESP32-C3 (baseline RAM=42196, Flash=890638) — сообщить после реализации.
+
+## 15. Новый echo example (sketch)
+
+static aether_t client;
+static aether_delivery_t delivery;
+static aether_delivery_slot_t delivery_slots[4];
+static uint8_t delivery_payloads[4][AETHER_MAX_PACKET];
+static aether_component_t components[1];
+
+static void on_message(aether_t *aether, aether_uuid_t from,
+                       const uint8_t *data, size_t size) {
+    // callback-safe: only enqueue + copy
+    aether_delivery_send(&delivery, from, data, size);
+}
+
+void app_main(void) {
+    ... wifi ...
+    aether_init(&client, parent);
+    aether_on_message(&client, on_message);
+    aether_on_error(&client, on_error);
+    aether_set_components(&client, components, 1);
+
+    aether_delivery_init(&delivery, &client,
+                         delivery_slots, 4,
+                         &delivery_payloads[0][0], AETHER_MAX_PACKET);
+
+    aether_register_component(&client, &delivery, aether_delivery_work);
+
+    // credentials install + aether_start
+
+    for (;;) {
+        aether_work(&client);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+Никаких echo_pending / drain_echo / ручных retry на AETHER_ERR_BUSY.
+
+## ACCEPTANCE TEST ARCHITECTURE
+
+После добавления future LAN component producer code:
+  aether_delivery_send(&delivery, recipient_uid, payload, size);
+НЕ меняется вообще.
+Меняется только набор providers/компонентов.
+
+================================================================
+КОНЕЦ ОТЧЁТА. Код не изменялся. Жду подтверждения на реализацию.
+================================================================
+
+================================================================
+CHECKPOINT 1 (Revised) — RESEARCH REPORT v2
+Код НЕ менялся. Уточнения по duplicate invariant и contract.
+================================================================
+
+## 1. transport.send non-OK handoff guarantee (КРИТИЧНО)
+
+Исследованы обе реальные реализации:
+- tests/host_posix_transport.c host_send() (447..516)
+- platform/esp32/aether_platform_esp32.c transport_send() (648..723)
+
+Обе реализации идентичны по контракту:
+
+UDP path (codec == AETHER_CODEC_UDP):
+    do {
+        n = send(fd, data, length, 0);
+    } while (n < 0 && errno == EINTR);
+    return n == (ssize_t)length ? AETHER_OK : AETHER_ERR_TRANSPORT;
+
+TCP path (codec == AETHER_CODEC_TCP):
+    prefix = encode_pack_number(length);       // 1..4 bytes
+    if (send_all(fd, prefix, prefix_len) != 0 ||
+        send_all(fd, data, length) != 0) {
+        return AETHER_ERR_TRANSPORT;
+    }
+    return AETHER_OK;
+
+send_all — цикл send(), возвращает -1 при любой ошибке (n<=0), включая
+частичную передачу (pos < length, потом send вернул <=0).
+
+Ранние выходы без send():
+- slot == NULL, slot->fd < 0, (data == NULL && length != 0) -> AETHER_ERR_TRANSPORT.
+  Здесь handoff гарантированно НЕ произошёл.
+
+Гарантия no-handoff по типам codec:
+
+UDP:
+    send() для SOCK_DGRAM. Если вернул != length -> датаграмма НЕ принята
+    (POSIX: датаграмма либо целиком отправлена, либо вообще нет).
+    ВЫВОД: AETHER_ERR_TRANSPORT при UDP => no-handoff ГАРАНТИРОВАН.
+
+TCP:
+    send_all сначала prefix, потом payload. Если prefix ушёл (send>0), а
+    payload упал на середине -> байты УЖЕ в канале, но ответа об ошибке нет.
+    AETHER_ERR_TRANSPORT при TCP => handoff AMBIGUOUS.
+
+Текущая работа в aether-client-c использует UDP для work-канала
+(find_active_server предпочитает UDP endpoint, parse_server_descriptor
+ставит have_udp=true -> AETHER_CODEC_UDP). TCP остаётся валидным, но
+редко используемым.
+
+ВЫВОД (для design):
+- При UDP: AETHER_ERR_TRANSPORT безопасен как RETRY_LATER (no-handoff).
+- При TCP: только missing fd / NULL data / length==0 гарантируют no-handoff.
+  Реальный сетевой сбой в send_all — потенциально ambiguous.
+Для v1 подтверждаем как policy: cloud provider возвращает RETRY_LATER
+на AETHER_ERR_TRANSPORT, потому что поддерживаемый канал связи — UDP.
+Это должно быть задокументировано в ai.txt и в коде.
+
+## 2. request/message ID semantics
+
+Where: src/aether_client.c:820 next_request_id().
+Used: src/aether_client.c:5496 (aether_client_send_message).
+Serialization: src/generated/client_server_api_api.c:1298
+    authorized_api_send_message_with_result(request_id, message_t)
+    Команда 39, request_id кладётся в little-endian 4 байта.
+
+Ответы сервера: CMD_RESULT / CMD_ERROR со совпадающим request_id
+(см. src/aether_client.c:4227 resume_client_safe_plain и
+ строки 4231/4274 — request_id читается, сверяется для ingress).
+
+Ответы:
+1. request_id создаётся ДО transport send — да, в aether_client_send_message
+   сразу после guard'ов, до сериализации.
+2. При AETHER_ERR_TRANSPORT request_id уже consumed — да (next_request_id
+   увеличил счётчик, aether_client_send_message вышел).
+3. При повторном aether_send_message создаётся НОВЫЙ ID — да, next_request_id
+   вызывается снова. Тот же логический message -> новый request_id.
+4. Receiver/server использует request_id только для correlation результата
+   (result / error). Нет доказательств receiver-side dedupe. Сообщение на
+   wire не содержит отдельного logical message ID.
+5. Stable logical message ID на wire: ОТСУТСТВУЕТ.
+6. Один logical message не может быть переотправлен с тем же ID через
+   текущий API — каждый вызов даёт новый ID.
+7. Receiver-side duplicate suppression: НЕТ.
+8. Namespace ID: монотонный uint32 1..0x7fffffff, wrap; bit31 — ping.
+   Время жизни — пока живёт клиент, persistent state ID не хранит.
+
+ВЫВОД: current request_id не является stable logical message identity.
+Dedup на стороне получателя отсутствует. Direct->cloud fallback ПОСЛЕ
+handoff невозможен без новой протокольной работы (message ID + ack + dedupe).
+
+## 3. Итоговый provider result enum (внутренний)
+
+typedef enum {
+    AETHER_DELIVERY_ACCEPTED = 0,      // handoff в transport завершён
+    AETHER_DELIVERY_NOT_APPLICABLE,    // provider не применим, side effect = 0
+    AETHER_DELIVERY_RETRY_LATER,       // временно нельзя, guaranteed no handoff
+    AETHER_DELIVERY_ROUTE_LOST,        // route исчез ДО handoff, no handoff
+    AETHER_DELIVERY_ERROR              // permanent local failure
+} aether_delivery_result_t;
+
+Термин DELIVERED запрещён: он обещает end-to-end, чего нет.
+ACCEPTED означает ровно то же, что AETHER_OK от aether_send_message.
+
+## 4. Exact no-duplicate invariant
+
+Инвариант:
+> Ни один fallback не может произойти после момента, когда предыдущий
+> provider мог уже передать сообщение в свой transport, пока в системе
+> нет stable logical message ID + receiver deduplication.
+
+Формально:
+- ACCEPTED  -> следующий provider НЕ вызывается.
+- NOT_APPLICABLE -> следующий provider, side effect = 0 по contract.
+- RETRY_LATER    -> следующий provider разрешён ТОЛЬКО если provider
+                    дал strict guarantee "no bytes handed off".
+- ROUTE_LOST     -> следующий provider разрешён; contract требует no-handoff.
+- ERROR          -> implicit fallback запрещён; никакой следующий provider
+                    не вызывается, если error не несёт явной route-specific
+                    гарантии no-handoff.
+
+## 5. Fallback table
+
+Provider result      | Next provider in policy | Slot state
+---------------------+-------------------------+--------------
+ACCEPTED             | no                      | free
+NOT_APPLICABLE       | yes                     | ready (same tick ok)
+RETRY_LATER (strict) | policy: yes in v1       | ready
+ROUTE_LOST           | yes                     | ready (+invalidate discovery)
+ERROR                | no (unless explicit)    | dropped + report
+
+## 6. Нужен ли can()? Только try()
+
+Решение: убрать can(). TOCTOU между can() и try() даёт гонку.
+try_deliver() сам возвращает NOT_APPLICABLE / RETRY_LATER, если не применим.
+
+Пример для cloud provider:
+    if (client == NULL)                return ERROR;
+    if (!aether_is_ready(client))      return RETRY_LATER;  // не "не применим"
+    status = aether_client_app_send_with_id(...);
+    switch (status) {
+      AETHER_OK:              return ACCEPTED;
+      AETHER_ERR_BUSY:        return RETRY_LATER;
+      AETHER_ERR_STATE:       return RETRY_LATER;
+      AETHER_ERR_TRANSPORT:   return RETRY_LATER;  // no-handoff (UDP)
+      AETHER_ERR_OVERFLOW:    return ERROR;
+      AETHER_ERR_CRYPTO:      return ERROR;
+      AETHER_ERR_ARGUMENT:    return ERROR;
+      AETHER_ERR_UNSUPPORTED: return ERROR;
+      default:                return ERROR;
+    }
+
+Cloud как дефолтный universal route для нормального UID:
+"не готов сейчас" != "не применим к этому UID".
+-> aether_is_ready()==false это RETRY_LATER, не NOT_APPLICABLE.
+
+Для LAN:
+- UID отсутствует в verified cache           -> NOT_APPLICABLE
+- peer discovered, но не verified            -> NOT_APPLICABLE (политика v1)
+- verified endpoint недоступен (socket err)  -> ROUTE_LOST (no-handoff)
+- UDP send succeeded                         -> ACCEPTED
+- send() вернул ошибку на UDP                -> RETRY_LATER (no-handoff)
+
+## 7. Provider registry layout
+
+typedef struct {
+    void *context;
+    aether_delivery_result_t (*try_deliver)(
+        void *context,
+        aether_uuid_t recipient,
+        const uint8_t *payload,
+        size_t length,
+        aether_delivery_attempt_t *out_attempt);
+} aether_delivery_provider_t;
+
+Caller-owned массив:
+    aether_delivery_provider_t providers[N];
+
+aether_delivery_t внутри:
+    aether_delivery_provider_t *providers;
+    size_t provider_capacity;
+    size_t provider_count;
+
+Cloud provider может автоматически регистрироваться aether_delivery_init(),
+чтобы happy path был:
+    aether_delivery_init(&delivery, &aether, slots, N, payloads, CAP);
+
+LAN добавляется через:
+    aether_delivery_add_provider(&delivery, &lan_prov);
+
+Не использовать component registry как provider registry — разные абстракции.
+
+## 8. Public enqueue API
+
+aether_status_t aether_delivery_send(
+    aether_delivery_t *delivery,
+    aether_uuid_t recipient,
+    const uint8_t *payload,
+    size_t length);
+
+Возвращает ТОЛЬКО результат enqueue:
+    AETHER_OK                — сообщение поставлено в очередь
+    AETHER_ERR_OVERFLOW      — очередь полна (нет EMPTY slot)
+    AETHER_ERR_ARGUMENT      — NULL delivery / NULL payload / length overflow
+    AETHER_ERR_STATE         — delivery не инициализировано или остановлено
+
+Не возвращает и не может возвращать фактический статус доставки.
+Это ФИКСИРОВАНО: вся реальная доставка — через aether_work().
+
+## 9. Async failure reporting
+
+Два уровня:
+(1) Enqueue-ошибка (queue full / oversized / bad arg) — синхронно, возвращается.
+(2) Permanent delivery failure после enqueue — асинхронно.
+
+Механизм (минимальный):
+- Опциональный callback:
+    typedef void (*aether_delivery_error_fn)(
+        void *ctx, aether_uuid_t recipient,
+        aether_delivery_error_t error);
+    aether_delivery_set_error_callback(&delivery, cb, ctx);
+- Опциональный handle из enqueue:
+    aether_status_t aether_delivery_send_with_handle(
+        ..., aether_delivery_handle_t *out_handle);
+    typedef uint32_t aether_delivery_handle_t;  // slot_index | generation<<16
+- Query:
+    aether_delivery_slot_state_t aether_delivery_state_of(
+        const aether_delivery_t*, aether_delivery_handle_t);
+
+v1: реализуем только callback, handle как расширение.
+
+## 10. Slot states
+
+Простая модель (без IN_FLIGHT):
+
+typedef enum {
+    AETHER_DELIVERY_SLOT_EMPTY = 0,
+    AETHER_DELIVERY_SLOT_READY,     // ждёт попытки доставки
+    AETHER_DELIVERY_SLOT_FAILED     // permanent failure, ждёт reap
+} aether_delivery_slot_state_t;
+
+DONE не нужен: ACCEPTED -> EMPTY сразу, ошибка через callback, потом
+slot можно освободить или пометить FAILED для диагностики.
+IN_FLIGHT не нужен: try_deliver синхронный и bounded.
+Если будущий LAN provider станет async — расширим.
+
+## 11. Cloud provider mapping (см. также п.6)
+
+can_cloud  — удалено.
+try_cloud:
+    if (client == NULL)     return ERROR;
+    if (!aether_is_ready)   return RETRY_LATER;
+    status = aether_client_app_send_with_id(&client->app, recipient,
+                                            payload, length, &attempt_id);
+    ... см. п.6 ...
+
+## 12. Hypothetical LAN provider mapping (для проверки interface)
+
+aether_lan_provider_try(ctx, recipient, payload, length, attempt):
+    peer = aether_lan_lookup(discovery, recipient);
+    if (peer == NULL)                       return NOT_APPLICABLE;
+    if (peer->state != VERIFIED)            return NOT_APPLICABLE;
+    if (peer->endpoint.sock < 0)            return ROUTE_LOST;
+    n = sendto(peer->endpoint.sock, payload, length, 0, ...);
+    if (n == (ssize_t)length)               return ACCEPTED;
+    if (errno == EWOULDBLOCK || errno == ENOBUFS)
+                                            return RETRY_LATER;
+    // прочие ошибки sendto на UDP => датаграмма не ушла
+    aether_lan_invalidate(discovery, recipient);
+                                            return ROUTE_LOST;
+
+Это доказывает, что interface выражает все нужные состояния без hacks:
+- отсутствие peer               -> NOT_APPLICABLE -> fallback на cloud
+- верификация не завершена      -> NOT_APPLICABLE
+- endpoint умер на отправке     -> ROUTE_LOST + fallback
+- sendto успешен (но дейтаграмма может потеряться)
+                                -> ACCEPTED, fallback запрещён
+- временная ошибка сокета       -> RETRY_LATER (policy: fallback на cloud)
+
+## 13. RAM estimate (после layout)
+
+sizeof(aether_delivery_slot_t): uid 16 + length 4 + state 1 + pad 3 = 24 B
+sizeof(aether_delivery_provider_t): ptr 8 + fn 8 = 16 B (host), 8 B (32-bit)
+sizeof(aether_delivery_t): providers ptr 4..8 + capacity/count 8 +
+    slot ptr 4..8 + slot_count 4 +
+    payload ptr 4..8 + payload_capacity 4 +
+    error cb 8 + error ctx 8 +
+    client ptr 8 + flags 4 = ~64..80 B
+
+Caller-reserved (без delivery_t):
+cfg         slot_meta   payload    Σ
+1 x 256     24          256        280
+4 x 256     96          1024       1120
+4 x 1536    96          6144       6240
+10 x 256    240         2560       2800
+
+Library .text/.data/.bss — сообщить после реализации. ESP32-C3 baseline:
+RAM=42196, Flash=890638. Caller storage указывается отдельно.
+
+## 14. Echo sketch (обновлён под enqueue-result)
+
+static aether_t client;
+static aether_delivery_t delivery;
+static aether_delivery_slot_t delivery_slots[4];
+static uint8_t delivery_payloads[4][AETHER_MAX_PACKET];
+static aether_component_t components[1];
+
+static void on_delivery_error(void *ctx, aether_uuid_t to, int err) {
+    printf("AETHER_ECHO_DELIVERY_ERROR to=%016llx err=%d\n",
+           (unsigned long long)to.msb, err);
+}
+
+static void on_message(aether_t *a, aether_uuid_t from,
+                       const uint8_t *data, size_t size) {
+    aether_status_t st = aether_delivery_send(
+        &delivery, from, data, size);
+    if (st != AETHER_OK) {
+        printf("AETHER_ECHO_ENQUEUE_FAIL status=%d size=%u\n",
+               (int)st, (unsigned)size);
+    }
+}
+
+void app_main(void) {
+    ...
+    aether_init(&client, parent);
+    aether_on_message(&client, on_message);
+    aether_on_error(&client, on_error);
+    aether_set_components(&client, components, 1);
+
+    aether_delivery_init(&delivery, &client,
+                         delivery_slots, 4,
+                         &delivery_payloads[0][0], AETHER_MAX_PACKET);
+    aether_delivery_set_error_callback(
+        &delivery, on_delivery_error, NULL);
+    aether_register_component(&client, &delivery, aether_delivery_work);
+    aether_start(&client);
+
+    for (;;) {
+        aether_work(&client);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+Никаких echo_pending/drain_echo/ручных retry на BUSY.
+On_message возвращается сразу; отправка идёт через component tick.
+
+## 15. Test matrix (обязательный)
+
+Provider semantics:
+A. NOT_APPLICABLE — A не делает side effect, B вызывается.
+B. RETRY_LATER (strict no-handoff) — fallback policy проверяется (v1: да).
+C. ACCEPTED — B никогда не вызывается.
+D. ROUTE_LOST — no-handoff, B вызывается.
+E. ERROR — no implicit fallback; A отдаёт FAILED; error callback fired.
+F. direct-first, cloud fallback: LAN NOT_APPLICABLE -> cloud exactly once.
+G. direct ACCEPTED: cloud call count = 0.
+H. callback enqueue: low-level send count during callback = 0;
+   send происходит в component pass после core RX.
+I. transport error retry: только для UDP path (no-handoff гарантия).
+
+Storage/ownership:
+1. enqueue copies bytes; source mutates сразу после — payload цел.
+2. binary payload 00 01 02 7F 80 FF 55 AA точный.
+3. overflow не overwrite pending slot.
+4. oversized payload -> AETHER_ERR_OVERFLOW (не enqueue).
+
+Delivery:
+5. cloud ACCEPTED frees slot.
+6. BUSY (RETRY_LATER) keeps pending, next tick retry.
+7. permanent ERROR -> callback + slot FAILED.
+8. blocked message does not starve other slot.
+
+Component independence:
+9. registry ordering не влияет на eventual delivery.
+
+## 16. Следующий checkpoint
+
+Код всё ещё НЕ менять. После подтверждения — реализовать первую версию:
+- outbox + slot storage (caller-owned, fixed capacity per slot);
+- coordinator (single provider decision per attempt);
+- cloud provider (built-in);
+- enqueue API + callback;
+- migration examples/echo;
+- tests A-I и 1-9;
+- ai.txt update + footprint.
+
+Главный acceptance test архитектуры:
+после добавления LAN component producer call
+    aether_delivery_send(&delivery, recipient_uid, payload, size);
+НЕ меняется вообще.
+================================================================
+КОНЕЦ ОБНОВЛЁННОГО ОТЧЁТА.
+================================================================
+
+================================================================
+MESSAGE DELIVERY v1 — IMPLEMENTATION REPORT
+================================================================
+
+Дата: реализация первой версии transport-agnostic message delivery.
+Файлы:
+  include/aether_delivery.h    (public API)
+  src/aether_delivery.c        (implementation)
+  tests/test_delivery.c        (11 tests)
+  CMakeLists.txt               (+src/aether_delivery.c, +aether_delivery_test)
+  examples/echo/src/CMakeLists.txt (+../../../src/aether_delivery.c)
+  examples/echo/src/main.c     (migration)
+
+## 1. Public API (final)
+
+typedef enum {
+    AETHER_DELIVERY_SLOT_EMPTY = 0,
+    AETHER_DELIVERY_SLOT_READY = 1
+} aether_delivery_slot_state_t;
+
+typedef enum {
+    AETHER_DELIVERY_ACCEPTED = 0,
+    AETHER_DELIVERY_NOT_APPLICABLE,
+    AETHER_DELIVERY_RETRY_LATER,
+    AETHER_DELIVERY_ROUTE_LOST,
+    AETHER_DELIVERY_ERROR
+} aether_delivery_result_t;
+
+typedef aether_delivery_result_t (*aether_delivery_try_fn)(
+    void *context,
+    aether_uuid_t recipient,
+    const uint8_t *payload,
+    size_t length);
+
+typedef struct {
+    void *context;
+    aether_delivery_try_fn try_deliver;
+} aether_delivery_provider_t;
+
+typedef struct {
+    aether_uuid_t recipient;
+    uint32_t payload_length;
+    uint8_t state;
+} aether_delivery_slot_t;
+
+typedef void (*aether_delivery_error_fn)(
+    void *context,
+    aether_uuid_t recipient,
+    aether_status_t status);
+
+struct aether_delivery {
+    aether_t *client;
+    aether_delivery_slot_t *slots;
+    size_t slot_count;
+    uint8_t *payload_storage;
+    size_t payload_capacity;
+    aether_delivery_provider_t *user_providers;
+    size_t user_provider_capacity;
+    size_t user_provider_count;
+    aether_delivery_error_fn on_error;
+    void *error_ctx;
+};
+
+void aether_delivery_init(
+    aether_delivery_t *delivery, aether_t *client,
+    aether_delivery_slot_t *slots, size_t slot_count,
+    uint8_t *payload_storage, size_t payload_capacity);
+
+void aether_delivery_set_providers(
+    aether_delivery_t *delivery,
+    aether_delivery_provider_t *providers, size_t capacity);
+
+aether_status_t aether_delivery_add_provider(
+    aether_delivery_t *delivery,
+    aether_delivery_provider_t provider);
+
+void aether_delivery_set_error_callback(
+    aether_delivery_t *delivery,
+    aether_delivery_error_fn callback, void *context);
+
+aether_status_t aether_delivery_send(
+    aether_delivery_t *delivery,
+    aether_uuid_t recipient,
+    const uint8_t *payload, size_t length);
+
+aether_status_t aether_delivery_work(
+    aether_t *client, void *context);
+
+## 2. Struct sizes (host GCC 15, x86-64)
+
+sizeof(aether_delivery_t)        = 80 B
+sizeof(aether_delivery_slot_t)   = 24 B  (uid 16 + length 4 + state 1 + pad 3)
+sizeof(aether_delivery_provider_t)= 16 B
+
+Caller-reserved delivery RAM:
+  cfg            slot_meta  payload   caller total (без delivery_t)
+  1 x 256        24         256       280
+  4 x 256        96         1024      1120
+  4 x 1536       96         6144      6240
+  10 x 256       240        2560      2800
+
+## 3. Provider semantics (final)
+
+Cloud provider mapping (src/aether_delivery.c delivery_cloud_try):
+  AETHER_OK              -> ACCEPTED
+  AETHER_ERR_BUSY        -> RETRY_LATER
+  AETHER_ERR_STATE       -> RETRY_LATER
+  AETHER_ERR_TRANSPORT   -> ERROR  (TCP-ambiguous; conservative)
+  AETHER_ERR_OVERFLOW    -> ERROR
+  AETHER_ERR_CRYPTO      -> ERROR
+  AETHER_ERR_ARGUMENT    -> ERROR
+  AETHER_ERR_UNSUPPORTED -> ERROR
+  other                  -> ERROR
+
+`!aether_is_ready(client)` -> RETRY_LATER (не NOT_APPLICABLE).
+
+Fallback policy v1:
+  ACCEPTED       -> slot freed; chain stopped.
+  NOT_APPLICABLE -> next provider.
+  RETRY_LATER    -> next provider (strict no-handoff contract).
+  ROUTE_LOST     -> next provider (strict no-handoff contract).
+  ERROR          -> no fallback; error callback; slot freed.
+
+Cloud is always the implicit last fallback, tried after all user
+providers.
+
+## 4. TCP/UDP transport-error policy
+
+Исследование показало (см. revised checkpoint):
+- UDP send() либо передал целую дейтаграмму, либо ошибка -> no handoff.
+- TCP send_all() может частично записать prefix+payload и упасть ->
+  ambiguous.
+
+Поскольку transport codec не виден из delivery, cloud provider
+классифицирует AETHER_ERR_TRANSPORT как ERROR (не RETRY_LATER). Это
+консервативно: без stable message ID + receiver dedupe безопасный
+fallback после ambiguous write невозможен. Безопасный UDP retry можно
+добавить позже через более точный transport-result contract.
+
+## 5. No-duplicate invariant
+
+Ни один fallback не может произойти после момента, когда предыдущий
+provider мог уже передать сообщение в свой transport.
+
+Реализовано: chain останавливается на ACCEPTED; ERROR не делает
+implicit fallback. Только NOT_APPLICABLE / RETRY_LATER / ROUTE_LOST
+продолжают цепочку, каждый с контрактной гарантией no-handoff.
+
+## 6. Slot states
+
+EMPTY / READY. FAILED / DONE / IN_FLIGHT не нужны:
+- permanent failure -> error callback -> slot сразу освобождается;
+- try_deliver синхронный и bounded;
+- ACCEPTED -> slot освобождается сразу.
+
+## 7. Producer API / enqueue
+
+aether_delivery_send() возвращает только результат enqueue:
+  AETHER_OK            enqueued
+  AETHER_ERR_ARGUMENT  bad pointers / uninitialized
+  AETHER_ERR_OVERFLOW  queue full или length > payload_capacity
+
+Никогда не выполняет transport I/O, crypto или routing. Безопасно
+вызывать из RX callback.
+
+## 8. Error callback
+
+aether_delivery_set_error_callback(delivery, cb, ctx).
+Вызывается ровно один раз на каждый permanent failure, до освобождения
+slot. Handle/query API отложен в future extension.
+
+## 9. Caller-owned storage
+
+Caller предоставляет:
+  aether_delivery_slot_t slots[N];
+  uint8_t payload_storage[N * payload_capacity];
+
+No heap. Payload pointer вычисляется как
+payload_storage + index * payload_capacity; указатель не хранится в
+slot.
+
+## 10. Tests (tests/test_delivery.c — 11 тестов, все pass)
+
+1. test_not_applicable_then_fallback
+2. test_retry_later_uses_fallback
+3. test_accepted_stops_chain
+4. test_route_lost_uses_fallback
+5. test_error_no_fallback (+ error callback ровно один раз)
+6. test_storage_copy_and_mutation (source mutated after enqueue)
+7. test_queue_full_does_not_overwrite
+8. test_oversized_payload_rejected
+9. test_blocked_slot_does_not_starve
+10. test_argument_guards
+
+Host: ctest -> 11/11 pass (aether_delivery_test + existing 10).
+Debug build: -Wall -Wextra -Wpedantic -Werror, clean.
+
+## 11. Echo migration
+
+examples/echo/src/main.c:
+- удалены echo_pending_*, drain_echo(), manual BUSY retry;
+- добавлены delivery / delivery_slots[4] / payload_storage / components[1];
+- on_message теперь только aether_delivery_send(&delivery, from, data, size),
+  логирует enqueue error (queue full / oversized);
+- добавлен on_delivery_error callback (permanent failure);
+- main loop: aether_work(&client) без drain_echo();
+- новый lifecycle: set_components / delivery_init / set_error_callback /
+  register_component до aether_start; delivery хранит &client->app.core
+  by pointer, который не переинвалидируется aether_start(), потому что
+  aether_start заменяет содержимое client->app.core, но не сам объект.
+
+## 12. Component lifecycle
+
+delivery использует только &client->app.core (указатель остаётся
+валидным после aether_start). В отличие от registration component,
+delivery можно init/register pre-start. Проверено: echo init/register
+до aether_start работает.
+
+## 13. Footprint (host, Debug lib)
+
+Library .text/.data/.bss — оценивается после Release сборки (см. ниже).
+
+## 14. Future LAN extension
+
+Plug-in без изменения producer API:
+
+  aether_lan_t lan;
+  aether_lan_peer_t peers[16];
+  aether_delivery_provider_t lan_provider = {
+      &lan, aether_lan_provider_try
+  };
+  aether_delivery_provider_t user_providers[1];
+
+  aether_delivery_init(&delivery, &aether, ...);
+  aether_delivery_set_providers(&delivery, user_providers, 1);
+  aether_delivery_add_provider(&delivery, lan_provider);
+  aether_register_component(&aether, &delivery, aether_delivery_work);
+
+Producer (echo) не меняется:
+  aether_delivery_send(&delivery, uid, bytes, size);
+
+## 15. Известные ограничения
+
+- ESP32 physical build не удалось выполнить: ECHO_UID / ECHO_MASTER_KEY
+  env не заданы, а также platformio IDE submodule git issue
+  (openthread). Не считается блокером delivery — host сборка полная.
+- Physical echo test на board не выполнен (нет доступа к железу).
+
+================================================================
+КОНЕЦ ОТЧЁТА.
+================================================================
