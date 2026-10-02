@@ -22,8 +22,6 @@
 #include <string.h>
 
 
-
-
 static bool delivery_is_initialized(
     const aether_delivery_t *delivery) {
 
@@ -90,13 +88,19 @@ void aether_delivery_init(
 }
 
 
-void aether_delivery_set_providers(
+aether_status_t aether_delivery_set_providers(
     aether_delivery_t *delivery,
     aether_delivery_provider_t *providers,
     size_t capacity) {
 
     if (delivery == NULL) {
-        return;
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (providers == NULL &&
+        capacity != 0u) {
+
+        return AETHER_ERR_ARGUMENT;
     }
 
     delivery->user_providers =
@@ -107,6 +111,8 @@ void aether_delivery_set_providers(
 
     delivery->user_provider_count =
         0u;
+
+    return AETHER_OK;
 }
 
 
@@ -125,6 +131,26 @@ aether_status_t aether_delivery_add_provider(
             delivery->user_provider_capacity) {
 
         return AETHER_ERR_OVERFLOW;
+    }
+
+    /*
+     * Reject an exact duplicate (context, try_deliver) pair. The same
+     * context with a different callback is a legal (if unusual) shape and
+     * stays allowed, but the exact same pair twice would only cause the
+     * same route to be attempted twice within one coordinator pass, which
+     * directly undermines the "one provider decides per attempt" rule.
+     */
+    for (size_t i = 0u;
+         i < delivery->user_provider_count;
+         ++i) {
+
+        if (delivery->user_providers[i].context ==
+                provider.context &&
+            delivery->user_providers[i].try_deliver ==
+                provider.try_deliver) {
+
+            return AETHER_ERR_STATE;
+        }
     }
 
     delivery->user_providers[
@@ -170,6 +196,14 @@ aether_status_t aether_delivery_send(
     }
 
     if (length > delivery->payload_capacity) {
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    /*
+     * The slot stores payload_length as uint32_t. Reject any length that
+     * would not fit, so silent truncation is impossible.
+     */
+    if (length > (size_t)UINT32_MAX) {
         return AETHER_ERR_OVERFLOW;
     }
 
@@ -228,38 +262,41 @@ aether_status_t aether_delivery_send(
  * AETHER_ERR_TRANSPORT into RETRY_LATER automatically; a future, more
  * precise transport-result contract will make safe UDP retry possible.
  *
- * Current mapping:
- *   AETHER_OK              -> ACCEPTED
- *   AETHER_ERR_BUSY        -> RETRY_LATER  (no handoff: guard)
- *   AETHER_ERR_STATE       -> RETRY_LATER  (no handoff: guard)
- *   AETHER_ERR_TRANSPORT   -> ERROR        (conservative; TCP-ambiguous)
- *   AETHER_ERR_OVERFLOW    -> ERROR
- *   AETHER_ERR_CRYPTO      -> ERROR
- *   AETHER_ERR_ARGUMENT    -> ERROR
- *   AETHER_ERR_UNSUPPORTED -> ERROR
- *   other                  -> ERROR
+ * Mapping:
+ *   AETHER_OK              -> { ACCEPTED,   AETHER_OK             }
+ *   AETHER_ERR_BUSY        -> { RETRY_LATER, AETHER_ERR_BUSY      }
+ *   AETHER_ERR_STATE       -> { RETRY_LATER, AETHER_ERR_STATE     }
+ *   AETHER_ERR_TRANSPORT   -> { ERROR,      AETHER_ERR_TRANSPORT }
+ *   AETHER_ERR_OVERFLOW    -> { ERROR,      AETHER_ERR_OVERFLOW  }
+ *   AETHER_ERR_CRYPTO      -> { ERROR,      AETHER_ERR_CRYPTO    }
+ *   AETHER_ERR_ARGUMENT    -> { ERROR,      AETHER_ERR_ARGUMENT  }
+ *   AETHER_ERR_UNSUPPORTED -> { ERROR,      AETHER_ERR_UNSUPPORTED}
+ *   other                  -> { ERROR,      status               }
+ *
+ * "not ready right now" is a temporary condition, not inapplicability of
+ * the route, so it maps to RETRY_LATER with AETHER_ERR_STATE.
  */
-static aether_delivery_result_t delivery_cloud_try(
+static aether_delivery_attempt_t delivery_cloud_try(
     void *context,
     aether_uuid_t recipient,
     const uint8_t *payload,
     size_t length) {
 
-
     aether_t *client =
         context;
 
     if (client == NULL) {
-        return AETHER_DELIVERY_ERROR;
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_ERROR,
+            AETHER_ERR_ARGUMENT
+        };
     }
 
-    /*
-     * Cloud is the universal default route for a normal Aether UID.
-     * "Not ready right now" is a temporary condition, not an
-     * inapplicability of the route.
-     */
     if (!aether_is_ready(client)) {
-        return AETHER_DELIVERY_RETRY_LATER;
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_RETRY_LATER,
+            AETHER_ERR_STATE
+        };
     }
 
     aether_status_t status =
@@ -273,11 +310,17 @@ static aether_delivery_result_t delivery_cloud_try(
     switch (status) {
 
     case AETHER_OK:
-        return AETHER_DELIVERY_ACCEPTED;
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_ACCEPTED,
+            AETHER_OK
+        };
 
     case AETHER_ERR_BUSY:
     case AETHER_ERR_STATE:
-        return AETHER_DELIVERY_RETRY_LATER;
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_RETRY_LATER,
+            status
+        };
 
     case AETHER_ERR_TRANSPORT:
         /*
@@ -285,10 +328,16 @@ static aether_delivery_result_t delivery_cloud_try(
          * safe, but we cannot observe the codec from this layer without
          * coupling. Prefer correctness over retry availability.
          */
-        return AETHER_DELIVERY_ERROR;
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_ERROR,
+            status
+        };
 
     default:
-        return AETHER_DELIVERY_ERROR;
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_ERROR,
+            status
+        };
     }
 }
 
@@ -296,11 +345,19 @@ static aether_delivery_result_t delivery_cloud_try(
 /*
  * Run the ordered provider chain for one slot.
  *
- * Returns the terminal result. ACCEPTED frees the slot; ERROR fires the
- * error callback and frees the slot; RETRY_LATER / NOT_APPLICABLE /
- * ROUTE_LOST leave the slot READY for a later tick.
+ * Contract per provider result:
+ *   ACCEPTED       -> terminal; no further provider is tried.
+ *   NOT_APPLICABLE -> strict no handoff; next provider is allowed.
+ *   RETRY_LATER    -> strict no handoff; next provider is allowed.
+ *   ROUTE_LOST     -> strict no handoff; next provider is allowed.
+ *   ERROR          -> terminal, no fallback. ERROR explicitly does NOT
+ *                     imply a no-handoff guarantee, so the coordinator
+ *                     must not try any further provider after ERROR.
+ *   anything else  -> conservative: treated as ERROR (terminal, no
+ *                     fallback). Unknown values may correspond to an
+ *                     ambiguous handoff and must not trigger fallback.
  */
-static aether_delivery_result_t delivery_attempt_slot(
+static aether_delivery_attempt_t delivery_attempt_slot(
     aether_delivery_t *delivery,
     size_t slot_index) {
 
@@ -316,11 +373,6 @@ static aether_delivery_result_t delivery_attempt_slot(
     aether_uuid_t recipient =
         slot->recipient;
 
-    /*
-     * User providers first (LAN in the future). Each provider contract is
-     * explicit: only ACCEPTED commits; every other result guarantees that
-     * no bytes were handed off for that provider.
-     */
     for (size_t i = 0u;
          i < delivery->user_provider_count;
          ++i) {
@@ -332,45 +384,48 @@ static aether_delivery_result_t delivery_attempt_slot(
             continue;
         }
 
-        aether_delivery_result_t result =
+        aether_delivery_attempt_t attempt =
             provider->try_deliver(
                 provider->context,
                 recipient,
                 payload,
                 length);
 
-        switch (result) {
+        switch (attempt.result) {
 
         case AETHER_DELIVERY_ACCEPTED:
-            return AETHER_DELIVERY_ACCEPTED;
+            return attempt;
 
         case AETHER_DELIVERY_ERROR:
-            return AETHER_DELIVERY_ERROR;
+            return attempt;
 
         case AETHER_DELIVERY_NOT_APPLICABLE:
         case AETHER_DELIVERY_RETRY_LATER:
         case AETHER_DELIVERY_ROUTE_LOST:
-            /*
-             * v1 fallback policy: try the next provider. Every one of
-             * these results contractually guarantees no handoff for this
-             * provider, so trying the next provider cannot cause a
-             * duplicate from this attempt.
-             */
             continue;
+
+        default:
+            /*
+             * Unknown result value. Conservatively treat it as ERROR:
+             * no fallback, error callback will fire with the attempt
+             * status (which, for a custom provider, carries its own
+             * diagnostic).
+             */
+            return (aether_delivery_attempt_t){
+                AETHER_DELIVERY_ERROR,
+                attempt.status
+            };
         }
     }
 
     /*
      * Built-in cloud provider is always the last fallback.
      */
-    aether_delivery_result_t cloud_result =
-        delivery_cloud_try(
-            delivery->client,
-            recipient,
-            payload,
-            length);
-
-    return cloud_result;
+    return delivery_cloud_try(
+        delivery->client,
+        recipient,
+        payload,
+        length);
 }
 
 
@@ -378,10 +433,26 @@ aether_status_t aether_delivery_work(
     aether_t *client,
     void *context) {
 
-    (void)client;
+    if (client == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
 
     aether_delivery_t *delivery =
         context;
+
+    if (delivery == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    /*
+     * Protect the owner relationship: the delivery component may only be
+     * registered on the same aether_t it was initialized with. This
+     * mirrors the registration-component guard and prevents a delivery
+     * object from driving another client's transport.
+     */
+    if (delivery->client != client) {
+        return AETHER_ERR_ARGUMENT;
+    }
 
     if (!delivery_is_initialized(delivery)) {
         return AETHER_OK;
@@ -406,12 +477,12 @@ aether_status_t aether_delivery_work(
             continue;
         }
 
-        aether_delivery_result_t result =
+        aether_delivery_attempt_t attempt =
             delivery_attempt_slot(
                 delivery,
                 i);
 
-        switch (result) {
+        switch (attempt.result) {
 
         case AETHER_DELIVERY_ACCEPTED:
             memset(
@@ -426,7 +497,7 @@ aether_status_t aether_delivery_work(
                 delivery->on_error(
                     delivery->error_ctx,
                     slot->recipient,
-                    AETHER_ERR_UNSUPPORTED);
+                    attempt.status);
             }
 
             memset(
@@ -442,6 +513,18 @@ aether_status_t aether_delivery_work(
              * Ordinary waiting. Leave the slot READY; it will be retried
              * on the next tick. This is not a component error.
              */
+            break;
+
+        default:
+            /*
+             * Should not happen: delivery_attempt_slot already maps
+             * unknown results to ERROR. Defensive: treat as terminal
+             * and free the slot without a callback.
+             */
+            memset(
+                slot,
+                0,
+                sizeof(*slot));
             break;
         }
     }

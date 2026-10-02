@@ -1857,3 +1857,159 @@ Producer (echo) не меняется:
 ================================================================
 КОНЕЦ ОТЧЁТА.
 ================================================================
+
+================================================================
+MESSAGE DELIVERY v1 — POST-REVIEW FIXES (authoritative)
+================================================================
+
+## A. Provider attempt contract (final, replaces earlier)
+aether_delivery_attempt_t { aether_delivery_result_t result;
+                            aether_status_t status; }
+try_deliver returns attempt_t.
+
+Semantics:
+  ACCEPTED        -> terminal, no further provider; status == AETHER_OK
+  NOT_APPLICABLE  -> strict no-handoff; next provider may be tried
+  RETRY_LATER     -> strict no-handoff; next provider may be tried
+  ROUTE_LOST      -> strict no-handoff; next provider may be tried
+  ERROR           -> terminal, NO fallback; status carries the real
+                     reason (AETHER_ERR_CRYPTO, AETHER_ERR_TRANSPORT,
+                     ...). ERROR explicitly does NOT imply no-handoff.
+  unknown value   -> conservative ERROR (terminal); coordinator never
+                     falls through on an unrecognized result.
+
+Error callback now receives attempt.status, not a fabricated
+AETHER_ERR_UNSUPPORTED.
+
+## B. Cloud mapping (unchanged policy, now carries real status)
+  AETHER_OK              -> { ACCEPTED,    AETHER_OK }
+  AETHER_ERR_BUSY        -> { RETRY_LATER, AETHER_ERR_BUSY }
+  AETHER_ERR_STATE       -> { RETRY_LATER, AETHER_ERR_STATE }
+  AETHER_ERR_TRANSPORT   -> { ERROR,       AETHER_ERR_TRANSPORT }
+  AETHER_ERR_OVERFLOW    -> { ERROR,       AETHER_ERR_OVERFLOW }
+  AETHER_ERR_CRYPTO      -> { ERROR,       AETHER_ERR_CRYPTO }
+  AETHER_ERR_ARGUMENT    -> { ERROR,       AETHER_ERR_ARGUMENT }
+  AETHER_ERR_UNSUPPORTED -> { ERROR,       AETHER_ERR_UNSUPPORTED }
+  other                  -> { ERROR,       status }
+  !aether_is_ready       -> { RETRY_LATER, AETHER_ERR_STATE }
+
+TCP AETHER_ERR_TRANSPORT remains conservative ERROR (no codec visible,
+TCP partial-write can be ambiguous; correctness over retry).
+
+## C. Owner validation in aether_delivery_work()
+  client == NULL           -> AETHER_ERR_ARGUMENT
+  delivery == NULL         -> AETHER_ERR_ARGUMENT
+  delivery->client != client -> AETHER_ERR_ARGUMENT
+Same pattern as registration component; prevents cross-client registration.
+
+## D. Overflow safety in aether_delivery_send()
+  length > payload_capacity    -> AETHER_ERR_OVERFLOW
+  length > UINT32_MAX          -> AETHER_ERR_OVERFLOW (no silent truncation)
+Slot metadata stays at 24 bytes (uint32_t payload_length).
+
+## E. aether_delivery_set_providers() -> aether_status_t
+  (delivery == NULL)       -> AETHER_ERR_ARGUMENT
+  (NULL, 0)                -> OK, disables custom providers
+  (NULL, > 0)              -> AETHER_ERR_ARGUMENT
+  valid pointer + capacity -> OK
+
+## F. Duplicate provider (context, try_deliver) rejected
+add_provider scans for exact pair; duplicate -> AETHER_ERR_STATE.
+Different callback with same context stays legal.
+
+## G. Tests (tests/test_delivery.c)
+Total: 17 tests, all passing on Debug host.
+
+Provider semantics:
+  1. not_applicable_then_fallback
+  2. retry_later_uses_fallback
+  3. accepted_stops_chain
+  4. route_lost_uses_fallback
+  5. error_no_fallback_exact_status (checks AETHER_ERR_CRYPTO surfaced)
+  6. unknown_result_is_conservative_error (fake result=999 ->
+     error callback fired, no fallback, slot freed)
+
+Storage:
+  7. storage_copy_and_mutation
+  8. queue_full_does_not_overwrite
+  9. oversized_payload_rejected
+ 10. zero_length_payload
+ 11. multiple_recipients_preserved
+
+Scheduler / lifecycle:
+ 12. blocked_slot_does_not_starve
+ 13. owner_validation (correct/wrong/NULL client, NULL context)
+ 14. set_providers_argument_validation
+ 15. duplicate_provider_rejected
+
+Integration with aether_work():
+ 16. registry_and_aether_work
+     - aether_init -> set_components -> delivery_init ->
+       set_providers -> add_provider -> register_component -> start
+     - aether_delivery_send (immediate) returns OK, provider not yet called
+     - aether_work() drives core + component pass; provider called once
+       with exact payload bytes 00 01 02 7F 80 FF 55 AA
+     - slot freed; aether_stop()
+
+ 17. argument_guards (NULL, uninitialized delivery, etc.)
+
+Note: the RX-callback->component-pass path is exercised structurally by
+test 16 (enqueue before aether_work, provider invoked only during the
+component pass) and by the low-level core guard (aether_client_send_message
+returns AETHER_ERR_BUSY when callback_active/rx_active). The full encrypted
+RX fixture end-to-end is not reproduced in unit tests; the abstraction's
+guarantee is the disjoint phase separation proved in test 16 plus the
+unchanged core guard.
+
+## H. Footprint (host, Release, GCC 15.2.0, x86-64)
+
+sizeof(aether_delivery_t)         = 80
+sizeof(aether_delivery_slot_t)    = 24
+sizeof(aether_delivery_provider_t)= 16
+sizeof(aether_delivery_attempt_t) = 8
+
+library .text/.data/.bss for the new TU:
+  src/aether_delivery.c.o   text=1427  data=0  bss=0
+
+Caller-reserved delivery RAM:
+  cfg            slot_meta  payload   caller total (без delivery_t)
+  1  x 256       24         256       280
+  4  x 256       96         1024      1120
+  4  x 1536      96         6144      6240
+  10 x 256       240        2560      2800
+
+## I. ESP32-C3 (PlatformIO, esp32c3-devkitm-1, release)
+Baseline (before this work):  RAM 42196    Flash 890638
+After delivery v1 + echo migration:
+                              RAM 46940    Flash 891636
+Delta:                        RAM +4744    Flash +998
+
+Note: delta includes the echo example's own payload storage
+(4 * AETHER_MAX_PACKET = 6144 B, but real slot usage counted
+against .bss of the example), not just library code.
+
+## J. Echo migration (examples/echo/src/main.c)
+  - removed: echo_pending_*, drain_echo(), manual AETHER_ERR_BUSY retry.
+  - added:   aether_delivery_t / slots[4] / payload_storage /
+             aether_component_t components[1].
+             on_delivery_error() logs permanent failures.
+  - on_message() now calls aether_delivery_send() and logs enqueue error
+    (queue full / oversized) if any.
+  - main loop: aether_work(&client) only, no manual send.
+
+## K. Physical board
+Board detected at /dev/ttyACM0; firmware uploaded successfully.
+Physical roundtrip echo test requires a peer UID physically talking to
+the device; not performed in this environment.
+
+## L. Git
+Changes tracked but NOT committed:
+  M include/aether_delivery.h
+  M src/aether_delivery.c
+  M tests/test_delivery.c
+  M CMakeLists.txt (adds aether_delivery.c, aether_delivery_test)
+  M examples/echo/src/CMakeLists.txt (adds delivery source)
+  M examples/echo/src/main.c (delivery migration)
+
+================================================================
+================================================================

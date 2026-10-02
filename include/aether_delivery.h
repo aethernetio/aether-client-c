@@ -97,15 +97,39 @@ typedef enum {
 } aether_delivery_result_t;
 
 
+/*
+ * Provider attempt outcome.
+ *
+ * The semantic result selects the coordinator action; status carries the
+ * concrete cause for diagnostics.
+ *
+ * Contract:
+ *   ACCEPTED          -> status == AETHER_OK
+ *   NOT_APPLICABLE    -> no handoff; status may be AETHER_OK
+ *   RETRY_LATER       -> no handoff; status may be AETHER_OK
+ *   ROUTE_LOST        -> no handoff; status may be AETHER_OK
+ *   ERROR             -> status carries the real reason. No implicit
+ *                        fallback; ERROR does NOT imply a no-handoff
+ *                        guarantee.
+ */
+typedef struct {
+    aether_delivery_result_t result;
+    aether_status_t status;
+} aether_delivery_attempt_t;
+
+
+
 struct aether_delivery;
 typedef struct aether_delivery aether_delivery_t;
 
 
-typedef aether_delivery_result_t (*aether_delivery_try_fn)(
+
+typedef aether_delivery_attempt_t (*aether_delivery_try_fn)(
     void *context,
     aether_uuid_t recipient,
     const uint8_t *payload,
     size_t length);
+
 
 
 typedef struct {
@@ -171,10 +195,12 @@ void aether_delivery_init(
  * Optional. Without it, only the built-in cloud provider is used.
  * Must be called before aether_delivery_add_provider().
  */
-void aether_delivery_set_providers(
+
+aether_status_t aether_delivery_set_providers(
     aether_delivery_t *delivery,
     aether_delivery_provider_t *providers,
     size_t capacity);
+
 
 
 /*
