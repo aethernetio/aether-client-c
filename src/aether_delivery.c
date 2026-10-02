@@ -133,14 +133,16 @@ aether_status_t aether_delivery_set_providers(
         return AETHER_ERR_ARGUMENT;
     }
 
-    delivery->user_providers =
+
+    delivery->providers =
         providers;
 
-    delivery->user_provider_capacity =
+    delivery->provider_capacity =
         capacity;
 
-    delivery->user_provider_count =
+    delivery->provider_count =
         0u;
+
 
     return AETHER_OK;
 }
@@ -163,9 +165,10 @@ aether_status_t aether_delivery_add_provider(
     }
 
 
-    if (delivery->user_providers == NULL ||
-        delivery->user_provider_count >=
-            delivery->user_provider_capacity) {
+
+    if (delivery->providers == NULL ||
+        delivery->provider_count >=
+            delivery->provider_capacity) {
 
         return AETHER_ERR_OVERFLOW;
     }
@@ -178,21 +181,22 @@ aether_status_t aether_delivery_add_provider(
      * directly undermines the "one provider decides per attempt" rule.
      */
     for (size_t i = 0u;
-         i < delivery->user_provider_count;
+         i < delivery->provider_count;
          ++i) {
 
-        if (delivery->user_providers[i].context ==
+        if (delivery->providers[i].context ==
                 provider.context &&
-            delivery->user_providers[i].try_deliver ==
+            delivery->providers[i].try_deliver ==
                 provider.try_deliver) {
 
             return AETHER_ERR_STATE;
         }
     }
 
-    delivery->user_providers[
-        delivery->user_provider_count++] =
+    delivery->providers[
+        delivery->provider_count++] =
         provider;
+
 
     return AETHER_OK;
 }
@@ -290,98 +294,7 @@ aether_status_t aether_delivery_send(
 }
 
 
-/* ---------- providers ---------- */
-
-
-/*
- * Cloud provider: the existing Aether cloud path.
- *
- * The transport codec is not visible here, but the work channel of a
- * normal deployment is UDP. On UDP, send() either delivers the whole
- * datagram or returns an error without any handoff. On TCP, a partial
- * write can leave bytes in the channel while send() still reports
- * failure. To avoid duplicate risk we therefore do NOT translate
- * AETHER_ERR_TRANSPORT into RETRY_LATER automatically; a future, more
- * precise transport-result contract will make safe UDP retry possible.
- *
- * Mapping:
- *   AETHER_OK              -> { ACCEPTED,   AETHER_OK             }
- *   AETHER_ERR_BUSY        -> { RETRY_LATER, AETHER_ERR_BUSY      }
- *   AETHER_ERR_STATE       -> { RETRY_LATER, AETHER_ERR_STATE     }
- *   AETHER_ERR_TRANSPORT   -> { ERROR,      AETHER_ERR_TRANSPORT }
- *   AETHER_ERR_OVERFLOW    -> { ERROR,      AETHER_ERR_OVERFLOW  }
- *   AETHER_ERR_CRYPTO      -> { ERROR,      AETHER_ERR_CRYPTO    }
- *   AETHER_ERR_ARGUMENT    -> { ERROR,      AETHER_ERR_ARGUMENT  }
- *   AETHER_ERR_UNSUPPORTED -> { ERROR,      AETHER_ERR_UNSUPPORTED}
- *   other                  -> { ERROR,      status               }
- *
- * "not ready right now" is a temporary condition, not inapplicability of
- * the route, so it maps to RETRY_LATER with AETHER_ERR_STATE.
- */
-static aether_delivery_attempt_t delivery_cloud_try(
-    void *context,
-    aether_uuid_t recipient,
-    const uint8_t *payload,
-    size_t length) {
-
-    aether_t *client =
-        context;
-
-    if (client == NULL) {
-        return (aether_delivery_attempt_t){
-            AETHER_DELIVERY_ERROR,
-            AETHER_ERR_ARGUMENT
-        };
-    }
-
-    if (!aether_is_ready(client)) {
-        return (aether_delivery_attempt_t){
-            AETHER_DELIVERY_RETRY_LATER,
-            AETHER_ERR_STATE
-        };
-    }
-
-    aether_status_t status =
-        aether_client_app_send_with_id(
-            &client->app,
-            recipient,
-            payload,
-            length,
-            NULL);
-
-    switch (status) {
-
-    case AETHER_OK:
-        return (aether_delivery_attempt_t){
-            AETHER_DELIVERY_ACCEPTED,
-            AETHER_OK
-        };
-
-    case AETHER_ERR_BUSY:
-    case AETHER_ERR_STATE:
-        return (aether_delivery_attempt_t){
-            AETHER_DELIVERY_RETRY_LATER,
-            status
-        };
-
-    case AETHER_ERR_TRANSPORT:
-        /*
-         * Conservative: TCP partial write can be ambiguous. UDP would be
-         * safe, but we cannot observe the codec from this layer without
-         * coupling. Prefer correctness over retry availability.
-         */
-        return (aether_delivery_attempt_t){
-            AETHER_DELIVERY_ERROR,
-            status
-        };
-
-    default:
-        return (aether_delivery_attempt_t){
-            AETHER_DELIVERY_ERROR,
-            status
-        };
-    }
-}
+/* ---------- coordinator ---------- */
 
 
 
@@ -458,17 +371,17 @@ static aether_delivery_attempt_t delivery_attempt_slot(
     aether_uuid_t recipient =
         slot->recipient;
 
+
     for (size_t i = 0u;
-         i < delivery->user_provider_count;
+         i < delivery->provider_count;
          ++i) {
 
         const aether_delivery_provider_t *provider =
-            &delivery->user_providers[i];
+            &delivery->providers[i];
 
         if (provider->try_deliver == NULL) {
             continue;
         }
-
 
         aether_delivery_attempt_t attempt =
             delivery_normalize_attempt(
@@ -477,7 +390,6 @@ static aether_delivery_attempt_t delivery_attempt_slot(
                     recipient,
                     payload,
                     length));
-
 
         switch (attempt.result) {
 
@@ -507,17 +419,18 @@ static aether_delivery_attempt_t delivery_attempt_slot(
     }
 
     /*
-     * Built-in cloud provider is always the last fallback.
+     * No provider committed and no terminal result was produced: every
+     * provider was either inapplicable or asked for a retry. Leave the
+     * slot READY; the coordinator retries on the next tick.
      */
-
-    return delivery_normalize_attempt(
-        delivery_cloud_try(
-            delivery->client,
-            recipient,
-            payload,
-            length));
+    return (aether_delivery_attempt_t){
+        AETHER_DELIVERY_RETRY_LATER,
+        AETHER_OK
+    };
 
 }
+
+
 
 
 aether_status_t aether_delivery_work(

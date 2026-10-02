@@ -22,6 +22,7 @@
 #include "aether_esp32_wifi.h"
 #include "echo_secrets.h"
 #include "aether_delivery.h"
+#include "aether_delivery_cloud.h"
 
 #include "aether_uuid_ECHO_UID.h"
 #include "aether_hex_ECHO_MASTER_KEY.h"
@@ -40,10 +41,13 @@ static bool credentials_installed;
  * aether_work().
  */
 
+
 static aether_delivery_t delivery;
 static aether_delivery_slot_t delivery_slots[2];
 static uint8_t delivery_payload_storage[2 * AETHER_MAX_PACKET];
+static aether_delivery_provider_t delivery_providers[1];
 static aether_component_t components[1];
+
 
 
 
@@ -182,6 +186,16 @@ void app_main(void) {
         &delivery,
         on_delivery_error,
         NULL);
+
+    aether_delivery_set_providers(
+        &delivery,
+        delivery_providers,
+        1u);
+
+    aether_delivery_add_cloud(
+        &delivery,
+        &client);
+
 
     aether_register_component(
         &client,

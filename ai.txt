@@ -2148,3 +2148,130 @@ Changes still uncommitted:
 
 ================================================================
 ================================================================
+
+================================================================
+MESSAGE DELIVERY v2 — CLOUD EXTRACTION (authoritative)
+================================================================
+
+## A. What changed
+
+Cloud is no longer special. `aether_delivery` knows only an ordered
+registry of equal providers. The old `delivery_cloud_try` was removed
+from the coordinator; the cloud route now lives in its own provider:
+
+  include/aether_delivery_cloud.h
+  src/aether_delivery_cloud.c
+
+Public API:
+  aether_delivery_add_cloud(delivery, client)
+  aether_cloud_delivery_try(context, recipient, payload, length)
+    (context = aether_t *)
+
+aether_delivery.h field renames:
+  user_providers         -> providers
+  user_provider_capacity -> provider_capacity
+  user_provider_count    -> provider_count
+
+Coordinator no longer contains any cloud-specific code. Its terminal
+rule for "no provider committed" is now neutral:
+  return { RETRY_LATER, AETHER_OK }   // leave READY, retry next tick.
+
+## B. Semantics
+
+No implicit cloud fallback.
+Zero providers is a valid configuration: enqueue leaves the message
+READY forever until a provider is added before the first successful
+send (registry locks on first enqueue).
+
+Provider ordering IS the routing policy:
+  LAN, Cloud    -> direct-first, cloud fallback
+  Cloud, LAN    -> cloud only (LAN only if cloud is N/A/retry)
+  LoRa, Cloud   -> radio preferred, cloud fallback
+  Cloud alone   -> cloud only
+
+None of aether_delivery.c, aether_delivery.h, or aether_delivery_work()
+knows what "cloud", "LAN" or "LoRa" means. Only `try_deliver` callback
+signature: (context, recipient, payload, length) -> attempt_t.
+
+## C. Cloud provider mapping (unchanged policy)
+
+aether_cloud_delivery_try(context=aether_t*):
+  client == NULL          -> { ERROR, AETHER_ERR_ARGUMENT }
+  !aether_is_ready        -> { RETRY_LATER, AETHER_ERR_STATE }
+  AETHER_OK               -> { ACCEPTED,   AETHER_OK }
+  AETHER_ERR_BUSY         -> { RETRY_LATER, AETHER_ERR_BUSY }
+  AETHER_ERR_STATE        -> { RETRY_LATER, AETHER_ERR_STATE }
+  AETHER_ERR_TRANSPORT    -> { ERROR,      AETHER_ERR_TRANSPORT }
+  other                   -> { ERROR,      status }
+
+TCP-transport conservative ERROR policy is preserved here; the generic
+coordinator no longer carries that knowledge.
+
+## D. Tests (tests/test_delivery.c)
+
+26 tests, all passing on Debug host.
+
+Previous 22 plus 4 new:
+  test_zero_providers_leaves_ready
+      enqueue OK, work AETHER_OK, slot stays READY (no implicit cloud)
+  test_cloud_provider_direct
+      raw aether_cloud_delivery_try(NULL, ...) -> ERROR, ARGUMENT
+      raw aether_cloud_delivery_try(&not_ready, ...) -> RETRY_LATER, STATE
+  test_add_cloud_registers_provider
+      helper fills registry; duplicate pair returns AETHER_ERR_STATE
+  test_provider_order_is_preserved
+      LAN-like provider first, then cloud; LAN called once, cloud
+      effectively called by coordinator, slot left READY (fake client
+      never ready) — verifies ordering and terminal RETRY_LATER path.
+
+Full suite: 11/11 ctest targets pass.
+
+## E. Echo migration
+
+examples/echo/src/main.c:
+  + #include "aether_delivery_cloud.h"
+  + static aether_delivery_provider_t delivery_providers[1];
+  + aether_delivery_set_providers(&delivery, delivery_providers, 1u);
+  + aether_delivery_add_cloud(&delivery, &client);
+  (after aether_delivery_set_error_callback, before register_component)
+
+No other change. Producer `aether_delivery_send(&delivery, from, data, size)`
+is unchanged.
+
+## F. Footprint
+
+Host, Release, GCC 15.2.0, x86-64
+
+TU deltas vs v1 (cloud built into aether_delivery.c):
+  aether_delivery.c.o        was 1427 text -> now 1401 text (-26)
+  aether_delivery_cloud.c.o  new         ->   331 text
+
+Net generic-coordinator text shrinks; overall library adds 331 - 26 ≈ 305
+bytes of text; no data/bss.
+
+Size of public delivery struct unchanged at 80 bytes host x86-64.
+
+ESP32-C3 (PlatformIO, esp32c3-devkitm-1, Release)
+  Previous delivery+echo (2 slots):  RAM 43820   Flash 891694
+  After cloud extraction:            RAM 43828   Flash 891858
+  Delta:                             RAM  +8      Flash +164
+
+The +8 RAM is the extra `delivery_providers[1]` entry in the echo
+example (provider struct on 32-bit is 8 bytes). Library side RAM delta
+is zero.
+
+## G. Rationale recap
+
+  - Cloud is one delivery provider among equals.
+  - aether_delivery is transport-agnostic and network-agnostic.
+  - Provider ordering == routing policy; no priority framework.
+  - Registry immutable after first successful enqueue.
+  - No implicit fallback. No unknown-provider fallthrough.
+  - Zero providers is a valid configuration.
+  - LoRa and LAN will plug in as ordinary providers/components with
+    the same producer-facing API.
+  - async transport (LoRa) works: provider may accept into its own
+    bounded caller-owned TX queue and return ACCEPTED.
+
+================================================================
+================================================================

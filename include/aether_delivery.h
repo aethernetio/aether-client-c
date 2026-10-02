@@ -160,23 +160,30 @@ struct aether_delivery {
     uint8_t *payload_storage;
     size_t payload_capacity;
 
-    /* user-provided providers; cloud is implicit-last */
-    aether_delivery_provider_t *user_providers;
-    size_t user_provider_capacity;
-    size_t user_provider_count;
 
     /*
-     * Provider registry is immutable after the first successful enqueue.
-     * This makes the routing policy deterministic for every pending
-     * message: whatever providers were configured when the first message
-     * entered the outbox stay in effect for the whole delivery lifecycle.
+     * Ordered delivery providers. All routes are equal citizens; the
+     * first provider that returns ACCEPTED commits the message. Order is
+     * the routing policy:
      *
-     * This is a deliberate v1 constraint. Future LAN provider integration
-     * does not need to mutate the provider list at runtime: the LAN
-     * provider is registered once, and its route availability changes via
-     * discovery state instead.
+     *     LAN, Cloud    -> direct-first, cloud fallback
+     *     Cloud, LAN    -> cloud-only unless LAN forced
+     *     LoRa, Cloud   -> radio preferred, cloud fallback
+     *
+     * Cloud is NOT special: it must be registered explicitly (see
+     * aether_delivery_cloud.h) and appears in the registry like any
+     * other provider.
+     *
+     * The registry is immutable after the first successful enqueue so
+     * that the routing policy stays deterministic for every pending
+     * message.
      */
+    aether_delivery_provider_t *providers;
+    size_t provider_capacity;
+    size_t provider_count;
+
     int providers_locked;
+
 
 
     aether_delivery_error_fn on_error;
@@ -191,8 +198,10 @@ struct aether_delivery {
  *   slots           -> slot_count entries
  *   payload_storage -> slot_count * payload_capacity bytes
  *
- * The built-in cloud provider is always available and is consulted after
- * all user providers, so future user providers (e.g. LAN) get to run first.
+
+ * The cloud provider is not implicit; register it explicitly via
+ * aether_delivery_add_cloud() from aether_delivery_cloud.h.
+
  */
 void aether_delivery_init(
     aether_delivery_t *delivery,
@@ -203,13 +212,20 @@ void aether_delivery_init(
     size_t payload_capacity);
 
 
-/*
- * Attach caller-owned storage for user providers.
- *
- * Optional. Without it, only the built-in cloud provider is used.
- * Must be called before aether_delivery_add_provider().
- */
 
+/*
+ * Attach caller-owned storage for providers.
+ *
+ * Optional; if never called, the delivery starts with an empty provider
+ * registry and any enqueued message stays READY until a provider is
+ * added. Providers must be configured before the first successful
+ * enqueue: the registry is then locked (AETHER_ERR_STATE on any later
+ * mutation attempt).
+ *
+ * (NULL, 0)  -> OK, empty registry.
+ * (NULL, >0) -> AETHER_ERR_ARGUMENT.
+ * otherwise  -> OK.
+ */
 aether_status_t aether_delivery_set_providers(
     aether_delivery_t *delivery,
     aether_delivery_provider_t *providers,
@@ -217,18 +233,25 @@ aether_status_t aether_delivery_set_providers(
 
 
 
+
+
 /*
- * Insert one user provider. User providers are tried in registration order,
- * then the built-in cloud fallback.
+ * Register one delivery provider.
+ *
+ * Providers are tried in registration order. Cloud, LAN, LoRa and any
+ * future transport are equal; aether_delivery itself does not know what
+ * any of them are.
  *
  * Returns:
  *   AETHER_OK           added
  *   AETHER_ERR_ARGUMENT bad argument / NULL try_deliver
  *   AETHER_ERR_OVERFLOW no provider storage or capacity exhausted
+ *   AETHER_ERR_STATE    registry locked or duplicate (context, fn) pair
  */
 aether_status_t aether_delivery_add_provider(
     aether_delivery_t *delivery,
     aether_delivery_provider_t provider);
+
 
 
 /*

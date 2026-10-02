@@ -10,6 +10,7 @@
 #include "aether_delivery.h"
 #include "aether.h"
 #include "aether_platform.h"
+#include "aether_delivery_cloud.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -1363,6 +1364,132 @@ static void test_rx_callback_pattern(void) {
 }
 
 
+/* ---------- cloud extraction ---------- */
+
+
+static void test_zero_providers_leaves_ready(void) {
+
+    reset_fake_client();
+
+    aether_delivery_t delivery;
+    aether_delivery_slot_t slots[1];
+    uint8_t payload_storage[8];
+
+    aether_delivery_init(&delivery, &g_fake_client, slots, 1u,
+                         payload_storage, 8u);
+
+    const uint8_t payload[] = { 1u };
+
+    assert(aether_delivery_send(&delivery, (aether_uuid_t){ 1u, 1u },
+        payload, sizeof(payload)) == AETHER_OK);
+
+    assert(slots[0].state == AETHER_DELIVERY_SLOT_READY);
+
+    /*
+     * Zero providers: cloud is NOT implicit. The coordinator has nothing
+     * to try, so the slot stays READY and aether_delivery_work() returns
+     * AETHER_OK.
+     */
+    assert(aether_delivery_work(&g_fake_client, &delivery) == AETHER_OK);
+    assert(slots[0].state == AETHER_DELIVERY_SLOT_READY);
+}
+
+
+static void test_cloud_provider_direct(void) {
+
+    reset_fake_client();
+
+    aether_delivery_attempt_t bad =
+        aether_cloud_delivery_try(
+            NULL,
+            (aether_uuid_t){ 1u, 2u },
+            (const uint8_t[]){ 0u },
+            1u);
+
+    assert(bad.result == AETHER_DELIVERY_ERROR);
+    assert(bad.status == AETHER_ERR_ARGUMENT);
+
+    aether_delivery_attempt_t not_ready =
+        aether_cloud_delivery_try(
+            &g_fake_client,
+            (aether_uuid_t){ 3u, 4u },
+            (const uint8_t[]){ 1u },
+            1u);
+
+    assert(not_ready.result == AETHER_DELIVERY_RETRY_LATER);
+    assert(not_ready.status == AETHER_ERR_STATE);
+}
+
+
+static void test_add_cloud_registers_provider(void) {
+
+    reset_fake_client();
+
+    aether_delivery_t delivery;
+    aether_delivery_slot_t slots[1];
+    uint8_t payload_storage[8];
+    aether_delivery_provider_t providers[2];
+
+    aether_delivery_init(&delivery, &g_fake_client, slots, 1u,
+                         payload_storage, 8u);
+
+    assert(aether_delivery_set_providers(
+        &delivery, providers, 2u) == AETHER_OK);
+
+    assert(aether_delivery_add_cloud(
+        &delivery, &g_fake_client) == AETHER_OK);
+
+    assert(delivery.provider_count == 1u);
+    assert(delivery.providers[0].context == &g_fake_client);
+    assert(delivery.providers[0].try_deliver == aether_cloud_delivery_try);
+
+    assert(aether_delivery_add_cloud(
+        &delivery, &g_fake_client) == AETHER_ERR_STATE);
+}
+
+
+static void test_provider_order_is_preserved(void) {
+
+    reset_fake_client();
+
+    aether_delivery_t delivery;
+    aether_delivery_slot_t slots[1];
+    uint8_t payload_storage[8];
+    aether_delivery_provider_t providers[2];
+
+    fake_provider_t lan_like = { 0 };
+    lan_like.attempt = (aether_delivery_attempt_t){
+        AETHER_DELIVERY_NOT_APPLICABLE, AETHER_OK
+    };
+
+    aether_delivery_init(&delivery, &g_fake_client, slots, 1u,
+                         payload_storage, 8u);
+
+    assert(aether_delivery_set_providers(
+        &delivery, providers, 2u) == AETHER_OK);
+
+    assert(aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &lan_like, fake_provider_try }) == AETHER_OK);
+
+    assert(aether_delivery_add_cloud(
+        &delivery, &g_fake_client) == AETHER_OK);
+
+    assert(delivery.provider_count == 2u);
+    assert(delivery.providers[0].context == &lan_like);
+    assert(delivery.providers[1].try_deliver == aether_cloud_delivery_try);
+
+    const uint8_t payload[] = { 1u };
+    assert(aether_delivery_send(&delivery, (aether_uuid_t){ 1u, 1u },
+        payload, sizeof(payload)) == AETHER_OK);
+
+    assert(aether_delivery_work(&g_fake_client, &delivery) == AETHER_OK);
+
+    assert(lan_like.calls == 1u);
+    assert(slots[0].state == AETHER_DELIVERY_SLOT_READY);
+}
+
+
+
 
 
 
@@ -1398,6 +1525,12 @@ int main(void) {
     test_provider_registry_locked_after_first_enqueue();
 
     test_rx_callback_pattern();
+
+    test_zero_providers_leaves_ready();
+    test_cloud_provider_direct();
+    test_add_cloud_registers_provider();
+    test_provider_order_is_preserved();
+
 
 
 

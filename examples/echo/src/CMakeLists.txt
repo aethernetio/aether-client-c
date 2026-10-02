@@ -11,6 +11,7 @@ set(
     "../../../src/aether_send_future.c"
     "../../../src/aether_messages.c"
     "../../../src/aether_delivery.c"
+    "../../../src/aether_delivery_cloud.c"
 
     "../../../src/aether_credentials.c"
 )
