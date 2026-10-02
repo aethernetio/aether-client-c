@@ -2352,6 +2352,16 @@ static void test_recovery_response_updates_routing_not_identity(void) {
 
     recovery_exchange_server_key(&c, &f);
 
+    uint8_t recovery_key[AETHER_KEY_BYTES];
+    memcpy(
+        recovery_key,
+        c.pending_recovery_key,
+        sizeof(recovery_key));
+
+    assert(c.recovery_key_pending);
+    assert(memcmp(recovery_key, key, sizeof(key)) != 0);
+
+
     aether_uuid_t new_alias = {
         UINT64_C(0x2122232425262728),
         UINT64_C(0x5152535455565758)
@@ -2359,9 +2369,12 @@ static void test_recovery_response_updates_routing_not_identity(void) {
 
     assert(recovery_exchange_result(&c, new_alias) == AETHER_OK);
 
-    /* identity must be preserved */
+
+    /* UID is preserved, but recovery rotates the master key. */
     assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
-    assert(memcmp(c.master_key, key, sizeof(key)) == 0);
+    assert(memcmp(c.master_key, recovery_key, sizeof(recovery_key)) == 0);
+    assert(!c.recovery_key_pending);
+
 
     /* routing must be updated */
     assert(c.alias.msb == new_alias.msb && c.alias.lsb == new_alias.lsb);
@@ -2409,6 +2422,16 @@ static void test_recovery_save_failure_is_not_committed(void) {
 
     recovery_exchange_server_key(&c, &f);
 
+    uint8_t recovery_key[AETHER_KEY_BYTES];
+    memcpy(
+        recovery_key,
+        c.pending_recovery_key,
+        sizeof(recovery_key));
+
+    assert(c.recovery_key_pending);
+    assert(memcmp(recovery_key, key, sizeof(key)) != 0);
+
+
     aether_uuid_t new_alias = {
         UINT64_C(0x2122232425262728),
         UINT64_C(0x3132333435363738)
@@ -2432,6 +2455,13 @@ static void test_recovery_save_failure_is_not_committed(void) {
     assert(memcmp(c.master_key, key, sizeof(key)) == 0);
     assert(!c.registered);
 
+    assert(c.recovery_key_pending);
+    assert(memcmp(
+        c.pending_recovery_key,
+        recovery_key,
+        sizeof(recovery_key)) == 0);
+
+
     /*
      * Explicit retry must re-run authoritative recovery, not jump to WORK.
      */
@@ -2446,11 +2476,24 @@ static void test_recovery_save_failure_is_not_committed(void) {
      */
     recovery_exchange_server_key(&c, &f);
 
+    assert(c.recovery_key_pending);
+    assert(memcmp(
+        c.pending_recovery_key,
+        recovery_key,
+        sizeof(recovery_key)) == 0);
+
+
     assert(recovery_exchange_result(&c, new_alias) == AETHER_OK);
 
     assert(c.registered);
     assert(c.uid.msb == uid.msb && c.uid.lsb == uid.lsb);
-    assert(memcmp(c.master_key, key, sizeof(key)) == 0);
+
+    assert(memcmp(
+        c.master_key,
+        recovery_key,
+        sizeof(recovery_key)) == 0);
+    assert(!c.recovery_key_pending);
+
     assert(c.cloud_count == 1u);
     assert(c.cloud_sids[0] == 9);
     assert(c.server_count == 1u);
@@ -2458,6 +2501,288 @@ static void test_recovery_save_failure_is_not_committed(void) {
 
     /* Recovery never creates an identity: no REGISTERED event. */
     assert(f.registered_events == 0u);
+}
+
+
+
+
+
+static void test_registered_recovery_commit_save_failure_retries_recovery(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_uuid_t uid = {
+        UINT64_C(0x8182838485868788),
+        UINT64_C(0x9192939495969798)
+    };
+
+    aether_uuid_t old_alias = {
+        UINT64_C(0xa1a2a3a4a5a6a7a8),
+        UINT64_C(0xb1b2b3b4b5b6b7b8)
+    };
+
+    uint8_t old_key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(old_key); ++i) {
+        old_key[i] = (uint8_t)(0x60u + i);
+    }
+
+    make_persisted_identity(
+        &f,
+        uid,
+        old_alias,
+        old_key);
+
+    aether_client_config_t cfg =
+        config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.registered);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+
+    recovery_exchange_server_key(&c, &f);
+
+    assert(c.recovery_key_pending);
+
+    uint8_t pending_key[AETHER_KEY_BYTES];
+    memcpy(
+        pending_key,
+        c.pending_recovery_key,
+        sizeof(pending_key));
+
+    aether_uuid_t new_alias = {
+        UINT64_C(0xc1c2c3c4c5c6c7c8),
+        UINT64_C(0xd1d2d3d4d5d6d7d8)
+    };
+
+    f.fail_flash_saves = 1u;
+
+    assert(
+        recovery_exchange_result(
+            &c,
+            new_alias) ==
+        AETHER_ERR_STORAGE);
+
+    assert(c.state == AETHER_STATE_ERROR);
+    assert(c.registered);
+    assert(c.recovery_key_pending);
+
+    assert(memcmp(
+        c.master_key,
+        old_key,
+        sizeof(old_key)) == 0);
+
+    assert(memcmp(
+        c.pending_recovery_key,
+        pending_key,
+        sizeof(pending_key)) == 0);
+
+    assert(aether_client_retry(&c) == AETHER_OK);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+
+    recovery_exchange_server_key(&c, &f);
+
+    assert(c.recovery_key_pending);
+    assert(memcmp(
+        c.pending_recovery_key,
+        pending_key,
+        sizeof(pending_key)) == 0);
+}
+
+
+static void test_successful_recovery_reboot_loads_committed_key(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_uuid_t uid = {
+        UINT64_C(0xe1e2e3e4e5e6e7e8),
+        UINT64_C(0xf1f2f3f4f5f6f7f8)
+    };
+
+    uint8_t old_key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(old_key); ++i) {
+        old_key[i] = (uint8_t)(0x30u + i);
+    }
+
+    aether_client_config_t cfg =
+        config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    assert(aether_set_credentials(&c, uid, old_key) == AETHER_OK);
+    assert(aether_client_start(&c) == AETHER_OK);
+
+    recovery_exchange_server_key(&c, &f);
+
+    uint8_t committed_key[AETHER_KEY_BYTES];
+    memcpy(
+        committed_key,
+        c.pending_recovery_key,
+        sizeof(committed_key));
+
+    aether_uuid_t new_alias = {
+        UINT64_C(0x0101010102020202),
+        UINT64_C(0x0303030304040404)
+    };
+
+    assert(
+        recovery_exchange_result(
+            &c,
+            new_alias) ==
+        AETHER_OK);
+
+    assert(c.registered);
+    assert(!c.recovery_key_pending);
+    assert(memcmp(
+        c.master_key,
+        committed_key,
+        sizeof(committed_key)) == 0);
+
+    fixture_t reboot;
+    memset(&reboot, 0, sizeof(reboot));
+
+    memcpy(
+        reboot.flash,
+        f.flash,
+        f.flash_len);
+    reboot.flash_len = f.flash_len;
+    reboot.root_signer = f.root_signer;
+    reboot.registration_kx = f.registration_kx;
+
+    aether_client_config_t reboot_cfg =
+        config_for(&reboot);
+    reboot_cfg.pow.generate = NULL;
+
+    aether_client_t restored;
+    aether_client_init(
+        &restored,
+        &reboot_cfg);
+
+    assert(aether_client_start(&restored) == AETHER_OK);
+
+    assert(restored.registered);
+    assert(!restored.recovery_key_pending);
+
+    assert(memcmp(
+        restored.master_key,
+        committed_key,
+        sizeof(committed_key)) == 0);
+
+    /*
+     * A clean committed v2 state must not restart key rotation merely because
+     * it was written by a recovery transaction.
+     */
+    assert(memcmp(
+        restored.pending_recovery_key,
+        "\0\0\0\0\0\0\0\0"
+        "\0\0\0\0\0\0\0\0"
+        "\0\0\0\0\0\0\0\0"
+        "\0\0\0\0\0\0\0\0",
+        AETHER_KEY_BYTES) == 0);
+}
+
+
+
+static void test_recovery_pending_key_survives_reboot(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    aether_uuid_t uid = {
+        UINT64_C(0x6162636465666768),
+        UINT64_C(0x7172737475767778)
+    };
+
+    uint8_t old_key[AETHER_KEY_BYTES];
+    for (size_t i = 0u; i < sizeof(old_key); ++i) {
+        old_key[i] = (uint8_t)(0x20u + i);
+    }
+
+    assert(aether_set_credentials(&c, uid, old_key) == AETHER_OK);
+    assert(aether_client_start(&c) == AETHER_OK);
+    assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
+
+    recovery_exchange_server_key(&c, &f);
+
+    assert(c.recovery_key_pending);
+    assert(f.flash_len > 0u);
+
+    uint8_t pending_key[AETHER_KEY_BYTES];
+    memcpy(
+        pending_key,
+        c.pending_recovery_key,
+        sizeof(pending_key));
+
+    assert(memcmp(pending_key, old_key, sizeof(old_key)) != 0);
+
+    fixture_t reboot;
+    memset(&reboot, 0, sizeof(reboot));
+
+    memcpy(
+        reboot.flash,
+        f.flash,
+        f.flash_len);
+    reboot.flash_len = f.flash_len;
+    reboot.root_signer = f.root_signer;
+    reboot.registration_kx = f.registration_kx;
+
+    aether_client_config_t reboot_cfg =
+        config_for(&reboot);
+    reboot_cfg.pow.generate = NULL;
+
+    aether_client_t restored;
+    aether_client_init(
+        &restored,
+        &reboot_cfg);
+
+    assert(aether_client_start(&restored) == AETHER_OK);
+
+    assert(!restored.registered);
+    assert(restored.recovery_key_pending);
+    assert(restored.state == AETHER_STATE_RECOVERY_CONNECTING);
+    assert(reboot.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+
+    assert(restored.uid.msb == uid.msb);
+    assert(restored.uid.lsb == uid.lsb);
+
+    assert(memcmp(
+        restored.master_key,
+        old_key,
+        sizeof(old_key)) == 0);
+
+    assert(memcmp(
+        restored.pending_recovery_key,
+        pending_key,
+        sizeof(pending_key)) == 0);
+
+    recovery_exchange_server_key(
+        &restored,
+        &reboot);
+
+    assert(memcmp(
+        restored.pending_recovery_key,
+        pending_key,
+        sizeof(pending_key)) == 0);
 }
 
 
@@ -2490,6 +2815,15 @@ static void test_recovery_transport_loss_restarts(void) {
     assert(c.state == AETHER_STATE_RECOVERY_CONNECTING);
 
     recovery_exchange_server_key(&c, &f);
+
+    uint8_t recovery_key[AETHER_KEY_BYTES];
+    memcpy(
+        recovery_key,
+        c.pending_recovery_key,
+        sizeof(recovery_key));
+
+    assert(c.recovery_key_pending);
+
     assert(c.state == AETHER_STATE_RECOVERY_WAIT_RESULT);
 
     /*
@@ -2506,6 +2840,13 @@ static void test_recovery_transport_loss_restarts(void) {
     assert(f.closes == closes_before + 1u);
     assert(f.opens == opens_before + 1u);
     assert(f.last_open_channel == AETHER_CHANNEL_REGISTRATION);
+
+    assert(c.recovery_key_pending);
+    assert(memcmp(
+        c.pending_recovery_key,
+        recovery_key,
+        sizeof(recovery_key)) == 0);
+
 }
 
 
@@ -2873,6 +3214,13 @@ int main(void) {
     test_persisted_identity_empty_cloud_enters_recovery();
     test_recovery_response_updates_routing_not_identity();
     test_recovery_save_failure_is_not_committed();
+
+
+    test_registered_recovery_commit_save_failure_retries_recovery();
+    test_successful_recovery_reboot_loads_committed_key();
+
+    test_recovery_pending_key_survives_reboot();
+
     test_recovery_transport_loss_restarts();
 
     puts("aether_client_test: OK");

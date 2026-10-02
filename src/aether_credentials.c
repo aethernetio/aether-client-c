@@ -5,10 +5,13 @@
 #include <string.h>
 
 
-aether_status_t aether_set_credentials(
+
+aether_status_t aether_set_credentials_typed(
     aether_client_t *client,
     aether_uuid_t uid,
-    const uint8_t master_key[AETHER_KEY_BYTES]) {
+    const uint8_t master_key[AETHER_KEY_BYTES],
+    uint8_t master_key_type) {
+
 
     if (client == NULL ||
         master_key == NULL) {
@@ -16,13 +19,7 @@ aether_status_t aether_set_credentials(
         return AETHER_ERR_ARGUMENT;
     }
 
-    /*
-     * Credentials are immutable through this API once an identity exists.
-     *
-     * In particular, a caller may invoke aether_set_credentials() on every
-     * startup without accidentally replacing a future rotated master key
-     * restored from persistent state.
-     */
+
     if (client->registered) {
         return AETHER_OK;
     }
@@ -46,10 +43,6 @@ aether_status_t aether_set_credentials(
     }
 
     if (has_uid || has_key) {
-        /*
-         * Partial/existing credentials are not overwritten. This protects an
-         * already provisioned key even when routing metadata is absent.
-         */
         return AETHER_OK;
     }
 
@@ -61,5 +54,29 @@ aether_status_t aether_set_credentials(
         master_key,
         AETHER_KEY_BYTES);
 
+    client->master_key_type =
+        master_key_type;
+
     return AETHER_OK;
+}
+
+
+
+aether_status_t aether_set_credentials(
+    aether_client_t *client,
+    aether_uuid_t uid,
+    const uint8_t master_key[AETHER_KEY_BYTES]) {
+
+    if (client == NULL ||
+        master_key == NULL) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    return
+        aether_set_credentials_typed(
+            client,
+            uid,
+            master_key,
+            UINT8_C(0));
 }

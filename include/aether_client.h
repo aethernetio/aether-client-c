@@ -607,7 +607,14 @@ struct aether_registration;
     aether_uuid_t alias;
 
     uint8_t master_key[AETHER_KEY_BYTES];
+
+    uint8_t master_key_type;
+
     uint8_t temp_key[AETHER_KEY_BYTES];
+
+    uint8_t pending_recovery_key[AETHER_KEY_BYTES];
+    bool recovery_key_pending;
+
     uint8_t work_tx_key[AETHER_KEY_BYTES];
     uint8_t work_rx_key[AETHER_KEY_BYTES];
 

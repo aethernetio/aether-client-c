@@ -25,6 +25,14 @@ aether_status_t aether_set_credentials(
     aether_uuid_t uid,
     const uint8_t master_key[AETHER_KEY_BYTES]);
 
+
+aether_status_t aether_set_credentials_typed(
+    aether_client_t *client,
+    aether_uuid_t uid,
+    const uint8_t master_key[AETHER_KEY_BYTES],
+    uint8_t master_key_type);
+
+
 #ifdef __cplusplus
 }
 #endif

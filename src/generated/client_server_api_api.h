@@ -1,5 +1,5 @@
-#ifndef CLIENTSERVERAPI_API_H
-#define CLIENTSERVERAPI_API_H
+#ifndef CLIENT_SERVER_API_API_H
+#define CLIENT_SERVER_API_API_H
 
 #include "client_server_api_types.h"
 
@@ -549,7 +549,8 @@ aether_status_t server_registration_api_recovery(
     server_registration_api_remote_t *api,
     uint32_t request_id,
     aether_uuid_t uid,
-    const key_ref_t * masterKey);
+    const key_ref_t * oldMasterKey,
+    const key_ref_t * newMasterKey);
 
 typedef struct {
     void *send_ctx;
@@ -1025,7 +1026,8 @@ aether_status_t server_registration_api_stream_server_registration_api_recovery(
     server_registration_api_stream_t *builder_stream,
     uint32_t request_id,
     aether_uuid_t uid,
-    const key_ref_t * masterKey);
+    const key_ref_t * oldMasterKey,
+    const key_ref_t * newMasterKey);
 
 #ifdef __cplusplus
 }

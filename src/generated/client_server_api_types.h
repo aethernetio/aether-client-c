@@ -1,5 +1,5 @@
-#ifndef CLIENTSERVERAPI_TYPES_H
-#define CLIENTSERVERAPI_TYPES_H
+#ifndef CLIENT_SERVER_API_TYPES_H
+#define CLIENT_SERVER_API_TYPES_H
 
 #include "aether_client.h"
 #include <stdbool.h>

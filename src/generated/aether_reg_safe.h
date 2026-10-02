@@ -55,6 +55,8 @@ aether_status_t aether_generated_reg_safe_build_registration_direct(
     aether_uuid_t parent);
 
 
+
+
 aether_status_t aether_generated_reg_safe_build_recovery(
     uint8_t *data,
     size_t capacity,
@@ -62,10 +64,15 @@ aether_status_t aether_generated_reg_safe_build_recovery(
     uint8_t symmetric_key_type,
     const uint8_t *return_key,
     size_t return_key_length,
-    const uint8_t *master_key,
-    size_t master_key_length,
+    uint8_t old_master_key_type,
+    const uint8_t *old_master_key,
+    size_t old_master_key_length,
+    const uint8_t *new_master_key,
+    size_t new_master_key_length,
     uint32_t request_id,
     aether_uuid_t uid);
+
+
 
 
 

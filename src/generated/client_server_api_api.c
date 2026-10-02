@@ -3864,7 +3864,8 @@ aether_status_t server_registration_api_recovery(
     server_registration_api_remote_t *api,
     uint32_t request_id,
     aether_uuid_t uid,
-    const key_ref_t * masterKey) {
+    const key_ref_t * oldMasterKey,
+    const key_ref_t * newMasterKey) {
 
     if (api == NULL ||
         api->send == NULL ||
@@ -3894,7 +3895,15 @@ aether_status_t server_registration_api_recovery(
             tx,
             tx_capacity,
             &pos,
-            masterKey);
+            oldMasterKey);
+        if (meta_status != AETHER_OK) return meta_status;
+    }
+    {
+        aether_status_t meta_status = client_server_api_serialize_key(
+            tx,
+            tx_capacity,
+            &pos,
+            newMasterKey);
         if (meta_status != AETHER_OK) return meta_status;
     }
 
@@ -7603,7 +7612,8 @@ aether_status_t server_registration_api_stream_server_registration_api_recovery(
     server_registration_api_stream_t *builder_stream,
     uint32_t request_id,
     aether_uuid_t uid,
-    const key_ref_t * masterKey) {
+    const key_ref_t * oldMasterKey,
+    const key_ref_t * newMasterKey) {
 
     if (builder_stream == NULL ||
         builder_stream->length > builder_stream->capacity) {
@@ -7638,6 +7648,7 @@ aether_status_t server_registration_api_stream_server_registration_api_recovery(
         &remote,
         request_id,
         uid,
-        masterKey);
+        oldMasterKey,
+        newMasterKey);
 }
 

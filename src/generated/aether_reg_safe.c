@@ -505,8 +505,15 @@ aether_status_t aether_generated_reg_safe_build_recovery(
     uint8_t symmetric_key_type,
     const uint8_t *return_key,
     size_t return_key_length,
-    const uint8_t *master_key,
-    size_t master_key_length,
+
+
+    uint8_t old_master_key_type,
+
+    const uint8_t *old_master_key,
+    size_t old_master_key_length,
+    const uint8_t *new_master_key,
+    size_t new_master_key_length,
+
     uint32_t request_id,
     aether_uuid_t uid) {
 
@@ -529,20 +536,37 @@ aether_status_t aether_generated_reg_safe_build_recovery(
         return status;
     }
 
-    aether_reg_safe_key_storage_t master_key_storage;
-    key_ref_t master_key_ref;
+
+    aether_reg_safe_key_storage_t old_master_key_storage;
+    key_ref_t old_master_key_ref;
 
     status =
         aether_reg_safe_key(
-            symmetric_key_type,
-            master_key,
-            master_key_length,
-            &master_key_storage,
-            &master_key_ref);
+            old_master_key_type,
+            old_master_key,
+            old_master_key_length,
+            &old_master_key_storage,
+            &old_master_key_ref);
 
     if (status != AETHER_OK) {
         return status;
     }
+
+    aether_reg_safe_key_storage_t new_master_key_storage;
+    key_ref_t new_master_key_ref;
+
+    status =
+        aether_reg_safe_key(
+            symmetric_key_type,
+            new_master_key,
+            new_master_key_length,
+            &new_master_key_storage,
+            &new_master_key_ref);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
 
     size_t produced;
     aether_reg_safe_commit_t commit;
@@ -576,12 +600,15 @@ aether_status_t aether_generated_reg_safe_build_recovery(
         capacity,
         produced);
 
+
     status =
         server_registration_api_recovery(
             &remote,
             request_id,
             uid,
-            &master_key_ref);
+            &old_master_key_ref,
+            &new_master_key_ref);
+
 
     if (status != AETHER_OK) {
         return status;

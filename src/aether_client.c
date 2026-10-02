@@ -42,7 +42,13 @@
 #define AETHER_STATE_MAGIC1 ((uint8_t)'E')
 #define AETHER_STATE_MAGIC2 ((uint8_t)'C')
 #define AETHER_STATE_MAGIC3 ((uint8_t)'1')
-#define AETHER_STATE_VERSION 1u
+
+
+#define AETHER_STATE_VERSION 3u
+#define AETHER_STATE_VERSION_RECOVERY_JOURNAL 2u
+#define AETHER_STATE_VERSION_LEGACY 1u
+
+
 
 
 #define CMD_RESULT 0u
@@ -1468,9 +1474,13 @@ static aether_status_t save_state(
             ? 1u
             : 0u);
 
+
     w_u8(
         &writer,
-        0u);
+        client->recovery_key_pending
+            ? 1u
+            : 0u);
+
 
     w_uuid(
         &writer,
@@ -1484,6 +1494,20 @@ static aether_status_t save_state(
         &writer,
         client->master_key,
         AETHER_KEY_BYTES);
+
+    w_u8(
+        &writer,
+        client->master_key_type);
+
+
+
+    if (client->recovery_key_pending) {
+        w_bytes(
+            &writer,
+            client->pending_recovery_key,
+            AETHER_KEY_BYTES);
+    }
+
 
     w_u8(
         &writer,
@@ -1641,14 +1665,27 @@ static bool load_state(
         false
     };
 
+
     if (r_u8(&reader) != AETHER_STATE_MAGIC0 ||
         r_u8(&reader) != AETHER_STATE_MAGIC1 ||
         r_u8(&reader) != AETHER_STATE_MAGIC2 ||
-        r_u8(&reader) != AETHER_STATE_MAGIC3 ||
-        r_u8(&reader) != AETHER_STATE_VERSION) {
+        r_u8(&reader) != AETHER_STATE_MAGIC3) {
 
         return false;
     }
+
+    uint8_t state_version =
+        r_u8(&reader);
+
+
+    if (state_version != AETHER_STATE_VERSION_LEGACY &&
+        state_version != AETHER_STATE_VERSION_RECOVERY_JOURNAL &&
+        state_version != AETHER_STATE_VERSION) {
+
+        return false;
+
+    }
+
 
     uint8_t provider =
         r_u8(&reader);
@@ -1662,8 +1699,16 @@ static bool load_state(
     client->registered =
         r_u8(&reader) != 0u;
 
-    (void)r_u8(
-        &reader);
+
+    uint8_t recovery_flags =
+        r_u8(&reader);
+
+    client->recovery_key_pending =
+
+        state_version >= AETHER_STATE_VERSION_RECOVERY_JOURNAL &&
+        recovery_flags != 0u;
+
+
 
     client->uid =
         r_uuid(&reader);
@@ -1678,6 +1723,34 @@ static bool load_state(
 
         return false;
     }
+
+
+    if (state_version >= AETHER_STATE_VERSION) {
+        client->master_key_type =
+            r_u8(&reader);
+    } else {
+        client->master_key_type =
+            client->config.crypto
+                ->profile.symmetric_key_type;
+    }
+
+
+
+    if (client->recovery_key_pending) {
+        if (!r_bytes(
+                &reader,
+                client->pending_recovery_key,
+                AETHER_KEY_BYTES)) {
+
+            return false;
+        }
+    } else {
+        memset(
+            client->pending_recovery_key,
+            0,
+            sizeof(client->pending_recovery_key));
+    }
+
 
     uint8_t cloud_count =
         r_u8(&reader);
@@ -1799,11 +1872,14 @@ static bool load_state(
             supported_address;
     }
 
+
     return
         !reader.failed &&
         reader.pos ==
             reader.length &&
-        client->registered;
+        (client->registered ||
+         client->recovery_key_pending);
+
 }
 
 
@@ -2004,6 +2080,13 @@ static aether_status_t begin_recovery(
     if (client == NULL) {
         return AETHER_ERR_STATE;
     }
+
+    if (client->master_key_type == 0u) {
+        client->master_key_type =
+            client->config.crypto
+                ->profile.symmetric_key_type;
+    }
+
 
     set_registration_state(
         client,
@@ -2553,9 +2636,9 @@ static aether_status_t send_recovery_request(
         next_request_id(
             client);
 
-
     size_t nested_len =
         0u;
+
 
     aether_status_t status =
         aether_generated_reg_safe_build_recovery(
@@ -2567,11 +2650,15 @@ static aether_status_t send_recovery_request(
             client->temp_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
+            client->master_key_type,
             client->master_key,
+            AETHER_KEY_BYTES,
+            client->pending_recovery_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
             client->req_resolve,
             client->uid);
+
 
     if (status != AETHER_OK) {
         return
@@ -2993,11 +3080,13 @@ static aether_status_t handle_reg_safe_plain(
 
 
 
+
                     return
                         fail(
                             client,
                             AETHER_ERR_PROTOCOL);
                 }
+
 
                 client->topology_refreshed =
                     false;
@@ -3012,20 +3101,73 @@ static aether_status_t handle_reg_safe_plain(
                  * the marker is rolled back below so a retry re-runs recovery
                  * instead of assuming a committed WORK routing state.
                  */
+
+
+                uint8_t old_master_key[AETHER_KEY_BYTES];
+
+                memcpy(
+                    old_master_key,
+                    client->master_key,
+                    sizeof(old_master_key));
+
+                uint8_t old_master_key_type =
+                    client->master_key_type;
+
+
+                bool old_registered =
+                    client->registered;
+
+                memcpy(
+                    client->master_key,
+                    client->pending_recovery_key,
+                    sizeof(client->master_key));
+
+                client->master_key_type =
+                    client->config.crypto
+                        ->profile.symmetric_key_type;
+
+
                 client->registered =
                     true;
+
+                /*
+                 * The committed record must not contain a pending transition.
+                 * Keep the bytes in RAM until persistence succeeds so rollback
+                 * can restore the same retry key if flash save fails.
+                 */
+                client->recovery_key_pending =
+                    false;
 
                 if (save_state(client) !=
                     AETHER_OK) {
 
                     client->registered =
-                        false;
+                        old_registered;
+
+                    memcpy(
+                        client->master_key,
+                        old_master_key,
+                        sizeof(client->master_key));
+
+                    client->master_key_type =
+                        old_master_key_type;
+
+
+                    client->recovery_key_pending =
+                        true;
 
                     return
                         fail(
                             client,
                             AETHER_ERR_STORAGE);
                 }
+
+                memset(
+                    client->pending_recovery_key,
+                    0,
+                    sizeof(client->pending_recovery_key));
+
+
 
 
 
@@ -3193,6 +3335,7 @@ size_t frame_start =
             }
 
 
+
             if (client->state ==
                 AETHER_STATE_RECOVERY_WAIT_SERVER_KEY) {
 
@@ -3211,11 +3354,48 @@ size_t frame_start =
                 }
 
 
+                if (!client->recovery_key_pending) {
+                    if (client->config.crypto
+                                ->random_symmetric_key(
+                            client->config.crypto_ctx,
+                            client->pending_recovery_key,
+                            client->config.crypto
+                                ->profile.symmetric_key_bytes) !=
+                        AETHER_OK) {
+
+                        return
+                            fail(
+                                client,
+                                AETHER_ERR_CRYPTO);
+                    }
+
+                    client->recovery_key_pending =
+                        true;
+
+                    if (save_state(client) !=
+                        AETHER_OK) {
+
+                        client->recovery_key_pending =
+                            false;
+
+                        memset(
+                            client->pending_recovery_key,
+                            0,
+                            sizeof(client->pending_recovery_key));
+
+                        return
+                            fail(
+                                client,
+                                AETHER_ERR_STORAGE);
+                    }
+                }
+
+
                 return
                     send_recovery_request(
                         client);
-
             }
+
 
 
             if (client->config.crypto
@@ -4444,11 +4624,19 @@ aether_status_t aether_client_start(
                 status);
     }
 
+
     if (load_state(client)) {
+        if (client->recovery_key_pending) {
+            return
+                begin_recovery(
+                    client);
+        }
+
         return
             begin_work(
                 client);
     }
+
 
 
 
@@ -4651,11 +4839,19 @@ aether_status_t aether_client_retry(
             client->now_ms;
 
 
+
+    if (client->recovery_key_pending) {
+        return
+            begin_recovery(
+                client);
+    }
+
     if (client->registered) {
         return
             begin_work(
                 client);
     }
+
 
     /*
      * If a recovery commit could not be persisted, the client is left with
