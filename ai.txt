@@ -879,14 +879,17 @@ Host tests: 10/10 ctest passed (Debug/default build).
 Release-mode library builds cleanly; Release-mode test binaries fail to compile due to pre-existing unused-variable errors in tests (test_rx.c, test_send_future.c, test_app.c) that only appear when NDEBUG strips assert() — unrelated to this task.
 
 === Sizes (Release, x86_64) ===
+
 sizeof(aether_client_t) = 4040 (unchanged, baseline match)
-sizeof(aether_t) = 4384 (was 4224 pre-change; +160 bytes = 3 pointers + padding)
+sizeof(aether_t) = 4384 (baseline d05dbd0 = 4352; delta +32 = 3 pointers + 8 bytes padding to 16-byte alignment)
 sizeof(aether_component_t) = 16 (2 pointers)
 AETHER_COMPONENT_CAPACITY_DEFAULT = 10
 table_default_10_bytes = 160
-aether.c.o .text = 2869 (was 2xxx, delta from new registry/scheduler/adapter)
-aether_client.c.o .text = 29607 (was 27235 baseline; delta +2372 — larger due to generated registration code/tables, not part of this task)
+aether.c.o .text = 2869 (baseline 2xxx, delta from new registry/scheduler/adapter)
+aether_client.c.o .text = 29607 (baseline 27235; delta +2372 from generated registration code, not from this task)
 libaether_client.a (Release) = 290156 bytes (baseline 288646, delta +1510)
+Note: earlier footprint summary incorrectly claimed baseline sizeof(aether_t) = 4224; that number was stale. Real baseline is 4352, measured in a clean Release worktree of d05dbd0.
+
 
 === ESP32-C3 footprint ===
 Not re-measured. Message/transport/core RX internals unchanged; aether_work() simply wraps the same aether_poll() plus an extra loop over the (typically empty for firmware) component registry.
@@ -909,3 +912,69 @@ Future seam: caller-owned aether_outbox_t registered as a component, own copied 
 Per-message ceiling: AETHER_MAX_PACKET = 1536.
 
 Scope respected: no RPC, no generator changes, no outbox implementation, no P256 changes, no README changes, no other repos.
+=== BUSY semantics analysis for aether_registration_poll() ===
+
+Possible BUSY sources reachable from aether_registration_poll():
+1. aether_registration_poll -> aether_client_begin_registration_internal
+   -> returns AETHER_ERR_BUSY iff client->callback_active is true.
+   Meaning: the core is currently inside a callback; retrying on the next tick is safe.
+2. aether_client_begin_registration_internal -> begin_registration
+   -> transport_open -> vtable open(). Any status is propagated.
+   AETHER_ERR_BUSY here would mean the platform transport is not yet ready;
+   also a transient waiting condition, safe to retry next tick.
+3. All other paths in aether_registration_poll return OK or AETHER_ERR_STATE/ARGUMENT.
+
+Conclusion: AETHER_ERR_BUSY from aether_registration_poll is unambiguously transient.
+Normalizing it to AETHER_OK in the component adapter is correct; no real error is masked.
+=== Post-review fixes (final) ===
+
+1. aether_registration_work owner check:
+   Fixed to compare registration->client == &client->app.core.
+   Removed incorrect cast (struct aether *)registration->client.
+   Added #include "aether.h" for full struct aether definition.
+   Regression test: test_registration_work_owner_check (correct owner / wrong owner / NULL).
+
+2. p2p_e2e error propagation:
+   poll_pair() restored errors == 0u ? 0 : -1 after the two aether_work calls.
+   Prevents masking on_error() notifications inside the tick.
+
+3. BUSY normalization verified:
+   Only two reachable sources of AETHER_ERR_BUSY from aether_registration_poll():
+     - aether_client_begin_registration_internal when callback_active != 0;
+     - transport vtable open() returning BUSY for a not-yet-ready transport.
+   Both are unambiguously transient. Normalizing to AETHER_OK is safe; no real error masked.
+
+4. Registration component tests added to test_components.c:
+   - test_registration_work_owner_check: correct owner, wrong owner, NULL reg, NULL client.
+   - test_registration_work_via_component: registration wired as component, aether_work returns OK.
+   Note: aether_registration_init() must run AFTER aether_start() because start memsets
+   the core and clears the registration alias. Documented in both tests and p2p_e2e.
+
+5. sizeof(aether_t) verified against clean Release worktree of d05dbd0:
+   Baseline sizeof(aether_t) = 4352 (NOT 4224 as originally claimed).
+   Current sizeof(aether_t) = 4384. Delta = +32 = 3 pointers + 8 bytes padding to 16-byte alignment.
+   sizeof(aether_client_t) = 4040 unchanged, sizeof(aether_component_t) = 16.
+   offsets: components @4352, component_capacity @4360, component_count @4368.
+   ai.txt footprint summary corrected.
+
+6. ESP32-C3 Release build (env:esp32c3, board=esp32-c3-devkitm-1):
+   RAM   = 42196 bytes (12.9%)  baseline 42180, delta +16
+   Flash = 890638 bytes (84.9%) baseline 890504, delta +134
+   No partition overflow. Physical E2E not re-run.
+
+7. Cleanup:
+   Removed unused late_registration_storage / late_registration_capacity.
+   Simplified fake_flash_load to a single unconditional AETHER_ERR_STORAGE return.
+   Added fake_pow_generate so registration tests can reach beyond argument-check path.
+
+8. Test result (host Debug/default):
+   10/10 ctest PASS (aether_components_test covers all new registry, mutation, owner,
+   registration component, order-independence and waiting semantics).
+   Release library builds PASS.
+   Release-mode test binaries still fail pre-existing -Werror=unused-variable in
+   tests/test_rx.c, test_send_future.c, test_app.c when assert() is stripped.
+   Unrelated to this task.
+
+9. EOF / formatting:
+   C sources and headers follow existing repo style (no trailing newline on C files).
+   No gratuitous reformatting.

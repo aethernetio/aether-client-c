@@ -106,7 +106,15 @@ static int poll_pair(void) {
         return -1;
     }
 
-    return 0;
+    /*
+     * aether_work() itself returning OK does not mean the clients did
+     * not report an application-level error through on_error() during
+     * the tick. Preserve that signal as before the migration.
+     */
+    return
+        errors == 0u
+            ? 0
+            : -1;
 }
 
 
@@ -260,6 +268,26 @@ int main(void) {
         return 1;
     }
 
+
+
+    int result = 1;
+
+    if (aether_start(&client_a) != AETHER_OK ||
+        aether_start(&client_b) != AETHER_OK) {
+
+        fprintf(
+            stderr,
+            "Failed to start C clients\n");
+
+        goto cleanup;
+    }
+
+
+    /*
+     * aether_start() calls aether_client_init() which memsets the
+     * core, so the registration alias into the core must be set
+     * after start. The registry itself was attached pre-start above.
+     */
     aether_registration_init(
         &registration_a,
         &client_a.app.core);
@@ -281,21 +309,9 @@ int main(void) {
             stderr,
             "Failed to register registration component\n");
 
-        return 1;
-    }
-
-
-    int result = 1;
-
-    if (aether_start(&client_a) != AETHER_OK ||
-        aether_start(&client_b) != AETHER_OK) {
-
-        fprintf(
-            stderr,
-            "Failed to start C clients\n");
-
         goto cleanup;
     }
+
 
     if (wait_ready(20000u) != 0) {
         fprintf(

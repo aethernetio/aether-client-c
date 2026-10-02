@@ -10,11 +10,13 @@
 
 #include "aether.h"
 #include "aether_platform.h"
+#include "aether_registration.h"
 #include "aether_hydrogen.h"
 #include "aether_test_crypto_hydrogen.h"
 #include "hydrogen.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 
 
@@ -30,8 +32,6 @@ static int order_a_ticks;
 static int order_b_ticks;
 
 static int late_registration_component_calls;
-static aether_component_t *late_registration_storage;
-static size_t late_registration_capacity;
 static bool late_component_registered;
 
 
@@ -152,7 +152,6 @@ static aether_status_t work_order_b(
 /* ---- fake platform ---- */
 
 static uint64_t fake_time_ms;
-static bool fake_flash_have_data;
 
 
 static uint64_t fake_now_ms(void *ctx) {
@@ -213,9 +212,11 @@ static aether_status_t fake_flash_load(
     size_t capacity,
     size_t *length) {
     (void)ctx; (void)dst; (void)capacity; (void)length;
-    if (!fake_flash_have_data) {
-        return AETHER_ERR_STORAGE;
-    }
+    /*
+     * This test always starts with no persistent identity. Returning
+     * AETHER_ERR_STORAGE keeps aether_client_start() on the
+     * NO_IDENTITY hand-off path.
+     */
     return AETHER_ERR_STORAGE;
 }
 
@@ -225,7 +226,6 @@ static aether_status_t fake_flash_save(
     const uint8_t *src,
     size_t length) {
     (void)ctx; (void)src; (void)length;
-    fake_flash_have_data = true;
     return AETHER_OK;
 }
 
@@ -262,6 +262,28 @@ static void fake_platform_consume(
 
 static hydro_sign_keypair fake_root_signer;
 static bool crypto_ready;
+
+
+
+
+static aether_status_t fake_pow_generate(
+    void *ctx,
+    const uint8_t *salt,
+    size_t salt_len,
+    const uint8_t *suffix,
+    size_t suffix_len,
+    uint8_t pool_size,
+    int32_t max_hash_value,
+    int32_t *passwords,
+    size_t capacity,
+    size_t *count) {
+    (void)ctx; (void)salt; (void)salt_len; (void)suffix; (void)suffix_len;
+    (void)pool_size; (void)max_hash_value; (void)passwords; (void)capacity;
+    if (count != NULL) {
+        *count = 0u;
+    }
+    return AETHER_OK;
+}
 
 
 
@@ -306,6 +328,12 @@ aether_status_t aether_platform_init(
     platform->crypto_ctx = NULL;
     platform->trusted_sign_keys = fake_root_signer.pk;
     platform->trusted_sign_key_count = 1u;
+
+    platform->pow = (aether_pow_vtable_t){
+        platform_context,
+        fake_pow_generate
+    };
+
 
 
     return AETHER_OK;
@@ -807,8 +835,6 @@ static void test_registration_during_pass_deferred(void) {
 
     late_registration_component_calls = 0;
     late_component_registered = false;
-    late_registration_storage = storage;
-    late_registration_capacity = 4u;
 
     start_client(&client);
     assert(aether_set_components(&client, storage, 4u) == AETHER_OK);
@@ -846,6 +872,91 @@ static void test_registration_during_pass_deferred(void) {
 
 
 
+
+
+
+static void test_registration_work_owner_check(void) {
+
+    aether_t owner;
+    aether_t other;
+    aether_registration_t registration;
+
+    start_client(&owner);
+    finish_start(&owner);
+
+    start_client(&other);
+    finish_start(&other);
+
+    aether_registration_init(
+        &registration,
+        &owner.app.core);
+
+    /* Correct owner -> not AETHER_ERR_ARGUMENT. */
+    aether_status_t ok_status =
+        aether_registration_work(
+            &owner,
+            &registration);
+    assert(ok_status != AETHER_ERR_ARGUMENT);
+
+    /* Wrong owner -> AETHER_ERR_ARGUMENT. */
+    aether_status_t wrong_status =
+        aether_registration_work(
+            &other,
+            &registration);
+    assert(wrong_status == AETHER_ERR_ARGUMENT);
+
+    /* NULL registration -> AETHER_ERR_ARGUMENT. */
+    assert(aether_registration_work(
+        &owner,
+        NULL) == AETHER_ERR_ARGUMENT);
+
+    assert(aether_registration_work(
+        NULL,
+        &registration) == AETHER_ERR_ARGUMENT);
+
+    aether_stop(&owner);
+    aether_stop(&other);
+}
+
+
+static void test_registration_work_via_component(void) {
+
+    aether_t client;
+    aether_component_t storage[1];
+    aether_registration_t registration;
+
+    start_client(&client);
+
+    assert(aether_set_components(
+        &client,
+        storage,
+        1u) == AETHER_OK);
+
+    finish_start(&client);
+
+    /*
+     * aether_start() calls aether_client_init() which memsets the
+     * core, so the registration alias into the core must be set
+     * after start. Registration is then attached as a component on
+     * the live client.
+     */
+    aether_registration_init(
+        &registration,
+        &client.app.core);
+
+    assert(aether_register_component(
+        &client,
+        &registration,
+        aether_registration_work) == AETHER_OK);
+
+    aether_status_t status = aether_work(&client);
+    assert(status == AETHER_OK);
+
+    aether_stop(&client);
+}
+
+
+
 int main(void) {
 
     test_registry_storage();
@@ -862,6 +973,10 @@ int main(void) {
     test_set_components_after_start_rejected();
     test_duplicate_registration_rejected();
     test_registration_during_pass_deferred();
+
+    test_registration_work_owner_check();
+    test_registration_work_via_component();
+
 
 
     return 0;

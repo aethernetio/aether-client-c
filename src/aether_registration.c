@@ -1,8 +1,9 @@
 
 #include "aether_registration.h"
-
+#include "aether.h"
 #include "aether_client_internal.h"
 #include <string.h>
+
 
 
 static const aether_registration_internal_ops_t
@@ -128,11 +129,13 @@ aether_status_t aether_registration_work(
         return AETHER_ERR_ARGUMENT;
     }
 
-    if ((struct aether *)registration->client !=
-        client) {
+
+    if (registration->client !=
+        &client->app.core) {
 
         return AETHER_ERR_ARGUMENT;
     }
+
 
     /*
      * Component lifecycle rule: a state machine that is waiting for
