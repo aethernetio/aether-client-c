@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <string.h>
+
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -24,8 +27,30 @@
 
 
 
+
 static aether_t client;
 static bool credentials_installed;
+
+/*
+ * Deferred echo staging.
+ *
+ * on_message runs inside RX processing, while the core is holding pinned RX
+ * buffers and has rx_active == true. aether_send_message() must not be
+ * called reentrantly from that context (it would return AETHER_ERR_BUSY).
+ *
+ * The callback therefore only copies the borrowed payload into this
+ * caller-owned staging slot; the main loop performs the actual send after
+ * aether_poll() has fully returned.
+ *
+ * Single-slot policy: a second message that arrives before the pending one
+ * is sent is dropped with an explicit error, never silently overwritten.
+ */
+static bool echo_pending;
+static aether_uuid_t echo_pending_from;
+static uint8_t echo_pending_data[AETHER_MAX_PACKET];
+static size_t echo_pending_size;
+
+
 
 
 
@@ -37,19 +62,73 @@ static void on_message(
     const uint8_t *data,
     size_t size) {
 
-    aether_status_t status =
-        aether_send_message(
-            aether,
-            from,
+    (void)aether;
+
+    if (size > sizeof(echo_pending_data)) {
+        printf(
+            "AETHER_ECHO_OVERFLOW size=%u max=%u\n",
+            (unsigned)size,
+            (unsigned)sizeof(echo_pending_data));
+        return;
+    }
+
+    if (echo_pending) {
+        printf("AETHER_ECHO_QUEUE_FULL\n");
+        return;
+    }
+
+    echo_pending_from = from;
+    echo_pending_size = size;
+
+    if (size != 0u) {
+        memcpy(
+            echo_pending_data,
             data,
             size);
-
-    if (status != AETHER_OK) {
-        printf(
-            "AETHER_ECHO_SEND_ERROR=%d\n",
-            (int)status);
     }
+
+    echo_pending = true;
 }
+
+
+static void drain_echo(void) {
+
+    if (!echo_pending) {
+        return;
+    }
+
+    aether_status_t status =
+        aether_send_message(
+            &client,
+            echo_pending_from,
+            echo_pending_data,
+            echo_pending_size);
+
+    if (status == AETHER_OK) {
+        echo_pending = false;
+        return;
+    }
+
+    if (status == AETHER_ERR_BUSY) {
+        /*
+         * Core still busy with RX/lifecycle scratch state. Keep the
+         * pending slot and retry on the next main-loop iteration.
+         */
+        return;
+    }
+
+    printf(
+        "AETHER_ECHO_SEND_ERROR status=%d state=%d\n",
+        (int)status,
+        (int)client.app.core.state);
+
+    /*
+     * Any other status is not retryable for this single-slot staging
+     * contract: drop the pending message rather than spinning on it.
+     */
+    echo_pending = false;
+}
+
 
 
 static void on_error(
@@ -164,6 +243,7 @@ void app_main(void) {
 
 
 
+
             aether_status_t poll_status =
                 aether_poll(
                     &client);
@@ -173,6 +253,9 @@ void app_main(void) {
                     "AETHER_ECHO_POLL_ERROR=%d\n",
                     (int)poll_status);
             }
+
+            drain_echo();
+
         }
 
 
