@@ -39,10 +39,12 @@ static bool credentials_installed;
  * performed later by aether_delivery_work() as a normal component driven by
  * aether_work().
  */
+
 static aether_delivery_t delivery;
-static aether_delivery_slot_t delivery_slots[4];
-static uint8_t delivery_payload_storage[4 * AETHER_MAX_PACKET];
+static aether_delivery_slot_t delivery_slots[2];
+static uint8_t delivery_payload_storage[2 * AETHER_MAX_PACKET];
 static aether_component_t components[1];
+
 
 
 
@@ -172,7 +174,7 @@ void app_main(void) {
         &delivery,
         &client,
         delivery_slots,
-        4u,
+        2u,
         delivery_payload_storage,
         AETHER_MAX_PACKET);
 

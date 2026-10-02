@@ -483,6 +483,103 @@ static void test_zero_length_payload(void) {
 }
 
 
+static void test_accepted_with_error_status_is_normalized(void) {
+
+    reset_fake_client();
+
+    aether_delivery_t delivery;
+    aether_delivery_slot_t slots[1];
+    uint8_t payload_storage[32];
+
+    fake_provider_t provider_a = { 0 };
+    provider_a.attempt = (aether_delivery_attempt_t){
+        AETHER_DELIVERY_ACCEPTED, AETHER_ERR_CRYPTO
+    };
+
+    fake_provider_t provider_b = { 0 };
+    provider_b.attempt = (aether_delivery_attempt_t){
+        AETHER_DELIVERY_ACCEPTED, AETHER_OK
+    };
+
+    aether_delivery_provider_t providers[2];
+
+    aether_delivery_init(&delivery, &g_fake_client, slots, 1u,
+                         payload_storage, 32u);
+    aether_delivery_set_providers(&delivery, providers, 2u);
+
+    aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &provider_a, fake_provider_try });
+    aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &provider_b, fake_provider_try });
+
+    g_error_calls = 0u;
+    g_error_status = AETHER_OK;
+    aether_delivery_set_error_callback(&delivery, error_cb, NULL);
+
+    const uint8_t payload[] = { 1u };
+
+    assert(aether_delivery_send(&delivery, (aether_uuid_t){ 1u, 1u },
+        payload, sizeof(payload)) == AETHER_OK);
+
+    assert(aether_delivery_work(&g_fake_client, &delivery) == AETHER_OK);
+
+    assert(provider_a.calls == 1u);
+    assert(provider_b.calls == 0u);
+    assert(g_error_calls == 1u);
+    assert(g_error_status == AETHER_ERR_CRYPTO);
+    assert(slots[0].state == AETHER_DELIVERY_SLOT_EMPTY);
+}
+
+
+static void test_error_with_ok_status_is_normalized(void) {
+
+    reset_fake_client();
+
+    aether_delivery_t delivery;
+    aether_delivery_slot_t slots[1];
+    uint8_t payload_storage[32];
+
+    fake_provider_t provider_a = { 0 };
+    provider_a.attempt = (aether_delivery_attempt_t){
+        AETHER_DELIVERY_ERROR, AETHER_OK
+    };
+
+    fake_provider_t provider_b = { 0 };
+    provider_b.attempt = (aether_delivery_attempt_t){
+        AETHER_DELIVERY_ACCEPTED, AETHER_OK
+    };
+
+    aether_delivery_provider_t providers[2];
+
+    aether_delivery_init(&delivery, &g_fake_client, slots, 1u,
+                         payload_storage, 32u);
+    aether_delivery_set_providers(&delivery, providers, 2u);
+
+    aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &provider_a, fake_provider_try });
+    aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &provider_b, fake_provider_try });
+
+    g_error_calls = 0u;
+    g_error_status = AETHER_OK;
+    aether_delivery_set_error_callback(&delivery, error_cb, NULL);
+
+    const uint8_t payload[] = { 1u };
+
+    assert(aether_delivery_send(&delivery, (aether_uuid_t){ 1u, 1u },
+        payload, sizeof(payload)) == AETHER_OK);
+
+    assert(aether_delivery_work(&g_fake_client, &delivery) == AETHER_OK);
+
+    assert(provider_a.calls == 1u);
+    assert(provider_b.calls == 0u);
+    assert(g_error_calls == 1u);
+    assert(g_error_status == AETHER_ERR_STATE);
+    assert(slots[0].state == AETHER_DELIVERY_SLOT_EMPTY);
+}
+
+
+
 static void test_multiple_recipients_preserved(void) {
 
     reset_fake_client();
@@ -1043,6 +1140,232 @@ static void test_argument_guards(void) {
 }
 
 
+static void test_config_payload_capacity_too_large(void) {
+
+    /* Populate fields directly; init() would try to memset a huge slot
+     * array. The delivery object's invariant check is exercised through
+     * the public send() entry point. */
+    aether_delivery_t delivery = { 0 };
+    aether_delivery_slot_t slot = { 0 };
+    uint8_t buffer = 0;
+
+    delivery.client = &g_fake_client;
+    delivery.slots = &slot;
+    delivery.slot_count = 1u;
+    delivery.payload_storage = &buffer;
+    delivery.payload_capacity = ((size_t)UINT32_MAX) + 1u;
+
+    assert(aether_delivery_send(
+        &delivery, (aether_uuid_t){ 1u, 2u },
+        &buffer, 1u) == AETHER_ERR_ARGUMENT);
+}
+
+
+static void test_config_slot_count_overflow(void) {
+
+    aether_delivery_t delivery = { 0 };
+    aether_delivery_slot_t slot = { 0 };
+    uint8_t buffer = 0;
+
+    delivery.client = &g_fake_client;
+    delivery.slots = &slot;
+    delivery.slot_count = SIZE_MAX;
+    delivery.payload_storage = &buffer;
+    delivery.payload_capacity = 2u;
+
+    assert(aether_delivery_send(
+        &delivery, (aether_uuid_t){ 1u, 2u },
+        &buffer, 1u) == AETHER_ERR_ARGUMENT);
+}
+
+
+static void test_provider_registry_locked_after_first_enqueue(void) {
+
+    reset_fake_client();
+
+    aether_delivery_t delivery;
+    aether_delivery_slot_t slots[2];
+    uint8_t payload_storage[2 * 8];
+
+    aether_delivery_provider_t providers[2];
+
+    fake_provider_t p = { 0 };
+    p.attempt = (aether_delivery_attempt_t){
+        AETHER_DELIVERY_ACCEPTED, AETHER_OK
+    };
+
+    aether_delivery_init(&delivery, &g_fake_client, slots, 2u,
+                         payload_storage, 8u);
+
+    /* Pre-enqueue: modifying provider registry is allowed. */
+    assert(aether_delivery_set_providers(&delivery, providers, 2u) == AETHER_OK);
+    assert(aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &p, fake_provider_try }) == AETHER_OK);
+
+    /* First successful enqueue locks the registry. */
+    const uint8_t payload[] = { 1u };
+    assert(aether_delivery_send(&delivery, (aether_uuid_t){ 1u, 1u },
+        payload, sizeof(payload)) == AETHER_OK);
+
+    /* Post-enqueue: registry is immutable. */
+    assert(aether_delivery_set_providers(&delivery, providers, 2u) == AETHER_ERR_STATE);
+    assert(aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &p, fake_provider_try }) == AETHER_ERR_STATE);
+}
+
+
+/*
+ * RX-callback pattern regression.
+ *
+ * The parser's application-message callback runs while the core still owns
+ * pinned RX buffers. aether_delivery_send() must therefore be callback-safe:
+ * it only copies bytes into caller-owned storage. The actual provider is
+ * invoked later, during the component phase of the same aether_work() call.
+ *
+ * This test does not reproduce the encrypted RX fixture (that would require
+ * a full crypto/protocol build). Instead it invokes the exact same
+ * on_message callback that the RX parser would invoke, and then runs a real
+ * aether_work() to drive the component pass. It proves the phase separation
+ * that the abstraction relies on.
+ */
+
+
+static unsigned g_rx_inside_callback;
+static unsigned g_rx_provider_calls_total;
+static unsigned g_rx_provider_calls_inside_callback;
+static aether_delivery_t g_rx_delivery;
+static aether_delivery_slot_t g_rx_slots[1];
+static uint8_t g_rx_payloads[32];
+static aether_delivery_provider_t g_rx_user_providers[1];
+static aether_component_t g_rx_components[1];
+static uint8_t g_rx_received[16];
+static size_t g_rx_received_length;
+
+
+static aether_delivery_attempt_t rx_provider_try(
+    void *ctx,
+    aether_uuid_t recipient,
+    const uint8_t *payload,
+    size_t length) {
+
+    (void)ctx;
+    (void)recipient;
+
+    g_rx_provider_calls_total += 1u;
+
+    if (g_rx_inside_callback == 1u) {
+        g_rx_provider_calls_inside_callback += 1u;
+    }
+
+    if (length <= sizeof(g_rx_received)) {
+        memcpy(g_rx_received, payload, length);
+        g_rx_received_length = length;
+    }
+
+    return (aether_delivery_attempt_t){
+        AETHER_DELIVERY_ACCEPTED, AETHER_OK
+    };
+}
+
+
+static void rx_on_message(
+    aether_t *aether,
+    aether_uuid_t from,
+    const uint8_t *data,
+    size_t size) {
+
+    (void)aether;
+
+    /* Inside the RX parser callback. */
+    g_rx_inside_callback = 1u;
+
+    aether_status_t status =
+        aether_delivery_send(
+            &g_rx_delivery,
+            from,
+            data,
+            size);
+
+    assert(status == AETHER_OK);
+
+    /* Outside the RX parser callback again. */
+    g_rx_inside_callback = 0u;
+}
+
+
+static void test_rx_callback_pattern(void) {
+
+    reset_fake_client();
+
+    g_rx_inside_callback = 0u;
+    g_rx_provider_calls_total = 0u;
+    g_rx_provider_calls_inside_callback = 0u;
+    g_rx_received_length = 0u;
+    memset(g_rx_received, 0, sizeof(g_rx_received));
+
+    assert(aether_init(
+        &g_fake_client,
+        (aether_uuid_t){ 0u, 0u }) == AETHER_OK);
+
+    assert(aether_set_components(
+        &g_fake_client, g_rx_components, 1u) == AETHER_OK);
+
+    aether_delivery_init(
+        &g_rx_delivery,
+        &g_fake_client,
+        g_rx_slots,
+        1u,
+        g_rx_payloads,
+        32u);
+
+    assert(aether_delivery_set_providers(
+        &g_rx_delivery, g_rx_user_providers, 1u) == AETHER_OK);
+
+    assert(aether_delivery_add_provider(
+        &g_rx_delivery,
+        (aether_delivery_provider_t){ NULL, rx_provider_try }) == AETHER_OK);
+
+    assert(aether_register_component(
+        &g_fake_client,
+        &g_rx_delivery,
+        aether_delivery_work) == AETHER_OK);
+
+    assert(aether_start(&g_fake_client) == AETHER_OK);
+
+    aether_uuid_t from = { 0xCAFEu, 0xF00Du };
+    const uint8_t payload[] = {
+        0x00u, 0x01u, 0x02u, 0x7Fu,
+        0x80u, 0xFFu, 0x55u, 0xAAu
+    };
+
+    /* Parser reaches the application message callback. */
+    rx_on_message(
+        &g_fake_client,
+        from,
+        payload,
+        sizeof(payload));
+
+    /* Enqueue inside the callback produced no provider call. */
+    assert(g_rx_provider_calls_total == 0u);
+    assert(g_rx_provider_calls_inside_callback == 0u);
+    assert(g_rx_slots[0].state == AETHER_DELIVERY_SLOT_READY);
+
+    /* Component phase of aether_work() runs the provider exactly once. */
+    (void)aether_work(&g_fake_client);
+
+    assert(g_rx_provider_calls_total == 1u);
+    assert(g_rx_provider_calls_inside_callback == 0u);
+    assert(g_rx_slots[0].state == AETHER_DELIVERY_SLOT_EMPTY);
+    assert(g_rx_received_length == sizeof(payload));
+    assert(memcmp(g_rx_received, payload, sizeof(payload)) == 0);
+
+    aether_stop(&g_fake_client);
+}
+
+
+
+
+
 int main(void) {
 
     test_not_applicable_then_fallback();
@@ -1050,6 +1373,10 @@ int main(void) {
     test_accepted_stops_chain();
     test_route_lost_uses_fallback();
     test_error_no_fallback_exact_status();
+
+    test_accepted_with_error_status_is_normalized();
+    test_error_with_ok_status_is_normalized();
+
     test_unknown_result_is_conservative_error();
 
     test_storage_copy_and_mutation();
@@ -1065,6 +1392,14 @@ int main(void) {
 
     test_registry_and_aether_work();
     test_argument_guards();
+
+    test_config_payload_capacity_too_large();
+    test_config_slot_count_overflow();
+    test_provider_registry_locked_after_first_enqueue();
+
+    test_rx_callback_pattern();
+
+
 
     return 0;
 }

@@ -165,6 +165,20 @@ struct aether_delivery {
     size_t user_provider_capacity;
     size_t user_provider_count;
 
+    /*
+     * Provider registry is immutable after the first successful enqueue.
+     * This makes the routing policy deterministic for every pending
+     * message: whatever providers were configured when the first message
+     * entered the outbox stay in effect for the whole delivery lifecycle.
+     *
+     * This is a deliberate v1 constraint. Future LAN provider integration
+     * does not need to mutate the provider list at runtime: the LAN
+     * provider is registered once, and its route availability changes via
+     * discovery state instead.
+     */
+    int providers_locked;
+
+
     aether_delivery_error_fn on_error;
     void *error_ctx;
 };

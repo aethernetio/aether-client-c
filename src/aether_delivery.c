@@ -22,17 +22,42 @@
 #include <string.h>
 
 
+
 static bool delivery_is_initialized(
     const aether_delivery_t *delivery) {
 
-    return
-        delivery != NULL &&
-        delivery->client != NULL &&
-        delivery->slots != NULL &&
-        delivery->slot_count != 0u &&
-        delivery->payload_storage != NULL &&
-        delivery->payload_capacity != 0u;
+    if (delivery == NULL ||
+        delivery->client == NULL ||
+        delivery->slots == NULL ||
+        delivery->slot_count == 0u ||
+        delivery->payload_storage == NULL ||
+        delivery->payload_capacity == 0u) {
+
+        return false;
+    }
+
+    /*
+     * Slot metadata stores payload_length as uint32_t; a capacity that
+     * cannot be represented is not a valid configuration.
+     */
+    if (delivery->payload_capacity > (size_t)UINT32_MAX) {
+        return false;
+    }
+
+    /*
+     * Slot address computation is payload_storage + slot_index *
+     * payload_capacity. Reject configurations where that arithmetic
+     * could overflow size_t.
+     */
+    if (delivery->slot_count >
+        SIZE_MAX / delivery->payload_capacity) {
+
+        return false;
+    }
+
+    return true;
 }
+
 
 
 static uint8_t *delivery_payload_of(
@@ -93,8 +118,13 @@ aether_status_t aether_delivery_set_providers(
     aether_delivery_provider_t *providers,
     size_t capacity) {
 
+
     if (delivery == NULL) {
         return AETHER_ERR_ARGUMENT;
+    }
+
+    if (delivery->providers_locked) {
+        return AETHER_ERR_STATE;
     }
 
     if (providers == NULL &&
@@ -116,15 +146,22 @@ aether_status_t aether_delivery_set_providers(
 }
 
 
+
 aether_status_t aether_delivery_add_provider(
     aether_delivery_t *delivery,
     aether_delivery_provider_t provider) {
+
 
     if (delivery == NULL ||
         provider.try_deliver == NULL) {
 
         return AETHER_ERR_ARGUMENT;
     }
+
+    if (delivery->providers_locked) {
+        return AETHER_ERR_STATE;
+    }
+
 
     if (delivery->user_providers == NULL ||
         delivery->user_provider_count >=
@@ -238,10 +275,15 @@ aether_status_t aether_delivery_send(
         slot->payload_length =
             (uint32_t)length;
 
+
         slot->state =
             AETHER_DELIVERY_SLOT_READY;
 
+        delivery->providers_locked =
+            1;
+
         return AETHER_OK;
+
     }
 
     return AETHER_ERR_OVERFLOW;
@@ -342,6 +384,49 @@ static aether_delivery_attempt_t delivery_cloud_try(
 }
 
 
+
+/*
+ * Normalize a provider attempt to a self-consistent (result, status) pair.
+ *
+ * The provider API is public, so a custom provider could return an
+ * inconsistent pair:
+ *
+ *   ACCEPTED + non-OK status  -> contract violation; the coordinator
+ *                                must not silently drop the message.
+ *                                Normalize to ERROR with the offending
+ *                                status preserved.
+ *
+ *   ERROR + AETHER_OK status  -> contract violation; there is no
+ *                                diagnostic to surface. Normalize to
+ *                                AETHER_ERR_STATE so the error callback
+ *                                still carries an internal-contract error.
+ *
+ * Other combinations are preserved as-is.
+ */
+static aether_delivery_attempt_t delivery_normalize_attempt(
+    aether_delivery_attempt_t attempt) {
+
+    if (attempt.result == AETHER_DELIVERY_ACCEPTED &&
+        attempt.status != AETHER_OK) {
+
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_ERROR,
+            attempt.status
+        };
+    }
+
+    if (attempt.result == AETHER_DELIVERY_ERROR &&
+        attempt.status == AETHER_OK) {
+
+        return (aether_delivery_attempt_t){
+            AETHER_DELIVERY_ERROR,
+            AETHER_ERR_STATE
+        };
+    }
+
+    return attempt;
+}
+
 /*
  * Run the ordered provider chain for one slot.
  *
@@ -384,12 +469,15 @@ static aether_delivery_attempt_t delivery_attempt_slot(
             continue;
         }
 
+
         aether_delivery_attempt_t attempt =
-            provider->try_deliver(
-                provider->context,
-                recipient,
-                payload,
-                length);
+            delivery_normalize_attempt(
+                provider->try_deliver(
+                    provider->context,
+                    recipient,
+                    payload,
+                    length));
+
 
         switch (attempt.result) {
 
@@ -421,11 +509,14 @@ static aether_delivery_attempt_t delivery_attempt_slot(
     /*
      * Built-in cloud provider is always the last fallback.
      */
-    return delivery_cloud_try(
-        delivery->client,
-        recipient,
-        payload,
-        length);
+
+    return delivery_normalize_attempt(
+        delivery_cloud_try(
+            delivery->client,
+            recipient,
+            payload,
+            length));
+
 }
 
 

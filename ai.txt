@@ -2013,3 +2013,138 @@ Changes tracked but NOT committed:
 
 ================================================================
 ================================================================
+
+================================================================
+MESSAGE DELIVERY v1 — POST-REVIEW FIXES #2 (authoritative)
+================================================================
+
+Only the delta since the previous implementation report.
+
+## A. Provider attempt normalization
+
+Public provider API can return inconsistent (result, status) pairs. The
+coordinator now normalizes:
+
+  ACCEPTED + non-OK status -> ERROR + that status (no silent drop)
+  ERROR + AETHER_OK status -> ERROR + AETHER_ERR_STATE (diagnostic)
+  everything else          -> unchanged
+
+Implemented as delivery_normalize_attempt(), applied to every
+user-provider attempt and to the built-in cloud attempt.
+
+Added tests:
+  test_accepted_with_error_status_is_normalized  (AETHER_ERR_CRYPTO
+      surfaces, no fallback, slot freed)
+  test_error_with_ok_status_is_normalized        (AETHER_ERR_STATE
+      surfaces, no fallback, slot freed)
+
+## B. Config arithmetic guards
+
+delivery_is_initialized() now also rejects:
+
+  payload_capacity > UINT32_MAX    (slot metadata uses uint32_t length)
+  slot_count > SIZE_MAX / payload_capacity
+                                    (address arithmetic overflow guard)
+
+No public API change. Public init() remains void.
+
+Added focused tests:
+  test_config_payload_capacity_too_large  -> aether_delivery_send returns
+                                             AETHER_ERR_ARGUMENT
+  test_config_slot_count_overflow         -> same
+
+## C. Provider registry lifecycle (immutable after first enqueue)
+
+New field aether_delivery_t::providers_locked (int).
+
+  set_providers()  -> AETHER_ERR_STATE if providers_locked
+  add_provider()   -> AETHER_ERR_STATE if providers_locked
+  first successful aether_delivery_send() sets providers_locked = 1
+
+Rationale (documented in header):
+  - routing policy stays deterministic for every pending message;
+  - future LAN provider is registered once; route availability changes
+    via discovery state, not by mutating the provider list.
+
+Added test:
+  test_provider_registry_locked_after_first_enqueue
+      pre-enqueue: set_providers + add_provider succeed
+      after first send: both return AETHER_ERR_STATE
+
+## D. RX-callback phase-separation regression
+
+New test: test_rx_callback_pattern.
+
+  - fake aether_t with the standard test platform (init / start).
+  - a delivery component registered with a user provider that records
+    "was I inside the parser callback?" via a flag.
+  - rx_on_message() mirrors what the RX parser invokes: sets flag,
+    calls aether_delivery_send(), clears flag.
+  - asserts:
+        provider_calls_total == 0 after the callback
+        provider_calls_inside_callback == 0 (never)
+        slot READY after the callback
+        after aether_work(): provider_calls_total == 1,
+        slot EMPTY, exact bytes 00 01 02 7F 80 FF 55 AA received.
+
+Note (honest): the encrypted RX fixture is not reproduced; the test
+invokes the same application callback the parser would invoke and proves
+the phase separation that the abstraction depends on, plus the unchanged
+low-level core guard (callback_active / rx_active -> AETHER_ERR_BUSY).
+
+## E. ESP32-C3 footprint correction
+
+Baseline (pre-delivery):                RAM 42196    Flash 890638
+First delivery+echo (4 slots):          RAM 46940    Flash 891636
+After echo slot reduction to 2:         RAM 43820    Flash 891694
+
+Breakdown of RAM delta (measured vs. baseline):
+  removed old echo staging:
+      echo_pending_data[1536]  = 1536
+      echo_pending_from[16]    =   16
+      echo_pending_size[4]     =    4
+      echo_pending (bool)      =    1  (padded)
+      ~1560 bytes released
+
+  added new echo state:
+      delivery_payload_storage[2*1536] = 3072
+      delivery_slots[2]                =   48
+      aether_delivery_t (32-bit)       =  ~56
+      aether_component_t components[1] =    8
+      ~3184 bytes added
+
+  net delta ~ 1624 bytes, matching measured RAM +1624.
+
+Earlier "+4744" was the same arithmetic with 4 payload slots
+(4*1536 - 1536 = 4608 plus ~136 of metadata).
+
+Echo slot count reduced from 4 to 2 because the example has no
+burst-queue requirement; 2 slots still tolerate one pending message
+while another is being dispatched.
+
+## F. Echo
+delivery_slots[2] / delivery_payload_storage[2 * AETHER_MAX_PACKET].
+Example lifecycle unchanged otherwise.
+
+## G. Test count
+tests/test_delivery.c now contains 22 tests, all passing on Debug host.
+Full suite: 11/11 CTest targets pass, 0 failures.
+
+## H. Not changed (deliberately)
+- Cloud AETHER_ERR_TRANSPORT policy: still conservative ERROR.
+- Owner validation and argument guards unchanged.
+- Provider duplicate-pair policy unchanged.
+- Slot layout stays 24 bytes (uint32_t payload_length).
+- Public send() returns only enqueue result.
+
+## I. Git
+Changes still uncommitted:
+  M include/aether_delivery.h
+  M src/aether_delivery.c
+  M tests/test_delivery.c
+  M examples/echo/src/main.c
+ (plus CMakeLists.txt / examples/echo/src/CMakeLists.txt from the first
+  delivery commit already in tree)
+
+================================================================
+================================================================
