@@ -283,6 +283,13 @@ target_link_libraries(
             aether_hydrogen_test_support
     )
 
+    target_include_directories(
+        aether_client_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    )
+
+
     add_executable(
         aether_hydrogen_test
         tests/test_hydrogen.c

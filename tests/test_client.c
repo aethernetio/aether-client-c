@@ -4,6 +4,10 @@
 #include "aether_client.h"
 #include "aether_registration.h"
 
+#include "aether_reg_safe.h"
+#include "client_server_api_api.h"
+
+
 #include "aether_hydrogen.h"
 #include "aether_test_crypto_hydrogen.h"
 #include "hydrogen.h"
@@ -3202,6 +3206,130 @@ static void test_persisted_identity_empty_cloud_enters_recovery(void) {
 
 
 
+
+static aether_status_t canonical_append(
+    void *ctx,
+    const uint8_t *data,
+    size_t length) {
+
+    struct acc {
+        uint8_t *buf;
+        size_t len;
+        size_t cap;
+    } *a = ctx;
+
+    if (a == NULL || (length != 0u && data == NULL)) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    if (a->len + length > a->cap) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (length != 0u) {
+        memcpy(a->buf + a->len, data, length);
+    }
+    a->len += length;
+    return AETHER_OK;
+}
+
+static void test_recovery_builder_matches_canonical(void) {
+    aether_uuid_t uid = {
+        UINT64_C(0x0102030405060708),
+        UINT64_C(0x1112131415161718)
+    };
+
+    uint8_t p256_temp[32];
+    uint8_t old_hydrogen[32];
+    uint8_t new_p256[32];
+    for (size_t i = 0u; i < 32u; ++i) {
+        p256_temp[i] = (uint8_t)(0x10u + i);
+        old_hydrogen[i] = (uint8_t)(0x40u + i);
+        new_p256[i] = (uint8_t)(0x80u + i);
+    }
+
+    uint32_t request_id = UINT32_C(0xAABBCCDD);
+
+    uint8_t manual[512];
+    size_t manual_len = 0u;
+    assert(aether_generated_reg_safe_build_recovery(
+        manual,
+        sizeof(manual),
+        &manual_len,
+        KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC,
+        p256_temp,
+        sizeof(p256_temp),
+        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX,
+        old_hydrogen,
+        sizeof(old_hydrogen),
+        new_p256,
+        sizeof(new_p256),
+        request_id,
+        uid) == AETHER_OK);
+
+    uint8_t canonical[512];
+    size_t canonical_len = 0u;
+
+    hydrogen_secret_box_t old_hb = { .data = { .data = { 0 } } };
+    p256_aes_gcm_symmetric_t new_p256_sym = { .data = { .data = { 0 } } };
+    p256_aes_gcm_symmetric_t temp_p256_sym = { .data = { .data = { 0 } } };
+    memcpy(old_hb.data.data, old_hydrogen, 32u);
+    memcpy(new_p256_sym.data.data, new_p256, 32u);
+    memcpy(temp_p256_sym.data.data, p256_temp, 32u);
+
+    key_ref_t return_key_ref;
+    memset(&return_key_ref, 0, sizeof(return_key_ref));
+    return_key_ref.type_id = KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC;
+    return_key_ref.as.p256_aes_gcm_symmetric = &temp_p256_sym;
+
+    key_ref_t old_master_ref;
+    memset(&old_master_ref, 0, sizeof(old_master_ref));
+    old_master_ref.type_id = KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX;
+    old_master_ref.as.hydrogen_secret_box = &old_hb;
+
+    key_ref_t new_master_ref;
+    memset(&new_master_ref, 0, sizeof(new_master_ref));
+    new_master_ref.type_id = KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC;
+    new_master_ref.as.p256_aes_gcm_symmetric = &new_p256_sym;
+
+    struct {
+        uint8_t *buf;
+        size_t len;
+        size_t cap;
+    } acc = { canonical, 0u, sizeof(canonical) };
+
+    server_registration_api_remote_t remote;
+    memset(&remote, 0, sizeof(remote));
+    remote.send_ctx = &acc;
+    remote.send = canonical_append;
+    remote.tx = canonical;
+    remote.tx_capacity = sizeof(canonical);
+
+    assert(server_registration_api_set_return_key(
+        &remote, &return_key_ref) == AETHER_OK);
+
+    remote.tx = canonical + acc.len;
+    remote.tx_capacity = sizeof(canonical) - acc.len;
+
+    assert(server_registration_api_recovery(
+        &remote,
+        request_id,
+        uid,
+        &old_master_ref,
+        &new_master_ref) == AETHER_OK);
+
+    canonical_len = acc.len;
+
+    if (manual_len != canonical_len ||
+        memcmp(manual, canonical, manual_len) != 0) {
+        fprintf(stderr,
+            "recovery builder mismatch: manual_len=%zu canonical_len=%zu\n",
+            manual_len, canonical_len);
+    }
+
+    assert(manual_len == canonical_len);
+    assert(memcmp(manual, canonical, manual_len) == 0);
+}
+
+
 int main(void) {
     test_work_frame_yields_messages_one_by_one();
     test_full_registration_and_message();
@@ -3222,6 +3350,7 @@ int main(void) {
     test_recovery_pending_key_survives_reboot();
 
     test_recovery_transport_loss_restarts();
+    test_recovery_builder_matches_canonical();
 
     puts("aether_client_test: OK");
     return 0;
