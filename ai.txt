@@ -3112,3 +3112,526 @@ checkpoint.
 
 ================================================================
 ================================================================
+
+================================================================
+LAN DIRECT — RESEARCH v3 (fixes + authoritative delta)
+No code. Supersedes v2 wherever they conflict.
+================================================================
+
+# 1. Replay-window algorithm (CORRECTED)
+
+Representation:
+  highest_seq : uint64   // highest accepted seq
+  seen        : uint64   // bit 0 -> highest_seq, bit i -> highest_seq - i
+
+Accept logic:
+
+  if (seq == 0) reject;
+
+  if (highest_seq == 0) {
+      highest_seq = seq;
+      seen = 1;
+      accept;
+  }
+
+  if (seq > highest_seq) {
+      delta = seq - highest_seq;
+      if (delta >= 64) seen = 1;
+      else             seen = (seen << delta) | 1;
+      highest_seq = seq;
+      accept;
+  }
+
+  /* seq <= highest_seq */
+  gap = highest_seq - seq;
+  if (gap >= 64) reject_too_old;
+
+  mask = 1ULL << gap;
+  if (seen & mask) reject_duplicate;
+  seen |= mask;
+  accept;
+
+Exact sequence test (will become a unit test):
+  10 accept  (highest=10, seen=1)
+  12 accept  (delta=2, seen=0b101, highest=12)
+  11 accept  (gap=1,  mask=0b010, seen=0b111)
+  11 reject_duplicate (mask=0b010, seen&mask != 0)
+  12 reject_duplicate (gap=0,  mask=0b001)
+  10 reject_duplicate (gap=2,  mask=0b100)
+  80 accept  (delta=68 >= 64 -> seen=1, highest=80)
+  15 reject_too_old   (gap=65 >= 64)
+
+RAM per direction: 16 bytes (highest + seen).
+Per session (both directions): 32 bytes.
+
+Same algorithm applies to LAN, LoRa, BLE, mesh.
+
+# 2. Actual public crypto primitives (vendored libhydrogen)
+
+From third_party/libhydrogen/hydrogen.h and impl/*.h:
+
+sign (Ed25519-style, built on X25519 arithmetic):
+  pk 32, sk 64, seed 32, sig 64, context 8
+  hydro_sign_keygen / hydro_sign_keygen_deterministic
+  hydro_sign_create / hydro_sign_verify
+  hydro_sign_init/update/final_create/final_verify
+
+kx (Noise family built on X25519):
+  pub 32, sk 32, seed 32, session key 32, PSK 32
+  n_1 / n_2     : Noise N (single responder)
+  kk_1/2/3      : Noise KK, mutual static
+  xx_1/2/3/4    : Noise XX, encrypted static
+  nk_1/2/3      : Noise NK
+  kx_keygen_deterministic(kp, seed)
+
+secretbox (AEAD):
+  key 32, context 8, header 36, tag 16 (included in header)
+  hydro_secretbox_encrypt(c, m, mlen, msg_id, ctx, key)   // c = header(36) + m
+  hydro_secretbox_decrypt(m, c, clen, msg_id, ctx, key)
+
+kdf:
+  hydro_kdf_derive_from_key(subkey, len, subkey_id, ctx, key)
+  NOTE: this is the project's KDF built on Gimli-Hash, NOT RFC 5869 HKDF.
+  Do NOT call it HKDF in code or docs.
+
+hash:
+  hydro_hash_BYTES 32, context 8
+
+There is no public raw "X25519(sk, pk) -> shared" nor "HKDF(ikm, salt, info)"
+in the vendored public header. All DH/HKDF-like steps happen inside
+hydro_kx_* and hydro_sign_* or via hydro_kdf_derive_from_key with the
+fixed hydro_kdf_* contract.
+
+=> The handshake MUST use one of the ready-made hydro_kx protocols.
+   Do not invent X25519+HKDF pseudocode.
+
+# 3. Selected KX protocol: hydro_kx_kk (mutual static)
+
+Rationale:
+- Both sides already possess a certified static keypair after step 0.
+- KK gives mutual authentication of the static keys in 2 packets.
+- No encrypted-static round (XX) is required because both keys are
+  already known from the certificate exchange.
+- Smaller than XX: KK packet1 48, packet2 48, vs XX p1 48, p2 96, p3 64.
+- Directional session keys (rx/tx) are provided by hydro_kx_final.
+
+State and sizes:
+  hydro_kx_state           holds eph_kp (64) + hash state (~52)
+  hydro_kx_keypair         pk 32, sk 32
+  hydro_kx_session_keypair rx 32, tx 32
+
+Protocol (initiator A, responder B):
+  A: hydro_kx_kk_1(&state_A, p1, B_static_kx_pk, &A_static_kx_kp)
+     p1 = 48 bytes
+  B: hydro_kx_kk_2(&session_B, p2, p1, A_static_kx_pk, &B_static_kx_kp)
+     p2 = 48 bytes
+  A: hydro_kx_kk_3(&state_A, &session_A, p2, &A_static_kx_kp)
+
+Direction:
+  A uses session_A.tx to send, session_A.rx to receive.
+  B uses session_B.tx to send, session_B.rx to receive.
+  Both directions use independent keys -> reflection of an A->B
+  ciphertext back to A cannot decrypt.
+
+Before KK, both sides must exchange certificate + a signature that
+binds the KK attempt to the beacon nonce and each side's UID.
+
+# 4. Certificate exchange (pre-KK, 2 packets)
+
+Both sides MUST get the other's certificate before KK.
+
+  P0a: uid_A (16) | cert_A (145) | sig_A (64)
+       sig_A = sign_A("AETHER-PEER-V1" | uid_A | cert_A | nonce_A | nonce_B)
+  P0b: uid_B (16) | cert_B (145) | sig_B (64)
+       sig_B = sign_B("AETHER-PEER-V1" | uid_B | cert_B | nonce_A | nonce_B)
+
+Trust rules on receiving:
+  1. cert.root_signature must verify against client's trusted_sign_keys
+     using the crypto vtable verify_signature (see section 6).
+  2. cert.uid must equal the UID sent alongside the certificate.
+  3. sig must verify against cert.sign_pk.
+  4. nonce_A (from responder's beacon) and nonce_B (from initiator's
+     initial packet) must match what was received on the wire.
+
+After P0a+P0b both sides hold each other's certified sign_pk and
+certified kx_pk. Then KK proceeds with no further certificates.
+
+Total bytes on wire before KK: 225 per side.
+After KK: single unicast data packet per direct message.
+
+# 5. Certificate format (final signed payload)
+
+Signed bytes (canonical, network order, no padding):
+
+  version      1  (0x01)
+  key_type     1  (crypto_lib ordinal, e.g. 3 = P256_AES_GCM)
+  uid         16
+  sign_pk     32  (hydro_sign public key)
+  kx_pk       32  (hydro_kx public key)
+  ─── payload 82
+
+Full certificate on the wire:
+
+  payload     82
+  context      8  ("AETHERPE")
+  signature   64
+  ─── total  154
+
+Signed message  = context || payload
+Signature algo  = root signer algorithm
+
+Root signer algorithm in production:
+  platform/esp32/aether_platform_esp32.c returns P256 root sign public
+  keys (64 bytes each) via aether_esp32_trusted_sign_keys().
+  aether_crypto_profile_t reports sign_public_key_bytes = 64,
+  signature_bytes = 64, sign_type = 3.
+  So signature length is 64 bytes, matching the layout above.
+  Verification path = aether_crypto_vtable.verify_signature
+  (platform/esp32/aether_crypto_p256_aes_gcm.c:625..660).
+
+Where the sign key types (sign vs kx) diverge:
+  Signing uses hydro_sign_* (EdDSA-style) at the peer.
+  Certificate signature uses the existing root signer (P256).
+  Both are 64-byte signatures and both fit the same 64-byte slot in
+  the certificate.
+
+# 6. Issuance / trust chain
+
+Observed server-side:
+  admin-shell holds Map<CryptoLib, Signer> rootSigners (private signing
+  keys, one per crypto provider, loaded from configuration).
+  The root signs the registration server's globalAsymKey
+  (PairKeysAsymSigned), which clients already verify with their
+  provisioned trusted_sign_keys.
+  server-cloud runtime does NOT appear to hold the root private key
+  itself; only the pre-signed public material.
+
+Recommended chain for peer identity certificates:
+
+  Root signer
+      |
+      | signs at provisioning time / offline ceremony
+      v
+  Peer identity certificate
+
+Two viable issuance options:
+
+A. Offline provisioning (v1, no server change):
+   - During device personalisation, the operator root-signs the peer's
+     (uid, sign_pk, kx_pk) using the same root signer that already
+     signs globalAsymKey.
+   - Cert is stored alongside credentials.
+
+B. Runtime issuance by a certified intermediate (v2, requires server
+   work):
+   - Registration server holds its own signing keypair certified by the
+     root (analogous to globalAsymKey).
+   - At registration it signs the client's peer identity certificate
+     and delivers it in the registration response.
+   - Client stores cert.
+   - Clients verify with chain Root -> registration server -> peer.
+   - Server-side files that would change:
+       server-cloud/ServerCloudConfBuilder.java  (already has regKey)
+       server-cloud/LService.java                (response assembly)
+       common-api registration response ADSL      (new field)
+       client-c save_state/load_state             (persist cert)
+   - These changes are out of scope for this checkpoint.
+
+Peer identity is NOT derived from master_key; master_key rotation does
+not affect peer identity, and master_key recovery on a new device
+does NOT restore peer identity. Recovery yields a freshly issued peer
+certificate (either from the operator in option A, or from the server
+in option B).
+
+# 7. Certificate payload exact bytes (canonical)
+
+Byte | Field
+-----|-----------------
+  0  | version       = 0x01
+  1  | key_type      = crypto_lib ordinal
+  2  | uid[0]  ... uid[15]
+ 18  | sign_pk[0]  ... sign_pk[31]
+ 50  | kx_pk[0]    ... kx_pk[31]
+ 82  | (end of signed payload)
+
+Signed message for verify_signature():
+  context_bytes[8] || payload[82]           length = 90
+context_bytes = "AETHERPE"
+
+signature[64] appended on wire.
+
+No issued_at / expires_at / key_version in v1. Rotation/revocation is
+out of scope. Adding them later is an explicit version bump (0x02).
+
+# 8. Transport capabilities are NOT in the certificate
+
+Rationale:
+- capabilities change on firmware update, hardware replacement, or
+  runtime enabling/disabling of LoRa/LAN/BLE;
+- re-issuing a root-signed certificate for every such change is not
+  acceptable;
+- identity cert should be stable.
+
+Capabilities are exchanged at discovery time only (beacon flags,
+handshake extension) and bound into the signature over P0a/P0b.
+
+The signed message already contains the beacon nonce, so runtime
+capability advertisement is authenticated without touching the cert.
+
+# 9. Certificate verification path in C client
+
+Use existing aether_crypto_vtable.verify_signature:
+
+  status = crypto->verify_signature(
+      crypto_ctx,
+      trusted_sign_key_i,    // 64-byte P256 root pubkey
+      profile->sign_public_key_bytes,   // 64
+      cert_signature,                    // 64
+      profile->signature_bytes,          // 64
+      signed_message,                    // 8 + 82
+      signed_message_len);               // 90
+
+If OK for any trusted root key -> cert is authentic.
+No new crypto primitive required.
+
+Peer handshake signatures (sig_A / sig_B over P0) use hydro_sign_verify
+directly with the peer's certified sign_pk. Both primitives are already
+vendored in libhydrogen; P256 root path uses the existing platform
+crypto vtable.
+
+# 10. Discovery beacon format (46 bytes)
+
+  magic        4   'A' 'E' 'L' 'N'
+  version      1   0x01
+  type         1   0x01 = beacon
+  flags        2   bit 0 = direct ready, bit 1 = has_cert, ...
+  uid         16
+  cert_fp      8   first 8 bytes of hash(cert)  (hint only)
+  endpoint     8   IPv4 (4) | port (2, network order) | reserved (2)
+  nonce        8   random per beacon
+  ─── total   48
+
+Beacon is periodic (default 5000 ms jitter +-20%).
+
+Purpose of nonce:
+  - binds the subsequent certificate exchange to a specific beacon;
+  - protects against a stale beacon replay triggering a handshake on
+    an obsolete nonce;
+  - not a cryptographic authenticator by itself (security comes from
+    the signature in P0).
+
+cert_fp is only a cache hint. Trust always uses the full certificate
+delivered in P0; a mismatched fingerprint is ignored (with a warning)
+and the certificate is verified as usual.
+
+# 11. Direct data packet format and exact overhead
+
+  magic        4   'A' 'E' 'L' 'D'
+  version      1   0x01
+  type         1   0x20
+  session_id   8   hash(rx_key || tx_key)[..8]
+  sequence     8   monotonic uint64 per direction
+  ciphertext   N + 36   hydro_secretbox output
+  ─── total    58 + N
+
+hydro_secretbox_encrypt produces (msg_id || ct) inside a 36-byte
+header; msg_id passed to secretbox = sequence (little-endian as uint64
+matches libhydrogen internal representation).
+
+session_id is only a lookup hint. Authentication comes from secretbox.
+
+Overhead = 4 + 1 + 1 + 8 + 8 + 36 = 58 bytes.
+
+Max payload:
+  target 576-byte LAN frame -> 518 bytes
+  IPv4 safe UDP payload 1472 -> 1414 bytes
+  AETHER_MAX_PACKET 1536 exceeds typical MTU -> provider must cap
+  payload to (MTU - 58) and return NOT_APPLICABLE above that.
+
+# 12. Session_id and direction binding
+
+After KK:
+  A.tx = session_A.tx  A.rx = session_A.rx
+  B.tx = session_B.tx  B.rx = session_B.rx
+  (libhydrogen ensures session_A.tx == session_B.rx and vice versa.)
+
+session_id is computed independently by both sides as:
+  session_id = first 8 bytes of hydro_hash("AETHERLN" | rx_key | tx_key)
+
+Reflection protection:
+  - A->B packet uses A.tx.
+  - B->A packet uses B.tx.
+  - An A->B ciphertext replayed to A decrypts with A.rx (== B.tx)
+    which it was NOT encrypted with -> tag failure.
+
+Additional protection:
+  - Each direction has its own 64-bit replay window (section 1).
+  - secretbox msg_id = sequence, unique per session per direction.
+
+Session state per peer (32-bit MCU):
+  rx_key          32
+  tx_key          32
+  session_id       8
+  tx_seq           8
+  rx highest       8
+  rx seen          8
+  ───              96 bytes per active session.
+
+# 13. Peer state machine (final)
+
+  EMPTY      -> DISCOVERED   (beacon seen)
+  DISCOVERED -> VERIFYING    (P0 sent or P0 received)
+  VERIFYING  -> VERIFIED     (P0 verified + KK complete)
+  VERIFYING  -> DISCOVERED   (handshake timeout 5 s, retry once)
+  DISCOVERED -> EMPTY        (no beacon for TTL_DISCOVERED = 45 s)
+  VERIFIED   -> EMPTY        (no valid packet for TTL_VERIFIED = 30 s)
+
+No STALE state. Session expiry is VERIFIED -> EMPTY directly.
+
+peer entry (32-bit):
+  uid          16
+  lan_endpoint  8   (IPv4 + port + reserved; LAN-specific, no generic)
+  sign_pk      32
+  kx_pk        32
+  cert         154  (caller-owned storage, referenced, not necessarily
+                     inline in peer entry)
+  rx_key       32
+  tx_key       32
+  session_id    8
+  tx_seq        8
+  rx highest    8
+  rx seen       8
+  last_seen     4
+  state         1
+  ───          ~211 bytes + optional 154 for cert
+
+To keep peer entry compact, certs can be stored separately in a
+caller-owned certificate pool; peer entry only stores an index.
+
+# 14. LAN-specific endpoint, NOT a generic tagged union
+
+Peer table stores `aether_lan_endpoint_t { uint8_t addr[4]; uint16_t port; }`.
+No universal `aether_peer_endpoint_t` is introduced in this checkpoint.
+
+Rationale:
+- transport endpoints do not share semantics;
+- LoRa will have its own `aether_lora_endpoint_t`;
+- generic delivery API never sees the endpoint;
+- premature generalization adds coupling with no current consumer.
+
+Shared across transports: UID + peer identity cert + session + replay
+concepts. Endpoint stays transport-specific.
+
+# 15. Common ingress reuse plan
+
+Existing cloud path in src/aether.c:355-372 dispatches already-decoded
+ingress through aether_rx_all_accept -> facade_message (a static
+function inside aether.c).
+
+Proposed minimal change:
+
+  - Move facade_message into src/aether_internal.h/__c as
+    aether_dispatch_message_internal(aether_t *, uid, data, size).
+  - Cloud path (aether_poll) keeps using it.
+  - LAN component calls the same helper from its work function.
+
+Guards inside the helper:
+  - client == NULL          -> AETHER_ERR_ARGUMENT
+  - callback_active         -> AETHER_ERR_BUSY
+  - rx_active               -> AETHER_ERR_BUSY
+
+Both guards are false during the component phase (after the core step,
+before aether_work returns), which is exactly when LAN work runs.
+Callback may safely call aether_delivery_send() because that only copies
+payload into outbox storage.
+
+No hack such as lan.c -> client->on_message direct invocation; reuse the
+same static wrapper used by cloud.
+
+# 16. LAN provider result mapping (unchanged from v2)
+
+  unknown UID / EMPTY                 -> NOT_APPLICABLE
+  DISCOVERED (cert not verified)      -> NOT_APPLICABLE
+  VERIFYING                           -> RETRY_LATER
+  VERIFIED, EWOULDBLOCK / ENOBUFS     -> RETRY_LATER
+  VERIFIED, EHOSTUNREACH / ENETUNREACH-> ROUTE_LOST
+  VERIFIED, sendto fully accepted     -> ACCEPTED
+  VERIFIED, session expired           -> NOT_APPLICABLE
+  payload > LAN_SAFE_PAYLOAD          -> NOT_APPLICABLE
+
+NOT_APPLICABLE / RETRY_LATER / ROUTE_LOST all guarantee strict no
+handoff; ERROR stays terminal.
+
+# 17. Zero-provider locking
+
+Recommendation unchanged: variant C — lock the provider registry at the
+first actual delivery attempt, not at the first enqueue.
+This is a separate generic-delivery semantic change; not touched here.
+
+# 18. LoRa compatibility (re-checked)
+
+  - Certificate: transport-independent (section 5).
+  - Handshake: KK works over any link with the same byte formats.
+    LoRa fragmentation is LoRa's own concern; the KK payloads are 225
+    bytes per side, well within LoRa frame budget with fragmentation.
+  - Replay window: identical algorithm.
+  - Session keys: identical.
+  - Provider contract: ACCEPTED means the LoRa component copied the
+    payload into its own caller-owned TX queue (or otherwise took
+    ownership). Generic delivery releases the slot after ACCEPTED.
+  - Endpoint: `aether_lora_endpoint_t` is LoRa-specific.
+
+# 19. RAM / packet size estimates
+
+Packet overhead:
+  Beacon:              48 bytes
+  P0 (per side):      225 bytes
+  KK packet 1:         48 bytes
+  KK packet 2:         48 bytes
+  Direct data:         58 + payload bytes
+
+Per-peer persistent state: ~211 bytes (see 13) plus optional 154 for
+certificate.
+Per-peer session state: included in the 211.
+
+Per-LAN-context:
+  client ptr       4
+  peers ptr        4
+  peer_capacity    4
+  peer_count       4
+  disc sock fd     4
+  direct sock fd   4
+  my_sign_sk      64
+  my_sign_pk      32   (derived from sk)
+  my_kx_sk        32
+  my_kx_pk        32   (derived from sk)
+  my_cert ptr      4
+  beacon_ms        4
+  random_state    32
+  ───             224 bytes + caller-owned buffers
+
+Caller-owned buffers: UDP RX 576 B, UDP TX 576 B.
+
+Configurations (32-bit MCU, N peers, 154-byte inline cert):
+  N=4   224 + 4 * (211 + 154) + 576 + 576 ≈ 2836 B
+  N=16  224 + 16 * 365 + 576 + 576 ≈ 7216 B
+  N=32  224 + 32 * 365 + 576 + 576 ≈ 13056 B
+
+If certs are pooled separately:
+  N=16  224 + 16 * 211 + 16 * 154 + 1152 ≈ 7216 B (same)
+  N=32  certs become significant; pool if needed.
+
+# 20. What is still open
+
+- Final multicast address choice (239.255.x.y) — pick after scanning
+  the project for existing reservations. TTL = 1.
+- Discovery port number — 57321 unprivileged, single per-project
+  constant.
+- Whether P0 packets contain optional capability flags.
+- Revocation/rotation policy — out of scope for v1; cert has no
+  expiry. Future version bump for issued_at/expires_at/key_version.
+- Caching: peers may store certificates across sessions; TTL for
+  cached certs = until TTL_DISCOVERED expires.
+
+================================================================
+================================================================
