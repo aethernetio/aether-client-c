@@ -62,17 +62,33 @@ _Static_assert(
     "AETHER_PLATFORM_CONTEXT_BYTES is too small for ESP32");
 
 
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
 const uint8_t *aether_esp32_trusted_sign_keys(
     size_t *count) {
 
+    /*
+     * Production P256_AES_GCM root sign public key.
+     *
+     * This is the same trust anchor that the production servers load from
+     * their ~/rootSigners.key; it is the public half of the P256 root signer
+     * whose signature authenticates the registration server's signed
+     * globalAsymKey. Private material never enters firmware.
+     */
+    static const uint8_t p256_root_sign_public[64] = {
+        0xEFu, 0x96u, 0x6Fu, 0xB6u, 0x9Eu, 0x67u, 0x23u, 0x9Cu,
+        0xA8u, 0x74u, 0xF8u, 0x74u, 0x52u, 0xBBu, 0xDEu, 0xCFu,
+        0x80u, 0x86u, 0xB4u, 0xEDu, 0x67u, 0xDCu, 0x1Fu, 0x2Au,
+        0x66u, 0xD1u, 0x45u, 0x8Cu, 0x3Du, 0x66u, 0xF2u, 0xD8u,
+        0x48u, 0xA3u, 0xE5u, 0x6Fu, 0xF5u, 0x37u, 0xF0u, 0x65u,
+        0x28u, 0xD8u, 0x11u, 0x4Du, 0x5Bu, 0x0Bu, 0x66u, 0x8Au,
+        0x0Du, 0xD9u, 0xC8u, 0x96u, 0xAAu, 0xF7u, 0x90u, 0x8Cu,
+        0x67u, 0xACu, 0x5Du, 0xDBu, 0x49u, 0xDAu, 0xEFu, 0xA9u
+    };
+
     if (count != NULL) {
-        *count = 0u;
+        *count = 1u;
     }
 
-    return NULL;
+    return p256_root_sign_public;
 }
 
 
