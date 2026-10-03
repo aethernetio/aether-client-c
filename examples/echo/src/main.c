@@ -21,8 +21,11 @@
 #include "client_server_api_types.h"
 #include "aether_esp32_wifi.h"
 #include "echo_secrets.h"
+
 #include "aether_delivery.h"
 #include "aether_delivery_cloud.h"
+#include "aether_lan.h"
+
 
 #include "aether_uuid_ECHO_UID.h"
 #include "aether_hex_ECHO_MASTER_KEY.h"
@@ -45,8 +48,23 @@ static bool credentials_installed;
 static aether_delivery_t delivery;
 static aether_delivery_slot_t delivery_slots[2];
 static uint8_t delivery_payload_storage[2 * AETHER_MAX_PACKET];
-static aether_delivery_provider_t delivery_providers[1];
-static aether_component_t components[1];
+
+static aether_delivery_provider_t delivery_providers[2];
+static aether_component_t components[2];
+
+/*
+ * LAN direct delivery is compiled in only when the build provides an
+ * ECHO_LAN_IDENTITY_DEFINED macro. Without it echo runs cloud-only.
+ */
+#ifdef ECHO_LAN_IDENTITY_DEFINED
+static aether_lan_t lan;
+static aether_lan_peer_t lan_peers[4];
+static uint8_t lan_rx[576];
+static uint8_t lan_tx[576];
+static aether_lan_identity_t lan_identity;
+static aether_lan_provider_context_t lan_provider_context;
+#endif
+
 
 
 
@@ -169,10 +187,12 @@ void app_main(void) {
     }
 
 
+
     aether_set_components(
         &client,
         components,
-        1u);
+        2u);
+
 
     aether_delivery_init(
         &delivery,
@@ -187,14 +207,37 @@ void app_main(void) {
         on_delivery_error,
         NULL);
 
+
     aether_delivery_set_providers(
         &delivery,
         delivery_providers,
-        1u);
+        2u);
+
+#ifdef ECHO_LAN_IDENTITY_DEFINED
+    /*
+     * LAN first: direct-first, cloud-fallback policy.
+     * LAN identity is provisioned by the build (see ECHO_LAN_*).
+     */
+    if (aether_lan_init(
+            &lan,
+            &client,
+            &lan_identity,
+            lan_peers,
+            4u,
+            lan_rx, sizeof(lan_rx),
+            lan_tx, sizeof(lan_tx)) == AETHER_OK) {
+
+        aether_delivery_provider_t lan_provider =
+            aether_lan_delivery_provider(&lan_provider_context, &lan);
+        (void)aether_delivery_add_provider(&delivery, lan_provider);
+        (void)aether_register_component(&client, &lan, aether_lan_work);
+    }
+#endif
 
     aether_delivery_add_cloud(
         &delivery,
         &client);
+
 
 
     aether_register_component(

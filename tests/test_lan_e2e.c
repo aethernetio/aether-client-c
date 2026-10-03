@@ -315,26 +315,21 @@ int main(void) {
     lan_b.peers[0].last_seen_ms = (uint32_t)now_ms(NULL);
 
 
-    assert(aether_register_component(&ca, &lan_a, aether_lan_work) == AETHER_OK);
-    assert(aether_register_component(&cb, &lan_b, aether_lan_work) == AETHER_OK);
-
 
     /*
-     * We do not call aether_start(): the facade would re-initialize
-     * the core and wipe the test-provisioned UID. LAN work is driven
-     * directly, which is sufficient for the handshake/session path.
+     * Focused LAN mode: do NOT register LAN as a component. Drive
+     * aether_lan_work() explicitly. Component-scheduler integration
+     * has a separate test.
      */
-
 
     /* Drive both until both see each other as VERIFIED, or timeout. */
     uint64_t deadline = now_ms(NULL) + 15000u;
     bool ok = false;
 
     while (now_ms(NULL) < deadline) {
-        (void)aether_work(&ca);
-        (void)aether_work(&cb);
         (void)aether_lan_work(&ca, &lan_a);
         (void)aether_lan_work(&cb, &lan_b);
+
 
         aether_lan_peer_state_t sa = aether_lan_peer_state(&lan_a, uid_b);
         aether_lan_peer_state_t sb = aether_lan_peer_state(&lan_b, uid_a);
@@ -358,6 +353,25 @@ int main(void) {
     aether_delivery_provider_t pr_a[1], pr_b[1];
     aether_lan_provider_context_t pc_a, pc_b;
 
+
+    /* Verify handshake invariants before exercising delivery. */
+    {
+        const aether_lan_peer_t *pa = NULL, *pb = NULL;
+        for (size_t i = 0; i < 4u; ++i) {
+            if (lan_a.peers[i].uid.msb == uid_b.msb &&
+                lan_a.peers[i].uid.lsb == uid_b.lsb) pa = &lan_a.peers[i];
+            if (lan_b.peers[i].uid.msb == uid_a.msb &&
+                lan_b.peers[i].uid.lsb == uid_a.lsb) pb = &lan_b.peers[i];
+        }
+        assert(pa != NULL && pb != NULL);
+        assert(memcmp(pa->tx_key, pb->rx_key, 32) == 0);
+        assert(memcmp(pa->rx_key, pb->tx_key, 32) == 0);
+        assert(memcmp(pa->session_id, pb->session_id, 8) == 0);
+        assert(pa->direct_port == lan_b.direct_port);
+        assert(pb->direct_port == lan_a.direct_port);
+    }
+
+
     aether_delivery_init(&del_a, &ca, sl_a, 2u, ps_a, 64u);
     aether_delivery_init(&del_b, &cb, sl_b, 2u, ps_b, 64u);
     aether_delivery_set_providers(&del_a, pr_a, 1u);
@@ -372,16 +386,18 @@ int main(void) {
 
     assert(aether_delivery_send(&del_a, uid_b, payload, 8u) == AETHER_OK);
 
-    /* Pump until delivered or timeout. */
+
+    /* Pump: delivery_work -> lan_work (both peers) until delivered. */
     deadline = now_ms(NULL) + 5000u;
     while (now_ms(NULL) < deadline) {
-        (void)aether_work(&ca);
-        (void)aether_work(&cb);
         (void)aether_delivery_work(&ca, &del_a);
         (void)aether_delivery_work(&cb, &del_b);
+        (void)aether_lan_work(&ca, &lan_a);
+        (void)aether_lan_work(&cb, &lan_b);
         if (got_b_len == 8u) break;
         usleep(2000);
     }
+
 
     if (got_b_len != 8u || memcmp(got_b, payload, 8u) != 0) {
         fprintf(stderr, "LAN: payload not delivered (got %zu)\n", got_b_len);
@@ -390,15 +406,17 @@ int main(void) {
 
     /* Reverse direction. */
     assert(aether_delivery_send(&del_b, uid_a, payload, 8u) == AETHER_OK);
+
     deadline = now_ms(NULL) + 5000u;
     while (now_ms(NULL) < deadline) {
-        (void)aether_work(&ca);
-        (void)aether_work(&cb);
         (void)aether_delivery_work(&ca, &del_a);
         (void)aether_delivery_work(&cb, &del_b);
+        (void)aether_lan_work(&ca, &lan_a);
+        (void)aether_lan_work(&cb, &lan_b);
         if (got_a_len == 8u) break;
         usleep(2000);
     }
+
     if (got_a_len != 8u || memcmp(got_a, payload, 8u) != 0) {
         fprintf(stderr, "LAN: reverse payload not delivered\n");
         return 5;

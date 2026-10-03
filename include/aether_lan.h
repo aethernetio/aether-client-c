@@ -104,6 +104,13 @@ typedef enum {
 #define AETHER_LAN_HS_SCRATCH_BYTES 400u
 
 
+typedef union {
+    max_align_t alignment;
+    uint8_t bytes[AETHER_LAN_HS_SCRATCH_BYTES];
+} aether_lan_hs_scratch_t;
+
+
+
 typedef struct {
     uint8_t  active;
     uint8_t  state;
@@ -114,7 +121,7 @@ typedef struct {
     uint8_t  ipv4[4];
     uint16_t direct_port;
     uint16_t reserved2;
-    uint8_t  scratch[AETHER_LAN_HS_SCRATCH_BYTES];
+    aether_lan_hs_scratch_t scratch;
     uint8_t  p1[48];
     uint8_t  p2[96];
     uint8_t  p3[64];

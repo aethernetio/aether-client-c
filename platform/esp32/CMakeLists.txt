@@ -10,6 +10,10 @@ idf_component_register(
 
         "../../src/aether_internal.c"
 
+        "../../src/aether_lan.c"
+        "../../src/aether_lan_codec.c"
+
+
         "../../src/aether.c"
         "aether_platform_esp32.c"
         "aether_crypto_p256_aes_gcm.c"

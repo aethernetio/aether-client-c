@@ -525,7 +525,6 @@ target_link_libraries(
     add_executable(
         aether_lan_codec_test
         tests/test_lan_codec.c
-        src/aether_lan_codec.c
     )
 
     target_include_directories(
@@ -580,8 +579,6 @@ target_link_libraries(
     add_executable(
         aether_lan_e2e
         tests/test_lan_e2e.c
-        src/aether_lan.c
-        src/aether_lan_codec.c
     )
 
     target_include_directories(
@@ -619,6 +616,45 @@ target_link_libraries(
     add_test(
         NAME aether_lan_e2e
         COMMAND aether_lan_e2e
+    )
+
+
+
+    add_executable(
+        aether_lan_component
+        tests/test_lan_component.c
+    )
+
+    target_include_directories(
+        aether_lan_component
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    )
+
+    target_link_libraries(
+        aether_lan_component
+        PRIVATE
+            aether_client
+    )
+
+    target_compile_features(
+        aether_lan_component
+        PRIVATE
+            c_std_11
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_lan_component
+            PRIVATE
+                -Wall -Wextra -Wpedantic -Werror -UNDEBUG
+        )
+    endif()
+
+    add_test(
+        NAME aether_lan_component
+        COMMAND aether_lan_component
     )
 
 

@@ -602,31 +602,25 @@ static void lan_hs_handle_a(
     const uint8_t src_ipv4[4], uint16_t src_port) {
 
 
-    fprintf(stderr, "ENTER handle_a %p len=%zu\n", (void*)lan, len);
-
 
     aether_uuid_t uid_i;
     uint8_t cert_i[AETHER_LAN_PEER_CERT_BYTES];
     uint8_t p1[hydro_kx_XX_PACKET1BYTES];
 
 
-    if (!aether_lan_pkt_a_decode(buf, len, &uid_i, cert_i, p1)) { fprintf(stderr, "  A decode FAIL\n"); return; }
-    fprintf(stderr, "  A decode OK uid_i.msb=%llx\n", (unsigned long long)uid_i.msb);
+
+    if (!aether_lan_pkt_a_decode(buf, len, &uid_i, cert_i, p1)) return;
 
     aether_uuid_t me = aether_uid(lan->client);
-    if (uuid_eq(uid_i, me) || uuid_is_zero(uid_i)) { fprintf(stderr, "  A self/zero\n"); return; }
+    if (uuid_eq(uid_i, me) || uuid_is_zero(uid_i)) return;
 
 
-
-    fprintf(stderr, "handle_a %p: reached uid check OK\n", (void*)lan);
 
 
     /* Verify peer certificate: root -> authority -> peer. */
     if (!lan_verify_authority_cert(lan->client, lan->identity->authority_cert)) {
         return;
     }
-
-    fprintf(stderr, "handle_a %p: authority cert verify FAILED\n", (void*)lan);
 
     uint8_t peer_sign_pk[32];
     if (!lan_verify_peer_cert(lan->client, lan->identity->authority_cert,
@@ -639,36 +633,37 @@ static void lan_hs_handle_a(
     aether_lan_peer_t *existing = lan_peer_find(lan, uid_i);
 
 
-    fprintf(stderr, "handle_a %p: uid_i.msb=%llx hs.active=%d role=%d\n",
-            (void*)lan, (unsigned long long)uid_i.msb,
-            (int)lan->handshake.active, (int)lan->handshake.role);
 
 
     /*
-     * Simultaneous handshake tie-break: lower UID stays initiator.
-     * This is checked against the identity in the incoming A.
+     * Simultaneous handshake tie-break applies ONLY to A from the
+     * peer we are already handshaking with. A from an unrelated peer
+     * must not disturb the current attempt.
      */
     if (lan->handshake.active &&
         lan->handshake.role == AETHER_LAN_HS_ROLE_INITIATOR &&
         (lan->handshake.state == AETHER_LAN_HS_WAIT_B ||
          lan->handshake.state == AETHER_LAN_HS_WAIT_D)) {
 
-        if (uuid_less(me, uid_i)) {
-            /* I am lower: I stay initiator; ignore their A. */
+        if (!uuid_eq(uid_i, lan->handshake.peer_uid)) {
             return;
         }
-        /* I am higher: abandon my initiator attempt, become responder.
-         * Existing VERIFIED session (if any) is left intact. */
+        if (uuid_less(me, uid_i)) {
+            /* I am lower: stay initiator, ignore their A. */
+            return;
+        }
+        /* I am higher: abandon my attempt, become responder. */
         lan->handshake.active = 0u;
         if (existing != NULL && existing->state == AETHER_LAN_PEER_VERIFYING) {
             existing->state = AETHER_LAN_PEER_DISCOVERED;
         }
     }
 
+
     if (lan->handshake.active) return;
     if (lan->identity == NULL) return;
 
-    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch;
+    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch.bytes;
     memset(st, 0, sizeof(*st));
 
     hydro_kx_keypair my_kp;
@@ -697,10 +692,14 @@ static void lan_hs_handle_a(
         return;
     }
 
+
     /*
-     * Update peer entry. For an existing VERIFIED peer, keep the current
-     * session intact and only remember the candidate endpoint via
-     * handshake scratch. Success (D received) will atomically replace.
+     * Peer entry update.
+     *   NEW:        allocate, VERIFYING, candidate endpoint.
+     *   DISCOVERED: promote, candidate endpoint.
+     *   VERIFIED/VERIFYING: DO NOT touch endpoint, session, TTL or state.
+     * Candidate endpoint for a VERIFIED peer lives in handshake scratch
+     * and is installed atomically only when the fresh handshake succeeds.
      */
     aether_lan_peer_t *p = existing;
     if (p == NULL) {
@@ -708,11 +707,17 @@ static void lan_hs_handle_a(
         if (p == NULL) return;
         memset(p, 0, sizeof(*p));
         p->uid = uid_i;
+        memcpy(p->ipv4, src_ipv4, 4);
+        p->direct_port = src_port;
+        p->last_seen_ms = (uint32_t)lan_now_ms(lan->client);
+        p->state = AETHER_LAN_PEER_VERIFYING;
+    } else if (p->state == AETHER_LAN_PEER_DISCOVERED) {
+        memcpy(p->ipv4, src_ipv4, 4);
+        p->direct_port = src_port;
+        p->last_seen_ms = (uint32_t)lan_now_ms(lan->client);
         p->state = AETHER_LAN_PEER_VERIFYING;
     }
-    memcpy(p->ipv4, src_ipv4, 4);
-    p->direct_port = src_port;
-    p->last_seen_ms = (uint32_t)lan_now_ms(lan->client);
+
 
     aether_lan_handshake_t *hs = &lan->handshake;
     hs->active = 1u;
@@ -733,7 +738,7 @@ static void lan_hs_handle_a(
 static bool lan_hs_start_initiator(aether_lan_t *lan, aether_lan_peer_t *p) {
     if (lan->handshake.active) return false;
 
-    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch;
+    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch.bytes;
     memset(st, 0, sizeof(*st));
 
     uint8_t p1[hydro_kx_XX_PACKET1BYTES];
@@ -819,7 +824,7 @@ static void lan_hs_handle_b(
     }
 
     /* Complete initiator: xx_3 produces p3 and provisional keys. */
-    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch;
+    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch.bytes;
 
     hydro_kx_keypair my_kp;
     if (!lan_kx_keypair_from_identity(lan->identity, &my_kp)) return;
@@ -904,7 +909,7 @@ static void lan_hs_handle_c(
         return;
     }
 
-    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch;
+    hydro_kx_state *st = (hydro_kx_state *)lan->handshake.scratch.bytes;
 
     hydro_kx_session_keypair kp;
     uint8_t peer_static_pk[32];
@@ -1099,9 +1104,6 @@ static void lan_process_direct(
     if (len < 6u) return;
 
 
-    fprintf(stderr, "process_direct %p: len=%zu magic=%c%c%c%c type=0x%02x\n",
-            (void*)lan, len, buf[0], buf[1], buf[2], buf[3], (unsigned)buf[5]);
-
 
     /* Handshake packets share the "AELH" prefix. */
     if (buf[0] == 'A' && buf[1] == 'E' && buf[2] == 'L' && buf[3] == 'H') {
@@ -1149,7 +1151,11 @@ static void lan_process_direct(
             size_t plain_len = sbox_len - hydro_secretbox_HEADERBYTES;
             if (plain_len > lan->rx_capacity) return;
 
-            if (hydro_secretbox_decrypt(lan->rx_buffer, sbox, sbox_len, seq,
+
+            /* Use tx_buffer as plaintext scratch: TX side is idle during RX
+             * drain (single-threaded scheduler); using rx_buffer would
+             * overlap ciphertext and plaintext. */
+            if (hydro_secretbox_decrypt(lan->tx_buffer, sbox, sbox_len, seq,
                                         "AETHERld", p->rx_key) != 0) {
                 return;
             }
@@ -1158,7 +1164,8 @@ static void lan_process_direct(
             p->last_seen_ms = (uint32_t)lan_now_ms(lan->client);
 
             (void)aether_dispatch_message_internal(
-                lan->client, p->uid, lan->rx_buffer, plain_len);
+                lan->client, p->uid, lan->tx_buffer, plain_len);
+
             return;
         }
     }
@@ -1193,8 +1200,6 @@ static void lan_drain_direct(aether_lan_t *lan) {
         uint8_t ipv4[4];
         memcpy(ipv4, &src.sin_addr, 4);
         uint16_t port = ntohs(src.sin_port);
-
-        fprintf(stderr, "  recvfrom: n=%zd src_port=%u\n", n, (unsigned)port);
 
         lan_process_direct(lan, lan->rx_buffer, (size_t)n, ipv4, port);
     }
@@ -1343,11 +1348,6 @@ aether_status_t aether_lan_work(
 
 
 
-    fprintf(stderr, "lan_work %p: hs.active=%d state=%d p0=%d p1=%d port=%u\n",
-            (void *)lan,
-            (int)lan->handshake.active, (int)lan->handshake.state,
-            (int)lan->peers[0].state, (int)lan->peers[1].state,
-            (unsigned)lan->direct_port);
 
 
     return AETHER_OK;
