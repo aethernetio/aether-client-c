@@ -175,15 +175,37 @@ int main(void) {
 
     c.app.core.uid = uid;
 
+
     assert(aether_set_components(&c, comps, 1u) == AETHER_OK);
+
+    /* Start the client; then re-install the test UID (aether_start()
+     * re-initializes the core unless caller credentials were set). */
+    assert(aether_start(&c) == AETHER_OK);
+    c.app.core.uid = uid;
+
 
     aether_status_t s = aether_lan_init(
         &lan, &c, &id, peers, 2u, rx, sizeof(rx), tx, sizeof(tx));
     assert(s == AETHER_OK);
 
+
     assert(aether_register_component(&c, &lan, aether_lan_work) == AETHER_OK);
 
+    /* The LAN component is now registered under aether_work(). */
+
+
+
+
+    /*
+     * Observable proof: aether_lan_work() emits the first beacon on its
+     * initial tick, moving next_beacon_ms from 0 to a nonzero deadline.
+     * If aether_work() does not dispatch the registered LAN component,
+     * next_beacon_ms stays 0 and the assertion fails.
+     */
+    assert(lan.next_beacon_ms == 0u);
     (void)aether_work(&c);
+    assert(lan.next_beacon_ms != 0u);
+
 
     aether_lan_deinit(&lan);
 

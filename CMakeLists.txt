@@ -620,6 +620,48 @@ target_link_libraries(
 
 
 
+
+    find_package(OpenSSL REQUIRED)
+
+    add_executable(
+        aether_lan_cert_test
+        tests/test_lan_cert.c
+    )
+
+    target_include_directories(
+        aether_lan_cert_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    )
+
+    target_link_libraries(
+        aether_lan_cert_test
+        PRIVATE
+            aether_client
+            OpenSSL::Crypto
+    )
+
+    target_compile_features(
+        aether_lan_cert_test
+        PRIVATE
+            c_std_11
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_lan_cert_test
+            PRIVATE
+                -Wall -Wextra -Wpedantic -Werror -UNDEBUG
+        )
+    endif()
+
+    add_test(
+        NAME aether_lan_cert_test
+        COMMAND aether_lan_cert_test
+    )
+
+
     add_executable(
         aether_lan_component
         tests/test_lan_component.c

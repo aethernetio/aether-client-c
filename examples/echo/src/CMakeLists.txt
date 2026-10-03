@@ -14,6 +14,11 @@ set(
     "../../../src/aether_delivery_cloud.c"
 
     "../../../src/aether_credentials.c"
+
+    "../../../src/aether_internal.c"
+    "../../../src/aether_lan.c"
+    "../../../src/aether_lan_codec.c"
+
 )
 
 
@@ -41,7 +46,10 @@ idf_component_register(
         ${AETHER_GENERATED_SOURCES}
         "../../../platform/esp32/aether_platform_esp32.c"
         "../../../platform/esp32/aether_crypto_p256_aes_gcm.c"
+
         "../../../platform/esp32/aether_esp32_wifi.c"
+        "../../../platform/esp32/aether_hydrogen_esp32.c"
+
 
     INCLUDE_DIRS
         "."

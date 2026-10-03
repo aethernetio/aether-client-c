@@ -17,6 +17,7 @@ idf_component_register(
         "../../src/aether.c"
         "aether_platform_esp32.c"
         "aether_crypto_p256_aes_gcm.c"
+        "aether_hydrogen_esp32.c"
     INCLUDE_DIRS
         "../../include"
         "../../src"

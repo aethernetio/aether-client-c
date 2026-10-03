@@ -374,7 +374,9 @@ static const uint8_t AETHER_LAN_PEER_SIG_PREFIX[8] = {
 };
 
 
-static bool lan_verify_authority_cert(
+
+
+bool aether_lan_verify_authority_cert(
     aether_t *client,
     const uint8_t cert[AETHER_LAN_AUTHORITY_CERT_BYTES]) {
 
@@ -431,7 +433,7 @@ static bool lan_verify_authority_cert(
  * Authority signature is P256 verified with the authority's P256 public
  * key from the authority cert (bytes 6..69).
  */
-static bool lan_verify_peer_cert(
+bool aether_lan_verify_peer_cert(
     aether_t *client,
     const uint8_t authority_cert[AETHER_LAN_AUTHORITY_CERT_BYTES],
     aether_uuid_t expected_uid,
@@ -618,12 +620,12 @@ static void lan_hs_handle_a(
 
 
     /* Verify peer certificate: root -> authority -> peer. */
-    if (!lan_verify_authority_cert(lan->client, lan->identity->authority_cert)) {
+    if (!aether_lan_verify_authority_cert(lan->client, lan->identity->authority_cert)) {
         return;
     }
 
     uint8_t peer_sign_pk[32];
-    if (!lan_verify_peer_cert(lan->client, lan->identity->authority_cert,
+    if (!aether_lan_verify_peer_cert(lan->client, lan->identity->authority_cert,
                               uid_i, cert_i, peer_sign_pk)) {
         return;
     }
@@ -799,11 +801,11 @@ static void lan_hs_handle_b(
     if (!uuid_eq(uid_r, lan->handshake.peer_uid)) return;
 
     /* Verify peer certificate chain first. */
-    if (!lan_verify_authority_cert(lan->client, lan->identity->authority_cert)) {
+    if (!aether_lan_verify_authority_cert(lan->client, lan->identity->authority_cert)) {
         return;
     }
     uint8_t peer_sign_pk[32];
-    if (!lan_verify_peer_cert(lan->client, lan->identity->authority_cert,
+    if (!aether_lan_verify_peer_cert(lan->client, lan->identity->authority_cert,
                               uid_r, cert_r, peer_sign_pk)) {
         return;
     }
@@ -1267,12 +1269,12 @@ aether_status_t aether_lan_init(
         return AETHER_ERR_STATE;
     }
 
-    if (!lan_verify_authority_cert(client, identity->authority_cert)) {
+    if (!aether_lan_verify_authority_cert(client, identity->authority_cert)) {
         return AETHER_ERR_CRYPTO;
     }
 
     uint8_t own_sign_pk[32];
-    if (!lan_verify_peer_cert(client, identity->authority_cert,
+    if (!aether_lan_verify_peer_cert(client, identity->authority_cert,
                               me, identity->cert, own_sign_pk)) {
         return AETHER_ERR_CRYPTO;
     }
