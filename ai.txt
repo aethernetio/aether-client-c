@@ -4947,3 +4947,4 @@ Total per handshake: 675 bytes across 4 messages.
 LAN implementation blocked pending review of this delta.
 No code changed in this checkpoint.
 ================================================================
+LAN v1 progress: aether_lan.h has concrete caller-owned aether_lan_t with handshake scratch; aether_lan_delivery_try returns aether_delivery_attempt_t. aether.c cloud ingress routed through aether_dispatch_message_internal. Delivery registry lock moved from enqueue to first work() scan with providers>0; two regression tests added. aether_internal.c added to host and ESP32 CMakeLists.

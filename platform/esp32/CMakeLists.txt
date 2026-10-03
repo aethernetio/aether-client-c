@@ -7,6 +7,9 @@ idf_component_register(
         "../../src/aether_rx_all.c"
         "../../src/aether_rx_adaptive.c"
         "../../src/aether_send_future.c"
+
+        "../../src/aether_internal.c"
+
         "../../src/aether.c"
         "aether_platform_esp32.c"
         "aether_crypto_p256_aes_gcm.c"

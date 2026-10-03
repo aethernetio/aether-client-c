@@ -283,8 +283,6 @@ aether_status_t aether_delivery_send(
         slot->state =
             AETHER_DELIVERY_SLOT_READY;
 
-        delivery->providers_locked =
-            1;
 
         return AETHER_OK;
 
@@ -480,6 +478,19 @@ aether_status_t aether_delivery_work(
 
             continue;
         }
+
+
+        /*
+         * Lock the provider registry the first time the coordinator
+         * is about to scan a READY slot with at least one provider
+         * configured. Zero-provider ticks must leave the registry
+         * mutable so callers can still configure routes after an
+         * early enqueue.
+         */
+        if (delivery->provider_count > 0u) {
+            delivery->providers_locked = 1;
+        }
+
 
         aether_delivery_attempt_t attempt =
             delivery_attempt_slot(

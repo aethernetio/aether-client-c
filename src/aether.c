@@ -16,6 +16,7 @@
  */
 #include "aether.h"
 #include "aether_platform.h"
+#include "aether_internal.h"
 
 #include <string.h>
 
@@ -79,6 +80,7 @@ static void facade_ready(
 }
 
 
+
 static void facade_message(
     void *ctx,
     aether_uuid_t from,
@@ -88,14 +90,20 @@ static void facade_message(
     aether_t *client =
         ctx;
 
-    if (client->on_message != NULL) {
-        client->on_message(
-            client,
-            from,
-            data,
-            size);
-    }
+    /*
+     * Route through the shared internal dispatch helper so the
+     * callback_active guard is uniform across transports. Any
+     * aether_send_message() from inside on_message now observes
+     * AETHER_ERR_BUSY regardless of whether the message arrived
+     * via the cloud path or the LAN path.
+     */
+    (void)aether_dispatch_message_internal(
+        client,
+        from,
+        data,
+        size);
 }
+
 
 
 static void facade_error(

@@ -1180,7 +1180,8 @@ static void test_config_slot_count_overflow(void) {
 }
 
 
-static void test_provider_registry_locked_after_first_enqueue(void) {
+
+static void test_provider_registry_locked_on_first_scan(void) {
 
     reset_fake_client();
 
@@ -1192,27 +1193,68 @@ static void test_provider_registry_locked_after_first_enqueue(void) {
 
     fake_provider_t p = { 0 };
     p.attempt = (aether_delivery_attempt_t){
-        AETHER_DELIVERY_ACCEPTED, AETHER_OK
+        AETHER_DELIVERY_RETRY_LATER, AETHER_OK
     };
 
     aether_delivery_init(&delivery, &g_fake_client, slots, 2u,
                          payload_storage, 8u);
 
-    /* Pre-enqueue: modifying provider registry is allowed. */
     assert(aether_delivery_set_providers(&delivery, providers, 2u) == AETHER_OK);
-    assert(aether_delivery_add_provider(&delivery,
-        (aether_delivery_provider_t){ &p, fake_provider_try }) == AETHER_OK);
 
-    /* First successful enqueue locks the registry. */
     const uint8_t payload[] = { 1u };
     assert(aether_delivery_send(&delivery, (aether_uuid_t){ 1u, 1u },
         payload, sizeof(payload)) == AETHER_OK);
 
-    /* Post-enqueue: registry is immutable. */
+    /* Still mutable after enqueue. */
+    assert(aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &p, fake_provider_try }) == AETHER_OK);
+
+    /* A work() tick with providers present locks the registry. */
+    assert(aether_delivery_work(&g_fake_client, &delivery) == AETHER_OK);
+
+    /* Post-scan: registry is immutable. */
     assert(aether_delivery_set_providers(&delivery, providers, 2u) == AETHER_ERR_STATE);
     assert(aether_delivery_add_provider(&delivery,
         (aether_delivery_provider_t){ &p, fake_provider_try }) == AETHER_ERR_STATE);
 }
+
+
+static void test_provider_registry_mutable_with_zero_providers(void) {
+
+    reset_fake_client();
+
+    aether_delivery_t delivery;
+    aether_delivery_slot_t slots[1];
+    uint8_t payload_storage[8];
+    aether_delivery_provider_t providers[1];
+
+    aether_delivery_init(&delivery, &g_fake_client, slots, 1u,
+                         payload_storage, 8u);
+
+    const uint8_t payload[] = { 2u };
+    assert(aether_delivery_send(&delivery, (aether_uuid_t){ 2u, 2u },
+        payload, sizeof(payload)) == AETHER_OK);
+
+    /* Work with zero providers must not lock. */
+    assert(aether_delivery_work(&g_fake_client, &delivery) == AETHER_OK);
+    assert(slots[0].state == AETHER_DELIVERY_SLOT_READY);
+
+    /* Registry is still mutable. */
+    assert(aether_delivery_set_providers(&delivery, providers, 1u) == AETHER_OK);
+
+    fake_provider_t p = { 0 };
+    p.attempt = (aether_delivery_attempt_t){
+        AETHER_DELIVERY_ACCEPTED, AETHER_OK
+    };
+    assert(aether_delivery_add_provider(&delivery,
+        (aether_delivery_provider_t){ &p, fake_provider_try }) == AETHER_OK);
+
+    /* Next work consumes the slot. */
+    assert(aether_delivery_work(&g_fake_client, &delivery) == AETHER_OK);
+    assert(p.calls == 1u);
+    assert(slots[0].state == AETHER_DELIVERY_SLOT_EMPTY);
+}
+
 
 
 /*
@@ -1522,7 +1564,10 @@ int main(void) {
 
     test_config_payload_capacity_too_large();
     test_config_slot_count_overflow();
-    test_provider_registry_locked_after_first_enqueue();
+
+    test_provider_registry_locked_on_first_scan();
+    test_provider_registry_mutable_with_zero_providers();
+
 
     test_rx_callback_pattern();
 

@@ -5,6 +5,23 @@ project(aether_client_c C)
 
 
 
+
+add_library(aether_hydrogen_vendor STATIC
+    third_party/libhydrogen/hydrogen.c
+)
+
+target_include_directories(aether_hydrogen_vendor
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+)
+
+target_compile_features(
+    aether_hydrogen_vendor
+    PUBLIC
+        c_std_11
+)
+
+
 add_library(aether_client STATIC
 
     src/aether_client.c
@@ -19,12 +36,23 @@ add_library(aether_client STATIC
     src/aether_messages.c
     src/aether_delivery.c
     src/aether_delivery_cloud.c
+
+
     src/aether_registration.c
     src/aether_credentials.c
 
 
     src/generated/client_server_api_api.c
     src/generated/client_server_api_types.c
+
+
+    src/aether_internal.c
+
+
+
+
+    src/aether_lan.c
+    src/aether_lan_codec.c
 
     src/aether.c
 )
@@ -39,6 +67,16 @@ target_include_directories(aether_client
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
+target_include_directories(aether_client
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+)
+target_link_libraries(aether_client
+    PUBLIC
+        aether_hydrogen_vendor
+)
+
 
 target_compile_features(aether_client PUBLIC c_std_11)
 
@@ -58,20 +96,6 @@ option(AETHER_BUILD_TESTS "Build host-side tests" ON)
 if(AETHER_BUILD_TESTS)
     enable_testing()
 
-    add_library(aether_hydrogen_vendor STATIC
-        third_party/libhydrogen/hydrogen.c
-    )
-
-    target_include_directories(aether_hydrogen_vendor
-        PUBLIC
-            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
-    )
-
-    target_compile_features(
-        aether_hydrogen_vendor
-        PUBLIC
-            c_std_11
-    )
 
     add_library(aether_hydrogen_test_support STATIC
         src/aether_hydrogen.c
@@ -497,6 +521,50 @@ target_link_libraries(
     )
 
 
+
+    add_executable(
+        aether_lan_codec_test
+        tests/test_lan_codec.c
+        src/aether_lan_codec.c
+    )
+
+    target_include_directories(
+        aether_lan_codec_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(
+        aether_lan_codec_test
+        PRIVATE
+            aether_client
+            aether_hydrogen_vendor
+    )
+
+    target_compile_features(
+        aether_lan_codec_test
+        PRIVATE
+            c_std_11
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_lan_codec_test
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Werror
+                -UNDEBUG
+        )
+    endif()
+
+    add_test(
+        NAME aether_lan_codec_test
+        COMMAND aether_lan_codec_test
+    )
+
+
     add_test(
         NAME aether_hydrogen_test
         COMMAND aether_hydrogen_test
@@ -505,6 +573,52 @@ target_link_libraries(
     add_test(
         NAME cmake_helpers_check
         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake_helpers_check.sh
+    )
+
+
+
+    add_executable(
+        aether_lan_e2e
+        tests/test_lan_e2e.c
+        src/aether_lan.c
+        src/aether_lan_codec.c
+    )
+
+    target_include_directories(
+        aether_lan_e2e
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    )
+
+    target_link_libraries(
+        aether_lan_e2e
+        PRIVATE
+            aether_client
+            aether_hydrogen_vendor
+    )
+
+    target_compile_features(
+        aether_lan_e2e
+        PRIVATE
+            c_std_11
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_lan_e2e
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Werror
+                -UNDEBUG
+        )
+    endif()
+
+    add_test(
+        NAME aether_lan_e2e
+        COMMAND aether_lan_e2e
     )
 
 
