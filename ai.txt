@@ -3635,3 +3635,1315 @@ If certs are pooled separately:
 
 ================================================================
 ================================================================
+
+================================================================
+LAN DIRECT — RESEARCH v4 (final, supersedes v2/v3)
+No code. Authoritative delta only.
+================================================================
+
+# 1. Common session_id — corrected
+
+Problem in v3: A computed hash(A.rx|A.tx), B computed hash(B.rx|B.tx);
+but A.rx==B.tx and A.tx==B.rx, so orders disagree.
+
+Fix: derive session_id from the KK transcript, which is
+side-agnostic.
+
+After KK (kk_2 on responder, kk_3 on initiator), both sides hold the
+canonical pair (p1, p2) of KK packets:
+    p1 = initiator -> responder
+    p2 = responder -> initiator
+Both sides hash the same bytes in the same order:
+
+    session_id = first 8 bytes of
+        hydro_hash("AETHERLN" || p1 || p2)
+        // via hydro_hash_init/update/final, out_len=8
+
+Test invariant: A.session_id == B.session_id, while A.tx==B.rx and
+A.rx==B.tx.
+
+No extra packet, no role bookkeeping.
+
+# 2. Certificate wire format — corrected
+
+Signed payload (canonical bytes, host-encoded, no padding):
+
+  version    1    0x01
+  uid       16
+  sign_pk   32    hydro_sign public key
+  kx_pk     32    hydro_kx public key
+  ─── payload 81
+
+On the wire:
+
+  payload     81
+  authority_signature 64   (P256, matches trusted_sign_keys)
+  ─── total  145
+
+Context is a protocol constant and is NOT transmitted.
+Verify input is built locally in scratch:
+
+  scratch = CONTEXT_BYTES(8, "AETHERPE") || payload(81)   // 89 bytes
+  verify_signature(root_pk, scratch, 89, sig64)
+
+`key_type` byte is dropped. In v1, algorithms are implicit:
+  authority signature = P256
+  peer signature      = hydro_sign v1
+  peer key exchange   = hydro_kx v1
+
+The certificate format is explicitly versioned; a future change adds
+new bytes via a version bump.
+
+Certificate = 145 bytes on the wire.
+
+# 3. P0 handshake packets — exact sizes
+
+P0a (initiator -> responder):
+  uid_self          16
+  cert_self        145
+  kk_p1             48   (hydro_kx_KK_PACKET1BYTES)
+  sig_self          64
+  ─── total        273
+
+P0b (responder -> initiator):
+  uid_self          16
+  cert_self        145
+  kk_p2             48   (hydro_kx_KK_PACKET2BYTES)
+  sig_self          64
+  ─── total        273
+
+Minimal signed transcript for sig_self (65 bytes):
+
+  version           1
+  uid_self         16
+  uid_peer         16
+  nonce_peer        8   (peer's beacon nonce)
+  nonce_self        8   (own freshly-generated handshake nonce)
+  cert_fp           8   (own cert fingerprint)
+  sha8(kk_p)        8   (first 8 bytes of the KK packet being sent)
+  ─── total        65
+
+P0a signs this with sha8(p1); P0b signs with sha8(p2).
+This binds: UIDs, beacon nonces, cert identity, exact KK attempt.
+Certificate is transmitted alongside, not re-signed inside sig.
+
+After both P0s and successful KK completion, session is VERIFIED.
+
+# 4. hydro_secretbox semantics — verified from source
+
+From third_party/libhydrogen/impl/secretbox.h:
+
+  HEADERBYTES = SIVBYTES(20) + MACBYTES(16) = 36
+  ciphertext layout: [SIV 20][MAC 16][ct payload_len]
+
+msg_id is an argument to encrypt/decrypt, mixed into the SIV setup:
+    STORE64_LE(msg_id_le, msg_id);
+    mem_xor(...)  // into SIV
+It is NOT stored on the wire.
+
+=> Receiver must know msg_id out of band. Our direct packet carries
+`sequence` explicitly and passes it as msg_id to both encrypt and
+decrypt.
+
+Wire overhead (direct data packet), byte-exact:
+
+  magic        4   'A','E','L','D'
+  version      1   0x01
+  type         1   0x20
+  session_id   8
+  sequence     8   canonical network byte order (big-endian)
+  secretbox   36 + payload_len
+  ─── total   58 + payload_len
+
+58-byte overhead is confirmed.
+
+# 5. Canonical sequence wire encoding
+
+Wire uses big-endian on-the-wire bytes. On receive, decode to host
+uint64 and pass as msg_id to hydro_secretbox_decrypt. libhydrogen's
+internal little-endian handling of msg_id is not our wire concern.
+
+# 6. session_id collision behavior
+
+session_id is a lookup hint, not an authenticator.
+
+On receiving a direct data packet:
+  for each active session whose session_id matches:
+      try hydro_secretbox_decrypt with that session's rx_key
+      if OK: accept, mark packet as belonging to that session
+  if no candidate decrypts: reject silently
+
+Because secretbox is AEAD, an incorrect key cannot produce a valid MAC.
+Silent-reject path has no side effects. No timer side channel.
+
+Optionally, lookup can be further filtered by source endpoint first.
+
+# 7. Session / replay RAM — corrected
+
+Per active session (32-bit MCU):
+  rx_key      32
+  tx_key      32
+  session_id   8
+  tx_seq       8
+  rx_highest   8
+  rx_seen      8
+  ───          96 bytes
+
+Correct earlier statement: "32 bytes per session for replay" was wrong.
+Replay state alone is 24 bytes (tx_seq + rx_highest + rx_seen);
+96 is the full session record.
+
+# 8. Peer certificate caching
+
+Peer entry does NOT store the 145-byte certificate.
+
+After verification:
+  - cert is discarded;
+  - sign_pk and kx_pk are retained in the peer entry because a peer
+    that disappears and reappears later must be re-verified with a new
+    cert (re-handshake requires having previously accepted cert? No —
+    each handshake carries the cert again). Actually cert must be
+    re-presented at each handshake, so we do NOT retain sign_pk/kx_pk
+    across peer disappearance.
+
+Peer entry during VERIFIED session:
+  uid           16
+  lan_endpoint   6   (IPv4 4 + port 2; NAT-friendly)
+  rx_key        32
+  tx_key        32
+  session_id     8
+  tx_seq         8
+  rx_highest     8
+  rx_seen        8
+  last_seen_ms   4
+  state          1
+  pad            3
+  ───          126 bytes
+
+sign_pk/kx_pk are NOT stored persistently. They arrive with the cert at
+every (re)handshake.
+
+If the peer disappears (TTL expiry), all session state is dropped;
+next contact requires a fresh P0+P0b+KK cycle.
+
+Optional MCU convenience: a small cache of recently-seen certs keyed by
+fingerprint, for callers that re-handshake often. Out of scope for v1.
+
+# 9. Authority / intermediate trust chain
+
+Findings:
+
+  core/crypto/PairAsymKeysSigned       asymmetric encryption keys,
+                                       NOT signing keys.
+  server-cloud/ServerCloudConfBuilder  holds globalAsymKey, regKey,
+                                       peerKeys — all PairKeysAsymSigned.
+  admin-shell/AdminShell.java          holds rootSigners:
+                                       Map<CryptoLib, Signer> — the only
+                                       Signer instances found. Runtime
+                                       server-cloud does NOT have access
+                                       to root private signing keys.
+  client-c trusted_sign_keys           provisioned P256 sign public
+                                       keys (platform esp32 returns 64-B
+                                       P256 root pubkeys).
+
+=> globalAsymKey is an ENCRYPTION public key. Do NOT use it as a
+   signing authority.
+
+Production chain must be:
+
+  Root signer (offline, admin-side)
+      |
+      | signs intermediate identity authority (P256 sign key)
+      v
+  Intermediate signer (on the identity authority service)
+      |
+      | signs peer certificate (P256 signature)
+      v
+  Peer identity certificate (145 bytes)
+
+The C client verifies:
+  root_pubkey -> intermediate_cert (P256, verify_signature)
+  intermediate_pubkey -> peer cert (P256, verify_signature)
+
+Storage per client: trusted intermediate identity authority public key
+(~64 bytes) plus the peer certificate (145 bytes).
+Verification uses the existing crypto->verify_signature vtable — no new
+crypto backend required.
+
+Runtime issuance:
+  Registration or identity service holds the intermediate sign key.
+  Peer sends its sign_pk + kx_pk to the service; service returns the
+  signed certificate. Server-cloud must NOT hold the root private key
+  or the intermediate private key; only the identity authority does.
+
+Peer runtime cryptography is hydro_sign/hydro_kx. Authority
+cryptography is P256. Two crypto stacks, each doing one job.
+
+# 10. Beacon format — corrected
+
+  magic        4   'A','E','L','N'
+  version      1   0x01
+  type         1   0x01 = beacon
+  flags        2   bit 0 direct_ready, bit 1 has_cert, ...
+  uid         16
+  cert_fp      8   first 8 bytes of hash(cert) (hint only)
+  direct_port  2   network order
+  nonce        8   per-beacon random
+  ─── total   43
+
+Sender IPv4 address is taken from recvfrom() source. It is NOT
+advertised in the beacon, because:
+  - prevents lying about own IP;
+  - correct in multi-interface hosts;
+  - correct across NAT boundaries inside the LAN;
+  - saves 4 bytes.
+
+# 11. Beacon nonce lifetime
+
+Each beacon emits a fresh 8-byte nonce. A handshake in progress copies
+the nonce at the moment P0a is emitted and binds it into sig_self. Later
+beacons do not invalidate the in-flight handshake. If a handshake times
+out (5 s), a new nonce is taken on the next attempt.
+
+Period: 5 s ± 20 % jitter (beacon), per component.
+
+# 12. VERIFIED TTL / keepalive
+
+  DISCOVERED TTL: 45 s (refreshed by any valid beacon from that UID).
+  VERIFIED TTL:   30 s, refreshed by any successfully decrypted direct
+                  packet (data or dedicated 1-byte keepalive).
+  Expiry:         VERIFIED -> EMPTY; state wiped.
+
+Beacon alone does NOT extend a VERIFIED session. Only an authenticated
+direct packet does.
+
+This avoids indefinite trust from spoofable beacons.
+
+# 13. Common ingress — exact behavior
+
+Existing cloud path (src/aether.c:355-372):
+  - aether_poll() checks ingress kind.
+  - For AETHER_INGRESS_MESSAGE: aether_rx_all_accept(..., facade_message, client)
+    -> facade_message calls client->on_message if non-NULL.
+  - Then aether_client_app_consume_ingress().
+
+LAN needs the same behavior. Plan:
+
+  Move facade_message out of aether.c into an internal helper
+  src/aether_internal.c:
+
+    aether_status_t aether_dispatch_message_internal(
+        aether_t *client,
+        aether_uuid_t from,
+        const uint8_t *payload,
+        size_t length);
+
+  Behavior (matches cloud):
+    if (client == NULL || (payload == NULL && length != 0))
+        return AETHER_ERR_ARGUMENT;
+    if (client->app.core.callback_active || client->app.core.rx_active)
+        return AETHER_ERR_BUSY;
+    if (client->on_message == NULL)
+        return AETHER_OK;      // same as cloud path today
+    client->on_message(client, from, payload, length);
+    return AETHER_OK;
+
+  Cloud path keeps calling it via the existing accept loop. LAN
+  component calls the same helper during the component phase, where
+  callback_active and rx_active are both false.
+
+No new public API. No hack calling on_message directly.
+
+# 14. P0 signature necessity — confirmed
+
+The P0 signature IS required. It binds:
+  - the two UIDs
+  - the beacon nonces (discovery-time freshness)
+  - the certificate fingerprint (identifies which cert was used)
+  - the exact KK packet (prevents splicing an unrelated KK attempt)
+
+The certificate alone proves "UID -> sign_pk | kx_pk" but does not bind
+to a specific session. P0 signature closes that gap. 64 bytes per side
+is a small price.
+
+# 15. Final packet sizes
+
+  Beacon                         43 bytes   periodic
+  P0a / P0b each                273 bytes   per handshake
+  KK p1 / p2 each                48 bytes   (included in P0a/P0b)
+  Direct data                 58 + payload  per message
+  handshake total per side      273 bytes
+
+  Direct payload cap:
+    target 576-byte LAN frame  -> 518 bytes
+    IPv4-safe UDP payload      -> 1414 bytes
+    AETHER_MAX_PACKET 1536     -> over MTU; provider returns
+                                  NOT_APPLICABLE for payloads above
+                                  local MTU - 58
+
+# 16. Final session / peer RAM estimate
+
+Per active session:                      96 bytes
+Per peer entry (no cert cache):         126 bytes
+Per LAN context (32-bit):
+    client ptr          4
+    peers ptr           4
+    peer_capacity       4
+    peer_count          4
+    disc sock fd        4
+    direct sock fd      4
+    my_sign_sk         64
+    my_sign_pk         32   (derived from sk)
+    my_kx_sk           32
+    my_kx_pk           32   (derived from sk)
+    my_cert ptr         4
+    intermediate_pk ptr 4
+    beacon_ms           4
+    random_state       32
+    ───               224 bytes + caller-owned buffers
+
+Total 32-bit MCU:
+  N=4   224 + 4*126  + 576 + 576 = 2532 B
+  N=16  224 + 16*126 + 576 + 576 = 3392 B
+  N=32  224 + 32*126 + 576 + 576 = 5408 B
+
+Caller-owned cert pool (145 * K) and intermediate pk (64) are extra.
+
+Library .bss growth: zero — everything is caller-owned.
+
+# 17. Invariants preserved
+
+- No master_key on wire.
+- No UID derivation from peer sign key (UID remains server-issued).
+- No transport capability bytes inside identity certificate.
+- No silent fallback after ambiguous handoff.
+- Provider result mapping unchanged from v3 (NOT_APPLICABLE /
+  RETRY_LATER / ROUTE_LOST strict no-handoff; ACCEPTED terminal; ERROR
+  terminal).
+- Zero-provider registry lock not touched in this checkpoint.
+- LoRa / BLE / mesh reuse: UID + certificate + KK + secretbox + replay
+  window are transport-independent; only LAN endpoint is LAN-specific.
+
+================================================================
+LAN implementation remains blocked on review.
+================================================================
+
+================================================================
+LAN DIRECT — RESEARCH v5 (final, supersedes v4)
+Only the delta. No code.
+================================================================
+
+# 1. Why KK first-contact was impossible
+
+hydro_kx_kk_1(state, packet1, peer_static_pk, own_static_kp)
+  requires the RESPONDER's static KX public key as an input.
+  In v4 we tried to get that key from the peer's certificate, which
+  arrives only in the responder's reply. First contact is impossible
+  with KK.
+
+hydro_kx_nk_1 / n_1 have the same limitation: the initiator must know
+the responder's static key beforehand.
+
+Conclusion: only hydro_kx_xx_* supports symmetric first contact with
+no prior knowledge of the peer's static keys.
+
+# 2. Selected protocol: hydro_kx_xx_* (Noise XX)
+
+Verified from third_party/libhydrogen/impl/kx.h:330..456.
+
+Sizes (constants, verified):
+  XX_PACKET1BYTES = (32 + 16) = 48
+  XX_PACKET2BYTES = (32 + 32 + 16 + 16) = 96
+  XX_PACKET3BYTES = (32 + 16 + 16) = 64
+
+Inputs / outputs per step:
+  xx_1(state, p1, psk)               -> p1 = 48; state lives on initiator
+  xx_2(state, p2, p1, psk, static_kp)-> p2 = 96; state lives on responder
+  xx_3(state, kp, p3, peer_static_pk, p2, psk, static_kp)
+                                     -> p3 = 64; kp = {rx,tx}
+  xx_4(state, kp, peer_static_pk, p3, psk)
+                                     -> kp = {tx,rx}   (reverse direction)
+
+  state = hydro_kx_state = eph_keypair (64) + hydro_hash_state (52)
+        = 116 bytes on 32-bit. Handshake-scope only.
+
+  psk may be NULL; we use NULL (no pre-shared secret).
+
+Properties (exact, from implementation):
+  - p1 carries initiator ephemeral X25519 pub + AEAD mac (fresh eph).
+  - p2 carries responder ephemeral pub + responder static kx pub
+    encrypted under an ephemeral-derived key + AEAD mac.
+  - p3 carries initiator static kx pub encrypted under another
+    ephemeral-derived key + AEAD mac.
+  - Final hash covers both ephem pubkeys, both static pubkeys,
+    initiator ephemeral, psk, plus all AEAD contexts.
+  - session keypair has separate rx and tx keys (32 each).
+
+XX alone gives:
+  - mutual proof-of-possession of both static KX keys,
+  - fresh ephemeral-ephemeral session keys,
+  - replay resistance across full handshake attempts (fresh eph each
+    side, MACs bind ciphertexts to the exact exchanged ephem pubkeys).
+
+XX alone does NOT give:
+  - identity binding (who owns each static KX key),
+  - authority binding (is this static KX key issued by the root),
+  - freshness binding to discovery-time beacons.
+
+Those are added by the certificate + identity signature (section 3,4).
+
+# 3. What the certificate needs to carry — simplification
+
+v4 certificate carried both sign_pk and kx_pk. Not needed.
+
+XX transports the peer's static KX public key end-to-end, authenticated
+by XX itself. If the peer's static KX key is NOT the one signed inside
+the certificate, the identity signature over sha8(p1)/sha8(p2) will
+fail. So the certificate only needs to bind the identity signing key to
+the UID.
+
+Final certificate signed payload (49 bytes):
+
+  version     1    0x01
+  uid        16
+  sign_pk    32    hydro_sign public key
+  ─── payload 49
+
+Signed bytes for the authority signature (57 bytes):
+
+  context   8    "AETHERPE"
+  payload  49
+  ─── total 57
+
+Verify input built in a local scratch buffer; context is a protocol
+constant and is NOT transmitted.
+
+Certificate on the wire (113 bytes):
+
+  payload             49
+  authority_sig       64    P256 signature over context||payload
+  ─── total          113
+
+Algorithms are implicit for v1:
+  authority signature: P256 (matches trusted_sign_keys)
+  peer signing:        hydro_sign v1
+  peer KX:             hydro_kx_xx v1
+
+No `key_type` byte; the format is versioned.
+
+# 4. Identity signature (freshness + cert binding)
+
+Each side signs a short transcript with its peer identity sign key.
+
+Domain-separated contexts (8 bytes each):
+  "AETHERPA"  initiator's signature
+  "AETHERPB"  responder's signature
+
+Initiator transcript (72 bytes):
+  context        8    "AETHERPA"
+  uid_a         16
+  uid_b         16
+  nonce_a        8    initiator's handshake nonce
+  nonce_b        8    peer's beacon nonce
+  sha8_cert_a    8    first 8 bytes of SHA-256 over cert_a wire bytes
+  sha8_p1        8    first 8 bytes of SHA-256 over xx_p1
+  ─── total     72
+
+Responder transcript (80 bytes):
+  context        8    "AETHERPB"
+  uid_b         16
+  uid_a         16
+  nonce_b        8    responder's handshake nonce
+  nonce_a        8    peer's beacon nonce
+  sha8_cert_b    8    first 8 bytes of SHA-256 over cert_b wire bytes
+  sha8_p1        8
+  sha8_p2        8    first 8 bytes of SHA-256 over xx_p2
+  ─── total     80
+
+Both transcripts contain ONLY fields that are either transmitted in the
+same message or known from the peer's most recent beacon. No implicit
+nonces. Every byte the verifier needs is present.
+
+Verification order (fixed):
+  1. parse magic/version/type
+  2. parse cert
+  3. authority-verify cert.sign against trusted_sign_keys
+  4. check cert.uid == uid field in the message
+  5. peer-verify sig against cert.sign_pk
+  6. XX round proceeds
+
+No state becomes VERIFIED until all six steps succeed for both sides.
+
+# 5. Handshake packets — exact layouts
+
+Packet A (initiator -> responder, P0a):
+  magic          4   'A' 'E' 'L' 'H'
+  version        1   0x01
+  type           1   0x10
+  reserved       1   0
+  uid_a         16
+  cert_a       113
+  nonce_a        8
+  xx_p1         48
+  sha8_p1        8
+  sig_a         64
+  ─── total    264
+
+Packet B (responder -> initiator, P0b):
+  magic          4   'A' 'E' 'L' 'H'
+  version        1   0x01
+  type           1   0x11
+  reserved       1   0
+  uid_b         16
+  cert_b       113
+  nonce_b        8
+  xx_p2         96
+  sha8_p1        8
+  sha8_p2        8
+  sig_b         64
+  ─── total    320
+
+Packet C (initiator -> responder, P0c, XX p3):
+  magic          4   'A' 'E' 'L' 'H'
+  version        1   0x01
+  type           1   0x12
+  reserved       1   0
+  xx_p3         64
+  ─── total     71
+
+After P0c, both sides derive directional session keys via XX.
+
+Total handshake bytes: 264 + 320 + 71 = 655 per successful handshake.
+
+# 6. Common session_id — final
+
+After XX completes, both sides have the exact wire bytes of P0a.xx_p1 and
+P0b.xx_p2 (48 and 96 bytes). They compute:
+
+  hash_state = hydro_hash_init(ctx = "AETHERLN", key = NULL)
+  hydro_hash_update(hash_state, xx_p1, 48)
+  hydro_hash_update(hash_state, xx_p2, 96)
+  hydro_hash_final(hash_state, tmp32, 32)
+  session_id = tmp32[0..7]
+
+hydro_hash_BYTES_MIN = 16, so we hash 32 and truncate.
+
+Properties:
+  - Same bytes hashed by both sides regardless of rx/tx naming.
+  - Does not depend on direction.
+  - Does not persist any XX state after computation.
+
+# 7. Nonces: what is actually needed
+
+- Peer's beacon nonce is used in the identity signature transcript,
+  binding the handshake to the most recent discovery epoch of the peer.
+  Peer keeps at most one current nonce and remembers the previous one
+  for a short window (2 * BEACON_PERIOD).
+- Handshake nonce (nonce_a / nonce_b) is a fresh per-attempt random
+  value, used only inside the identity signature. XX already provides
+  fresh ephemeral entropy; handshake nonce is the freshness bind for
+  the identity signature, not for the session keys.
+- No additional nonces are added.
+
+# 8. Certificate fingerprint (beacon cert_fp)
+
+cert_fp = first 8 bytes of SHA-256 over the full certificate wire bytes
+(113 bytes).
+
+cert_fp is a lookup hint only. Trust always uses the full certificate
+delivered in P0. If a peer's cert_fp in the beacon does not match the
+cert received in P0, the mismatch is logged and the certificate is
+verified as usual (a stale beacon with a new cert is legitimate).
+
+# 9. Intermediate certificate storage
+
+Intermediate authority certificate:
+
+  payload             49      { version(1) | uid(16) | sign_pk(32) }
+  root_sig            64      P256 signature by root signer
+  ─── total          113
+
+Storage on the C client, provisioned once (typically in firmware or
+platform package config, same trust level as trusted_sign_keys):
+
+  trusted_intermediate_cert  = 113 bytes
+  trusted_root_pubkeys       = already provisioned
+
+Verification of a peer certificate is then:
+
+  root_pubkey -> intermediate_cert.sign         (verify_signature)
+  intermediate_cert.sign_pk -> peer_cert.sign   (verify_signature)
+
+Client code needs:
+  trusted_root_pubkeys (already present)
+  trusted_intermediate_cert (new; caller-owned; not transmitted)
+
+The intermediate certificate is NOT sent on the wire per handshake.
+
+# 10. Beacon format — final
+
+  magic        4   'A' 'E' 'L' 'N'
+  version      1   0x01
+  type         1   0x01 = beacon
+  flags        1   bit 0 = direct_ready
+  uid         16
+  cert_fp      8
+  nonce        8
+  direct_port  2   network byte order
+  ─── total   41
+
+Sender IPv4 comes from recvfrom(). No IP in the beacon.
+No `has_cert` flag: a peer without certificate can never be VERIFIED,
+so the flag would be dead weight. Flags reserved for runtime transport
+capabilities only.
+
+Beacon period: 5000 ms ± 20 % jitter.
+
+# 11. Direct data packet — final
+
+  magic        4   'A' 'E' 'L' 'D'
+  version      1   0x01
+  type         1   0x20
+  session_id   8
+  sequence     8   big-endian on the wire; host-order value passed to
+                   hydro_secretbox_encrypt/decrypt as msg_id
+  ciphertext  36 + payload_len   // hydro_secretbox_encrypt output
+  ─── total   58 + payload_len
+
+Overhead confirmed = 58 bytes.
+
+MTU limits:
+  target 576-byte LAN frame  -> 518 payload
+  IPv4-safe UDP payload      -> 1414 payload
+  AETHER_MAX_PACKET (1536)   -> over MTU; provider returns
+                                NOT_APPLICABLE when payload >
+                                min(MTU - 58, LAN_SAFE_PAYLOAD)
+
+# 12. Corrected common ingress — callback_active
+
+Current cloud path:
+  aether_poll() (src/aether.c:330..389)
+    -> aether_rx_all_accept(&client->rx, ingress, facade_message, client)
+       (src/aether_rx_all.c)
+    -> facade_message -> client->on_message(...)
+
+Important: facade_message does NOT set callback_active. The only thing
+that keeps aether_send_message() from succeeding inside on_message is
+`rx_active == true` (the parser still pins the frame while the ingress
+is pending).
+
+LAN dispatch runs during component phase. rx_active is already false
+(core step is complete). If the LAN dispatch does not set
+callback_active, then `aether_send_message()` called from user
+on_message would silently succeed, inconsistent with cloud.
+
+Fix: extract a single internal dispatch helper used by both cloud and
+LAN:
+
+  aether_status_t aether_dispatch_message_internal(
+      aether_t *client,
+      aether_uuid_t from,
+      const uint8_t *data,
+      size_t size);
+
+  Behavior:
+    if (client == NULL ||
+        (data == NULL && size != 0))
+        return AETHER_ERR_ARGUMENT;
+
+    if (client->on_message == NULL)
+        return AETHER_OK;
+
+    /*
+     * Set callback_active around the user callback. This matches the
+     * effective cloud-side guard (rx_active) and provides the same
+     * guard for LAN dispatch where rx_active is false.
+     */
+    bool was_active = client->app.core.callback_active;
+    client->app.core.callback_active = true;
+    client->on_message(client, from, data, size);
+    client->app.core.callback_active = was_active;
+    return AETHER_OK;
+
+  aether_rx_all_accept keeps its existing policy wrapper but calls this
+  helper for the actual user invocation. LAN component calls the same
+  helper directly from its work function.
+
+Effect on the two cases:
+  aether_send_message inside user on_message:
+      - cloud path: already BUSY via rx_active; now also BUSY via
+        callback_active.
+      - LAN path: BUSY via callback_active.
+      Both paths are now consistent.
+  aether_delivery_send inside user on_message:
+      - does not check callback_active; always OK.
+
+`was_active` restores previous value so nested dispatch would be safe
+by construction (though we do not permit nested dispatch).
+
+No silent loss of the flag even on early exit; the callback itself is
+declared void and cannot throw in C.
+
+# 13. Session / TTL policy — corrected
+
+  DISCOVERED TTL: 45 s, refreshed by any valid beacon from that UID.
+  VERIFIED TTL:   120 s, refreshed ONLY by a successfully decrypted
+                  direct packet (data or keepalive).
+  Expiry:         VERIFIED -> EMPTY (state wiped); no re-handshake is
+                  attempted proactively.
+
+Rationale:
+  - Beacon alone must never extend authentication because it is
+    trivially spoofable.
+  - A 120 s window avoids constant re-handshake for idle peers without
+    requiring 1-byte keepalives every 30 s.
+  - Sender-side delivery attempt against an expired session will
+    silently drop on the receiver (session mismatch), producing the
+    usual ACCEPTED-then-no-end-to-end semantics; the sender may
+    optionally re-handshake on the next send.
+
+No periodic keepalives required.
+
+# 14. Handshake tests to add later
+
+  fresh A/B -> VERIFIED on both, matching directional keys
+  A.session_id == B.session_id
+  wrong authority cert -> rejected
+  cert uid != advertised uid -> rejected
+  tampered sign_pk -> rejected
+  tampered XX packet -> rejected by XX MAC
+  tampered identity signature -> rejected
+  replay of p1/p2/p3 sequence -> rejected by freshness signature (nonce
+    changed) or by XX MAC (fresh ephemerals)
+  spliced p1 from handshake X into handshake Y -> rejected
+  reflection of A->B ciphertext back to A -> rejected (directional keys)
+  old session replay after VERIFIED -> rejected by session_id mismatch
+  beacon without prior handshake -> no VERIFIED state
+
+# 15. RAM delta after switching to XX
+
+  Handshake state (transient, on stack or caller-owned scratch):
+    hydro_kx_state 116 bytes
+    xx packet scratch: 48 + 96 + 64 = 208 bytes
+    cert scratch: 113 bytes
+    signature scratch: 64 bytes
+    sha256 tmp: 32 bytes
+    transcript scratch: 80 bytes
+    ─── approx 613 bytes transient (stack).
+
+  Per-peer persistent state (VERIFIED, no cert stored):
+    uid          16
+    endpoint      8   (IPv4 4 + port 2 + reserved 2)
+    rx_key       32
+    tx_key       32
+    session_id    8
+    tx_seq        8
+    rx_highest    8
+    rx_seen       8
+    last_seen     4
+    state         1
+    pad           3
+    ───         128 bytes
+
+  Per-LAN context (32-bit MCU):
+    client ptr         4
+    peers ptr          4
+    peer_capacity      4
+    peer_count         4
+    disc sock fd       4
+    direct sock fd     4
+    my_sign_sk        64
+    my_sign_pk        32
+    my_kx_sk          32
+    my_kx_pk          32
+    my_cert ptr        4
+    intermediate ptr   4
+    beacon_ms          4
+    random_state      32
+    ───              228 bytes
+
+  Caller-owned buffers:
+    UDP RX              576
+    UDP TX              576
+    my_cert             113
+    intermediate_cert   113
+
+  Totals (32-bit MCU, no cert cache per peer):
+    N=4   228 + 4*128  + 576 + 576 + 113 + 113 = 2118 B
+    N=16  228 + 16*128 + 576 + 576 + 113 + 113 = 3654 B
+    N=32  228 + 32*128 + 576 + 576 + 113 + 113 = 5702 B
+
+  Library .bss growth: zero. Everything is caller-owned.
+
+# 16. Wire summary
+
+  beacon        41
+  handshake A  264
+  handshake B  320
+  handshake C   71
+  cert         113 (sent inside handshake A and B)
+  direct data   58 + payload
+
+================================================================
+LAN implementation ready for review once this checkpoint is accepted.
+No code changed.
+================================================================
+
+================================================================
+LAN DIRECT — RESEARCH v6 (final fixes; supersedes v5)
+No code. Only the delta.
+================================================================
+
+# 1. Initiator identity -> static KX binding — fixed
+
+Problem (from review): sig_a in Packet A could not bind A's static KX
+public key, because that key only appears in XX packet 3, and Packet A
+precedes it.
+
+Fix: move initiator's identity signature into Packet C, together with
+xx_p3.
+
+Packet A: no signature.
+Packet B: responder's sig_b signs transcript that includes H(p2),
+          and p2 cryptographically contains the responder's static KX
+          public key.
+Packet C: initiator's sig_a signs transcript that includes H(p3),
+          and p3 cryptographically contains the initiator's static KX
+          public key.
+
+Verification of sig_a can only occur AFTER xx_3/xx_4 have completed,
+which is exactly the point at which the static KX key is authenticated
+by XX.
+
+# 2. Handshake is now 4 packets (added Packet D)
+
+Reason: with UDP, if Packet C is lost, the initiator would otherwise
+consider itself VERIFIED while the responder never completes. Sender's
+first direct data would be silently dropped by responder. With 4
+packets the initiator only marks VERIFIED after receiving an
+authenticated confirmation D.
+
+Packet D is authenticated by the freshly derived session key (empty
+secretbox payload). This proves the responder completed XX and holds
+the session.
+
+3-packet alternative was considered and rejected for v1: it creates
+asymmetric VERIFIED state, which is error-prone for the first direct
+data and for re-handshake policy. 4-packet is deterministic.
+
+# 3. Canonical role-based signature transcripts
+
+Both sides build signature inputs with the SAME role order, regardless
+of their local self/peer naming.
+
+Inputs available at Packet B time (responder):
+  uid_i, cert_i, xx_p1
+  uid_r, cert_r (own), xx_p2
+
+Inputs available at Packet C time (initiator):
+  uid_i, cert_i, xx_p1 (own)
+  uid_r, cert_r, xx_p2
+  xx_p3 (own)
+
+Signed transcript (role-based canonical order):
+
+  responder (sig_b):
+    ctx       8   "AETHERPB"
+    version   1   0x01
+    uid_i    16
+    uid_r    16
+    H(cert_i) 32  full SHA-256 over cert_i wire bytes
+    H(cert_r) 32
+    H(p1)    32
+    H(p2)    32
+    ─── total 138
+
+  initiator (sig_a):
+    ctx       8   "AETHERPA"
+    version   1   0x01
+    uid_i    16
+    uid_r    16
+    H(cert_i) 32
+    H(cert_r) 32
+    H(p1)    32
+    H(p2)    32
+    H(p3)    32
+    ─── total 170
+
+Both transcripts bind: both UIDs, both certificate hashes, and hashes
+of every XX packet exchanged so far. An old transcript cannot be
+replayed because XX packets carry fresh ephemerals.
+
+No sha8 values are transmitted. Verifier locally hashes p1/p2/p3 and
+certs. No wire cost, full 256-bit collision resistance inside the
+signed input.
+
+# 4. Beacon nonce dropped
+
+The v5 beacon carried a beacon_nonce which participated in the
+identity transcript. On review it provides no security property that
+XX's fresh ephemerals do not already provide.
+
+Removed. Beacon is now 33 bytes.
+
+# 5. Certificate format — final
+
+Peer identity certificate signed payload (49 bytes):
+
+  version     1    0x01
+  uid        16
+  peer_identity_sign_pk 32   hydro_sign public key
+  ─── payload 49
+
+Signed message for authority verify (57 bytes):
+
+  ctx         8   "AETHERPE"
+  payload    49
+  ─── total   57
+
+On the wire:
+
+  payload    49
+  authority_sig 64   P256 signature
+  ─── total 113
+
+Peer static KX key is NOT in the certificate. XX transports it and the
+identity signature binds it (section 3). This reduces the certificate
+by 32 bytes vs v5.
+
+# 6. Intermediate authority certificate — separate format
+
+The intermediate is an identity authority, not a peer. It does not
+have an Aether UID in the peer sense.
+
+Authority certificate signed payload (70 bytes):
+
+  version       1   0x01
+  purpose       1   0x01 = PEER_IDENTITY_ISSUER
+  authority_id  4   (identifies which intermediate)
+  authority_p256_sign_pk 64
+  ─── payload  70
+
+Signed message for root verify (78 bytes):
+
+  ctx        8   "AETHERIA"
+  payload   70
+  ─── total  78
+
+On the wire:
+
+  payload     70
+  root_sig    64   P256 signature over ctx||payload
+  ─── total  134
+
+CRITICAL CORRECTION vs v5: P256 public key is 64 bytes, not 32. v5's
+49-byte intermediate payload was arithmetically impossible for a P256
+key.
+
+Purpose byte prevents reusing the same certified P256 key in a
+different protocol context (e.g. as an encryption key).
+
+# 7. Verification chain (peer cert)
+
+Inputs on the client, provisioned once:
+  trusted_root_p256_pubkeys[]         already present
+  authority_cert[134]                 new, caller-owned
+
+Verify(peer_cert[113]):
+  1. authority_cert verified offline at provisioning:
+       verify_signature(
+           root_pubkey,
+           "AETHERIA" || authority_cert.payload(70),
+           authority_cert.root_sig(64))
+     If OK, extract authority_p256_sign_pk from authority_cert.
+  2. at runtime, per peer cert:
+       verify_signature(
+           authority_p256_sign_pk,
+           "AETHERPE" || peer_cert.payload(49),
+           peer_cert.authority_sig(64))
+
+Both verifications use the existing aether_crypto_vtable
+verify_signature. No new crypto backend required.
+
+# 8. Handshake packets — final exact layouts
+
+Beacon (periodic, 33 bytes):
+
+  magic         4    'A' 'E' 'L' 'N'
+  version       1    0x01
+  type          1    0x01
+  flags         1    bit 0 = direct_ready
+  uid          16
+  cert_fp       8    first 8 bytes of SHA-256 over cert wire (hint)
+  direct_port   2    network byte order
+  ─── total    33
+
+Packet A (initiator -> responder, 184 bytes):
+
+  magic         4    'A' 'E' 'L' 'H'
+  version       1    0x01
+  type          1    0x10
+  reserved      1    0
+  uid_i        16
+  cert_i      113
+  xx_p1        48
+  ─── total   184
+
+Packet B (responder -> initiator, 296 bytes):
+
+  magic         4    'A' 'E' 'L' 'H'
+  version       1    0x01
+  type          1    0x11
+  reserved      1    0
+  uid_r        16
+  cert_r      113
+  xx_p2        96
+  sig_b        64
+  ─── total   296
+
+Packet C (initiator -> responder, 136 bytes):
+
+  magic         4    'A' 'E' 'L' 'H'
+  version       1    0x01
+  type          1    0x12
+  reserved      1    0
+  xx_p3        64
+  sig_a        64
+  ─── total   136
+
+Packet D (responder -> initiator, 59 bytes, encrypted confirmation):
+
+  magic         4    'A' 'E' 'L' 'H'
+  version       1    0x01
+  type          1    0x13
+  reserved      1    0
+  session_id    8
+  sequence      8
+  ct           36    empty secretbox output (header only)
+  ─── total    59
+
+Direct data packet (unchanged):
+
+  magic         4    'A' 'E' 'L' 'D'
+  version       1    0x01
+  type          1    0x20
+  session_id    8
+  sequence      8    big-endian on wire
+  ct           36 + payload_len
+  ─── total    58 + payload_len
+
+Total handshake: 184 + 296 + 136 + 59 = 675 bytes per successful
+handshake.
+
+# 9. VERIFIED timing
+
+Initiator:
+  IDLE -> SENT_A (sent A, waiting B)
+  SENT_A -> SENT_C (received B, verified cert_r + sig_b, ran xx_3,
+                    sent C, waiting D)
+  SENT_C -> VERIFIED (received D, xx session decrypts)
+
+Responder:
+  IDLE -> SENT_B (received A, verified cert_i, ran xx_2, sent B,
+                  waiting C)
+  SENT_B -> VERIFIED (received C, verified cert_i + sig_a, ran xx_4,
+                      sent D)
+
+VERIFIED is symmetric only at the moment both sides hold it.
+
+Sender B is VERIFIED at T+1 (after sending D).
+Sender A is VERIFIED at T+2 (after receiving D).
+
+Bounded: 5-second per-state timeout.
+
+# 10. Timeout / retry policy
+
+  SENT_A timeout (initiator never got B): drop state, back to
+    DISCOVERED. Next attempt on next beacon-driven initiation or on
+    explicit user send.
+
+  SENT_B timeout (responder never got C): drop state, back to
+    DISCOVERED.
+
+  SENT_C timeout (initiator never got D): drop state, back to
+    DISCOVERED. Next attempt retries from Packet A.
+
+  No mid-handshake retransmission of individual packets in v1.
+  Full handshake is small (675 bytes) and LAN loss is rare.
+
+# 11. One handshake at a time, transient scratch
+
+aether_lan_t holds one handshake slot:
+
+  hydro_kx_state hstate             116
+  aether_uuid_t  handshake_peer_uid  16
+  uint8_t        handshake_peer_sign_pk[32]
+  uint8_t        handshake_peer_cert[113]
+  aether_lan_endpoint_t handshake_endpoint    6
+  uint8_t        p1_saved[48]
+  uint8_t        p2_saved[96]
+  uint8_t        p3_saved[64]
+  uint8_t        substate              1
+  uint32_t       started_ms            4
+  ─── total                          496
+
+Only one handshake proceeds at a time. Concurrent attempts from other
+peers are ignored; peers retry (with jitter) on their own timeout.
+
+# 12. Nonblocking substates
+
+LAN component work never blocks between steps. All handshake progress
+happens across separate aether_work() calls:
+
+  WAIT_A_RECV  (responder waiting for A)
+  WAIT_B_RECV  (initiator waiting for B)
+  WAIT_C_RECV  (responder waiting for C)
+  WAIT_D_RECV  (initiator waiting for D)
+
+On each work() call, the component:
+  1. receives all available UDP datagrams (drain);
+  2. classifies by magic/type;
+  3. applies to current state if relevant;
+  4. produces any outgoing packet;
+  5. updates timeouts.
+
+Direct data packets are independent of handshake substates; they are
+processed whenever session state exists for their session_id.
+
+# 13. Non-blocking multi-peer direct data
+
+While one handshake is in progress, established VERIFIED sessions keep
+working. Direct data packets from/to VERIFIED peers are routed via
+their stored session_id lookup, not by the handshake state.
+
+# 14. Common ingress — unchanged from v5
+
+Internal helper:
+
+  aether_dispatch_message_internal(client, from, data, size)
+
+sets callback_active around the user callback and restores it after.
+Both cloud and LAN use this same helper. Behaviour matches cloud's
+existing effective guard (rx_active for cloud path, callback_active
+for LAN path).
+
+# 15. TTL policy
+
+  DISCOVERED: 45 s (refreshed by valid beacon).
+  VERIFIED:   120 s (refreshed by successfully decrypted direct packet
+              only). No periodic keepalive.
+  On expiry: VERIFIED -> EMPTY, session state wiped.
+
+At next send, expired session means provider returns
+NOT_APPLICABLE. Coordinator tries next provider or retries later.
+
+# 16. Library crypto API gaps — none
+
+Peer crypto uses libhydrogen:
+  hydro_sign_keygen_deterministic (or random)
+  hydro_sign_create / verify           peer identity signatures
+  hydro_kx_xx_1/2/3/4                  session establishment
+  hydro_secretbox_encrypt/decrypt      session encryption
+  hydro_hash_init/update/final         transcripts, session_id
+
+Authority crypto uses existing aether_crypto_vtable.verify_signature
+for P256.
+
+Both stacks coexist with no new code paths in the platform crypto
+adapter.
+
+# 17. MCU RAM (final, 32-bit, N peers)
+
+LAN context base:
+  client ptr          4
+  peers ptr           4
+  peer_capacity       4
+  peer_count          4
+  disc sock fd        4
+  direct sock fd      4
+  my_sign_sk         64
+  my_sign_pk         32
+  my_kx_sk           32
+  my_kx_pk           32
+  my_cert ptr         4
+  intermediate ptr    4
+  beacon_ms           4
+  random_state       32
+  ─── base          228
+
+Transient handshake scratch (persistent in aether_lan_t):
+  ─── handshake state 496
+
+Caller-owned buffers:
+  UDP RX              576
+  UDP TX              576
+  my_cert (113)       113
+  intermediate (134)  134
+
+Per VERIFIED peer:
+  uid                16
+  endpoint            8   (IPv4 4 + port 2 + 2 reserved)
+  rx_key             32
+  tx_key             32
+  session_id          8
+  tx_seq              8
+  rx_highest          8
+  rx_seen             8
+  last_seen_ms        4
+  state               1
+  pad                 1
+  ─── peer          124
+
+Totals:
+  N=4  : 228 + 496 + 576 + 576 + 113 + 134 + 4*124  = 2627 B
+  N=16 : 228 + 496 + 576 + 576 + 113 + 134 + 16*124 = 4115 B
+  N=32 : 228 + 496 + 576 + 576 + 113 + 134 + 32*124 = 6111 B
+
+Library .bss growth: 0. All caller-owned.
+
+Certificates are not stored per peer after verification; only the
+session-scoped keys remain.
+
+# 18. Handshake test plan (deterministic)
+
+  A -> B full handshake, both sides reach VERIFIED, session keys match
+    (directional), session_id matches.
+  wrong authority chain: peer cert signed by rogue P256 key is rejected
+    at step 2.
+  cert uid != advertised uid in Packet A/B: rejected.
+  swapped certs (A presents B's cert): rejected at uid check.
+  tampered xx_p1/p2/p3: XX MAC check fails, handshake aborts.
+  tampered sig_a / sig_b: verify fails, handshake aborts.
+  tampered Packet D: secretbox tag fails, initiator stays SENT_C,
+    times out.
+  replay of Packet A: responder starts fresh handshake; a replay of a
+    full handshake has no effect because each side generates fresh
+    ephemerals.
+  splice of xx_p1 from handshake X into handshake Y: sig_a computed
+    over the wrong transcript; responder's verify fails.
+  reflection of A->B direct ciphertext back to A: directional keys
+    prevent decryption; tag fails.
+  old session_id after VERIFIED: lookup misses, packet dropped.
+
+  Same tests will be run against the cloud path with a fake provider
+  to confirm the common ingress helper produces identical BUSY
+  semantics for aether_send_message and identical OK semantics for
+  aether_delivery_send inside the user callback.
+
+# 19. Final wire summary
+
+  beacon               33
+  packet A            184
+  packet B            296
+  packet C            136
+  packet D             59
+  peer cert           113  (carried inside A and B)
+  authority cert      134  (provisioned only)
+  direct data       58 + payload
+
+Total per handshake: 675 bytes across 4 messages.
+
+================================================================
+LAN implementation blocked pending review of this delta.
+No code changed in this checkpoint.
+================================================================
