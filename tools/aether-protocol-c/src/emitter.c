@@ -2733,12 +2733,28 @@ static bool emit_stream_builder_definitions_for_api(
         api_name,
         sizeof(api_name));
 
+
+    adsl_effective_method_t *effective = NULL;
+    size_t effective_count = 0u;
+
+    if (!emitter_collect_effective(
+            document,
+            api,
+            &effective,
+            &effective_count,
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
     for (size_t m = 0u;
-         m < api->method_count;
+         m < effective_count;
          ++m) {
 
         const adsl_method_t *method =
-            &api->methods[m];
+            effective[m].method;
+
 
         bool has_response =
             method->returns_type != NULL ||
@@ -2848,9 +2864,13 @@ static bool emit_stream_builder_definitions_for_api(
             ");\n"
             "}\n\n",
             output);
+
     }
 
+    free(effective);
+
     return !ferror(output);
+
 }
 
 static bool emit_stream_builder_definitions(
@@ -6593,9 +6613,13 @@ static const adsl_api_t *response_find_api(
 }
 
 
+
 static const adsl_method_t *response_find_method(
+    const adsl_document_t *document,
     const adsl_api_t *api,
-    const char *name) {
+    const char *name,
+    char *error,
+    size_t error_capacity) {
 
     if (api == NULL ||
         name == NULL) {
@@ -6603,22 +6627,40 @@ static const adsl_method_t *response_find_method(
         return NULL;
     }
 
-    for (size_t i = 0u;
-         i < api->method_count;
-         ++i) {
+    /*
+     * Response generation must resolve the method through the same
+     * effective-method collector used by remote/local emission, so
+     * `--response-method ChildApi.foo` picks the parent declaration when
+     * a same-name child declaration is shadowed, exactly like Java.
+     */
+    adsl_effective_method_t *effective = NULL;
+    size_t effective_count = 0u;
 
-        if (api->methods[i].name != NULL &&
-            strcmp(
-                api->methods[i].name,
-                name) == 0) {
+    if (!emitter_collect_effective(
+            document,
+            api,
+            &effective,
+            &effective_count,
+            error,
+            error_capacity)) {
 
-            return
-                &api->methods[i];
-        }
+        return NULL;
     }
 
-    return NULL;
+    const adsl_effective_method_t *found =
+        emitter_find_effective_method(
+            effective,
+            effective_count,
+            name);
+
+    const adsl_method_t *result =
+        found != NULL ? found->method : NULL;
+
+    free(effective);
+
+    return result;
 }
+
 
 
 
@@ -7085,7 +7127,14 @@ bool adsl_emit_c_response_method(
         response_find_api(document, selected_api_name);
 
     const adsl_method_t *method =
-        response_find_method(api, selected_method_name);
+
+        response_find_method(
+            document,
+            api,
+            selected_method_name,
+            error,
+            error_capacity);
+
 
     if (!response_method_supported(document, method, error, error_capacity)) {
         return false;

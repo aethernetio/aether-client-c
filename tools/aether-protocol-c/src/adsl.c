@@ -2753,15 +2753,78 @@ bool adsl_validate(
         adsl_api_t *api =
             &document->apis[i];
 
+
         /*
-         * Validate every effective method, matching the Java reference
-         * generator which flattens APIs parent-first and computes
-         * contextual command ids. Per-declaration checks (parameter
-         * type references, returns/throws references, anonymous result
-         * fields) are still applied by iterating effective methods,
-         * because an inherited method has already been validated by the
-         * time we reach this API, but the effective id collision check
-         * must run in the effective context.
+         * Declaration validation: EVERY method declared directly on this
+         * API must pass parameter/returns/throws/anonymous-result type
+         * validation, regardless of whether it will later be hidden by
+         * inheritance name dedup. The Java Validator also validates all
+         * declared methods, so a shadowed bad declaration is still an error.
+         *
+         * This phase deliberately does NOT assign automatic command ids and
+         * does NOT compute the effective set.
+         */
+        for (size_t m = 0u; m < api->method_count; ++m) {
+
+            const adsl_method_t *method =
+                &api->methods[m];
+
+            for (size_t p = 0u;
+                 p < method->param_count;
+                 ++p) {
+
+                const adsl_param_t *param =
+                    &method->params[p];
+
+                if (param->stream != NULL) {
+                    continue;
+                }
+
+                if (!validate_type_reference(
+                        document,
+                        param->type,
+                        error,
+                        error_capacity)) {
+
+                    return false;
+                }
+            }
+
+            if (!validate_type_reference(
+                    document,
+                    method->returns_type,
+                    error,
+                    error_capacity) ||
+                !validate_type_reference(
+                    document,
+                    method->throws_type,
+                    error,
+                    error_capacity)) {
+
+                return false;
+            }
+
+            for (size_t f = 0u;
+                 f < method->return_field_count;
+                 ++f) {
+
+                if (!validate_type_reference(
+                        document,
+                        method->return_fields[f].type,
+                        error,
+                        error_capacity)) {
+
+                    return false;
+                }
+            }
+        }
+
+        /*
+         * Effective-method resolution and effective-command-id validation
+         * are a separate phase. adsl_collect_effective_methods() implements
+         * Java getAllMethods() semantics: parent-first, first-name-wins,
+         * contextual automatic ids. The collector already rejects explicit
+         * id collisions in the effective set.
          */
         {
             adsl_effective_method_t *effective = NULL;
@@ -2780,76 +2843,23 @@ bool adsl_validate(
 
             for (size_t m = 0u; m < effective_count; ++m) {
 
-                const adsl_method_t *method = effective[m].method;
-
                 if (effective[m].id < 3u) {
                     set_error(
                         error,
                         error_capacity,
                         "API '%s' method '%s' uses reserved id %u",
                         api->name,
-                        method->name,
+                        effective[m].method->name,
                         (unsigned int)effective[m].id);
 
                     free(effective);
                     return false;
                 }
-
-                for (size_t p = 0u;
-                     p < method->param_count;
-                     ++p) {
-
-                    const adsl_param_t *param =
-                        &method->params[p];
-
-                    if (param->stream != NULL) {
-                        continue;
-                    }
-
-                    if (!validate_type_reference(
-                            document,
-                            param->type,
-                            error,
-                            error_capacity)) {
-
-                        free(effective);
-                        return false;
-                    }
-                }
-
-                if (!validate_type_reference(
-                        document,
-                        method->returns_type,
-                        error,
-                        error_capacity) ||
-                    !validate_type_reference(
-                        document,
-                        method->throws_type,
-                        error,
-                        error_capacity)) {
-
-                    free(effective);
-                    return false;
-                }
-
-                for (size_t f = 0u;
-                     f < method->return_field_count;
-                     ++f) {
-
-                    if (!validate_type_reference(
-                            document,
-                            method->return_fields[f].type,
-                            error,
-                            error_capacity)) {
-
-                        free(effective);
-                        return false;
-                    }
-                }
             }
 
             free(effective);
         }
+
     }
 
 

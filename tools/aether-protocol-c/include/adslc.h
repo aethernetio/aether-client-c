@@ -186,10 +186,13 @@ typedef struct {
  * that the caller must release with free(). A zero method count returns
  * *out_methods == NULL.
  *
+
  * On failure returns false with a human-readable error message. Duplicate
- * conflicting method declarations sharing one effective name, and two
- * different effective methods sharing a command id, are reported here.
+ * effective method names are dropped, keeping the first encountered
+ * (parent order, then own methods), exactly like Java. Only an explicit
+ * command id collision in the effective set is reported as an error.
  */
+
 bool adsl_collect_effective_methods(
     const adsl_document_t *document,
     const adsl_api_t *api,
