@@ -4890,6 +4890,17 @@ static bool format_c_type(
 
 
 
+
+static bool emit_field_declaration(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *type,
+    const char *name,
+    char *error,
+    size_t error_capacity);
+
+
+
 static bool emit_all_struct_field_declarations(
     FILE *output,
     const adsl_document_t *document,
@@ -4933,6 +4944,7 @@ static bool emit_all_struct_field_declarations(
         }
     }
 
+
     for (size_t f = 0u;
          f < type->field_count;
          ++f) {
@@ -4940,150 +4952,17 @@ static bool emit_all_struct_field_declarations(
         const adsl_field_t *field =
             &type->fields[f];
 
-        bool nullable =
-            strchr(
-                field->type,
-                '?') != NULL;
-
-        char array_element[128];
-        bool array_dynamic;
-        size_t array_static_size;
-
-        if (parse_array_type(
-                field->type,
-                array_element,
-                sizeof(array_element),
-                &array_dynamic,
-                &array_static_size)) {
-
-            (void)array_element;
-            (void)array_dynamic;
-            (void)array_static_size;
-
-            char alias[256];
-
-            if (!array_alias_name(
-                    document,
-                    field->type,
-                    alias,
-                    sizeof(alias))) {
-
-                set_error(
-                    error,
-                    error_capacity,
-                    "generated struct array alias is too long");
-
-                return false;
-            }
-
-            fprintf(
+        if (!emit_field_declaration(
                 output,
-                nullable
-                    ? "    const %s *%s;\n"
-                    : "    %s %s;\n",
-                alias,
-                field->name);
-
-            continue;
-        }
-
-        char base[128];
-
-        if (!scalar_type_name(
-                field->type,
-                base,
-                sizeof(base))) {
-
-            set_error(
-                error,
-                error_capacity,
-                "milestone-2 emitter supports scalar or one-dimensional array struct fields only");
-
-            return false;
-        }
-
-        const char *c_type =
-            primitive_c_type(base);
-
-        if (c_type != NULL) {
-            fprintf(
-                output,
-                nullable
-                    ? "    const %s *%s;\n"
-                    : "    %s %s;\n",
-                c_type,
-                field->name);
-
-            continue;
-        }
-
-        const adsl_type_t *field_type =
-            find_declared_type(
                 document,
-                base);
-
-        if (field_type == NULL) {
-            set_error(
+                field->type,
+                field->name,
                 error,
-                error_capacity,
-                "unknown generated struct field type");
-
+                error_capacity)) {
             return false;
         }
-
-        char field_type_name[256];
-
-
-declared_c_name(
-            field_type->name,
-            field_type_name,
-            sizeof(field_type_name));
-
-
-        if (field_type->enum_count > 0u) {
-            fprintf(
-                output,
-                nullable
-                    ? "    const %s_t *%s;\n"
-                    : "    %s_t %s;\n",
-                field_type_name,
-                field->name);
-
-            continue;
-        }
-
-        if (type_is_polymorphic_reference(
-                document,
-                field_type)) {
-
-            fprintf(
-                output,
-                nullable
-                    ? "    const %s_ref_t *%s;\n"
-                    : "    %s_ref_t %s;\n",
-                field_type_name,
-                field->name);
-
-            continue;
-        }
-
-        if (field_type->is_abstract) {
-            set_error(
-                error,
-                error_capacity,
-                "abstract struct field has no concrete hierarchy descendants");
-
-            return false;
-        }
-
-        fprintf(
-            output,
-            nullable
-                ? "    const %s_t *%s;\n"
-                : "    %s_t %s;\n",
-            field_type_name,
-            field->name);
     }
+
 
     return true;
 }
@@ -5499,70 +5378,132 @@ static bool emit_all_struct_payload(
 
 
 
+
+static bool method_is_response_bearing(
+    const adsl_method_t *method) {
+
+    return method != NULL &&
+           (method->returns_type != NULL ||
+            method->return_field_count > 0u ||
+            method->throws_type != NULL);
+}
+
+
 static bool local_api_supported(
     const adsl_api_t *api,
     char *error,
     size_t error_capacity) {
 
     if (api == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "selected local API not found");
-
+        set_error(error, error_capacity, "selected local API not found");
         return false;
     }
 
     if (api->method_count == 0u) {
-        set_error(
-            error,
-            error_capacity,
-            "selected local API has no methods");
-
+        set_error(error, error_capacity, "selected local API has no methods");
         return false;
     }
 
-    for (size_t m = 0u;
-         m < api->method_count;
-         ++m) {
-
-        const adsl_method_t *method =
-            &api->methods[m];
+    for (size_t m = 0u; m < api->method_count; ++m) {
+        const adsl_method_t *method = &api->methods[m];
 
         if (!method->has_id) {
-            set_error(
-                error,
-                error_capacity,
-                "local API method has no id");
-
+            set_error(error, error_capacity, "local API method has no id");
             return false;
         }
 
-        if (method->returns_type != NULL ||
-            method->return_field_count > 0u ||
-            method->throws_type != NULL) {
+        /*
+         * Nullable and collapsible method parameters are not generated for
+         * MCU targets, matching the remote API ABI. Keep the support gap
+         * symmetric so local and remote stay in step.
+         */
+        for (size_t p = 0u; p < method->param_count; ++p) {
+            const adsl_param_t *param = &method->params[p];
 
-            set_error(
-                error,
-                error_capacity,
-                "local stream dispatch currently supports fire-and-forget methods only");
+            if (param->stream != NULL) {
+                continue;
+            }
 
-            return false;
-        }
-
-        if (method->param_count != 1u ||
-            method->params[0].stream == NULL ||
-            method->params[0].type == NULL ||
-            method->params[0].name == NULL) {
-
-            set_error(
-                error,
-                error_capacity,
-                "local stream dispatch requires exactly one stream parameter");
-
-            return false;
+            if (param->type != NULL &&
+                (strchr(param->type, '?') != NULL ||
+                 strchr(param->type, '~') != NULL)) {
+                set_error(error, error_capacity,
+                    "nullable/collapsible parameters are not generated for MCU targets");
+                return false;
+            }
         }
     }
+
+    return true;
+}
+
+
+/*
+ * Local dispatcher emitter.
+ *
+ * The dispatcher consumes one method command from an inbound RX frame,
+ * decodes the parameters with the same generic type codec used by
+ * standalone DTOs and the response envelope decoder, then invokes the
+ * user callback. It deliberately does not implement a Java-like future
+ * registry: response-bearing methods simply receive the request_id as
+ * their first callback argument, and the actual result/error emission is
+ * a separate tooling phase.
+ *
+ * ABI:
+ *
+ *   aether_status_t <api>_dispatch(
+ *       <api>_local_t *api,
+ *       aether_meta_read_context_t *decode);
+ *
+ * Consumed bytes are visible through decode->reader.position. The next
+ * command in the same RX buffer can be processed by calling dispatch
+ * again with the same context.
+ */
+
+
+static bool emit_local_callback_declaration(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    const adsl_method_t *method,
+    char *error,
+    size_t error_capacity) {
+
+    char api_name[256];
+    char method_name[256];
+
+    snake_name(api->name, api_name, sizeof(api_name));
+    snake_name(method->name, method_name, sizeof(method_name));
+
+    fprintf(
+        output,
+        "typedef aether_status_t (*%s_%s_fn)(\n"
+        "    void *ctx",
+        api_name,
+        method_name);
+
+    if (method_is_response_bearing(method)) {
+        fputs(",\n    uint32_t request_id", output);
+    }
+
+    for (size_t p = 0u; p < method->param_count; ++p) {
+        const adsl_param_t *param = &method->params[p];
+
+        fputs(",\n    ", output);
+
+        if (!emit_parameter_type(
+                output,
+                document,
+                param,
+                error,
+                error_capacity)) {
+            return false;
+        }
+
+        fprintf(output, " %s", param->name);
+    }
+
+    fputs(");\n\n", output);
 
     return true;
 }
@@ -5576,19 +5517,10 @@ static bool emit_local_api_header(
     char *error,
     size_t error_capacity) {
 
-    (void)document;
-
-    FILE *output =
-        fopen(
-            path,
-            "wb");
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot create generated local API header");
-
+        set_error(error, error_capacity, "cannot create generated local API header");
         return false;
     }
 
@@ -5596,26 +5528,16 @@ static bool emit_local_api_header(
     char base_snake[256];
     char api_name[256];
 
-    upper_name(
-        base_name,
-        guard,
-        sizeof(guard));
-
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
-
-    snake_name(
-        api->name,
-        api_name,
-        sizeof(api_name));
+    upper_name(base_name, guard, sizeof(guard));
+    snake_name(base_name, base_snake, sizeof(base_snake));
+    snake_name(api->name, api_name, sizeof(api_name));
 
     fprintf(
         output,
         "#ifndef %s_LOCAL_H\n"
         "#define %s_LOCAL_H\n\n"
-        "#include \"%s_types.h\"\n\n"
+        "#include \"%s_types.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
         "#ifdef __cplusplus\n"
         "extern \"C\" {\n"
         "#endif\n\n",
@@ -5623,38 +5545,17 @@ static bool emit_local_api_header(
         guard,
         base_snake);
 
-    for (size_t m = 0u;
-         m < api->method_count;
-         ++m) {
-
-        const adsl_method_t *method =
-            &api->methods[m];
-
-        const adsl_param_t *param =
-            &method->params[0];
-
-        char method_name[256];
-        char stream_name[256];
-
-        snake_name(
-            method->name,
-            method_name,
-            sizeof(method_name));
-
-        declared_c_name(
-            param->type,
-            stream_name,
-            sizeof(stream_name));
-
-        fprintf(
-            output,
-            "typedef aether_status_t (*%s_%s_fn)(\n"
-            "    void *ctx,\n"
-            "    const %s_t *%s);\n\n",
-            api_name,
-            method_name,
-            stream_name,
-            param->name);
+    for (size_t m = 0u; m < api->method_count; ++m) {
+        if (!emit_local_callback_declaration(
+                output,
+                document,
+                api,
+                &api->methods[m],
+                error,
+                error_capacity)) {
+            fclose(output);
+            return false;
+        }
     }
 
     fprintf(
@@ -5662,10 +5563,7 @@ static bool emit_local_api_header(
         "typedef struct {\n"
         "    void *ctx;\n");
 
-    for (size_t m = 0u;
-         m < api->method_count;
-         ++m) {
-
+    for (size_t m = 0u; m < api->method_count; ++m) {
         char method_name[256];
 
         snake_name(
@@ -5686,9 +5584,7 @@ static bool emit_local_api_header(
         "} %s_local_t;\n\n"
         "aether_status_t %s_dispatch(\n"
         "    %s_local_t *api,\n"
-        "    const uint8_t *data,\n"
-        "    size_t length,\n"
-        "    size_t *consumed);\n\n"
+        "    aether_meta_read_context_t *ctx);\n\n"
         "#ifdef __cplusplus\n"
         "}\n"
         "#endif\n\n"
@@ -5698,240 +5594,415 @@ static bool emit_local_api_header(
         api_name);
 
     if (ferror(output)) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot write generated local API header");
-
+        set_error(error, error_capacity, "cannot write generated local API header");
         fclose(output);
         return false;
     }
 
     fclose(output);
+    return true;
+}
+
+
+/*
+ * Emit the local value declaration and decode statements for one method
+ * parameter. The C declaration shape matches the remote API ABI emitted
+ * by emit_parameter_type(); the decode statement uses the generic type
+ * decoder.
+ */
+static bool emit_local_param_decode(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    const char *base_snake,
+    char *error,
+    size_t error_capacity) {
+
+    const char *type = param->type;
+
+
+    if (param->stream != NULL) {
+        /*
+         * Inline stream parameter: the stream name is not a declared
+         * document type, it is a per-parameter struct typedef emitted
+         * alongside the types header. Decode it explicitly rather than
+         * going through the generic type lookup, and treat the payload as
+         * a borrowed, read-only view into the RX frame.
+         */
+        char stream_name[256];
+
+        declared_c_name(
+            type,
+            stream_name,
+            sizeof(stream_name));
+
+        fprintf(
+            output,
+            "        %s_t %s = {0};\n"
+            "        {\n"
+            "            const uint8_t *_meta_stream_data = NULL;\n"
+            "            size_t _meta_stream_length = 0u;\n"
+            "            if (!aether_meta_read_view(&ctx->reader,\n"
+            "                    &_meta_stream_data,\n"
+            "                    &_meta_stream_length)) {\n"
+            "                return AETHER_ERR_PROTOCOL;\n"
+            "            }\n"
+            "            (%s).data = (uint8_t *)_meta_stream_data;\n"
+            "            (%s).capacity = _meta_stream_length;\n"
+            "            (%s).length = _meta_stream_length;\n"
+            "        }\n",
+            stream_name,
+            param->name,
+            param->name,
+            param->name,
+            param->name);
+
+        return true;
+    }
+
+
+    char array_element[128];
+    bool array_dynamic;
+    size_t array_static_size;
+
+    if (parse_array_type(
+            type,
+            array_element,
+            sizeof(array_element),
+            &array_dynamic,
+            &array_static_size)) {
+
+        (void)array_element;
+        (void)array_static_size;
+
+        char alias[256];
+
+        if (!array_alias_name(
+                document,
+                type,
+                alias,
+                sizeof(alias))) {
+            set_error(error, error_capacity,
+                "generated array parameter alias is too long");
+            return false;
+        }
+
+        fprintf(output, "        %s %s = {0};\n", alias, param->name);
+
+        if (!emit_decode_value_expression(
+                output,
+                document,
+                type,
+                param->name,
+                base_snake,
+                0u,
+                error,
+                error_capacity)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    char base[128];
+
+    if (!scalar_type_name(type, base, sizeof(base))) {
+        set_error(error, error_capacity, "unsupported parameter shape");
+        return false;
+    }
+
+    const char *primitive = primitive_c_type(base);
+
+    if (primitive != NULL) {
+        fprintf(
+            output,
+            "        %s %s = {0};\n",
+            primitive,
+            param->name);
+
+        if (!emit_decode_value_expression(
+                output,
+                document,
+                type,
+                param->name,
+                base_snake,
+                0u,
+                error,
+                error_capacity)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    const adsl_type_t *declared =
+        find_declared_type(document, base);
+
+    if (declared == NULL) {
+        set_error(error, error_capacity, "unknown parameter type");
+        return false;
+    }
+
+    char declared_name[256];
+    declared_c_name(declared->name, declared_name, sizeof(declared_name));
+
+    if (declared->stream != NULL ||
+        declared->enum_count > 0u) {
+        fprintf(
+            output,
+            "        %s_t %s = {0};\n",
+            declared_name,
+            param->name);
+    } else if (type_is_polymorphic_reference(document, declared)) {
+        fprintf(
+            output,
+            "        %s_ref_t %s = {0};\n",
+            declared_name,
+            param->name);
+    } else if (declared->is_abstract) {
+        set_error(error, error_capacity,
+            "abstract parameter has no concrete hierarchy descendants");
+        return false;
+    } else {
+        fprintf(
+            output,
+            "        %s_t %s = {0};\n",
+            declared_name,
+            param->name);
+    }
+
+    if (!emit_decode_value_expression(
+            output,
+            document,
+            type,
+            param->name,
+            base_snake,
+            0u,
+            error,
+            error_capacity)) {
+        return false;
+    }
+
+    return true;
+}
+
+
+/*
+ * Emit the callback invocation for one method. The pass expression follows
+ * the remote parameter ABI in emit_parameter_type():
+ *
+ *   primitive / enum / dynamic array / stream -> by value
+ *   static array / concrete struct / polymorphic ref -> address-of
+ */
+static bool emit_local_callback_invocation(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    const adsl_method_t *method,
+    char *error,
+    size_t error_capacity) {
+
+    char api_name[256];
+    char method_name[256];
+
+    snake_name(api->name, api_name, sizeof(api_name));
+    snake_name(method->name, method_name, sizeof(method_name));
+
+    fprintf(
+        output,
+        "        aether_status_t status =\n"
+        "            api->%s(\n"
+        "                api->ctx",
+        method_name);
+
+    if (method_is_response_bearing(method)) {
+        fputs(",\n                request_id", output);
+    }
+
+    for (size_t p = 0u; p < method->param_count; ++p) {
+        const adsl_param_t *param = &method->params[p];
+
+        bool needs_address;
+
+        if (param->stream != NULL) {
+            needs_address = true;
+        } else {
+            char array_element[128];
+            bool array_dynamic;
+            size_t array_static_size;
+
+            if (parse_array_type(
+                    param->type,
+                    array_element,
+                    sizeof(array_element),
+                    &array_dynamic,
+                    &array_static_size)) {
+
+                (void)array_element;
+                (void)array_static_size;
+
+                needs_address = !array_dynamic;
+            } else {
+                char base[128];
+
+                if (!scalar_type_name(
+                        param->type,
+                        base,
+                        sizeof(base))) {
+                    set_error(error, error_capacity,
+                        "unsupported parameter shape");
+                    return false;
+                }
+
+                if (primitive_c_type(base) != NULL) {
+                    needs_address = false;
+                } else {
+                    const adsl_type_t *declared =
+                        find_declared_type(document, base);
+
+                    if (declared == NULL) {
+                        set_error(error, error_capacity,
+                            "unknown parameter type");
+                        return false;
+                    }
+
+                    if (declared->stream != NULL ||
+                        declared->enum_count > 0u) {
+                        needs_address = declared->stream != NULL;
+                    } else {
+                        needs_address = true;
+                    }
+                }
+            }
+        }
+
+        fprintf(
+            output,
+            ",\n                %s%s",
+            needs_address ? "&" : "",
+            param->name);
+    }
+
+    fputs(");\n\n", output);
 
     return true;
 }
 
 
 static bool emit_local_api_source(
+    const adsl_document_t *document,
     const adsl_api_t *api,
     const char *path,
     const char *base_name,
     char *error,
     size_t error_capacity) {
 
-    FILE *output =
-        fopen(
-            path,
-            "wb");
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot create generated local API source");
-
+        set_error(error, error_capacity, "cannot create generated local API source");
         return false;
     }
 
     char base_snake[256];
     char api_name[256];
 
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
-
-    snake_name(
-        api->name,
-        api_name,
-        sizeof(api_name));
+    snake_name(base_name, base_snake, sizeof(base_snake));
+    snake_name(api->name, api_name, sizeof(api_name));
 
     fprintf(
         output,
-        "#include \"%s_local.h\"\n\n"
-        "#include <stdint.h>\n\n"
-        "static bool %s_local_read_pack(\n"
-        "    const uint8_t *data,\n"
-        "    size_t length,\n"
-        "    size_t *position,\n"
-        "    uint64_t *value) {\n\n"
-        "    const uint64_t u8 = UINT64_C(251);\n"
-        "    const uint64_t u16 = UINT64_C(1515);\n"
-        "    const uint64_t u32 = UINT64_C(1049835);\n"
-        "    const uint64_t u64 =\n"
-        "        u32 +\n"
-        "        (UINT64_C(4294967296) * UINT64_C(256));\n\n"
-        "    if (data == NULL ||\n"
-        "        position == NULL ||\n"
-        "        value == NULL ||\n"
-        "        *position >= length) {\n"
-        "        return false;\n"
-        "    }\n\n"
-        "    uint64_t current =\n"
-        "        data[(*position)++];\n\n"
-        "    if (current < u8) {\n"
-        "        *value = current;\n"
-        "        return true;\n"
-        "    }\n\n"
-        "    if (*position >= length) {\n"
-        "        return false;\n"
-        "    }\n\n"
-        "    uint64_t next =\n"
-        "        data[(*position)++];\n\n"
-        "    current =\n"
-        "        ((current - u8) << 8u) +\n"
-        "        u8 +\n"
-        "        next;\n\n"
-        "    if (current < u16) {\n"
-        "        *value = current;\n"
-        "        return true;\n"
-        "    }\n\n"
-        "    if (length - *position < 2u) {\n"
-        "        return false;\n"
-        "    }\n\n"
-        "    uint64_t fraction16 =\n"
-        "        (uint64_t)data[*position] |\n"
-        "        ((uint64_t)data[*position + 1u] << 8u);\n\n"
-        "    *position += 2u;\n\n"
-        "    current =\n"
-        "        ((current - u16) << 16u) +\n"
-        "        u16 +\n"
-        "        fraction16;\n\n"
-        "    if (current < u32) {\n"
-        "        *value = current;\n"
-        "        return true;\n"
-        "    }\n\n"
-        "    if (length - *position < 4u) {\n"
-        "        return false;\n"
-        "    }\n\n"
-        "    uint64_t fraction32 =\n"
-        "        (uint64_t)data[*position] |\n"
-        "        ((uint64_t)data[*position + 1u] << 8u) |\n"
-        "        ((uint64_t)data[*position + 2u] << 16u) |\n"
-        "        ((uint64_t)data[*position + 3u] << 24u);\n\n"
-        "    *position += 4u;\n\n"
-        "    current =\n"
-        "        ((current - u32) << 32u) +\n"
-        "        u32 +\n"
-        "        fraction32;\n\n"
-        "    if (current >= u64) {\n"
-        "        return false;\n"
-        "    }\n\n"
-        "    *value = current;\n"
-        "    return true;\n"
-        "}\n\n"
+        "#include \"%s_local.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
+        "#include <string.h>\n\n"
+
         "aether_status_t %s_dispatch(\n"
         "    %s_local_t *api,\n"
-        "    const uint8_t *data,\n"
-        "    size_t length,\n"
-        "    size_t *consumed) {\n\n"
-        "    if (api == NULL ||\n"
-        "        consumed == NULL ||\n"
-        "        (length > 0u && data == NULL)) {\n"
+        "    aether_meta_read_context_t *ctx) {\n\n"
+        "    if (api == NULL || ctx == NULL) {\n"
         "        return AETHER_ERR_ARGUMENT;\n"
         "    }\n\n"
-        "    *consumed = 0u;\n\n"
-        "    if (length == 0u) {\n"
+        "    uint8_t command = 0u;\n\n"
+        "    if (!aether_meta_read_u8(&ctx->reader, &command)) {\n"
         "        return AETHER_ERR_PROTOCOL;\n"
         "    }\n\n"
-        "    size_t position = 0u;\n"
-        "    uint8_t command =\n"
-        "        data[position++];\n\n"
         "    switch (command) {\n",
-        base_snake,
+
         base_snake,
         api_name,
         api_name);
 
-    for (size_t m = 0u;
-         m < api->method_count;
-         ++m) {
-
-        const adsl_method_t *method =
-            &api->methods[m];
-
-        const adsl_param_t *param =
-            &method->params[0];
+    for (size_t m = 0u; m < api->method_count; ++m) {
+        const adsl_method_t *method = &api->methods[m];
 
         char method_name[256];
-        char stream_name[256];
-
-        snake_name(
-            method->name,
-            method_name,
-            sizeof(method_name));
-
-        declared_c_name(
-            param->type,
-            stream_name,
-            sizeof(stream_name));
+        snake_name(method->name, method_name, sizeof(method_name));
 
         fprintf(
             output,
-            "    case %uu: {\n"
+            "    case %uu: {\n",
+            (unsigned int)method->id);
+
+        fprintf(
+            output,
             "        if (api->%s == NULL) {\n"
             "            return AETHER_ERR_ARGUMENT;\n"
-            "        }\n\n"
-            "        uint64_t packed_length = 0u;\n\n"
-            "        if (!%s_local_read_pack(\n"
-            "                data,\n"
-            "                length,\n"
-            "                &position,\n"
-            "                &packed_length) ||\n"
-            "            packed_length > (uint64_t)SIZE_MAX) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n"
-            "        size_t stream_length =\n"
-            "            (size_t)packed_length;\n\n"
-            "        if (stream_length >\n"
-            "                length - position) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n"
-            "        %s_t stream_value = {\n"
-            "            .data =\n"
-            "                (uint8_t *)(data + position),\n"
-            "            .capacity = stream_length,\n"
-            "            .length = stream_length\n"
-            "        };\n\n"
-            "        position +=\n"
-            "            stream_length;\n\n"
-            "        aether_status_t status =\n"
-            "            api->%s(\n"
-            "                api->ctx,\n"
-            "                &stream_value);\n\n"
-            "        if (status != AETHER_OK) {\n"
-            "            return status;\n"
-            "        }\n\n"
-            "        *consumed = position;\n"
-            "        return AETHER_OK;\n"
-            "    }\n\n",
-            (unsigned int)method->id,
-            method_name,
-            base_snake,
-            stream_name,
+            "        }\n\n",
             method_name);
+
+        if (method_is_response_bearing(method)) {
+            fputs(
+                "        uint32_t request_id = 0u;\n"
+                "        if (!aether_meta_read_u32le(&ctx->reader, &request_id)) {\n"
+                "            return AETHER_ERR_PROTOCOL;\n"
+                "        }\n\n",
+                output);
+        }
+
+        for (size_t p = 0u; p < method->param_count; ++p) {
+            if (!emit_local_param_decode(
+                    output,
+                    document,
+                    &method->params[p],
+                    base_snake,
+                    error,
+                    error_capacity)) {
+                fclose(output);
+                return false;
+            }
+        }
+
+        if (!emit_local_callback_invocation(
+                output,
+                document,
+                api,
+                method,
+                error,
+                error_capacity)) {
+            fclose(output);
+            return false;
+        }
+
+        fputs(
+            "        return status;\n"
+            "    }\n\n",
+            output);
     }
 
-    fprintf(
-        output,
+    fputs(
         "    default:\n"
         "        return AETHER_ERR_PROTOCOL;\n"
         "    }\n"
-        "}\n");
+        "}\n",
+        output);
 
     if (ferror(output)) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot write generated local API source");
-
+        set_error(error, error_capacity, "cannot write generated local API source");
         fclose(output);
         return false;
     }
 
     fclose(output);
-
     return true;
 }
 
@@ -5950,33 +6021,19 @@ bool adsl_emit_c_local_api(
         selected_api_name == NULL ||
         *selected_api_name == '\0') {
 
-        set_error(
-            error,
-            error_capacity,
-            "invalid local emitter arguments");
-
+        set_error(error, error_capacity, "invalid local emitter arguments");
         return false;
     }
 
     const adsl_api_t *api =
-        find_api_definition(
-            document,
-            selected_api_name);
+        find_api_definition(document, selected_api_name);
 
-    if (!local_api_supported(
-            api,
-            error,
-            error_capacity)) {
-
+    if (!local_api_supported(api, error, error_capacity)) {
         return false;
     }
 
     char base_snake[256];
-
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
+    snake_name(base_name, base_snake, sizeof(base_snake));
 
     char types_h[1024];
     char types_c[1024];
@@ -6017,10 +6074,8 @@ bool adsl_emit_c_local_api(
             base_name,
             error,
             error_capacity)) {
-
         return false;
     }
-
 
     if (!emit_types_source(
             document,
@@ -6028,10 +6083,8 @@ bool adsl_emit_c_local_api(
             base_name,
             error,
             error_capacity)) {
-
         return false;
     }
-
 
     if (!emit_local_api_header(
             document,
@@ -6040,18 +6093,18 @@ bool adsl_emit_c_local_api(
             base_name,
             error,
             error_capacity)) {
-
         return false;
     }
 
-    return
-        emit_local_api_source(
-            api,
-            local_c,
-            base_name,
-            error,
-            error_capacity);
+    return emit_local_api_source(
+        document,
+        api,
+        local_c,
+        base_name,
+        error,
+        error_capacity);
 }
+
 
 
 
@@ -7622,14 +7675,25 @@ static bool emit_decode_value_expression(
         return false;
     }
 
+
     if (declared_type->stream != NULL) {
+        /*
+         * Incoming stream borrows the immutable RX frame. The historical
+         * stream_t representation uses uint8_t* because it is also used as
+         * an outgoing builder, but data passed by the decoder is read-only
+         * and must not outlive the RX buffer.
+         */
         fprintf(
             output,
-            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n",
+            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n"
+            "    (%s).capacity = (%s).length;\n",
+            target,
+            target,
             target,
             target);
         return true;
     }
+
 
     if (declared_type->enum_count > 0u) {
         char enum_name[256];

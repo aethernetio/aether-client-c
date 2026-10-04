@@ -1,4 +1,37 @@
 
+types:
+  Level:
+    enum:
+      - LOW
+      - MEDIUM
+      - HIGH
+
+  Inner:
+    fields:
+      code: short
+
+  Event:
+    abstract: true
+    fields:
+      source: byte
+
+  TempEvent:
+    id: 7
+    parent: Event
+    fields:
+      value: short
+
+  Item:
+    fields:
+      code: short
+
+  ArrayHolder:
+    fields:
+      bytes: byte[]
+      shorts: short[]
+      items: Item[]
+      fixed: byte[4]
+
 api:
   InnerApi:
     methods:
@@ -22,3 +55,45 @@ api:
             name: GlobalStream
             stream:
               api: InnerApi
+
+      sendMessage:
+        id: 5
+        params:
+          data: byte[]
+
+      sendPacket:
+        id: 6
+        params:
+          id: UUID
+          level: Level
+          payload: byte[]
+
+      sendInner:
+        id: 7
+        params:
+          inner: Inner
+
+      sendEvent:
+        id: 8
+        params:
+          event: Event
+
+      sendHolder:
+        id: 9
+        params:
+          holder: ArrayHolder
+
+      noop:
+        id: 10
+
+      pingVoid:
+        id: 11
+        returns: void
+        params:
+          code: short
+
+      queryValue:
+        id: 12
+        returns: bool
+        params:
+          code: short
