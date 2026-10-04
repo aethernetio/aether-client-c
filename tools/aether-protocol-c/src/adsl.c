@@ -2314,25 +2314,6 @@ static const adsl_type_t *find_type(
     return NULL;
 }
 
-static adsl_api_t *find_api_mutable(
-    adsl_document_t *document,
-    const char *name) {
-
-    for (size_t i = 0u;
-         i < document->api_count;
-         ++i) {
-
-        if (same_name(
-                document->apis[i].name,
-                name)) {
-
-            return &document->apis[i];
-        }
-    }
-
-    return NULL;
-}
-
 
 static const adsl_api_t *find_api_const(
     const adsl_document_t *document,
@@ -2399,197 +2380,7 @@ bool adsl_collect_effective_methods(
 
 
 
-static bool assign_method_ids_recursive(
-    adsl_document_t *document,
-    adsl_api_t *api,
-    size_t depth,
-    char *error,
-    size_t error_capacity) {
 
-    if (api->ids_assigned) {
-        return true;
-    }
-
-    if (depth > document->api_count) {
-
-        set_error(
-            error,
-            error_capacity,
-            "API inheritance cycle near '%s'",
-            api->name);
-
-        return false;
-    }
-
-    /*
-     * Parents must have their automatic IDs assigned before we can count
-     * the deduplicated inherited set, because method identity includes the
-     * command id. Java ApiGenerator.getAllMethods() also resolves parent
-     * methods first.
-     */
-    for (size_t i = 0u; i < api->parent_count; ++i) {
-
-        adsl_api_t *parent =
-            find_api_mutable(
-                document,
-                api->parents[i]);
-
-        if (parent == NULL) {
-
-            set_error(
-                error,
-                error_capacity,
-                "API '%s' has unknown parent '%s'",
-                api->name,
-                api->parents[i]);
-
-            return false;
-        }
-
-        if (!assign_method_ids_recursive(
-                document,
-                parent,
-                depth + 1u,
-                error,
-                error_capacity)) {
-
-            return false;
-        }
-    }
-
-    /*
-     * Count deduplicated inherited methods using the full effective shape,
-     * not the raw recursive method count. A diamond such as
-     * LeftApi -> RootApi and RightApi -> RootApi must contribute RootApi
-     * methods once, mirroring Java getAllMethods().
-     */
-    size_t capacity = 0u;
-
-    for (size_t i = 0u; i < document->api_count; ++i) {
-        capacity += document->apis[i].method_count;
-    }
-
-    size_t inherited_dedup = 0u;
-
-    if (capacity > 0u) {
-
-        adsl_effective_method_t *merged =
-            (adsl_effective_method_t *)calloc(
-                capacity,
-                sizeof(adsl_effective_method_t));
-
-        if (merged == NULL) {
-            set_error(error, error_capacity,
-                "out of memory assigning method ids");
-            return false;
-        }
-
-        for (size_t p = 0u; p < api->parent_count; ++p) {
-
-            adsl_api_t *parent =
-                find_api_mutable(
-                    document,
-                    api->parents[p]);
-
-            adsl_effective_method_t *parent_methods = NULL;
-            size_t parent_count = 0u;
-
-            if (!adsl_collect_effective_methods(
-                    document,
-                    parent,
-                    &parent_methods,
-                    &parent_count,
-                    error,
-                    error_capacity)) {
-
-                free(merged);
-                return false;
-            }
-
-
-            for (size_t i = 0u; i < parent_count; ++i) {
-
-                /*
-                 * Java ApiGenerator.getAllMethods() deduplicates inherited
-                 * methods by NAME only, keeping the first one encountered
-                 * (parent order, then own methods). Shape is not compared:
-                 * an inherited method with the same name but a different
-                 * command id is silently ignored, exactly like Java.
-                 */
-                bool duplicate = false;
-
-                for (size_t e = 0u; e < inherited_dedup; ++e) {
-
-                    if (strcmp(merged[e].method->name,
-                               parent_methods[i].method->name) == 0) {
-                        duplicate = true;
-                        break;
-                    }
-                }
-
-                if (duplicate) {
-                    continue;
-                }
-
-                if (inherited_dedup >= capacity) {
-                    set_error(error, error_capacity,
-                        "API '%s' effective inheritance overflow", api->name);
-                    free(parent_methods);
-                    free(merged);
-                    return false;
-                }
-
-                merged[inherited_dedup++] = parent_methods[i];
-            }
-
-
-            free(parent_methods);
-        }
-
-        free(merged);
-    }
-
-    for (size_t i = 0u; i < api->method_count; ++i) {
-
-        adsl_method_t *method = &api->methods[i];
-
-        if (!method->has_id) {
-            size_t generated = inherited_dedup + i + 3u;
-
-            if (generated > 255u) {
-                set_error(
-                    error,
-                    error_capacity,
-                    "method id overflow in API '%s'",
-                    api->name);
-
-                return false;
-            }
-
-            method->id = (uint8_t)generated;
-            method->has_id = true;
-        }
-    }
-
-    api->ids_assigned = true;
-
-    return true;
-}
-
-
-static bool assign_method_ids(
-    adsl_document_t *document,
-    adsl_api_t *api,
-    char *error,
-    size_t error_capacity) {
-
-    return assign_method_ids_recursive(
-        document,
-        api,
-        0u,
-        error,
-        error_capacity);
-}
 
 
 
@@ -2597,14 +2388,17 @@ static bool effective_append(
     adsl_effective_method_t *methods,
     size_t *count,
     const adsl_api_t *owner,
-    const adsl_method_t *method) {
+    const adsl_method_t *method,
+    uint8_t id) {
 
     methods[*count].owner = owner;
     methods[*count].method = method;
+    methods[*count].id = id;
     *count += 1u;
 
     return true;
 }
+
 
 
 static bool effective_collect_recursive(
@@ -2683,11 +2477,41 @@ static bool effective_collect_recursive(
             continue;
         }
 
+
+        /*
+         * Contextual command id, computed during this single parent-first
+         * pass exactly like Java:
+         *
+         *   explicit id  -> that id
+         *   otherwise    -> current effective count + 3
+         *
+         * The automatic id therefore depends on the effective API being
+         * generated, not on the declaring parent. It must never be written
+         * back into method->id.
+         */
+        size_t generated =
+            method->has_id
+                ? (size_t)method->id
+                : (*count + 3u);
+
+        if (generated > 255u) {
+
+            set_error(
+                error,
+                error_capacity,
+                "method id overflow in API '%s'",
+                api->name);
+
+            return false;
+        }
+
         effective_append(
             methods,
             count,
             api,
-            method);
+            method,
+            (uint8_t)generated);
+
     }
 
 
@@ -2718,10 +2542,10 @@ bool adsl_collect_effective_methods(
         return false;
     }
 
+
     /*
-     * Upper bound: total methods declared across every API. Any recursive
-     * parent/own traversal can never exceed this because diamond duplicates
-     * are deduplicated by name and conflicting duplicates abort early.
+     * Upper bound: total methods declared across every API. A parent-first
+     * traversal that deduplicates by name cannot exceed this.
      */
     size_t capacity = 0u;
 
@@ -2734,6 +2558,7 @@ bool adsl_collect_effective_methods(
 
         return true;
     }
+
 
     adsl_effective_method_t *methods =
         (adsl_effective_method_t *)calloc(
@@ -2761,37 +2586,25 @@ bool adsl_collect_effective_methods(
         return false;
     }
 
+
     /*
-     * Command id collision across the whole effective set is a hard error.
-     * This catches parent vs parent, parent vs child, and any residual
-     * diamond inconsistency that survived name-based dedup.
+     * Effective command id collision is a hard error. Contextual ids
+     * include explicit ids and automatic ids computed from the effective
+     * list, so this catches parent vs parent, parent vs child, and any
+     * duplicate explicit id.
      */
     for (size_t i = 0u; i < count; ++i) {
 
-        if (!methods[i].method->has_id) {
-
-            set_error(
-                error,
-                error_capacity,
-                "API '%s' effective method '%s' has no command id",
-                api->name,
-                methods[i].method->name);
-
-            free(methods);
-            return false;
-        }
-
         for (size_t j = i + 1u; j < count; ++j) {
 
-            if (methods[i].method->id ==
-                methods[j].method->id) {
+            if (methods[i].id == methods[j].id) {
 
                 set_error(
                     error,
                     error_capacity,
                     "API '%s' has duplicate effective method id %u ('%s' vs '%s')",
                     api->name,
-                    (unsigned int)methods[i].method->id,
+                    (unsigned int)methods[i].id,
                     methods[i].method->name,
                     methods[j].method->name);
 
@@ -2800,6 +2613,7 @@ bool adsl_collect_effective_methods(
             }
         }
     }
+
 
     *out_methods = methods;
     *out_count = count;
@@ -2935,110 +2749,19 @@ bool adsl_validate(
             }
         }
 
+
         adsl_api_t *api =
             &document->apis[i];
 
-        if (!assign_method_ids(
-                document,
-                api,
-                error,
-                error_capacity)) {
-
-            return false;
-        }
-
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
-
-            adsl_method_t *method =
-                &api->methods[m];
-
-            if (method->id < 3u) {
-                set_error(
-                    error,
-                    error_capacity,
-                    "API '%s' method '%s' uses reserved id %u",
-                    api->name,
-                    method->name,
-                    (unsigned int)method->id);
-
-                return false;
-            }
-
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
-                adsl_param_t *param =
-                    &method->params[p];
-
-                if (param->stream != NULL) {
-                    continue;
-                }
-
-                if (!validate_type_reference(
-                        document,
-                        param->type,
-                        error,
-                        error_capacity)) {
-
-                    return false;
-                }
-            }
-
-            if (!validate_type_reference(
-                    document,
-                    method->returns_type,
-                    error,
-                    error_capacity) ||
-                !validate_type_reference(
-                    document,
-                    method->throws_type,
-                    error,
-                    error_capacity)) {
-
-                return false;
-            }
-
-            for (size_t f = 0u;
-                 f < method->return_field_count;
-                 ++f) {
-
-                if (!validate_type_reference(
-                        document,
-                        method->return_fields[f].type,
-                        error,
-                        error_capacity)) {
-
-                    return false;
-                }
-            }
-
-            for (size_t n = m + 1u;
-                 n < api->method_count;
-                 ++n) {
-
-                if (method->id ==
-                    api->methods[n].id) {
-
-                    set_error(
-                        error,
-                        error_capacity,
-                        "API '%s' has duplicate method id %u",
-                        api->name,
-                        (unsigned int)method->id);
-
-                    return false;
-                }
-            }
-        }
-
         /*
-         * Effective-set validation. The per-API checks above only cover
-         * methods declared directly on this API; here we also cover methods
-         * that arrive via inheritance, matching the Java reference generator
-         * which flattens APIs parent-first.
+         * Validate every effective method, matching the Java reference
+         * generator which flattens APIs parent-first and computes
+         * contextual command ids. Per-declaration checks (parameter
+         * type references, returns/throws references, anonymous result
+         * fields) are still applied by iterating effective methods,
+         * because an inherited method has already been validated by the
+         * time we reach this API, but the effective id collision check
+         * must run in the effective context.
          */
         {
             adsl_effective_method_t *effective = NULL;
@@ -3055,11 +2778,80 @@ bool adsl_validate(
                 return false;
             }
 
+            for (size_t m = 0u; m < effective_count; ++m) {
+
+                const adsl_method_t *method = effective[m].method;
+
+                if (effective[m].id < 3u) {
+                    set_error(
+                        error,
+                        error_capacity,
+                        "API '%s' method '%s' uses reserved id %u",
+                        api->name,
+                        method->name,
+                        (unsigned int)effective[m].id);
+
+                    free(effective);
+                    return false;
+                }
+
+                for (size_t p = 0u;
+                     p < method->param_count;
+                     ++p) {
+
+                    const adsl_param_t *param =
+                        &method->params[p];
+
+                    if (param->stream != NULL) {
+                        continue;
+                    }
+
+                    if (!validate_type_reference(
+                            document,
+                            param->type,
+                            error,
+                            error_capacity)) {
+
+                        free(effective);
+                        return false;
+                    }
+                }
+
+                if (!validate_type_reference(
+                        document,
+                        method->returns_type,
+                        error,
+                        error_capacity) ||
+                    !validate_type_reference(
+                        document,
+                        method->throws_type,
+                        error,
+                        error_capacity)) {
+
+                    free(effective);
+                    return false;
+                }
+
+                for (size_t f = 0u;
+                     f < method->return_field_count;
+                     ++f) {
+
+                    if (!validate_type_reference(
+                            document,
+                            method->return_fields[f].type,
+                            error,
+                            error_capacity)) {
+
+                        free(effective);
+                        return false;
+                    }
+                }
+            }
+
             free(effective);
         }
-
-
     }
+
 
     return true;
 }

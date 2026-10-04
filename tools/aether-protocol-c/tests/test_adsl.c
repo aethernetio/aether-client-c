@@ -101,18 +101,41 @@ int main(void) {
         return 1;
     }
 
-    if (!method->has_id ||
-        method->id != 3u) {
 
-        fprintf(
-            stderr,
-            "unexpected method id: has_id=%d id=%u\n",
-            method->has_id ? 1 : 0,
-            (unsigned int)method->id);
+    adsl_effective_method_t *temperature_effective = NULL;
+    size_t temperature_effective_count = 0u;
 
+    if (!adsl_collect_effective_methods(
+            &document,
+            api,
+            &temperature_effective,
+            &temperature_effective_count,
+            error,
+            sizeof(error))) {
+
+        fprintf(stderr, "effective collect failed: %s\n", error);
         adsl_document_free(&document);
         return 1;
     }
+
+    if (temperature_effective_count != 1u ||
+        temperature_effective[0].id != 3u) {
+
+        fprintf(
+            stderr,
+            "unexpected method id: count=%zu id=%u\n",
+            temperature_effective_count,
+            temperature_effective_count > 0u
+                ? (unsigned int)temperature_effective[0].id
+                : 0u);
+
+        free(temperature_effective);
+        adsl_document_free(&document);
+        return 1;
+    }
+
+    free(temperature_effective);
+
 
     if (method->param_count != 1u) {
         fprintf(

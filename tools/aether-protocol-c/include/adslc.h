@@ -106,6 +106,7 @@ typedef struct {
 
 
 
+
 typedef struct {
     char *name;
 
@@ -123,15 +124,8 @@ typedef struct {
     adsl_method_t *methods;
     size_t method_count;
 
-    /*
-     * Set after automatic method IDs have been assigned for this API,
-     * including its inherited ancestry. Used to make the assignment
-     * idempotent when a child is declared before its parents and is
-     * therefore the entry point for the recursive parent-first pass.
-     */
-    bool ids_assigned;
-
 } adsl_api_t;
+
 
 
 
@@ -159,14 +153,21 @@ typedef struct {
 
 
 
+
 /*
  * One resolved (api, method) pair produced by effective API inheritance.
  *
  * C has no interface inheritance, so child APIs are flattened at
  * generation time using the same parent-first ordering as Java
  * ApiGenerator.getAllMethods(): parents recursively in declared order,
- * then the API's own methods. Diamond-identical duplicates are emitted
- * once; conflicting duplicates are rejected during validation.
+ * then the API's own methods. Duplicate method names are dropped,
+ * keeping the first encountered, exactly like Java.
+ *
+ * `id` is the CONTEXTUAL command id computed during one parent-first pass,
+ * matching Java's `res.size() + 3` rule. It is therefore NOT the same as
+ * `method->id`: a parent method with no explicit id receives different
+ * contextual ids when reached through different effective APIs. Do not
+ * store or reuse it globally.
  *
  * owner points to the API that declares the method; method points into
  * owner->methods. Both remain valid for the lifetime of the document.
@@ -174,7 +175,9 @@ typedef struct {
 typedef struct {
     const adsl_api_t *owner;
     const adsl_method_t *method;
+    uint8_t id;
 } adsl_effective_method_t;
+
 
 /*
  * Collect effective API methods in Java ApiGenerator order.

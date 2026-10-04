@@ -3399,7 +3399,7 @@ static bool emit_api_source(
                 has_response
                     ? 5u
                     : 1u,
-                (unsigned int)method->id);
+                (unsigned int)effective[m].id);
 
 
 
@@ -5702,10 +5702,14 @@ static bool local_api_supported(
     for (size_t m = 0u; m < api->method_count; ++m) {
         const adsl_method_t *method = &api->methods[m];
 
-        if (!method->has_id) {
-            set_error(error, error_capacity, "local API method has no id");
-            return false;
-        }
+
+        /*
+         * Command ids are contextual and computed by
+         * adsl_collect_effective_methods(), so has_id is no longer a
+         * reliable indicator here. Effective id validity is enforced by
+         * the collector.
+         */
+
 
 
         /*
@@ -6389,7 +6393,7 @@ static bool emit_local_api_source(
         fprintf(
             output,
             "    case %uu: {\n",
-            (unsigned int)method->id);
+            (unsigned int)effective[m].id);
 
         fprintf(
             output,

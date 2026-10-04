@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 static void fixture_path(
     const char *name,
@@ -57,9 +58,24 @@ static void test_adjacent_include(void) {
             error,
             sizeof(error)));
 
+
+    adsl_effective_method_t *effective = NULL;
+    size_t effective_count = 0u;
+
     assert(
-        document.apis[0].methods[0].id ==
-        3u);
+        adsl_collect_effective_methods(
+            &document,
+            &document.apis[0],
+            &effective,
+            &effective_count,
+            error,
+            sizeof(error)));
+
+    assert(effective_count == 1u);
+    assert(effective[0].id == 3u);
+
+    free(effective);
+
 
     adsl_document_free(&document);
 }
