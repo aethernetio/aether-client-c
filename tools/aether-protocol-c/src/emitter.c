@@ -3554,15 +3554,21 @@ bool adsl_emit_c_method(
                 return false;
             }
 
-            const adsl_effective_method_t *found =
+
+            /*
+             * The lookup result points into the effective array, which is
+             * freed before the found/not-found check. Reduce it to a boolean
+             * before free() so no pointer into freed storage is retained.
+             */
+            bool method_found =
                 emitter_find_effective_method(
                     effective,
                     effective_count,
-                    selected_method_name);
+                    selected_method_name) != NULL;
 
             free(effective);
 
-            if (found == NULL) {
+            if (!method_found) {
                 set_error(
                     error,
                     error_capacity,
@@ -3570,6 +3576,7 @@ bool adsl_emit_c_method(
 
                 return false;
             }
+
         }
 
     }
