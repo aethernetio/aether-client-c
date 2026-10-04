@@ -88,6 +88,56 @@ static void snake_name(
 
 }
 
+
+/*
+ * Generated C identifiers must not collide with C keywords. ADSL method
+ * names are protocol names and must not be renamed, so the C target only
+ * adjusts the emitted identifier (for example `register` becomes
+ * `register_`). The wire name and command id are unaffected.
+ *
+ * This is applied to identifiers that are derived from protocol names and
+ * used as C members, functions or typedefs. Type/API prefixes are not
+ * affected because they are already prefixed with the base name.
+ */
+static bool c_identifier(
+    const char *source,
+    char *target,
+    size_t capacity) {
+
+    static const char *const keywords[] = {
+        "auto", "break", "case", "char", "const", "continue", "default",
+        "do", "double", "else", "enum", "extern", "float", "for", "goto",
+        "if", "inline", "int", "long", "register", "restrict", "return",
+        "short", "signed", "sizeof", "static", "struct", "switch",
+        "typedef", "union", "unsigned", "void", "volatile", "while",
+        "_Alignas", "_Alignof", "_Atomic", "_Bool", "_Complex",
+        "_Generic", "_Imaginary", "_Noreturn", "_Static_assert",
+        "_Thread_local",
+        NULL
+    };
+
+    snake_name(source, target, capacity);
+
+    for (size_t i = 0u; keywords[i] != NULL; ++i) {
+
+        if (strcmp(target, keywords[i]) == 0) {
+
+            size_t length = strlen(target);
+
+            if (length + 1u >= capacity) {
+                return false;
+            }
+
+            target[length] = '_';
+            target[length + 1u] = '\0';
+            return true;
+        }
+    }
+
+    return true;
+}
+
+
 static void declared_c_name(
     const char *source,
     char *target,
@@ -961,12 +1011,22 @@ static c_param_kind_t classify_param_kind(
         return C_PARAM_KIND_SCALAR;
     }
 
-    if (declared->stream != NULL ||
-        declared->enum_count > 0u) {
 
+    if (declared->stream != NULL) {
+        /*
+         * Declared stream parameters use the same pointer ABI as anonymous
+         * inline streams: the decoder produces a small view struct and the
+         * callback takes its address.
+         */
+        *valid = true;
+        return C_PARAM_KIND_STREAM_PTR;
+    }
+
+    if (declared->enum_count > 0u) {
         *valid = true;
         return C_PARAM_KIND_SCALAR;
     }
+
 
     if (type_is_polymorphic_reference(document, declared)) {
         *valid = true;
@@ -5709,7 +5769,7 @@ static bool emit_local_callback_declaration(
     char method_name[256];
 
     snake_name(api->name, api_name, sizeof(api_name));
-    snake_name(method->name, method_name, sizeof(method_name));
+    c_identifier(method->name, method_name, sizeof(method_name));
 
     fprintf(
         output,
@@ -5820,10 +5880,12 @@ static bool emit_local_api_header(
     for (size_t m = 0u; m < effective_count; ++m) {
         char method_name[256];
 
-        snake_name(
+
+        c_identifier(
             effective[m].method->name,
             method_name,
             sizeof(method_name));
+
 
         fprintf(
             output,
@@ -6057,14 +6119,47 @@ static bool emit_local_param_decode(
     char declared_name[256];
     declared_c_name(declared->name, declared_name, sizeof(declared_name));
 
-    if (declared->stream != NULL ||
-        declared->enum_count > 0u) {
+
+    if (declared->stream != NULL) {
+        /*
+         * Declared stream parameter: the value is a named type whose only
+         * purpose is to carry the stream shape. Decode it as a borrowed
+         * view, taking the temporary const pointer first so the stream
+         * struct's mutable `data` field (kept for the builder ABI) does not
+         * violate the reader's const contract.
+         */
+        fprintf(
+            output,
+            "        %s_t %s = {0};\n"
+            "        {\n"
+            "            const uint8_t *_meta_stream_data = NULL;\n"
+            "            size_t _meta_stream_length = 0u;\n"
+            "            if (!aether_meta_read_view(&ctx->reader,\n"
+            "                    &_meta_stream_data,\n"
+            "                    &_meta_stream_length)) {\n"
+            "                return AETHER_ERR_PROTOCOL;\n"
+            "            }\n"
+            "            (%s).data = (uint8_t *)_meta_stream_data;\n"
+            "            (%s).capacity = _meta_stream_length;\n"
+            "            (%s).length = _meta_stream_length;\n"
+            "        }\n",
+            declared_name,
+            param->name,
+            param->name,
+            param->name,
+            param->name);
+
+        return true;
+    }
+
+    if (declared->enum_count > 0u) {
         fprintf(
             output,
             "        %s_t %s = {0};\n",
             declared_name,
             param->name);
     } else if (type_is_polymorphic_reference(document, declared)) {
+
         fprintf(
             output,
             "        %s_ref_t %s = {0};\n",
@@ -6162,7 +6257,7 @@ static bool emit_local_callback_invocation(
     char method_name[256];
 
     snake_name(api->name, api_name, sizeof(api_name));
-    snake_name(method->name, method_name, sizeof(method_name));
+    c_identifier(method->name, method_name, sizeof(method_name));
 
     fprintf(
         output,
@@ -6289,7 +6384,7 @@ static bool emit_local_api_source(
 
 
         char method_name[256];
-        snake_name(method->name, method_name, sizeof(method_name));
+        c_identifier(method->name, method_name, sizeof(method_name));
 
         fprintf(
             output,
@@ -6790,7 +6885,7 @@ static bool emit_response_method_header(
     upper_name(base_name, guard, sizeof(guard));
     snake_name(base_name, base_snake, sizeof(base_snake));
     snake_name(api->name, api_name, sizeof(api_name));
-    snake_name(method->name, method_name, sizeof(method_name));
+    c_identifier(method->name, method_name, sizeof(method_name));
     upper_name(api_name, api_upper, sizeof(api_upper));
     upper_name(method_name, method_upper, sizeof(method_upper));
 
@@ -6870,7 +6965,7 @@ static bool emit_response_method_source(
 
     snake_name(base_name, base_snake, sizeof(base_snake));
     snake_name(api->name, api_name, sizeof(api_name));
-    snake_name(method->name, method_name, sizeof(method_name));
+    c_identifier(method->name, method_name, sizeof(method_name));
     upper_name(api_name, api_upper, sizeof(api_upper));
     upper_name(method_name, method_upper, sizeof(method_upper));
 

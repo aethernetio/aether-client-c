@@ -122,6 +122,15 @@ typedef struct {
 
     adsl_method_t *methods;
     size_t method_count;
+
+    /*
+     * Set after automatic method IDs have been assigned for this API,
+     * including its inherited ancestry. Used to make the assignment
+     * idempotent when a child is declared before its parents and is
+     * therefore the entry point for the recursive parent-first pass.
+     */
+    bool ids_assigned;
+
 } adsl_api_t;
 
 

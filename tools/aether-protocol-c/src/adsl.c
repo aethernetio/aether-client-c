@@ -2386,16 +2386,35 @@ static bool validate_type_reference(
     return false;
 }
 
-static bool api_total_methods(
+
+
+bool adsl_collect_effective_methods(
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity);
+
+
+static bool effective_method_equal(
+    const adsl_method_t *a,
+    const adsl_method_t *b);
+
+
+
+static bool assign_method_ids_recursive(
     adsl_document_t *document,
     adsl_api_t *api,
     size_t depth,
-    size_t *count,
     char *error,
     size_t error_capacity) {
 
-    if (depth >
-        document->api_count) {
+    if (api->ids_assigned) {
+        return true;
+    }
+
+    if (depth > document->api_count) {
 
         set_error(
             error,
@@ -2406,12 +2425,13 @@ static bool api_total_methods(
         return false;
     }
 
-    size_t total =
-        api->method_count;
-
-    for (size_t i = 0u;
-         i < api->parent_count;
-         ++i) {
+    /*
+     * Parents must have their automatic IDs assigned before we can count
+     * the deduplicated inherited set, because method identity includes the
+     * command id. Java ApiGenerator.getAllMethods() also resolves parent
+     * methods first.
+     */
+    for (size_t i = 0u; i < api->parent_count; ++i) {
 
         adsl_api_t *parent =
             find_api_mutable(
@@ -2419,6 +2439,7 @@ static bool api_total_methods(
                 api->parents[i]);
 
         if (parent == NULL) {
+
             set_error(
                 error,
                 error_capacity,
@@ -2429,87 +2450,128 @@ static bool api_total_methods(
             return false;
         }
 
-        size_t parent_count =
-            0u;
-
-        if (!api_total_methods(
+        if (!assign_method_ids_recursive(
                 document,
                 parent,
                 depth + 1u,
-                &parent_count,
                 error,
                 error_capacity)) {
 
             return false;
         }
-
-        total +=
-            parent_count;
     }
 
-    *count =
-        total;
+    /*
+     * Count deduplicated inherited methods using the full effective shape,
+     * not the raw recursive method count. A diamond such as
+     * LeftApi -> RootApi and RightApi -> RootApi must contribute RootApi
+     * methods once, mirroring Java getAllMethods().
+     */
+    size_t capacity = 0u;
 
-    return true;
-}
+    for (size_t i = 0u; i < document->api_count; ++i) {
+        capacity += document->apis[i].method_count;
+    }
 
-static bool assign_method_ids(
-    adsl_document_t *document,
-    adsl_api_t *api,
-    char *error,
-    size_t error_capacity) {
+    size_t inherited_dedup = 0u;
 
-    size_t inherited =
-        0u;
+    if (capacity > 0u) {
 
-    for (size_t i = 0u;
-         i < api->parent_count;
-         ++i) {
+        adsl_effective_method_t *merged =
+            (adsl_effective_method_t *)calloc(
+                capacity,
+                sizeof(adsl_effective_method_t));
 
-        adsl_api_t *parent =
-            find_api_mutable(
-                document,
-                api->parents[i]);
-
-        if (parent == NULL) {
-            set_error(
-                error,
-                error_capacity,
-                "API '%s' has unknown parent '%s'",
-                api->name,
-                api->parents[i]);
-
+        if (merged == NULL) {
+            set_error(error, error_capacity,
+                "out of memory assigning method ids");
             return false;
         }
 
-        size_t parent_methods =
-            0u;
+        for (size_t p = 0u; p < api->parent_count; ++p) {
 
-        if (!api_total_methods(
-                document,
-                parent,
-                1u,
-                &parent_methods,
-                error,
-                error_capacity)) {
+            adsl_api_t *parent =
+                find_api_mutable(
+                    document,
+                    api->parents[p]);
 
-            return false;
+            adsl_effective_method_t *parent_methods = NULL;
+            size_t parent_count = 0u;
+
+            if (!adsl_collect_effective_methods(
+                    document,
+                    parent,
+                    &parent_methods,
+                    &parent_count,
+                    error,
+                    error_capacity)) {
+
+                free(merged);
+                return false;
+            }
+
+            for (size_t i = 0u; i < parent_count; ++i) {
+
+                bool duplicate_identical = false;
+                bool duplicate_conflict = false;
+
+                for (size_t e = 0u; e < inherited_dedup; ++e) {
+
+                    if (strcmp(merged[e].method->name,
+                               parent_methods[i].method->name) != 0) {
+                        continue;
+                    }
+
+                    if (effective_method_equal(
+                            merged[e].method,
+                            parent_methods[i].method)) {
+                        duplicate_identical = true;
+                        break;
+                    }
+
+                    duplicate_conflict = true;
+                    break;
+                }
+
+                if (duplicate_identical) {
+                    continue;
+                }
+
+                if (duplicate_conflict) {
+                    set_error(
+                        error,
+                        error_capacity,
+                        "API '%s' has conflicting inherited method '%s'",
+                        api->name,
+                        parent_methods[i].method->name);
+                    free(parent_methods);
+                    free(merged);
+                    return false;
+                }
+
+                if (inherited_dedup >= capacity) {
+                    set_error(error, error_capacity,
+                        "API '%s' effective inheritance overflow", api->name);
+                    free(parent_methods);
+                    free(merged);
+                    return false;
+                }
+
+                merged[inherited_dedup++] = parent_methods[i];
+            }
+
+            free(parent_methods);
         }
 
-        inherited +=
-            parent_methods;
+        free(merged);
     }
 
-    for (size_t i = 0u;
-         i < api->method_count;
-         ++i) {
+    for (size_t i = 0u; i < api->method_count; ++i) {
 
-        adsl_method_t *method =
-            &api->methods[i];
+        adsl_method_t *method = &api->methods[i];
 
         if (!method->has_id) {
-            size_t generated =
-                inherited + i + 3u;
+            size_t generated = inherited_dedup + i + 3u;
 
             if (generated > 255u) {
                 set_error(
@@ -2521,16 +2583,31 @@ static bool assign_method_ids(
                 return false;
             }
 
-            method->id =
-                (uint8_t)generated;
-
-            method->has_id =
-                true;
+            method->id = (uint8_t)generated;
+            method->has_id = true;
         }
     }
 
+    api->ids_assigned = true;
+
     return true;
 }
+
+
+static bool assign_method_ids(
+    adsl_document_t *document,
+    adsl_api_t *api,
+    char *error,
+    size_t error_capacity) {
+
+    return assign_method_ids_recursive(
+        document,
+        api,
+        0u,
+        error,
+        error_capacity);
+}
+
 
 
 /*
@@ -2599,14 +2676,53 @@ static bool effective_method_equal(
             return false;
         }
 
-        if (pa->stream != NULL &&
-            (pa->stream->has_crypto != pb->stream->has_crypto ||
-             pa->stream->crypto != pb->stream->crypto ||
-             pa->stream->api_count != pb->stream->api_count ||
-             pa->stream->key_count != pb->stream->key_count)) {
 
-            return false;
+        if (pa->stream != NULL) {
+            /*
+             * Stream identity is protocol-significant: two inherited methods
+             * with the same name/id but different target APIs are NOT the
+             * same method and must not be silently deduplicated.
+             */
+            const adsl_stream_t *sa = pa->stream;
+            const adsl_stream_t *sb = pb->stream;
+
+            if (sa->has_crypto != sb->has_crypto ||
+                sa->crypto != sb->crypto ||
+                sa->key_count != sb->key_count ||
+                sa->api_count != sb->api_count) {
+                return false;
+            }
+
+            if ((sa->api == NULL) != (sb->api == NULL)) {
+                return false;
+            }
+
+            if (sa->api != NULL &&
+                strcmp(sa->api, sb->api) != 0) {
+                return false;
+            }
+
+            for (size_t i = 0u; i < sa->api_count; ++i) {
+                const char *aa = sa->apis[i].api;
+                const char *ab = sb->apis[i].api;
+
+                if ((aa == NULL) != (ab == NULL)) {
+                    return false;
+                }
+
+                if (aa != NULL && strcmp(aa, ab) != 0) {
+                    return false;
+                }
+            }
+
+            for (size_t i = 0u; i < sa->key_count; ++i) {
+                if (strcmp(sa->keys[i].name, sb->keys[i].name) != 0 ||
+                    strcmp(sa->keys[i].type, sb->keys[i].type) != 0) {
+                    return false;
+                }
+            }
         }
+
     }
 
     for (size_t f = 0u; f < a->return_field_count; ++f) {
