@@ -53,3 +53,13 @@ Thumbs.db
 /tools/aether-protocol-c/build/
 /tools/aether-protocol-c/build-debug/
 /tools/aether-protocol-c/build-release/
+
+# ------------------------------------------------------------
+# Generated protocol bindings (ADSL -> C)
+# ------------------------------------------------------------
+# New generator output does not need to pollute git status on every
+# regeneration. The tracked baseline already committed under
+# src/generated/ (client_server_*, aether_reg_*) stays versioned;
+# only newly generated files (e.g. peer_api_*, peer_lan_api_*) are
+# hidden from git status.
+/src/generated/
