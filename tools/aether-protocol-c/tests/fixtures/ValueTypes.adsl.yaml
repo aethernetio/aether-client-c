@@ -1,4 +1,10 @@
 
+types:
+  FlagHolder:
+    fields:
+      flag: bool
+      raw: byte
+
 api:
   ValueApi:
     methods:
@@ -10,3 +16,10 @@ api:
       sendText:
         params:
           text: string
+
+      sendFlag:
+        params:
+          flag: bool
+      sendHolder:
+        params:
+          holder: FlagHolder

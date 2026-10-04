@@ -938,6 +938,127 @@ add_test(
     COMMAND aether_generated_response_method_test
 )
 
+
+set(AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-response-ping"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_response.h"
+        "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_response.c"
+    COMMAND
+        aether-adslc
+        --response-method
+        GlobalApi.ping
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ResponseMethod.adsl.yaml"
+        "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}"
+        ResponseMethodPing
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ResponseMethod.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_response_ping_test
+    tests/test_generated_response_ping.c
+    "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_response.c"
+)
+
+target_include_directories(aether_generated_response_ping_test
+    PRIVATE
+        "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_response_ping_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_response_ping_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+add_test(
+    NAME aether_generated_response_ping_test
+    COMMAND aether_generated_response_ping_test
+)
+
+
+set(AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-response-describe"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_response.h"
+        "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_response.c"
+    COMMAND
+        aether-adslc
+        --response-method
+        GlobalApi.describe
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ResponseMethod.adsl.yaml"
+        "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}"
+        ResponseMethodDescribe
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ResponseMethod.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_response_describe_test
+    tests/test_generated_response_describe.c
+    "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_response.c"
+)
+
+target_include_directories(aether_generated_response_describe_test
+    PRIVATE
+        "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_response_describe_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_response_describe_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+add_test(
+    NAME aether_generated_response_describe_test
+    COMMAND aether_generated_response_describe_test
+)
+
+
 foreach(AETHER_GENERATED_TEST_TARGET IN ITEMS
     aether_generated_temperature_test
     aether_generated_struct_test
@@ -951,7 +1072,11 @@ foreach(AETHER_GENERATED_TEST_TARGET IN ITEMS
     aether_generated_result_rpc_test
     aether_generated_stream_builder_test
     aether_generated_local_dispatch_test
+
     aether_generated_response_method_test
+    aether_generated_response_ping_test
+    aether_generated_response_describe_test
+
 )
     target_link_libraries(
         ${AETHER_GENERATED_TEST_TARGET}

@@ -443,6 +443,65 @@ static void test_nullable_mask33_decode(void) {
 }
 
 
+
+/*
+ * Nested nullable struct with two sibling NullableLeaf bodies at the
+ * same recursion depth. This exercises the per-body lexical block so
+ * nested nullable masks cannot collide with the outer container mask.
+ */
+static void test_nested_nullable_container(void) {
+    /* Outer mask = 0x00 (maybeTop present).
+     * left  leaf mask = 0x01 (maybeCode NULL)
+     * right leaf mask = 0x00 (maybeCode = 0x1234)
+     */
+    static const uint8_t wire[] = {
+        0x00u,
+        0x2au,
+        0x01u,
+        0x00u,
+        0x34u,
+        0x12u
+    };
+
+    uint8_t scratch[128] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
+
+    nullable_container_t value = {0};
+
+    assert(
+        nullable_struct_deserialize_nullable_container(
+            &ctx,
+            &value) ==
+        AETHER_OK);
+
+    assert(ctx.reader.position == sizeof(wire));
+    assert(value.maybeTop != NULL);
+    assert(*value.maybeTop == INT8_C(0x2a));
+    assert(value.left.maybeCode == NULL);
+    assert(value.right.maybeCode != NULL);
+    assert(*value.right.maybeCode == INT16_C(0x1234));
+
+    uint8_t tx[64] = {0};
+    size_t pos = 0u;
+
+    assert(
+        nullable_struct_serialize_nullable_container(
+            tx,
+            sizeof(tx),
+            &pos,
+            &value) ==
+        AETHER_OK);
+
+    assert(pos == sizeof(wire));
+    assert(memcmp(tx, wire, sizeof(wire)) == 0);
+}
+
+
+
 int main(void) {
     test_nullable_mixed();
     test_nullable_present_values();
@@ -454,7 +513,10 @@ int main(void) {
     test_nullable_decode_mask();
     test_nullable_mask9_decode();
     test_nullable_mask17_decode();
+
     test_nullable_mask33_decode();
+    test_nested_nullable_container();
+
 
 
     return 0;

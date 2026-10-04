@@ -231,6 +231,50 @@ static void test_pack_boundary_251(void) {
             sizeof(text)) == 0);
 }
 
+
+/*
+ * Java generator wire semantics for boolean fields: serialize as 1/0,
+ * deserialize as readByte() > 0. C must repeat that exactly, including
+ * the signed-byte comparison: 0x80 and 0xff are negative int8_t values
+ * and therefore decode to false rather than true.
+ */
+static void test_boolean_java_wire_compat(void) {
+    static const uint8_t payloads[][2] = {
+        {0x00u, 0x00u},
+        {0x01u, 0x00u},
+        {0x7fu, 0x00u},
+        {0x80u, 0x00u},
+        {0xffu, 0x00u}
+    };
+
+    static const bool expected_flag[] = {
+        false,
+        true,
+        true,
+        false,
+        false
+    };
+
+    for (size_t i = 0u; i < sizeof(expected_flag) / sizeof(expected_flag[0]); ++i) {
+        aether_meta_read_context_t ctx = {0};
+        ctx.reader.data = payloads[i];
+        ctx.reader.length = sizeof(payloads[i]);
+
+        flag_holder_t decoded = {0};
+
+        assert(
+            value_types_deserialize_flag_holder(
+                &ctx,
+                &decoded) ==
+            AETHER_OK);
+
+        assert(ctx.reader.position == sizeof(payloads[i]));
+        assert(decoded.flag == expected_flag[i]);
+        assert(decoded.raw == INT8_C(0));
+    }
+}
+
+
 static void test_pack_boundary_1515(void) {
     uint8_t tx[1600] = {0};
     uint8_t text[1515];
@@ -284,7 +328,10 @@ int main(void) {
     test_empty_view_allows_null_data();
     test_nonempty_view_rejects_null_data();
     test_pack_boundary_251();
+
     test_pack_boundary_1515();
+    test_boolean_java_wire_compat();
+
 
     return 0;
 }

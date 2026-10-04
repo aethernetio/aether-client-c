@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 
 static void write_uuid(
@@ -32,21 +33,9 @@ static void write_uuid(
 }
 
 
-static global_api_finish_response_storage_t make_storage(
-    int16_t *cloud,
-    size_t capacity) {
-
-    global_api_finish_response_storage_t storage = {
-        .cloud_data_storage = cloud,
-        .cloud_data_capacity = capacity
-    };
-
-    return storage;
-}
-
-
 static void test_result(void) {
     uint8_t frame[44] = {0};
+    uint8_t scratch[512] = {0};
 
     frame[0] = 0u;
     frame[1] = 0x78u;
@@ -75,27 +64,21 @@ static void test_result(void) {
     frame[42] = 0xffu;
     frame[43] = 0x7fu;
 
-    int16_t cloud[8] = {0};
-
-    global_api_finish_response_storage_t storage =
-        make_storage(
-            cloud,
-            8u);
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = frame;
+    ctx.reader.length = sizeof(frame);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
 
     global_api_finish_response_frame_t decoded = {0};
 
-    size_t consumed = 0u;
-
     assert(
         global_api_finish_response_decode(
-            &storage,
-            frame,
-            sizeof(frame),
-            &decoded,
-            &consumed) ==
+            &ctx,
+            &decoded) ==
         AETHER_OK);
 
-    assert(consumed == sizeof(frame));
+    assert(ctx.reader.position == sizeof(frame));
     assert(decoded.kind == GLOBAL_API_FINISH_RESPONSE_RESULT);
     assert(decoded.request_id == UINT32_C(0x12345678));
 
@@ -116,10 +99,14 @@ static void test_result(void) {
         UINT64_C(0x3132333435363738));
 
     assert(decoded.result.cloud.data.length == 3u);
-    assert(decoded.result.cloud.data.data == cloud);
-    assert(cloud[0] == INT16_C(0x1234));
-    assert(cloud[1] == -2);
-    assert(cloud[2] == INT16_C(0x7fff));
+    assert(
+        (const uint8_t *)decoded.result.cloud.data.data >= scratch);
+    assert(
+        (const uint8_t *)decoded.result.cloud.data.data <
+        scratch + sizeof(scratch));
+    assert(decoded.result.cloud.data.data[0] == INT16_C(0x1234));
+    assert(decoded.result.cloud.data.data[1] == -2);
+    assert(decoded.result.cloud.data.data[2] == INT16_C(0x7fff));
 }
 
 
@@ -132,27 +119,19 @@ static void test_error(void) {
         0x01u
     };
 
-    int16_t cloud[1] = {0};
-
-    global_api_finish_response_storage_t storage =
-        make_storage(
-            cloud,
-            1u);
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = frame;
+    ctx.reader.length = sizeof(frame);
 
     global_api_finish_response_frame_t decoded = {0};
 
-    size_t consumed = 0u;
-
     assert(
         global_api_finish_response_decode(
-            &storage,
-            frame,
-            sizeof(frame),
-            &decoded,
-            &consumed) ==
+            &ctx,
+            &decoded) ==
         AETHER_OK);
 
-    assert(consumed == sizeof(frame));
+    assert(ctx.reader.position == sizeof(frame));
     assert(decoded.kind == GLOBAL_API_FINISH_RESPONSE_ERROR);
     assert(decoded.request_id == UINT32_C(0x01020304));
 }
@@ -165,6 +144,7 @@ static void test_pack_251(void) {
         16u +
         2u +
         251u * 2u] = {0};
+    uint8_t scratch[1024] = {0};
 
     frame[0] = 0u;
     frame[1] = 1u;
@@ -194,67 +174,54 @@ static void test_pack_251(void) {
 
     assert(p == sizeof(frame));
 
-    int16_t cloud[251] = {0};
-
-    global_api_finish_response_storage_t storage =
-        make_storage(
-            cloud,
-            251u);
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = frame;
+    ctx.reader.length = sizeof(frame);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
 
     global_api_finish_response_frame_t decoded = {0};
 
-    size_t consumed = 0u;
-
     assert(
         global_api_finish_response_decode(
-            &storage,
-            frame,
-            sizeof(frame),
-            &decoded,
-            &consumed) ==
+            &ctx,
+            &decoded) ==
         AETHER_OK);
 
-    assert(consumed == sizeof(frame));
+    assert(ctx.reader.position == sizeof(frame));
     assert(decoded.result.cloud.data.length == 251u);
-    assert(cloud[0] == -125);
-    assert(cloud[125] == 0);
-    assert(cloud[250] == 125);
+    assert(decoded.result.cloud.data.data[0] == -125);
+    assert(decoded.result.cloud.data.data[125] == 0);
+    assert(decoded.result.cloud.data.data[250] == 125);
 }
 
 
-static void test_overflow_and_truncation(void) {
+static void test_scratch_overflow(void) {
     uint8_t frame[
         5u +
         16u +
         16u +
-        1u +
-        6u] = {0};
+        2u +
+        3u * 2u] = {0};
 
     frame[0] = 0u;
     frame[37] = 3u;
 
-    int16_t cloud[2] = {0};
-
-    global_api_finish_response_storage_t storage =
-        make_storage(
-            cloud,
-            2u);
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = frame;
+    ctx.reader.length = sizeof(frame);
 
     global_api_finish_response_frame_t decoded = {0};
 
-    size_t consumed = 99u;
-
     assert(
         global_api_finish_response_decode(
-            &storage,
-            frame,
-            sizeof(frame),
-            &decoded,
-            &consumed) ==
+            &ctx,
+            &decoded) ==
         AETHER_ERR_OVERFLOW);
+}
 
-    assert(consumed == 0u);
 
+static void test_truncated(void) {
     uint8_t truncated[] = {
         0u,
         1u,
@@ -262,18 +229,17 @@ static void test_overflow_and_truncation(void) {
         3u
     };
 
-    consumed = 88u;
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = truncated;
+    ctx.reader.length = sizeof(truncated);
+
+    global_api_finish_response_frame_t decoded = {0};
 
     assert(
         global_api_finish_response_decode(
-            &storage,
-            truncated,
-            sizeof(truncated),
-            &decoded,
-            &consumed) ==
+            &ctx,
+            &decoded) ==
         AETHER_ERR_PROTOCOL);
-
-    assert(consumed == 0u);
 }
 
 
@@ -289,43 +255,37 @@ static void test_concatenated(void) {
     frames[first_length] = 1u;
     frames[first_length + 1u] = 9u;
 
-    int16_t cloud[1] = {0};
-
-    global_api_finish_response_storage_t storage =
-        make_storage(
-            cloud,
-            1u);
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = frames;
+    ctx.reader.length = sizeof(frames);
 
     global_api_finish_response_frame_t decoded = {0};
 
-    size_t first = 0u;
-
     assert(
         global_api_finish_response_decode(
-            &storage,
-            frames,
-            sizeof(frames),
-            &decoded,
-            &first) ==
+            &ctx,
+            &decoded) ==
         AETHER_OK);
 
-    assert(first == first_length);
+    assert(ctx.reader.position == first_length);
     assert(decoded.kind == GLOBAL_API_FINISH_RESPONSE_RESULT);
 
-    size_t second = 0u;
+    /*
+     * The decoder reads one object and leaves the cursor on the next byte,
+     * so a second frame in the same buffer decodes cleanly without a
+     * separate "consumed" output.
+     */
+    global_api_finish_response_frame_t second = {0};
 
     assert(
         global_api_finish_response_decode(
-            &storage,
-            frames + first,
-            sizeof(frames) - first,
-            &decoded,
+            &ctx,
             &second) ==
         AETHER_OK);
 
-    assert(second == 5u);
-    assert(decoded.kind == GLOBAL_API_FINISH_RESPONSE_ERROR);
-    assert(decoded.request_id == 9u);
+    assert(ctx.reader.position == sizeof(frames));
+    assert(second.kind == GLOBAL_API_FINISH_RESPONSE_ERROR);
+    assert(second.request_id == 9u);
 }
 
 
@@ -333,7 +293,8 @@ int main(void) {
     test_result();
     test_error();
     test_pack_251();
-    test_overflow_and_truncation();
+    test_scratch_overflow();
+    test_truncated();
     test_concatenated();
 
     return 0;

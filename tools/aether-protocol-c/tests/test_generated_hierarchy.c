@@ -393,6 +393,95 @@ static void test_hierarchy_unknown_discriminator(void) {
 }
 
 
+
+/*
+ * Deliberately misaligned scratch base. The decoder must align the actual
+ * returned pointer, not only the offset from the buffer start, so that
+ * structurally typed children land on their _Alignof boundary even when
+ * the caller passes scratch with an odd base address.
+ *
+ * Without a test that uses a misaligned base, x86 stack layout tends to
+ * hide an offset-only alignment bug.
+ */
+static void test_hierarchy_misaligned_scratch_base(void) {
+    static const uint8_t wire[] = {
+        0x07u,
+        0x01u,
+        0x2au,
+        0x34u,
+        0x12u,
+        0x00u,
+        0x00u,
+        0xacu,
+        0x41u
+    };
+
+    uint8_t raw[256];
+    memset(raw, 0xaa, sizeof(raw));
+
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = raw + 1u;
+    ctx.scratch_capacity = sizeof(raw) - 1u;
+
+    event_ref_t decoded = {0};
+
+    assert(
+        hierarchy_deserialize_event(
+            &ctx,
+            &decoded) ==
+        AETHER_OK);
+
+    assert(decoded.type_id == UINT8_C(7));
+    assert(decoded.as.temperature_event != NULL);
+
+    assert(
+        ((uintptr_t)decoded.as.temperature_event %
+         _Alignof(temperature_event_t)) == 0u);
+
+    assert(decoded.as.temperature_event->source == INT8_C(0x2a));
+    assert(decoded.as.temperature_event->sequence == INT16_C(0x1234));
+    assert(decoded.as.temperature_event->temperature == 21.5f);
+}
+
+
+
+/*
+ * Pathological scratch_position must be rejected before any pointer
+ * arithmetic is attempted. The allocator must return NULL rather than
+ * forming a bogus returned address.
+ */
+static void test_scratch_position_overflow(void) {
+    uint8_t raw[64] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = raw;
+    ctx.reader.length = 0u;
+    ctx.scratch = raw;
+    ctx.scratch_position = SIZE_MAX;
+    ctx.scratch_capacity = SIZE_MAX;
+
+    void *p = aether_meta_scratch_alloc(&ctx, 16u, 8u);
+    assert(p == NULL);
+
+    ctx.scratch_position = SIZE_MAX - 3u;
+    p = aether_meta_scratch_alloc(&ctx, 16u, 8u);
+    assert(p == NULL);
+
+    ctx.scratch_position = 0u;
+    ctx.scratch_capacity = 4u;
+    p = aether_meta_scratch_alloc(&ctx, 8u, 4u);
+    assert(p == NULL);
+
+    ctx.scratch_capacity = 64u;
+    p = aether_meta_scratch_alloc(&ctx, 8u, 4u);
+    assert(p != NULL);
+    assert(((uintptr_t)p % 4u) == 0u);
+}
+
+
+
+
 int main(void) {
     test_abstract_reference_writes_type_id();
     test_nested_polymorphic_field();
@@ -400,8 +489,13 @@ int main(void) {
     test_unknown_type_id_rejected();
 
     test_selected_concrete_pointer_required();
+
     test_hierarchy_roundtrip();
     test_hierarchy_unknown_discriminator();
+    test_hierarchy_misaligned_scratch_base();
+    test_scratch_position_overflow();
+
+
 
 
     return 0;

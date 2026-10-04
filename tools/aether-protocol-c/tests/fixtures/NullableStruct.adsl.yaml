@@ -79,6 +79,16 @@ types:
       n31: byte?
       n32: byte?
 
+  NullableLeaf:
+    fields:
+      maybeCode: short?
+
+  NullableContainer:
+    fields:
+      maybeTop: byte?
+      left: NullableLeaf
+      right: NullableLeaf
+
 api:
   NullableApi:
     methods:
@@ -94,3 +104,6 @@ api:
       sendMask33:
         params:
           value: Mask33
+      sendContainer:
+        params:
+          value: NullableContainer

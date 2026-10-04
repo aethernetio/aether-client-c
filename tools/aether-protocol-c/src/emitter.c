@@ -4743,6 +4743,153 @@ static bool emit_all_struct_dependencies(
     return true;
 }
 
+
+/*
+ * Canonical C type mapping for a single ADSL field or result value.
+ *
+ * This is the single source of truth for how an ADSL type becomes a C
+ * declaration. It is shared by:
+ *
+ *   - normal generated struct field declarations
+ *   - anonymous response result struct fields
+ *
+ * Nullable values use pointer shape (`const T *`); non-nullable values use
+ * inline shape (`T`). Arrays collapse to their generated alias typedef.
+ * Polymorphic references use the generated `<x>_ref_t`.
+ *
+ * On success the caller receives the base C type name in base_out and a
+ * flag telling whether the field should be declared as `const T *` or `T`.
+ */
+static bool format_c_type(
+    const adsl_document_t *document,
+    const char *type,
+    char *base_out,
+    size_t base_capacity,
+    bool *out_pointer,
+    char *error,
+    size_t error_capacity) {
+
+    if (type == NULL ||
+        base_out == NULL ||
+        base_capacity == 0u ||
+        out_pointer == NULL) {
+
+        set_error(error, error_capacity, "invalid C type request");
+        return false;
+    }
+
+    if (strchr(type, '~') != NULL) {
+        set_error(error, error_capacity,
+            "collapsible fields are not generated for MCU targets");
+        return false;
+    }
+
+    bool nullable =
+        strchr(type, '?') != NULL;
+
+    char cleaned[256];
+
+    if (!strip_nullable_suffix(type, cleaned, sizeof(cleaned))) {
+        set_error(error, error_capacity, "field type is too long");
+        return false;
+    }
+
+    char array_element[128];
+    bool array_dynamic;
+    size_t array_static_size;
+
+    if (parse_array_type(
+            cleaned,
+            array_element,
+            sizeof(array_element),
+            &array_dynamic,
+            &array_static_size)) {
+
+        (void)array_element;
+        (void)array_dynamic;
+        (void)array_static_size;
+
+        if (!array_alias_name(
+                document,
+                cleaned,
+                base_out,
+                base_capacity)) {
+            set_error(error, error_capacity, "field array alias is too long");
+            return false;
+        }
+
+        *out_pointer = nullable;
+        return true;
+    }
+
+    char base[128];
+
+    if (!scalar_type_name(cleaned, base, sizeof(base))) {
+        set_error(error, error_capacity, "unsupported field shape");
+        return false;
+    }
+
+    const char *primitive = primitive_c_type(base);
+
+    if (primitive != NULL) {
+        int written = snprintf(base_out, base_capacity, "%s", primitive);
+        if (written < 0 || (size_t)written >= base_capacity) {
+            set_error(error, error_capacity, "field type is too long");
+            return false;
+        }
+        *out_pointer = nullable;
+        return true;
+    }
+
+    const adsl_type_t *declared = find_declared_type(document, base);
+
+    if (declared == NULL) {
+        set_error(error, error_capacity, "unknown field type");
+        return false;
+    }
+
+    char name[256];
+    declared_c_name(declared->name, name, sizeof(name));
+
+    if (declared->stream != NULL ||
+        declared->enum_count > 0u) {
+        int written = snprintf(base_out, base_capacity, "%s_t", name);
+        if (written < 0 || (size_t)written >= base_capacity) {
+            set_error(error, error_capacity, "field type is too long");
+            return false;
+        }
+        *out_pointer = nullable;
+        return true;
+    }
+
+    if (type_is_polymorphic_reference(document, declared)) {
+        int written = snprintf(base_out, base_capacity, "%s_ref_t", name);
+        if (written < 0 || (size_t)written >= base_capacity) {
+            set_error(error, error_capacity, "field type is too long");
+            return false;
+        }
+        *out_pointer = nullable;
+        return true;
+    }
+
+    if (declared->is_abstract) {
+        set_error(error, error_capacity,
+            "abstract field has no concrete hierarchy descendants");
+        return false;
+    }
+
+    int written = snprintf(base_out, base_capacity, "%s_t", name);
+    if (written < 0 || (size_t)written >= base_capacity) {
+        set_error(error, error_capacity, "field type is too long");
+        return false;
+    }
+
+    *out_pointer = nullable;
+    return true;
+}
+
+
+
 static bool emit_all_struct_field_declarations(
     FILE *output,
     const adsl_document_t *document,
@@ -5964,974 +6111,143 @@ static const adsl_method_t *response_find_method(
 }
 
 
-static const adsl_type_t *response_find_type(
+
+
+
+/*
+ * Response decoder emitter.
+ *
+ * The response envelope (command byte + request id) is the only place with
+ * response-specific knowledge. The result payload is decoded by the same
+ * generic type codec that standalone ADSL types use, so enum, static
+ * arrays, nested structs, polymorphic and inherited result values all
+ * share one wire implementation with no parallel type-support matrix.
+ *
+ * Result C representation uses the canonical generated types emitted into
+ * <base>_types.h. Dynamic non-byte arrays and polymorphic concrete children
+ * land in caller-owned scratch. byte[] and String borrow the RX buffer.
+ *
+ * Response decoder ABI:
+ *
+ *   aether_status_t <api>_<method>_response_decode(
+ *       aether_meta_read_context_t *ctx,
+ *       <api>_<method>_response_frame_t *frame);
+ *
+ * The caller owns ctx->reader, ctx->scratch and frame. On success
+ * ctx->reader.position points one past the consumed frame.
+ */
+
+
+
+static bool emit_field_declaration(
+    FILE *output,
     const adsl_document_t *document,
-    const char *name) {
-
-    if (document == NULL ||
-        name == NULL) {
-
-        return NULL;
-    }
-
-    for (size_t i = 0u;
-         i < document->type_count;
-         ++i) {
-
-        if (document->types[i].name != NULL &&
-            strcmp(
-                document->types[i].name,
-                name) == 0) {
-
-            return
-                &document->types[i];
-        }
-    }
-
-    return NULL;
-}
-
-
-static bool response_dynamic_array_base(
     const char *type,
-    char *base,
-    size_t base_capacity) {
-
-    if (type == NULL ||
-        base == NULL ||
-        base_capacity == 0u) {
-
-        return false;
-    }
-
-    size_t length =
-        strlen(type);
-
-    if (length < 3u ||
-        type[length - 2u] != '[' ||
-        type[length - 1u] != ']') {
-
-        return false;
-    }
-
-    size_t base_length =
-        length - 2u;
-
-    if (base_length == 0u ||
-        base_length >=
-            base_capacity) {
-
-        return false;
-    }
-
-    memcpy(
-        base,
-        type,
-        base_length);
-
-    base[base_length] =
-        '\0';
-
-    return true;
-}
-
-
-static bool response_static_array_type(
-    const char *type) {
-
-    if (type == NULL) {
-        return false;
-    }
-
-    const char *open =
-        strchr(
-            type,
-            '[');
-
-    if (open == NULL) {
-        return false;
-    }
-
-    return
-        strcmp(
-            open,
-            "[]") != 0;
-}
-
-
-static bool response_type_is(
-    const char *type,
-    const char *a,
-    const char *b) {
-
-    return
-        type != NULL &&
-        ((a != NULL &&
-          strcmp(type, a) == 0) ||
-         (b != NULL &&
-          strcmp(type, b) == 0));
-}
-
-
-static const char *response_scalar_c_type(
-    const char *type) {
-
-    if (response_type_is(
-            type,
-            "byte",
-            NULL)) {
-
-        return "uint8_t";
-    }
-
-    if (response_type_is(
-            type,
-            "short",
-            NULL)) {
-
-        return "int16_t";
-    }
-
-    if (response_type_is(
-            type,
-            "int",
-            NULL)) {
-
-        return "int32_t";
-    }
-
-    if (response_type_is(
-            type,
-            "long",
-            "Date")) {
-
-        return "int64_t";
-    }
-
-    if (response_type_is(
-            type,
-            "boolean",
-            "bool")) {
-
-        return "bool";
-    }
-
-    if (response_type_is(
-            type,
-            "uuid",
-            "UUID")) {
-
-        return "aether_uuid_t";
-    }
-
-    return NULL;
-}
-
-
-static bool response_is_string(
-    const char *type) {
-
-    return
-        response_type_is(
-            type,
-            "String",
-            "string");
-}
-
-
-static bool response_is_byte_array(
-    const char *type) {
-
-    return
-        type != NULL &&
-        strcmp(
-            type,
-            "byte[]") == 0;
-}
-
-
-static bool response_path_append(
-    const char *prefix,
     const char *name,
-    char *result,
-    size_t capacity) {
+    char *error,
+    size_t error_capacity) {
 
-    if (name == NULL ||
-        result == NULL ||
-        capacity == 0u) {
-
+    if (name == NULL) {
+        set_error(error, error_capacity, "result field has no name");
         return false;
     }
 
-    char name_snake[256];
+    char base[256];
+    bool pointer;
 
-    snake_name(
-        name,
-        name_snake,
-        sizeof(name_snake));
+    if (!format_c_type(
+            document,
+            type,
+            base,
+            sizeof(base),
+            &pointer,
+            error,
+            error_capacity)) {
+        return false;
+    }
 
-    int written;
+    fprintf(
+        output,
+        pointer ? "    const %s *%s;\n" : "    %s %s;\n",
+        base,
+        name);
 
-    if (prefix == NULL ||
-        *prefix == '\0') {
+    return true;
+}
 
-        written =
-            snprintf(
-                result,
-                capacity,
-                "%s",
-                name_snake);
 
+
+
+
+static bool method_returns_void(
+    const adsl_method_t *method);
+
+
+
+static bool response_emit_result_struct(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_method_t *method,
+    const char *api_name,
+    const char *method_name,
+    char *error,
+    size_t error_capacity) {
+
+    /*
+     * returns: void carries no result payload at all. Do not emit a
+     * placeholder struct, and do not try to resolve a declared type
+     * "void" against the ADSL type table.
+     */
+    if (method_returns_void(method)) {
+        return true;
+    }
+
+    fprintf(output, "typedef struct {\n");
+
+
+    if (method->returns_type != NULL) {
+        if (!emit_field_declaration(
+                output,
+                document,
+                method->returns_type,
+                "value",
+                error,
+                error_capacity)) {
+            return false;
+        }
     } else {
-        written =
-            snprintf(
-                result,
-                capacity,
-                "%s_%s",
-                prefix,
-                name_snake);
-    }
-
-    return
-        written >= 0 &&
-        (size_t)written <
-            capacity;
-}
-
-
-static bool response_supported_value(
-    const adsl_document_t *document,
-    const char *type,
-    char *error,
-    size_t error_capacity) {
-
-    if (type == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "response field has no type");
-
-        return false;
-    }
-
-    if (response_static_array_type(type)) {
-        set_error(
-            error,
-            error_capacity,
-            "response decoder does not yet support static arrays");
-
-        return false;
-    }
-
-    if (response_is_string(type) ||
-        response_is_byte_array(type) ||
-        response_scalar_c_type(type) != NULL) {
-
-        return true;
-    }
-
-    char array_base[256];
-
-    if (response_dynamic_array_base(
-            type,
-            array_base,
-            sizeof(array_base))) {
-
-        if (response_type_is(
-                array_base,
-                "byte",
-                NULL) ||
-            response_type_is(
-                array_base,
-                "short",
-                NULL) ||
-            response_type_is(
-                array_base,
-                "int",
-                NULL) ||
-            response_type_is(
-                array_base,
-                "long",
-                "Date")) {
-
-            return true;
-        }
-
-        set_error(
-            error,
-            error_capacity,
-            "response decoder currently supports byte/short/int/long dynamic arrays only");
-
-        return false;
-    }
-
-    if (response_type_is(
-            type,
-            "float",
-            NULL) ||
-        response_type_is(
-            type,
-            "double",
-            NULL)) {
-
-        set_error(
-            error,
-            error_capacity,
-            "response decoder does not yet support floating values");
-
-        return false;
-    }
-
-    const adsl_type_t *declared =
-        response_find_type(
-            document,
-            type);
-
-    if (declared == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "response decoder cannot resolve result type");
-
-        return false;
-    }
-
-    if (declared->enum_count > 0u) {
-        set_error(
-            error,
-            error_capacity,
-            "response decoder does not yet support enum result values");
-
-        return false;
-    }
-
-    if (declared->is_abstract) {
-        set_error(
-            error,
-            error_capacity,
-            "response decoder does not yet support polymorphic result values");
-
-        return false;
-    }
-
-    if (declared->parent != NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "response decoder does not yet support inherited result structs");
-
-        return false;
-    }
-
-    for (size_t i = 0u;
-         i < declared->field_count;
-         ++i) {
-
-        if (!response_supported_value(
-                document,
-                declared->fields[i].type,
-                error,
-                error_capacity)) {
-
-            return false;
+        for (size_t i = 0u; i < method->return_field_count; ++i) {
+            if (!emit_field_declaration(
+                    output,
+                    document,
+                    method->return_fields[i].type,
+                    method->return_fields[i].name,
+                    error,
+                    error_capacity)) {
+                return false;
+            }
         }
     }
 
-    return true;
-}
-
-
-static bool response_emit_field_c_type(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *type,
-    char *error,
-    size_t error_capacity) {
-
-    const char *scalar =
-        response_scalar_c_type(
-            type);
-
-    if (scalar != NULL) {
-        fprintf(
-            output,
-            "%s",
-            scalar);
-
-        return true;
-    }
-
-    if (response_is_string(type) ||
-        response_is_byte_array(type)) {
-
-        fprintf(
-            output,
-            "aether_bytes_view_t");
-
-        return true;
-    }
-
-    char array_base[256];
-
-    if (response_dynamic_array_base(
-            type,
-            array_base,
-            sizeof(array_base))) {
-
-        const char *array_scalar =
-            response_scalar_c_type(
-                array_base);
-
-        if (array_scalar == NULL ||
-            response_type_is(
-                array_base,
-                "boolean",
-                "bool") ||
-            response_type_is(
-                array_base,
-                "uuid",
-                "UUID")) {
-
-            set_error(
-                error,
-                error_capacity,
-                "response public ABI does not yet support this dynamic array element type");
-
-            return false;
-        }
-
-        fprintf(
-            output,
-            "struct { %s *data; size_t length; }",
-            array_scalar);
-
-        return true;
-    }
-
-    const adsl_type_t *declared =
-        response_find_type(
-            document,
-            type);
-
-    if (declared == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot emit response public field type");
-
-        return false;
-    }
-
-    if (declared->enum_count > 0u) {
-        set_error(
-            error,
-            error_capacity,
-            "response public ABI does not yet support enum result fields");
-
-        return false;
-    }
-
-    if (declared->is_abstract ||
-        declared->parent != NULL) {
-
-        set_error(
-            error,
-            error_capacity,
-            "response public ABI does not yet support polymorphic or inherited result fields");
-
-        return false;
-    }
 
     fprintf(
         output,
-        "struct {\n");
-
-    for (size_t i = 0u;
-         i < declared->field_count;
-         ++i) {
-
-        fprintf(
-            output,
-            "        ");
-
-        if (!response_emit_field_c_type(
-                output,
-                document,
-                declared->fields[i].type,
-                error,
-                error_capacity)) {
-
-            return false;
-        }
-
-        fprintf(
-            output,
-            " %s;\n",
-            declared->fields[i].name);
-    }
-
-    fprintf(
-        output,
-        "    }");
+        "} %s_%s_result_t;\n\n",
+        api_name,
+        method_name);
 
     return true;
 }
 
 
-static bool response_emit_storage_fields(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *type,
-    const char *path,
-    char *error,
-    size_t error_capacity) {
 
-    char array_base[256];
 
-    if (response_dynamic_array_base(
-            type,
-            array_base,
-            sizeof(array_base))) {
+static bool method_returns_void(
+    const adsl_method_t *method) {
 
-        if (response_is_byte_array(type)) {
-            return true;
-        }
-
-        const char *scalar =
-            response_scalar_c_type(
-                array_base);
-
-        if (scalar == NULL) {
-            set_error(
-                error,
-                error_capacity,
-                "response storage requires scalar dynamic array");
-
-            return false;
-        }
-
-        fprintf(
-            output,
-            "    %s *%s_storage;\n"
-            "    size_t %s_capacity;\n",
-            scalar,
-            path,
-            path);
-
-        return true;
-    }
-
-    if (response_scalar_c_type(type) != NULL ||
-        response_is_string(type)) {
-
-        return true;
-    }
-
-    const adsl_type_t *declared =
-        response_find_type(
-            document,
-            type);
-
-    if (declared == NULL ||
-        declared->enum_count > 0u) {
-
-        return true;
-    }
-
-    for (size_t i = 0u;
-         i < declared->field_count;
-         ++i) {
-
-        char child_path[512];
-
-        if (!response_path_append(
-                path,
-                declared->fields[i].name,
-                child_path,
-                sizeof(child_path))) {
-
-            set_error(
-                error,
-                error_capacity,
-                "response storage path too long");
-
-            return false;
-        }
-
-        if (!response_emit_storage_fields(
-                output,
-                document,
-                declared->fields[i].type,
-                child_path,
-                error,
-                error_capacity)) {
-
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
-static bool response_emit_decode_value(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const char *type,
-    const char *target,
-    const char *path,
-    char *error,
-    size_t error_capacity) {
-
-    if (response_type_is(
-            type,
-            "uuid",
-            "UUID")) {
-
-        fprintf(
-            output,
-            "        if (!%s_response_read_uuid(\n"
-            "                &reader,\n"
-            "                &%s)) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n",
-            base_snake,
-            target);
-
-        return true;
-    }
-
-    if (response_type_is(
-            type,
-            "byte",
-            NULL)) {
-
-        fprintf(
-            output,
-            "        if (!%s_response_read_u8(\n"
-            "                &reader,\n"
-            "                &%s)) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n",
-            base_snake,
-            target);
-
-        return true;
-    }
-
-    if (response_type_is(
-            type,
-            "boolean",
-            "bool")) {
-
-        fprintf(
-            output,
-            "        {\n"
-            "            uint8_t value = 0u;\n"
-            "            if (!%s_response_read_u8(\n"
-            "                    &reader,\n"
-            "                    &value) ||\n"
-            "                value > 1u) {\n"
-            "                return AETHER_ERR_PROTOCOL;\n"
-            "            }\n"
-            "            %s = value != 0u;\n"
-            "        }\n\n",
-            base_snake,
-            target);
-
-        return true;
-    }
-
-    if (response_type_is(
-            type,
-            "short",
-            NULL)) {
-
-        fprintf(
-            output,
-            "        if (!%s_response_read_i16le(\n"
-            "                &reader,\n"
-            "                &%s)) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n",
-            base_snake,
-            target);
-
-        return true;
-    }
-
-    if (response_type_is(
-            type,
-            "int",
-            NULL)) {
-
-        fprintf(
-            output,
-            "        if (!%s_response_read_i32le(\n"
-            "                &reader,\n"
-            "                &%s)) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n",
-            base_snake,
-            target);
-
-        return true;
-    }
-
-    if (response_type_is(
-            type,
-            "long",
-            "Date")) {
-
-        fprintf(
-            output,
-            "        if (!%s_response_read_i64le(\n"
-            "                &reader,\n"
-            "                &%s)) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n",
-            base_snake,
-            target);
-
-        return true;
-    }
-
-    if (response_is_string(type) ||
-        response_is_byte_array(type)) {
-
-        fprintf(
-            output,
-            "        if (!%s_response_read_view(\n"
-            "                &reader,\n"
-            "                &%s.data,\n"
-            "                &%s.length)) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
-            "        }\n\n",
-            base_snake,
-            target,
-            target);
-
-        return true;
-    }
-
-    char array_base[256];
-
-    if (response_dynamic_array_base(
-            type,
-            array_base,
-            sizeof(array_base))) {
-
-        const char *scalar =
-            response_scalar_c_type(
-                array_base);
-
-        if (scalar == NULL) {
-            set_error(
-                error,
-                error_capacity,
-                "cannot emit response dynamic array decoder");
-
-            return false;
-        }
-
-        fprintf(
-            output,
-            "        {\n"
-            "            uint64_t count64 = 0u;\n"
-            "            if (!%s_response_read_pack(\n"
-            "                    &reader,\n"
-            "                    &count64) ||\n"
-            "                count64 > (uint64_t)SIZE_MAX) {\n"
-            "                return AETHER_ERR_PROTOCOL;\n"
-            "            }\n\n"
-            "            size_t count =\n"
-            "                (size_t)count64;\n\n"
-            "            if (count > api->%s_capacity ||\n"
-            "                (count != 0u &&\n"
-            "                 api->%s_storage == NULL)) {\n"
-            "                return AETHER_ERR_OVERFLOW;\n"
-            "            }\n\n"
-            "            %s.data =\n"
-            "                api->%s_storage;\n"
-            "            %s.length =\n"
-            "                count;\n\n"
-            "            for (size_t i = 0u;\n"
-            "                 i < count;\n"
-            "                 ++i) {\n",
-            base_snake,
-            path,
-            path,
-            target,
-            path,
-            target);
-
-        if (response_type_is(
-                array_base,
-                "short",
-                NULL)) {
-
-            fprintf(
-                output,
-                "                if (!%s_response_read_i16le(\n"
-                "                        &reader,\n"
-                "                        &api->%s_storage[i])) {\n"
-                "                    return AETHER_ERR_PROTOCOL;\n"
-                "                }\n",
-                base_snake,
-                path);
-
-        } else if (response_type_is(
-                       array_base,
-                       "int",
-                       NULL)) {
-
-            fprintf(
-                output,
-                "                if (!%s_response_read_i32le(\n"
-                "                        &reader,\n"
-                "                        &api->%s_storage[i])) {\n"
-                "                    return AETHER_ERR_PROTOCOL;\n"
-                "                }\n",
-                base_snake,
-                path);
-
-        } else if (response_type_is(
-                       array_base,
-                       "long",
-                       "Date")) {
-
-            fprintf(
-                output,
-                "                if (!%s_response_read_i64le(\n"
-                "                        &reader,\n"
-                "                        &api->%s_storage[i])) {\n"
-                "                    return AETHER_ERR_PROTOCOL;\n"
-                "                }\n",
-                base_snake,
-                path);
-
-        } else if (response_type_is(
-                       array_base,
-                       "byte",
-                       NULL)) {
-
-            fprintf(
-                output,
-                "                if (!%s_response_read_u8(\n"
-                "                        &reader,\n"
-                "                        &api->%s_storage[i])) {\n"
-                "                    return AETHER_ERR_PROTOCOL;\n"
-                "                }\n",
-                base_snake,
-                path);
-
-        } else {
-            set_error(
-                error,
-                error_capacity,
-                "unsupported scalar dynamic array decoder");
-
-            return false;
-        }
-
-        fprintf(
-            output,
-            "            }\n"
-            "        }\n\n");
-
-        return true;
-    }
-
-    const adsl_type_t *declared =
-        response_find_type(
-            document,
-            type);
-
-    if (declared == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot emit response value decoder");
-
-        return false;
-    }
-
-    if (declared->enum_count > 0u) {
-        char enum_name[256];
-
-        declared_c_name(
-            declared->name,
-            enum_name,
-            sizeof(enum_name));
-
-        fprintf(
-            output,
-            "        {\n"
-            "            uint8_t value = 0u;\n"
-            "            if (!%s_response_read_u8(\n"
-            "                    &reader,\n"
-            "                    &value) ||\n"
-            "                value >= %zuu) {\n"
-            "                return AETHER_ERR_PROTOCOL;\n"
-            "            }\n"
-            "            %s = (%s_t)value;\n"
-            "        }\n\n",
-            base_snake,
-            declared->enum_count,
-            target,
-            enum_name);
-
-        return true;
-    }
-
-    for (size_t i = 0u;
-         i < declared->field_count;
-         ++i) {
-
-        char child_target[1024];
-        char child_path[512];
-
-        int target_written =
-            snprintf(
-                child_target,
-                sizeof(child_target),
-                "%s.%s",
-                target,
-                declared->fields[i].name);
-
-        if (target_written < 0 ||
-            (size_t)target_written >=
-                sizeof(child_target) ||
-            !response_path_append(
-                path,
-                declared->fields[i].name,
-                child_path,
-                sizeof(child_path))) {
-
-            set_error(
-                error,
-                error_capacity,
-                "response decoder expression too long");
-
-            return false;
-        }
-
-        if (!response_emit_decode_value(
-                output,
-                document,
-                base_snake,
-                declared->fields[i].type,
-                child_target,
-                child_path,
-                error,
-                error_capacity)) {
-
-            return false;
-        }
-    }
-
-    return true;
+    return method != NULL &&
+           method->returns_type != NULL &&
+           strcmp(method->returns_type, "void") == 0;
 }
 
 
@@ -6941,119 +6257,100 @@ static bool response_method_supported(
     char *error,
     size_t error_capacity) {
 
-    if (method == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "selected response method not found");
+    (void)document;
 
+    if (method == NULL) {
+        set_error(error, error_capacity, "selected response method not found");
         return false;
     }
 
     if (method->throws_type != NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "response decoder does not yet support typed throws");
-
+        set_error(error, error_capacity,
+            "typed throws are not yet supported by the C response decoder");
         return false;
+    }
+
+    /*
+     * returns: void is a response-bearing method: the wire format still
+     * carries META_RESULT + request_id, but no result payload follows.
+     * Java ApiGenerator treats it the same way.
+     */
+    if (method_returns_void(method)) {
+        return true;
     }
 
     if (method->returns_type == NULL &&
         method->return_field_count == 0u) {
-
-        set_error(
-            error,
-            error_capacity,
-            "selected response method has no result");
-
+        set_error(error, error_capacity, "selected response method has no result");
         return false;
     }
 
     if (method->returns_type != NULL &&
         method->return_field_count > 0u) {
-
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "response method cannot mix named and anonymous result");
-
         return false;
-    }
-
-    if (method->returns_type != NULL) {
-        return
-            response_supported_value(
-                document,
-                method->returns_type,
-                error,
-                error_capacity);
-    }
-
-    for (size_t i = 0u;
-         i < method->return_field_count;
-         ++i) {
-
-        if (!response_supported_value(
-                document,
-                method->return_fields[i].type,
-                error,
-                error_capacity)) {
-
-            return false;
-        }
     }
 
     return true;
 }
 
 
-/* direct response helper forward declarations */
-static bool response_method_has_storage(
-    const adsl_document_t *document,
-    const adsl_method_t *method);
 
-static bool response_emit_direct_result_type(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_method_t *method,
-    const char *api_name,
-    const char *method_name,
-    char *error,
-    size_t error_capacity);
 
-static bool response_emit_direct_storage_type(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_method_t *method,
-    const char *api_name,
-    const char *method_name,
-    char *error,
-    size_t error_capacity);
-
-static void response_emit_direct_frame_declaration(
+static void response_emit_frame_declaration(
     FILE *output,
     const char *api_name,
     const char *method_name,
     const char *api_upper,
     const char *method_upper,
-    bool has_storage);
+    bool has_result) {
 
-static void response_emit_direct_reader_integer_helpers(
-    FILE *output,
-    const char *base);
+    fprintf(
+        output,
+        "typedef enum {\n"
+        "    %s_%s_RESPONSE_RESULT = 0,\n"
+        "    %s_%s_RESPONSE_ERROR = 1\n"
+        "} %s_%s_response_kind_t;\n\n",
+        api_upper, method_upper,
+        api_upper, method_upper,
+        api_name, method_name);
 
-static void response_emit_direct_reader_signed_helpers(
-    FILE *output,
-    const char *base);
+    if (has_result) {
+        fprintf(
+            output,
+            "typedef struct {\n"
+            "    %s_%s_response_kind_t kind;\n"
+            "    uint32_t request_id;\n"
+            "    %s_%s_result_t result;\n"
+            "} %s_%s_response_frame_t;\n\n",
+            api_name, method_name,
+            api_name, method_name,
+            api_name, method_name);
+    } else {
+        /*
+         * returns: void has no result payload. The frame intentionally
+         * omits a result member so the wire semantics stay explicit.
+         */
+        fprintf(
+            output,
+            "typedef struct {\n"
+            "    %s_%s_response_kind_t kind;\n"
+            "    uint32_t request_id;\n"
+            "} %s_%s_response_frame_t;\n\n",
+            api_name, method_name,
+            api_name, method_name);
+    }
 
-static void response_emit_direct_reader_pack_helper(
-    FILE *output,
-    const char *base);
+    fprintf(
+        output,
+        "aether_status_t %s_%s_response_decode(\n"
+        "    aether_meta_read_context_t *ctx,\n"
+        "    %s_%s_response_frame_t *frame);\n\n",
+        api_name, method_name,
+        api_name, method_name);
+}
 
-static void response_emit_direct_reader_view_uuid_helpers(
-    FILE *output,
-    const char *base);
 
 
 static bool emit_response_method_header(
@@ -7065,64 +6362,42 @@ static bool emit_response_method_header(
     char *error,
     size_t error_capacity) {
 
-    FILE *output =
-        fopen(
-            path,
-            "wb");
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot create generated response header");
-
+        set_error(error, error_capacity, "cannot create generated response header");
         return false;
     }
 
     char guard[256];
+    char base_snake[256];
     char api_name[256];
     char method_name[256];
     char api_upper[256];
     char method_upper[256];
 
-    upper_name(
-        base_name,
-        guard,
-        sizeof(guard));
-
-    snake_name(
-        api->name,
-        api_name,
-        sizeof(api_name));
-
-    snake_name(
-        method->name,
-        method_name,
-        sizeof(method_name));
-
-    upper_name(
-        api_name,
-        api_upper,
-        sizeof(api_upper));
-
-    upper_name(
-        method_name,
-        method_upper,
-        sizeof(method_upper));
+    upper_name(base_name, guard, sizeof(guard));
+    snake_name(base_name, base_snake, sizeof(base_snake));
+    snake_name(api->name, api_name, sizeof(api_name));
+    snake_name(method->name, method_name, sizeof(method_name));
+    upper_name(api_name, api_upper, sizeof(api_upper));
+    upper_name(method_name, method_upper, sizeof(method_upper));
 
     fprintf(
         output,
         "#ifndef %s_RESPONSE_H\n"
         "#define %s_RESPONSE_H\n\n"
-        "#include \"aether_client.h\"\n\n"
+        "#include \"%s_types.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
         "#ifdef __cplusplus\n"
         "extern \"C\" {\n"
         "#endif\n\n",
         guard,
-        guard);
+        guard,
+        base_snake);
 
     bool ok =
-        response_emit_direct_result_type(
+        response_emit_result_struct(
             output,
             document,
             method,
@@ -7131,33 +6406,16 @@ static bool emit_response_method_header(
             error,
             error_capacity);
 
-    bool has_storage =
-        response_method_has_storage(
-            document,
-            method);
-
-    if (ok &&
-        has_storage) {
-
-        ok =
-            response_emit_direct_storage_type(
-                output,
-                document,
-                method,
-                api_name,
-                method_name,
-                error,
-                error_capacity);
-    }
-
     if (ok) {
-        response_emit_direct_frame_declaration(
+
+        response_emit_frame_declaration(
             output,
             api_name,
             method_name,
             api_upper,
             method_upper,
-            has_storage);
+            !method_returns_void(method));
+
     }
 
     fprintf(
@@ -7168,17 +6426,11 @@ static bool emit_response_method_header(
         "#endif\n");
 
     if (ferror(output)) {
-        ok =
-            false;
-
-        set_error(
-            error,
-            error_capacity,
-            "cannot write generated response header");
+        ok = false;
+        set_error(error, error_capacity, "cannot write generated response header");
     }
 
     fclose(output);
-
     return ok;
 }
 
@@ -7192,8 +6444,7 @@ static bool emit_response_method_source(
     char *error,
     size_t error_capacity) {
 
-    FILE *output =
-        fopen(path, "wb");
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
         set_error(error, error_capacity, "cannot create generated response source");
@@ -7212,124 +6463,83 @@ static bool emit_response_method_source(
     upper_name(api_name, api_upper, sizeof(api_upper));
     upper_name(method_name, method_upper, sizeof(method_upper));
 
-    bool has_storage =
-        response_method_has_storage(document, method);
-
     fprintf(
         output,
-
         "#include \"%s_response.h\"\n"
         "#include \"aether_meta_runtime.h\"\n\n"
-        "#include <stdbool.h>\n"
-        "#include <stddef.h>\n"
-        "#include <stdint.h>\n\n",
+        "#include <string.h>\n\n"
+        "aether_status_t %s_%s_response_decode(\n"
+        "    aether_meta_read_context_t *ctx,\n"
+        "    %s_%s_response_frame_t *frame) {\n\n"
+        "    if (ctx == NULL || frame == NULL) {\n"
+        "        return AETHER_ERR_ARGUMENT;\n"
+        "    }\n\n"
+        "    memset(frame, 0, sizeof(*frame));\n\n"
+        "    uint8_t command = 0u;\n"
+        "    if (!aether_meta_read_u8(&ctx->reader, &command)) return AETHER_ERR_PROTOCOL;\n\n"
+        "    uint32_t request_id = 0u;\n"
+        "    if (!aether_meta_read_u32le(&ctx->reader, &request_id)) return AETHER_ERR_PROTOCOL;\n"
+        "    frame->request_id = request_id;\n\n"
+        "    if (command == 1u) {\n"
+        "        frame->kind = %s_%s_RESPONSE_ERROR;\n"
+        "        return AETHER_OK;\n"
+        "    }\n\n"
+        "    if (command != 0u) {\n"
+        "        return AETHER_ERR_PROTOCOL;\n"
+        "    }\n\n"
+        "    frame->kind = %s_%s_RESPONSE_RESULT;\n\n",
+        base_snake,
+        api_name, method_name,
+        api_name, method_name,
+        api_upper, method_upper,
+        api_upper, method_upper);
 
-        base_snake);
+    bool ok;
 
-    response_emit_direct_reader_integer_helpers(output, base_snake);
-    response_emit_direct_reader_signed_helpers(output, base_snake);
-    response_emit_direct_reader_pack_helper(output, base_snake);
-    response_emit_direct_reader_view_uuid_helpers(output, base_snake);
 
-    fprintf(
-        output,
-        "aether_status_t %s_%s_response_decode(\n",
-        api_name,
-        method_name);
-
-    if (has_storage) {
-        fprintf(
+    if (method_returns_void(method)) {
+        ok = true;
+    } else if (method->returns_type != NULL) {
+        ok = emit_decode_value_expression(
             output,
-            "    const %s_%s_response_storage_t *api,\n",
-            api_name,
-            method_name);
-    }
+            document,
+            method->returns_type,
 
-    fprintf(
-        output,
-        "    const uint8_t *data,\n"
-        "    size_t length,\n"
-        "    %s_%s_response_frame_t *frame,\n"
-        "    size_t *consumed) {\n\n"
-        "    if (frame == NULL || consumed == NULL || (length != 0u && data == NULL)%s) return AETHER_ERR_ARGUMENT;\n"
-        "    *frame = (%s_%s_response_frame_t){0};\n"
-        "    *consumed = 0u;\n"
-        "    %s_response_reader_t reader = { data, length, 0u };\n"
-        "    uint8_t command;\n"
-        "    uint32_t request_id;\n"
-        "    if (!%s_response_read_u8(&reader, &command) || !%s_response_read_u32le(&reader, &request_id)) return AETHER_ERR_PROTOCOL;\n"
-        "    frame->request_id = request_id;\n"
-        "    if (command == 1u) { frame->kind = %s_%s_RESPONSE_ERROR; *consumed = reader.position; return AETHER_OK; }\n"
-        "    if (command != 0u) return AETHER_ERR_PROTOCOL;\n"
-        "    %s_%s_result_t result = {0};\n\n",
-        api_name,
-        method_name,
-        has_storage ? " || api == NULL" : "",
-        api_name,
-        method_name,
-        base_snake,
-        base_snake,
-        base_snake,
-        api_upper,
-        method_upper,
-        api_name,
-        method_name);
-
-    bool ok = true;
-
-    if (method->returns_type != NULL) {
-        ok =
-            response_emit_decode_value(
-                output,
-                document,
-                base_snake,
-                method->returns_type,
-                "result.value",
-                "value",
-                error,
-                error_capacity);
+            "frame->result.value",
+            base_snake,
+            0u,
+            error,
+            error_capacity);
     } else {
-        for (size_t i = 0u; ok && i < method->return_field_count; ++i) {
-            char target[1024];
-            char field_path[512];
+        adsl_type_t synthetic = {
+            NULL,
+            false,
+            0u,
+            false,
+            NULL,
+            method->return_fields,
+            method->return_field_count,
+            NULL,
+            0u,
+            NULL
+        };
 
-            int written =
-                snprintf(
-                    target,
-                    sizeof(target),
-                    "result.%s",
-                    method->return_fields[i].name);
-
-            ok =
-                written >= 0 &&
-                (size_t)written < sizeof(target) &&
-                response_path_append(
-                    NULL,
-                    method->return_fields[i].name,
-                    field_path,
-                    sizeof(field_path)) &&
-                response_emit_decode_value(
-                    output,
-                    document,
-                    base_snake,
-                    method->return_fields[i].type,
-                    target,
-                    field_path,
-                    error,
-                    error_capacity);
-        }
+        ok = emit_decode_struct_fields(
+            output,
+            document,
+            &synthetic,
+            "(&frame->result)",
+            base_snake,
+            0u,
+            error,
+            error_capacity);
     }
 
     if (ok) {
-        fprintf(
-            output,
-            "    frame->kind = %s_%s_RESPONSE_RESULT;\n"
-            "    frame->result = result;\n"
-            "    *consumed = reader.position;\n"
-            "    return AETHER_OK;\n"
+        fputs(
+            "\n    return AETHER_OK;\n"
             "}\n",
-            api_upper,
-            method_upper);
+            output);
     }
 
     if (ferror(output)) {
@@ -7357,42 +6567,42 @@ bool adsl_emit_c_response_method(
         selected_api_name == NULL ||
         selected_method_name == NULL) {
 
-        set_error(
-            error,
-            error_capacity,
-            "invalid response emitter arguments");
-
+        set_error(error, error_capacity, "invalid response emitter arguments");
         return false;
     }
 
     const adsl_api_t *api =
-        response_find_api(
-            document,
-            selected_api_name);
+        response_find_api(document, selected_api_name);
 
     const adsl_method_t *method =
-        response_find_method(
-            api,
-            selected_method_name);
+        response_find_method(api, selected_method_name);
 
-    if (!response_method_supported(
-            document,
-            method,
-            error,
-            error_capacity)) {
-
+    if (!response_method_supported(document, method, error, error_capacity)) {
         return false;
     }
 
     char base_snake[256];
 
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
+    snake_name(base_name, base_snake, sizeof(base_snake));
 
+    char types_h[1024];
+    char types_c[1024];
     char response_h[1024];
     char response_c[1024];
+
+    (void)snprintf(
+        types_h,
+        sizeof(types_h),
+        "%s/%s_types.h",
+        output_directory,
+        base_snake);
+
+    (void)snprintf(
+        types_c,
+        sizeof(types_c),
+        "%s/%s_types.c",
+        output_directory,
+        base_snake);
 
     (void)snprintf(
         response_h,
@@ -7408,6 +6618,24 @@ bool adsl_emit_c_response_method(
         output_directory,
         base_snake);
 
+    if (!emit_types_header(
+            document,
+            types_h,
+            base_name,
+            error,
+            error_capacity)) {
+        return false;
+    }
+
+    if (!emit_types_source(
+            document,
+            types_c,
+            base_name,
+            error,
+            error_capacity)) {
+        return false;
+    }
+
     if (!emit_response_method_header(
             document,
             api,
@@ -7416,334 +6644,19 @@ bool adsl_emit_c_response_method(
             base_name,
             error,
             error_capacity)) {
-
         return false;
     }
 
-    return
-        emit_response_method_source(
-            document,
-            api,
-            method,
-            response_c,
-            base_name,
-            error,
-            error_capacity);
+    return emit_response_method_source(
+        document,
+        api,
+        method,
+        response_c,
+        base_name,
+        error,
+        error_capacity);
 }
 
-
-
-static bool response_value_has_storage(
-    const adsl_document_t *document,
-    const char *type) {
-
-    char array_base[256];
-
-    if (response_dynamic_array_base(
-            type,
-            array_base,
-            sizeof(array_base))) {
-
-        return
-            !response_is_byte_array(type);
-    }
-
-    if (response_scalar_c_type(type) != NULL ||
-        response_is_string(type)) {
-
-        return false;
-    }
-
-    const adsl_type_t *declared =
-        response_find_type(
-            document,
-            type);
-
-    if (declared == NULL ||
-        declared->enum_count > 0u) {
-
-        return false;
-    }
-
-    for (size_t i = 0u;
-         i < declared->field_count;
-         ++i) {
-
-        if (response_value_has_storage(
-                document,
-                declared->fields[i].type)) {
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
-
-static bool response_method_has_storage(
-    const adsl_document_t *document,
-    const adsl_method_t *method) {
-
-    if (method->returns_type != NULL) {
-        return
-            response_value_has_storage(
-                document,
-                method->returns_type);
-    }
-
-    for (size_t i = 0u;
-         i < method->return_field_count;
-         ++i) {
-
-        if (response_value_has_storage(
-                document,
-                method->return_fields[i].type)) {
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
-
-static bool response_emit_direct_result_type(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_method_t *method,
-    const char *api_name,
-    const char *method_name,
-    char *error,
-    size_t error_capacity) {
-
-    fprintf(
-        output,
-        "typedef struct {\n");
-
-    if (method->returns_type != NULL) {
-        fprintf(
-            output,
-            "    ");
-
-        if (!response_emit_field_c_type(
-                output,
-                document,
-                method->returns_type,
-                error,
-                error_capacity)) {
-
-            return false;
-        }
-
-        fprintf(
-            output,
-            " value;\n");
-    } else {
-        for (size_t i = 0u;
-             i < method->return_field_count;
-             ++i) {
-
-            fprintf(
-                output,
-                "    ");
-
-            if (!response_emit_field_c_type(
-                    output,
-                    document,
-                    method->return_fields[i].type,
-                    error,
-                    error_capacity)) {
-
-                return false;
-            }
-
-            fprintf(
-                output,
-                " %s;\n",
-                method->return_fields[i].name);
-        }
-    }
-
-    fprintf(
-        output,
-        "} %s_%s_result_t;\n\n",
-        api_name,
-        method_name);
-
-    return true;
-}
-
-
-static bool response_emit_direct_storage_type(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_method_t *method,
-    const char *api_name,
-    const char *method_name,
-    char *error,
-    size_t error_capacity) {
-
-    fprintf(
-        output,
-        "typedef struct {\n");
-
-    if (method->returns_type != NULL) {
-        if (!response_emit_storage_fields(
-                output,
-                document,
-                method->returns_type,
-                "value",
-                error,
-                error_capacity)) {
-
-            return false;
-        }
-    } else {
-        for (size_t i = 0u;
-             i < method->return_field_count;
-             ++i) {
-
-            char path[512];
-
-            if (!response_path_append(
-                    NULL,
-                    method->return_fields[i].name,
-                    path,
-                    sizeof(path)) ||
-                !response_emit_storage_fields(
-                    output,
-                    document,
-                    method->return_fields[i].type,
-                    path,
-                    error,
-                    error_capacity)) {
-
-                return false;
-            }
-        }
-    }
-
-    fprintf(
-        output,
-        "} %s_%s_response_storage_t;\n\n",
-        api_name,
-        method_name);
-
-    return true;
-}
-
-
-static void response_emit_direct_frame_declaration(
-    FILE *output,
-    const char *api_name,
-    const char *method_name,
-    const char *api_upper,
-    const char *method_upper,
-    bool has_storage) {
-
-    fprintf(
-        output,
-        "typedef enum {\n"
-        "    %s_%s_RESPONSE_RESULT = 0,\n"
-        "    %s_%s_RESPONSE_ERROR = 1\n"
-        "} %s_%s_response_kind_t;\n\n"
-        "typedef struct {\n"
-        "    %s_%s_response_kind_t kind;\n"
-        "    uint32_t request_id;\n"
-        "    %s_%s_result_t result;\n"
-        "} %s_%s_response_frame_t;\n\n"
-        "aether_status_t %s_%s_response_decode(\n",
-        api_upper,
-        method_upper,
-        api_upper,
-        method_upper,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name);
-
-    if (has_storage) {
-        fprintf(
-            output,
-            "    const %s_%s_response_storage_t *api,\n",
-            api_name,
-            method_name);
-    }
-
-    fprintf(
-        output,
-        "    const uint8_t *data,\n"
-        "    size_t length,\n"
-        "    %s_%s_response_frame_t *frame,\n"
-        "    size_t *consumed);\n\n",
-        api_name,
-        method_name);
-}
-
-
-static void response_emit_direct_reader_integer_helpers(
-    FILE *output,
-    const char *base) {
-
-    fprintf(
-        output,
-        "typedef aether_meta_reader_t %s_response_reader_t;\n"
-        "#define %s_response_read_u8 aether_meta_read_u8\n"
-        "#define %s_response_read_u16le aether_meta_read_u16le\n"
-        "#define %s_response_read_u32le aether_meta_read_u32le\n"
-        "#define %s_response_read_u64le aether_meta_read_u64le\n\n",
-        base,
-        base,
-        base,
-        base,
-        base);
-}
-
-
-static void response_emit_direct_reader_signed_helpers(
-    FILE *output,
-    const char *base) {
-
-    fprintf(
-        output,
-        "#define %s_response_read_i16le aether_meta_read_i16le\n"
-        "#define %s_response_read_i32le aether_meta_read_i32le\n"
-        "#define %s_response_read_i64le aether_meta_read_i64le\n\n",
-        base,
-        base,
-        base);
-}
-
-
-static void response_emit_direct_reader_pack_helper(
-    FILE *output,
-    const char *base) {
-
-    fprintf(
-        output,
-        "#define %s_response_read_pack aether_meta_read_pack\n\n",
-        base);
-}
-
-
-static void response_emit_direct_reader_view_uuid_helpers(
-    FILE *output,
-    const char *base) {
-
-    fprintf(
-        output,
-        "#define %s_response_read_view aether_meta_read_view\n"
-        "#define %s_response_read_uuid aether_meta_read_uuid\n\n",
-        base,
-        base);
-}
 
 
 
@@ -7983,19 +6896,44 @@ static bool emit_decode_struct_fields_recursive(
 
         fprintf(
             output,
-            "        %s *_meta_tmp = (%s *)aether_meta_scratch_alloc(ctx, sizeof(%s), _Alignof(%s));\n"
-            "        if (_meta_tmp == NULL) return AETHER_ERR_OVERFLOW;\n"
-            "        memset(_meta_tmp, 0, sizeof(*_meta_tmp));\n",
+
+            "        %s *_meta_tmp_%u = (%s *)aether_meta_scratch_alloc(ctx, sizeof(%s), _Alignof(%s));\n"
+            "        if (_meta_tmp_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
+            "        memset(_meta_tmp_%u, 0, sizeof(*_meta_tmp_%u));\n",
+            ctype,
+            depth,
             ctype,
             ctype,
             ctype,
-            ctype);
+            depth,
+            depth,
+            depth);
+
+
+
+        char nullable_target[768];
+
+        int nullable_target_size =
+            snprintf(
+                nullable_target,
+                sizeof(nullable_target),
+                "(*_meta_tmp_%u)",
+                depth);
+
+        if (nullable_target_size < 0 ||
+            (size_t)nullable_target_size >= sizeof(nullable_target)) {
+            set_error(
+                error,
+                error_capacity,
+                "generated nullable expression is too long");
+            return false;
+        }
 
         if (!emit_decode_value_expression(
                 output,
                 document,
                 underlying,
-                "(*_meta_tmp)",
+                nullable_target,
                 base_snake,
                 depth + 1u,
                 error,
@@ -8003,14 +6941,18 @@ static bool emit_decode_struct_fields_recursive(
             return false;
         }
 
+
         fprintf(
             output,
-            "        %s = _meta_tmp;\n"
+
+            "        %s = _meta_tmp_%u;\n"
             "    } else {\n"
             "        %s = NULL;\n"
             "    }\n",
             field_target,
+            depth,
             field_target);
+
 
         (*bit_index)++;
     }
@@ -8057,6 +6999,16 @@ static bool emit_decode_struct_fields(
         return false;
     }
 
+
+    /*
+     * Wrap the whole BODY decode in its own lexical block so that a
+     * nested struct field decoded inside this body cannot shadow
+     * _meta_nullable_mask. Parent and child fields of one inheritance
+     * body still share a single aggregate mask because the recursion
+     * for parent fields stays inside this block.
+     */
+    fprintf(output, "    {\n");
+
     if (nullable_count > 0u) {
         size_t mask_width =
             nullable_count <= 8u
@@ -8081,21 +7033,32 @@ static bool emit_decode_struct_fields(
                 "    }\n",
                 b * 8u);
         }
+
     }
 
     size_t bit_index = 0u;
 
-    return emit_decode_struct_fields_recursive(
-        output,
-        document,
-        type,
-        target,
-        base_snake,
-        &bit_index,
-        depth,
-        error,
-        error_capacity);
+    bool fields_ok =
+        emit_decode_struct_fields_recursive(
+            output,
+            document,
+            type,
+            target,
+            base_snake,
+            &bit_index,
+            depth,
+            error,
+            error_capacity);
+
+    if (!fields_ok) {
+        return false;
+    }
+
+    fprintf(output, "    }\n");
+
+    return true;
 }
+
 
 
 static bool emit_decode_array_expression(
@@ -8161,17 +7124,25 @@ static bool emit_decode_array_expression(
     if (!dynamic) {
         fprintf(
             output,
-            "    for (size_t _meta_i = 0u; _meta_i < %zuu; ++_meta_i) {\n",
-            static_size);
+
+            "    for (size_t _meta_i_%u = 0u; _meta_i_%u < %zuu; ++_meta_i_%u) {\n",
+            depth,
+            depth,
+            static_size,
+            depth);
+
 
         char elem_target[1024];
+
 
         int elem_size =
             snprintf(
                 elem_target,
                 sizeof(elem_target),
-                "%s.data[_meta_i]",
-                target);
+                "%s.data[_meta_i_%u]",
+                target,
+                depth);
+
 
         if (elem_size < 0 ||
             (size_t)elem_size >= sizeof(elem_target)) {
@@ -8260,31 +7231,55 @@ static bool emit_decode_array_expression(
 
     fprintf(
         output,
+
         "    {\n"
-        "        uint64_t _meta_len64 = 0u;\n"
-        "        if (!aether_meta_read_pack(&ctx->reader, &_meta_len64)) return AETHER_ERR_PROTOCOL;\n"
-        "        if (_meta_len64 > (uint64_t)SIZE_MAX) return AETHER_ERR_PROTOCOL;\n"
-        "        size_t _meta_len = (size_t)_meta_len64;\n"
-        "        %s *_meta_buf = NULL;\n"
-        "        if (_meta_len > 0u) {\n"
-        "            if (_meta_len > SIZE_MAX / sizeof(%s)) return AETHER_ERR_PROTOCOL;\n"
-        "            _meta_buf = (%s *)aether_meta_scratch_alloc(ctx, _meta_len * sizeof(%s), _Alignof(%s));\n"
-        "            if (_meta_buf == NULL) return AETHER_ERR_OVERFLOW;\n"
-        "            memset(_meta_buf, 0, _meta_len * sizeof(%s));\n"
+        "        uint64_t _meta_len64_%u = 0u;\n"
+        "        if (!aether_meta_read_pack(&ctx->reader, &_meta_len64_%u)) return AETHER_ERR_PROTOCOL;\n"
+        "        if (_meta_len64_%u > (uint64_t)SIZE_MAX) return AETHER_ERR_PROTOCOL;\n"
+        "        size_t _meta_len_%u = (size_t)_meta_len64_%u;\n"
+        "        %s *_meta_buf_%u = NULL;\n"
+        "        if (_meta_len_%u > 0u) {\n"
+        "            if (_meta_len_%u > SIZE_MAX / sizeof(%s)) return AETHER_ERR_PROTOCOL;\n"
+        "            _meta_buf_%u = (%s *)aether_meta_scratch_alloc(ctx, _meta_len_%u * sizeof(%s), _Alignof(%s));\n"
+        "            if (_meta_buf_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
+        "            memset(_meta_buf_%u, 0, _meta_len_%u * sizeof(%s));\n"
         "        }\n"
-        "        for (size_t _meta_i = 0u; _meta_i < _meta_len; ++_meta_i) {\n",
-        ctype,
-        ctype,
-        ctype,
-        ctype,
-        ctype,
-        ctype);
+        "        for (size_t _meta_i_%u = 0u; _meta_i_%u < _meta_len_%u; ++_meta_i_%u) {\n",
+        depth, depth, depth, depth, depth,
+        ctype, depth,
+        depth,
+        depth, ctype,
+        depth, ctype, depth, ctype, ctype,
+        depth,
+        depth, depth, ctype,
+        depth, depth, depth, depth);
+
+
+
+    char array_target[768];
+
+    int array_target_size =
+        snprintf(
+            array_target,
+            sizeof(array_target),
+            "_meta_buf_%u[_meta_i_%u]",
+            depth,
+            depth);
+
+    if (array_target_size < 0 ||
+        (size_t)array_target_size >= sizeof(array_target)) {
+        set_error(
+            error,
+            error_capacity,
+            "generated array element expression is too long");
+        return false;
+    }
 
     if (!emit_decode_value_expression(
             output,
             document,
             element,
-            "_meta_buf[_meta_i]",
+            array_target,
             base_snake,
             depth + 1u,
             error,
@@ -8292,14 +7287,20 @@ static bool emit_decode_array_expression(
         return false;
     }
 
+
     fprintf(
         output,
+
+
         "        }\n"
-        "        (%s).data = _meta_buf;\n"
-        "        (%s).length = _meta_len;\n"
+        "        (%s).data = _meta_buf_%u;\n"
+        "        (%s).length = _meta_len_%u;\n"
         "    }\n",
         target,
-        target);
+        depth,
+        target,
+        depth);
+
 
     return true;
 }
@@ -8325,10 +7326,15 @@ static bool emit_decode_hierarchy_expression(
 
     fprintf(
         output,
+
         "    {\n"
-        "        uint8_t _meta_type_id = 0u;\n"
-        "        if (!aether_meta_read_u8(&ctx->reader, &_meta_type_id)) return AETHER_ERR_PROTOCOL;\n"
-        "        switch (_meta_type_id) {\n");
+        "        uint8_t _meta_type_id_%u = 0u;\n"
+        "        if (!aether_meta_read_u8(&ctx->reader, &_meta_type_id_%u)) return AETHER_ERR_PROTOCOL;\n"
+        "        switch (_meta_type_id_%u) {\n",
+        depth,
+        depth,
+        depth);
+
 
     size_t concrete_count = 0u;
 
@@ -8357,21 +7363,42 @@ static bool emit_decode_hierarchy_expression(
 
         fprintf(
             output,
+
             "        case %uu: {\n"
-            "            %s_t *_meta_child = (%s_t *)aether_meta_scratch_alloc(ctx, sizeof(%s_t), _Alignof(%s_t));\n"
-            "            if (_meta_child == NULL) return AETHER_ERR_OVERFLOW;\n"
-            "            memset(_meta_child, 0, sizeof(*_meta_child));\n",
+            "            %s_t *_meta_child_%u = (%s_t *)aether_meta_scratch_alloc(ctx, sizeof(%s_t), _Alignof(%s_t));\n"
+            "            if (_meta_child_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
+            "            memset(_meta_child_%u, 0, sizeof(*_meta_child_%u));\n",
             (unsigned int)candidate->id,
-            candidate_name,
-            candidate_name,
-            candidate_name,
-            candidate_name);
+            candidate_name, depth,
+            candidate_name, candidate_name, candidate_name,
+            depth,
+            depth, depth);
+
+
+
+        char child_target[256];
+
+        int child_target_size =
+            snprintf(
+                child_target,
+                sizeof(child_target),
+                "_meta_child_%u",
+                depth);
+
+        if (child_target_size < 0 ||
+            (size_t)child_target_size >= sizeof(child_target)) {
+            set_error(
+                error,
+                error_capacity,
+                "generated hierarchy child expression is too long");
+            return false;
+        }
 
         if (!emit_decode_struct_fields(
                 output,
                 document,
                 candidate,
-                "_meta_child",
+                child_target,
                 base_snake,
                 depth + 1u,
                 error,
@@ -8379,13 +7406,17 @@ static bool emit_decode_hierarchy_expression(
             return false;
         }
 
+
         fprintf(
             output,
-            "            (%s).as.%s = _meta_child;\n"
+
+            "            (%s).as.%s = _meta_child_%u;\n"
             "            break;\n"
             "        }\n",
             target,
-            candidate_name);
+            candidate_name,
+            depth);
+
 
         concrete_count++;
     }
@@ -8394,12 +7425,15 @@ static bool emit_decode_hierarchy_expression(
 
     fprintf(
         output,
+
         "        default:\n"
         "            return AETHER_ERR_PROTOCOL;\n"
         "        }\n"
-        "        (%s).type_id = _meta_type_id;\n"
+        "        (%s).type_id = _meta_type_id_%u;\n"
         "    }\n",
-        target);
+        target,
+        depth);
+
 
     return true;
 }
@@ -8480,7 +7514,7 @@ static bool emit_decode_value_expression(
             "    {\n"
             "        uint8_t _meta_bool = 0u;\n"
             "        if (!aether_meta_read_u8(&ctx->reader, &_meta_bool)) return AETHER_ERR_PROTOCOL;\n"
-            "        (%s) = (_meta_bool != 0u) ? true : false;\n"
+            "        (%s) = ((int8_t)_meta_bool > 0) ? true : false;\n"
             "    }\n",
             target);
         return true;

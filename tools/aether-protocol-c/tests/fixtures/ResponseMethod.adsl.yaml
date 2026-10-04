@@ -14,3 +14,18 @@ api:
             alias: uuid
             uid: uuid
             cloud: Cloud
+
+      ping:
+        id: 5
+        returns: void
+        params:
+          code: short
+
+      describe:
+        id: 6
+        returns:
+          fields:
+            required: byte
+            maybeCode: short?
+            maybeName: String?
+            maybeNested: Cloud?

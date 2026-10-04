@@ -497,24 +497,85 @@ static inline void *aether_meta_scratch_alloc(
         return NULL;
     }
 
-    size_t aligned =
-        (context->scratch_position + (alignment - 1u)) &
-        ~(alignment - 1u);
 
-    if (aligned > context->scratch_capacity ||
-        size > context->scratch_capacity - aligned) {
+/*
+     * Align the actual returned address, not only the offset from base.
+     * context->scratch is uint8_t* and has no alignment guarantee, so an
+     * offset-only alignment is insufficient on targets with strict alignment.
+     *
+     * All arithmetic is done via uintptr_t and every intermediate addition
+     * is checked for overflow before it is performed. Pointer arithmetic on
+     * uint8_t* past the end of the underlying object is never performed; the
+     * final pointer is only formed after the offset has been bounds-checked.
+     */
+    uintptr_t base =
+        (uintptr_t)context->scratch;
+
+
+    size_t alignment_minus_one =
+        alignment - 1u;
+
+    /*
+     * Every intermediate addition is checked before it is performed.
+     * Pointer arithmetic on uint8_t* past the end of the underlying object
+     * is never performed; the final pointer is only formed after the offset
+     * has been bounds-checked.
+     *
+     * If size_t is wider than uintptr_t the position must first be proven
+     * representable; otherwise the cast to uintptr_t would truncate.
+     */
+    if (context->scratch_position !=
+            (size_t)(uintptr_t)context->scratch_position) {
 
         return NULL;
     }
 
-    uint8_t *result =
-        context->scratch + aligned;
+    if ((uintptr_t)context->scratch_position >
+            UINTPTR_MAX - base) {
+
+        return NULL;
+    }
+
+    uintptr_t current =
+        base + (uintptr_t)context->scratch_position;
+
+
+    if (current >
+            UINTPTR_MAX - (uintptr_t)alignment_minus_one) {
+
+        return NULL;
+    }
+
+    uintptr_t aligned_address =
+        (current + (uintptr_t)alignment_minus_one) &
+        ~(uintptr_t)alignment_minus_one;
+
+    if (aligned_address < base) {
+        return NULL;
+    }
+
+    uintptr_t aligned_offset_u =
+        aligned_address - base;
+
+    if (aligned_offset_u >
+            (uintptr_t)context->scratch_capacity) {
+
+        return NULL;
+    }
+
+    size_t aligned_offset =
+        (size_t)aligned_offset_u;
+
+    if (size > context->scratch_capacity - aligned_offset) {
+        return NULL;
+    }
 
     context->scratch_position =
-        aligned + size;
+        aligned_offset + size;
 
-    return result;
+    return (void *)aligned_address;
 }
+
 
 
 
