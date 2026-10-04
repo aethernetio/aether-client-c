@@ -2397,10 +2397,6 @@ bool adsl_collect_effective_methods(
     size_t error_capacity);
 
 
-static bool effective_method_equal(
-    const adsl_method_t *a,
-    const adsl_method_t *b);
-
 
 
 static bool assign_method_ids_recursive(
@@ -2510,43 +2506,29 @@ static bool assign_method_ids_recursive(
                 return false;
             }
 
+
             for (size_t i = 0u; i < parent_count; ++i) {
 
-                bool duplicate_identical = false;
-                bool duplicate_conflict = false;
+                /*
+                 * Java ApiGenerator.getAllMethods() deduplicates inherited
+                 * methods by NAME only, keeping the first one encountered
+                 * (parent order, then own methods). Shape is not compared:
+                 * an inherited method with the same name but a different
+                 * command id is silently ignored, exactly like Java.
+                 */
+                bool duplicate = false;
 
                 for (size_t e = 0u; e < inherited_dedup; ++e) {
 
                     if (strcmp(merged[e].method->name,
-                               parent_methods[i].method->name) != 0) {
-                        continue;
-                    }
-
-                    if (effective_method_equal(
-                            merged[e].method,
-                            parent_methods[i].method)) {
-                        duplicate_identical = true;
+                               parent_methods[i].method->name) == 0) {
+                        duplicate = true;
                         break;
                     }
-
-                    duplicate_conflict = true;
-                    break;
                 }
 
-                if (duplicate_identical) {
+                if (duplicate) {
                     continue;
-                }
-
-                if (duplicate_conflict) {
-                    set_error(
-                        error,
-                        error_capacity,
-                        "API '%s' has conflicting inherited method '%s'",
-                        api->name,
-                        parent_methods[i].method->name);
-                    free(parent_methods);
-                    free(merged);
-                    return false;
                 }
 
                 if (inherited_dedup >= capacity) {
@@ -2559,6 +2541,7 @@ static bool assign_method_ids_recursive(
 
                 merged[inherited_dedup++] = parent_methods[i];
             }
+
 
             free(parent_methods);
         }
@@ -2608,136 +2591,6 @@ static bool assign_method_ids(
         error_capacity);
 }
 
-
-
-/*
- * Effective-method equality used for diamond-inheritance dedup.
- *
- * Two effective methods with the same name are considered identical only
- * when their entire protocol-significant shape matches: command id, ordered
- * parameter list (name, type, stream shape), returns type, anonymous result
- * fields and throws type. Parameter names are part of the shape because the
- * generated C callback ABI uses them.
- */
-static bool effective_method_equal(
-    const adsl_method_t *a,
-    const adsl_method_t *b) {
-
-    if (a == NULL ||
-        b == NULL) {
-
-        return a == b;
-    }
-
-    if (a->id != b->id ||
-        a->param_count != b->param_count ||
-        a->return_field_count != b->return_field_count) {
-
-        return false;
-    }
-
-    if ((a->returns_type == NULL) !=
-        (b->returns_type == NULL)) {
-
-        return false;
-    }
-
-    if (a->returns_type != NULL &&
-        strcmp(a->returns_type, b->returns_type) != 0) {
-
-        return false;
-    }
-
-    if ((a->throws_type == NULL) !=
-        (b->throws_type == NULL)) {
-
-        return false;
-    }
-
-    if (a->throws_type != NULL &&
-        strcmp(a->throws_type, b->throws_type) != 0) {
-
-        return false;
-    }
-
-    for (size_t p = 0u; p < a->param_count; ++p) {
-
-        const adsl_param_t *pa = &a->params[p];
-        const adsl_param_t *pb = &b->params[p];
-
-        if (strcmp(pa->name, pb->name) != 0 ||
-            strcmp(pa->type, pb->type) != 0) {
-
-            return false;
-        }
-
-        if ((pa->stream == NULL) != (pb->stream == NULL)) {
-
-            return false;
-        }
-
-
-        if (pa->stream != NULL) {
-            /*
-             * Stream identity is protocol-significant: two inherited methods
-             * with the same name/id but different target APIs are NOT the
-             * same method and must not be silently deduplicated.
-             */
-            const adsl_stream_t *sa = pa->stream;
-            const adsl_stream_t *sb = pb->stream;
-
-            if (sa->has_crypto != sb->has_crypto ||
-                sa->crypto != sb->crypto ||
-                sa->key_count != sb->key_count ||
-                sa->api_count != sb->api_count) {
-                return false;
-            }
-
-            if ((sa->api == NULL) != (sb->api == NULL)) {
-                return false;
-            }
-
-            if (sa->api != NULL &&
-                strcmp(sa->api, sb->api) != 0) {
-                return false;
-            }
-
-            for (size_t i = 0u; i < sa->api_count; ++i) {
-                const char *aa = sa->apis[i].api;
-                const char *ab = sb->apis[i].api;
-
-                if ((aa == NULL) != (ab == NULL)) {
-                    return false;
-                }
-
-                if (aa != NULL && strcmp(aa, ab) != 0) {
-                    return false;
-                }
-            }
-
-            for (size_t i = 0u; i < sa->key_count; ++i) {
-                if (strcmp(sa->keys[i].name, sb->keys[i].name) != 0 ||
-                    strcmp(sa->keys[i].type, sb->keys[i].type) != 0) {
-                    return false;
-                }
-            }
-        }
-
-    }
-
-    for (size_t f = 0u; f < a->return_field_count; ++f) {
-
-        if (strcmp(a->return_fields[f].name,
-                   b->return_fields[f].name) != 0 ||
-            strcmp(a->return_fields[f].type,
-                   b->return_fields[f].type) != 0) {
-
-            return false;
-        }
-    }
-
-    return true;
-}
 
 
 static bool effective_append(
@@ -2804,48 +2657,30 @@ static bool effective_collect_recursive(
         }
     }
 
+
     for (size_t m = 0u; m < api->method_count; ++m) {
 
         const adsl_method_t *method = &api->methods[m];
 
-        bool duplicate_identical = false;
-        bool duplicate_conflict = false;
+        /*
+         * Java ApiGenerator.getAllMethods() deduplicates by method NAME
+         * only; the first effective method with a given name wins. Keep
+         * this identical so automatic command IDs match Java exactly.
+         */
+        bool duplicate = false;
 
         for (size_t e = 0u; e < *count; ++e) {
 
             if (strcmp(methods[e].method->name,
-                       method->name) != 0) {
+                       method->name) == 0) {
 
-                continue;
-            }
-
-            if (effective_method_equal(
-                    methods[e].method,
-                    method)) {
-
-                duplicate_identical = true;
+                duplicate = true;
                 break;
             }
-
-            duplicate_conflict = true;
-            break;
         }
 
-        if (duplicate_identical) {
-
+        if (duplicate) {
             continue;
-        }
-
-        if (duplicate_conflict) {
-
-            set_error(
-                error,
-                error_capacity,
-                "API '%s' has conflicting effective method '%s' via inheritance",
-                api->name,
-                method->name);
-
-            return false;
         }
 
         effective_append(
@@ -2854,6 +2689,7 @@ static bool effective_collect_recursive(
             api,
             method);
     }
+
 
     return true;
 }
