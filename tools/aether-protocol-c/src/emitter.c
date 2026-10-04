@@ -837,6 +837,48 @@ static bool emit_struct_value_expression(
     char *error,
     size_t error_capacity);
 
+
+static bool emit_decode_value_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity);
+
+static bool emit_decode_struct_fields(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_type_t *type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity);
+
+static bool emit_decode_hierarchy_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_type_t *static_type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity);
+
+static bool emit_decode_array_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity);
+
+
 static bool emit_parameter_type(
     FILE *output,
     const adsl_document_t *document,
@@ -1480,7 +1522,7 @@ static bool emit_types_header(
         output,
         "#ifndef %s_TYPES_H\n"
         "#define %s_TYPES_H\n\n"
-        "#include \"aether_client.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n"
         "#include <stdbool.h>\n"
         "#include <stddef.h>\n"
         "#include <stdint.h>\n\n",
@@ -1822,13 +1864,20 @@ if (type->enum_count > 0u ||
             sizeof(type_name));
 
         if (hierarchy) {
+
             fprintf(
                 output,
                 "aether_status_t %s_serialize_%s(\n"
                 "    uint8_t *tx,\n"
                 "    size_t tx_capacity,\n"
                 "    size_t *position,\n"
-                "    const %s_ref_t *value);\n\n",
+                "    const %s_ref_t *value);\n\n"
+                "aether_status_t %s_deserialize_%s(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_ref_t *value);\n\n",
+                serializer_base,
+                type_name,
+                type_name,
                 serializer_base,
                 type_name,
                 type_name);
@@ -1839,11 +1888,18 @@ if (type->enum_count > 0u ||
                 "    uint8_t *tx,\n"
                 "    size_t tx_capacity,\n"
                 "    size_t *position,\n"
-                "    const %s_t *value);\n\n",
+                "    const %s_t *value);\n\n"
+                "aether_status_t %s_deserialize_%s(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_t *value);\n\n",
+                serializer_base,
+                type_name,
+                type_name,
                 serializer_base,
                 type_name,
                 type_name);
         }
+
     }
 
 
@@ -1998,6 +2054,71 @@ static bool emit_types_source(
             "    return AETHER_OK;\n"
             "}\n\n",
             output);
+
+        if (hierarchy) {
+            fprintf(
+                output,
+                "aether_status_t %s_deserialize_%s(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_ref_t *value) {\n\n",
+                base_snake,
+                type_name,
+                type_name);
+        } else {
+            fprintf(
+                output,
+                "aether_status_t %s_deserialize_%s(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_t *value) {\n\n",
+                base_snake,
+                type_name,
+                type_name);
+        }
+
+        fputs(
+            "    if (ctx == NULL || value == NULL) {\n"
+            "        return AETHER_ERR_ARGUMENT;\n"
+            "    }\n\n"
+            "    memset(value, 0, sizeof(*value));\n\n",
+            output);
+
+        bool decoded;
+
+        if (hierarchy) {
+            decoded =
+                emit_decode_hierarchy_expression(
+                    output,
+                    document,
+                    type,
+                    "(*value)",
+                    base_snake,
+                    0u,
+                    error,
+                    error_capacity);
+        } else {
+            decoded =
+                emit_decode_struct_fields(
+                    output,
+                    document,
+                    type,
+                    "value",
+                    base_snake,
+                    0u,
+                    error,
+                    error_capacity);
+        }
+
+        if (!decoded) {
+            fclose(output);
+            return false;
+        }
+
+        fputs(
+            "\n"
+            "    return AETHER_OK;\n"
+            "}\n\n",
+            output);
+
     }
 
 
@@ -7622,4 +7743,935 @@ static void response_emit_direct_reader_view_uuid_helpers(
         "#define %s_response_read_uuid aether_meta_read_uuid\n\n",
         base,
         base);
+}
+
+
+
+/*
+ * Generic symmetric ADSL type decoder emitter.
+ *
+ * The Java reference generator exposes one symmetric serialize/deserialize
+ * codec per ADSL type. This emitter mirrors that design for MCU targets
+ * without heap, reflection, or a Java-like object model:
+ *
+ *   - the caller provides aether_meta_read_context_t as the first argument;
+ *   - RX bytes are borrowed views;
+ *   - scratch storage is caller-owned and only used for polymorphic child
+ *     objects, dynamic non-byte arrays, and pointer-shaped nullable fields;
+ *   - primitive, enum, byte[], fixed byte[] decode without scratch;
+ *   - wire semantics (field order, nullable bit = NULL, hierarchy
+ *     discriminator, packed array count, META vs BODY) exactly follow the
+ *     Java generator and the existing serializer.
+ *
+ * Standalone generated deserialize functions are emitted next to the
+ * existing serialize functions. Response envelope decoding and any future
+ * local dispatcher refactor must reuse this layer rather than maintain a
+ * parallel type-support matrix.
+ */
+
+static bool emit_decode_struct_fields_recursive(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_type_t *type,
+    const char *target,
+    const char *base_snake,
+    size_t *bit_index,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity) {
+
+    if (depth > 64u) {
+        set_error(
+            error,
+            error_capacity,
+            "generated struct decode depth exceeds 64");
+        return false;
+    }
+
+    if (type->parent != NULL) {
+        const adsl_type_t *parent =
+            find_declared_type(document, type->parent);
+
+        if (parent == NULL) {
+            set_error(
+                error,
+                error_capacity,
+                "generated struct has unknown parent");
+            return false;
+        }
+
+        if (!emit_decode_struct_fields_recursive(
+                output,
+                document,
+                parent,
+                target,
+                base_snake,
+                bit_index,
+                depth + 1u,
+                error,
+                error_capacity)) {
+            return false;
+        }
+    }
+
+    for (size_t f = 0u; f < type->field_count; ++f) {
+        const adsl_field_t *field = &type->fields[f];
+
+        if (strchr(field->type, '~') != NULL) {
+            set_error(
+                error,
+                error_capacity,
+                "collapsible struct fields are not generated for MCU targets");
+            return false;
+        }
+
+        bool nullable =
+            strchr(field->type, '?') != NULL;
+
+        char field_target[1024];
+
+        int field_size =
+            snprintf(
+                field_target,
+                sizeof(field_target),
+                "%s->%s",
+                target,
+                field->name);
+
+        if (field_size < 0 ||
+            (size_t)field_size >= sizeof(field_target)) {
+            set_error(
+                error,
+                error_capacity,
+                "generated decode field expression is too long");
+            return false;
+        }
+
+        if (!nullable) {
+            if (!emit_decode_value_expression(
+                    output,
+                    document,
+                    field->type,
+                    field_target,
+                    base_snake,
+                    depth + 1u,
+                    error,
+                    error_capacity)) {
+                return false;
+            }
+
+            continue;
+        }
+
+        char underlying[256];
+
+        if (!strip_nullable_suffix(
+                field->type,
+                underlying,
+                sizeof(underlying))) {
+            set_error(
+                error,
+                error_capacity,
+                "nullable field type is too long");
+            return false;
+        }
+
+        fprintf(
+            output,
+            "    if ((_meta_nullable_mask & (UINT64_C(1) << %zuu)) == 0u) {\n",
+            *bit_index);
+
+        char array_element[128];
+        bool array_dynamic;
+        size_t array_static_size;
+
+        bool field_is_array =
+            parse_array_type(
+                underlying,
+                array_element,
+                sizeof(array_element),
+                &array_dynamic,
+                &array_static_size);
+
+        (void)array_element;
+        (void)array_dynamic;
+        (void)array_static_size;
+
+        const char *ctype = NULL;
+        char ctype_buf[256];
+
+        if (field_is_array) {
+            if (!array_alias_name(
+                    document,
+                    underlying,
+                    ctype_buf,
+                    sizeof(ctype_buf))) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "nullable array alias name is too long");
+                return false;
+            }
+
+            ctype = ctype_buf;
+        } else {
+            char base[128];
+
+            if (!scalar_type_name(
+                    underlying,
+                    base,
+                    sizeof(base))) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "nullable field has unsupported shape");
+                return false;
+            }
+
+            ctype = primitive_c_type(base);
+
+            if (ctype == NULL) {
+                const adsl_type_t *declared =
+                    find_declared_type(document, base);
+
+                if (declared == NULL) {
+                    set_error(
+                        error,
+                        error_capacity,
+                        "nullable field has unknown type");
+                    return false;
+                }
+
+                char declared_name[256];
+                declared_c_name(
+                    declared->name,
+                    declared_name,
+                    sizeof(declared_name));
+
+                if (declared->enum_count > 0u) {
+                    snprintf(
+                        ctype_buf,
+                        sizeof(ctype_buf),
+                        "%s_t",
+                        declared_name);
+                    ctype = ctype_buf;
+                } else if (type_is_polymorphic_reference(
+                               document,
+                               declared)) {
+                    snprintf(
+                        ctype_buf,
+                        sizeof(ctype_buf),
+                        "%s_ref_t",
+                        declared_name);
+                    ctype = ctype_buf;
+                } else if (declared->is_abstract) {
+                    set_error(
+                        error,
+                        error_capacity,
+                        "nullable abstract field is not generated");
+                    return false;
+                } else {
+                    snprintf(
+                        ctype_buf,
+                        sizeof(ctype_buf),
+                        "%s_t",
+                        declared_name);
+                    ctype = ctype_buf;
+                }
+            }
+        }
+
+        fprintf(
+            output,
+            "        %s *_meta_tmp = (%s *)aether_meta_scratch_alloc(ctx, sizeof(%s), _Alignof(%s));\n"
+            "        if (_meta_tmp == NULL) return AETHER_ERR_OVERFLOW;\n"
+            "        memset(_meta_tmp, 0, sizeof(*_meta_tmp));\n",
+            ctype,
+            ctype,
+            ctype,
+            ctype);
+
+        if (!emit_decode_value_expression(
+                output,
+                document,
+                underlying,
+                "(*_meta_tmp)",
+                base_snake,
+                depth + 1u,
+                error,
+                error_capacity)) {
+            return false;
+        }
+
+        fprintf(
+            output,
+            "        %s = _meta_tmp;\n"
+            "    } else {\n"
+            "        %s = NULL;\n"
+            "    }\n",
+            field_target,
+            field_target);
+
+        (*bit_index)++;
+    }
+
+    return true;
+}
+
+
+static bool emit_decode_struct_fields(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_type_t *type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity) {
+
+    if (depth > 64u) {
+        set_error(
+            error,
+            error_capacity,
+            "generated struct decode depth exceeds 64");
+        return false;
+    }
+
+    size_t nullable_count = 0u;
+
+    if (!count_all_nullable_fields(
+            document,
+            type,
+            0u,
+            &nullable_count,
+            error,
+            error_capacity)) {
+        return false;
+    }
+
+    if (nullable_count > 64u) {
+        set_error(
+            error,
+            error_capacity,
+            "generated struct hierarchy has more than 64 nullable fields");
+        return false;
+    }
+
+    if (nullable_count > 0u) {
+        size_t mask_width =
+            nullable_count <= 8u
+                ? 1u
+                : nullable_count <= 16u
+                    ? 2u
+                    : nullable_count <= 32u
+                        ? 4u
+                        : 8u;
+
+        fprintf(
+            output,
+            "    uint64_t _meta_nullable_mask = UINT64_C(0);\n");
+
+        for (size_t b = 0u; b < mask_width; ++b) {
+            fprintf(
+                output,
+                "    {\n"
+                "        uint8_t _meta_mask_byte = 0u;\n"
+                "        if (!aether_meta_read_u8(&ctx->reader, &_meta_mask_byte)) return AETHER_ERR_PROTOCOL;\n"
+                "        _meta_nullable_mask |= ((uint64_t)_meta_mask_byte) << %zuu;\n"
+                "    }\n",
+                b * 8u);
+        }
+    }
+
+    size_t bit_index = 0u;
+
+    return emit_decode_struct_fields_recursive(
+        output,
+        document,
+        type,
+        target,
+        base_snake,
+        &bit_index,
+        depth,
+        error,
+        error_capacity);
+}
+
+
+static bool emit_decode_array_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity) {
+
+    if (depth > 64u) {
+        set_error(
+            error,
+            error_capacity,
+            "generated array decode depth exceeds 64");
+        return false;
+    }
+
+    char element[128];
+    bool dynamic;
+    size_t static_size;
+
+    if (!parse_array_type(
+            type,
+            element,
+            sizeof(element),
+            &dynamic,
+            &static_size)) {
+        set_error(
+            error,
+            error_capacity,
+            "invalid generated array decode type");
+        return false;
+    }
+
+    if (dynamic &&
+        strcmp(element, "byte") == 0) {
+        fprintf(
+            output,
+            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n",
+            target,
+            target);
+        return true;
+    }
+
+    if (!dynamic &&
+        strcmp(element, "byte") == 0) {
+        fprintf(
+            output,
+            "    if (ctx->reader.position > ctx->reader.length ||\n"
+            "        %zuu > ctx->reader.length - ctx->reader.position) return AETHER_ERR_PROTOCOL;\n"
+            "    memcpy((%s).data, ctx->reader.data + ctx->reader.position, %zuu);\n"
+            "    ctx->reader.position += %zuu;\n",
+            static_size,
+            target,
+            static_size,
+            static_size);
+        return true;
+    }
+
+    if (!dynamic) {
+        fprintf(
+            output,
+            "    for (size_t _meta_i = 0u; _meta_i < %zuu; ++_meta_i) {\n",
+            static_size);
+
+        char elem_target[1024];
+
+        int elem_size =
+            snprintf(
+                elem_target,
+                sizeof(elem_target),
+                "%s.data[_meta_i]",
+                target);
+
+        if (elem_size < 0 ||
+            (size_t)elem_size >= sizeof(elem_target)) {
+            set_error(
+                error,
+                error_capacity,
+                "generated array element expression is too long");
+            return false;
+        }
+
+        if (!emit_decode_value_expression(
+                output,
+                document,
+                element,
+                elem_target,
+                base_snake,
+                depth + 1u,
+                error,
+                error_capacity)) {
+            return false;
+        }
+
+        fputs(
+            "    }\n",
+            output);
+
+        return true;
+    }
+
+    /*
+     * Dynamic non-byte array: decode packed length, reserve element array
+     * from caller scratch, then decode each element.
+     */
+    const char *ctype = primitive_c_type(element);
+    char ctype_buf[256];
+
+    if (ctype == NULL) {
+        const adsl_type_t *declared =
+            find_declared_type(document, element);
+
+        if (declared == NULL) {
+            set_error(
+                error,
+                error_capacity,
+                "unknown dynamic array element type");
+            return false;
+        }
+
+        char declared_name[256];
+        declared_c_name(
+            declared->name,
+            declared_name,
+            sizeof(declared_name));
+
+        if (declared->enum_count > 0u) {
+            snprintf(
+                ctype_buf,
+                sizeof(ctype_buf),
+                "%s_t",
+                declared_name);
+            ctype = ctype_buf;
+        } else if (type_is_polymorphic_reference(
+                       document,
+                       declared)) {
+            snprintf(
+                ctype_buf,
+                sizeof(ctype_buf),
+                "%s_ref_t",
+                declared_name);
+            ctype = ctype_buf;
+        } else if (declared->is_abstract) {
+            set_error(
+                error,
+                error_capacity,
+                "abstract dynamic array element type is not generated");
+            return false;
+        } else {
+            snprintf(
+                ctype_buf,
+                sizeof(ctype_buf),
+                "%s_t",
+                declared_name);
+            ctype = ctype_buf;
+        }
+    }
+
+    fprintf(
+        output,
+        "    {\n"
+        "        uint64_t _meta_len64 = 0u;\n"
+        "        if (!aether_meta_read_pack(&ctx->reader, &_meta_len64)) return AETHER_ERR_PROTOCOL;\n"
+        "        if (_meta_len64 > (uint64_t)SIZE_MAX) return AETHER_ERR_PROTOCOL;\n"
+        "        size_t _meta_len = (size_t)_meta_len64;\n"
+        "        %s *_meta_buf = NULL;\n"
+        "        if (_meta_len > 0u) {\n"
+        "            if (_meta_len > SIZE_MAX / sizeof(%s)) return AETHER_ERR_PROTOCOL;\n"
+        "            _meta_buf = (%s *)aether_meta_scratch_alloc(ctx, _meta_len * sizeof(%s), _Alignof(%s));\n"
+        "            if (_meta_buf == NULL) return AETHER_ERR_OVERFLOW;\n"
+        "            memset(_meta_buf, 0, _meta_len * sizeof(%s));\n"
+        "        }\n"
+        "        for (size_t _meta_i = 0u; _meta_i < _meta_len; ++_meta_i) {\n",
+        ctype,
+        ctype,
+        ctype,
+        ctype,
+        ctype,
+        ctype);
+
+    if (!emit_decode_value_expression(
+            output,
+            document,
+            element,
+            "_meta_buf[_meta_i]",
+            base_snake,
+            depth + 1u,
+            error,
+            error_capacity)) {
+        return false;
+    }
+
+    fprintf(
+        output,
+        "        }\n"
+        "        (%s).data = _meta_buf;\n"
+        "        (%s).length = _meta_len;\n"
+        "    }\n",
+        target,
+        target);
+
+    return true;
+}
+
+
+static bool emit_decode_hierarchy_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_type_t *static_type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity) {
+
+    if (depth > 64u) {
+        set_error(
+            error,
+            error_capacity,
+            "generated hierarchy decode depth exceeds 64");
+        return false;
+    }
+
+    fprintf(
+        output,
+        "    {\n"
+        "        uint8_t _meta_type_id = 0u;\n"
+        "        if (!aether_meta_read_u8(&ctx->reader, &_meta_type_id)) return AETHER_ERR_PROTOCOL;\n"
+        "        switch (_meta_type_id) {\n");
+
+    size_t concrete_count = 0u;
+
+    for (size_t i = 0u; i < document->type_count; ++i) {
+        const adsl_type_t *candidate = &document->types[i];
+
+        if (candidate->enum_count > 0u ||
+            candidate->is_abstract ||
+            !type_is_descendant_or_self(
+                document,
+                candidate,
+                static_type)) {
+            continue;
+        }
+
+        if (!candidate->has_id ||
+            candidate->id == 0u) {
+            continue;
+        }
+
+        char candidate_name[256];
+        declared_c_name(
+            candidate->name,
+            candidate_name,
+            sizeof(candidate_name));
+
+        fprintf(
+            output,
+            "        case %uu: {\n"
+            "            %s_t *_meta_child = (%s_t *)aether_meta_scratch_alloc(ctx, sizeof(%s_t), _Alignof(%s_t));\n"
+            "            if (_meta_child == NULL) return AETHER_ERR_OVERFLOW;\n"
+            "            memset(_meta_child, 0, sizeof(*_meta_child));\n",
+            (unsigned int)candidate->id,
+            candidate_name,
+            candidate_name,
+            candidate_name,
+            candidate_name);
+
+        if (!emit_decode_struct_fields(
+                output,
+                document,
+                candidate,
+                "_meta_child",
+                base_snake,
+                depth + 1u,
+                error,
+                error_capacity)) {
+            return false;
+        }
+
+        fprintf(
+            output,
+            "            (%s).as.%s = _meta_child;\n"
+            "            break;\n"
+            "        }\n",
+            target,
+            candidate_name);
+
+        concrete_count++;
+    }
+
+    (void)concrete_count;
+
+    fprintf(
+        output,
+        "        default:\n"
+        "            return AETHER_ERR_PROTOCOL;\n"
+        "        }\n"
+        "        (%s).type_id = _meta_type_id;\n"
+        "    }\n",
+        target);
+
+    return true;
+}
+
+
+static bool emit_decode_value_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *type,
+    const char *target,
+    const char *base_snake,
+    unsigned int depth,
+    char *error,
+    size_t error_capacity) {
+
+    if (depth > 64u) {
+        set_error(
+            error,
+            error_capacity,
+            "generated decode depth exceeds 64");
+        return false;
+    }
+
+    if (strchr(type, '~') != NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "collapsible values are not generated for MCU targets");
+        return false;
+    }
+
+    if (strchr(type, '?') != NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "nullable values must be decoded by their containing field mask");
+        return false;
+    }
+
+    char array_element[128];
+    bool array_dynamic;
+    size_t array_static_size;
+
+    if (parse_array_type(
+            type,
+            array_element,
+            sizeof(array_element),
+            &array_dynamic,
+            &array_static_size)) {
+        return emit_decode_array_expression(
+            output,
+            document,
+            type,
+            target,
+            base_snake,
+            depth,
+            error,
+            error_capacity);
+    }
+
+    char base[128];
+
+    if (!scalar_type_name(
+            type,
+            base,
+            sizeof(base))) {
+        set_error(
+            error,
+            error_capacity,
+            "unsupported generated decode shape");
+        return false;
+    }
+
+    if (strcmp(base, "bool") == 0 ||
+        strcmp(base, "boolean") == 0) {
+        fprintf(
+            output,
+            "    {\n"
+            "        uint8_t _meta_bool = 0u;\n"
+            "        if (!aether_meta_read_u8(&ctx->reader, &_meta_bool)) return AETHER_ERR_PROTOCOL;\n"
+            "        (%s) = (_meta_bool != 0u) ? true : false;\n"
+            "    }\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "byte") == 0) {
+        fprintf(
+            output,
+            "    {\n"
+            "        uint8_t _meta_byte = 0u;\n"
+            "        if (!aether_meta_read_u8(&ctx->reader, &_meta_byte)) return AETHER_ERR_PROTOCOL;\n"
+            "        (%s) = (int8_t)_meta_byte;\n"
+            "    }\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "short") == 0) {
+        fprintf(
+            output,
+            "    if (!aether_meta_read_i16le(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "int") == 0) {
+        fprintf(
+            output,
+            "    if (!aether_meta_read_i32le(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "long") == 0 ||
+        strcmp(base, "date") == 0) {
+        fprintf(
+            output,
+            "    if (!aether_meta_read_i64le(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "float") == 0) {
+        fprintf(
+            output,
+            "    {\n"
+            "        uint32_t _meta_bits = 0u;\n"
+            "        if (!aether_meta_read_u32le(&ctx->reader, &_meta_bits)) return AETHER_ERR_PROTOCOL;\n"
+            "        memcpy(&(%s), &_meta_bits, sizeof(_meta_bits));\n"
+            "    }\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "double") == 0) {
+        fprintf(
+            output,
+            "    {\n"
+            "        uint64_t _meta_bits = 0u;\n"
+            "        if (!aether_meta_read_u64le(&ctx->reader, &_meta_bits)) return AETHER_ERR_PROTOCOL;\n"
+            "        memcpy(&(%s), &_meta_bits, sizeof(_meta_bits));\n"
+            "    }\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "uuid") == 0) {
+        fprintf(
+            output,
+            "    if (!aether_meta_read_uuid(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "string") == 0 ||
+        strcmp(base, "uri") == 0) {
+        fprintf(
+            output,
+            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n",
+            target,
+            target);
+        return true;
+    }
+
+    if (strcmp(base, "intpack") == 0) {
+        fprintf(
+            output,
+            "    {\n"
+            "        uint64_t _meta_pack = 0u;\n"
+            "        if (!aether_meta_read_pack(&ctx->reader, &_meta_pack)) return AETHER_ERR_PROTOCOL;\n"
+            "        (%s) = (int64_t)_meta_pack;\n"
+            "    }\n",
+            target);
+        return true;
+    }
+
+    const adsl_type_t *declared_type =
+        find_declared_type(document, base);
+
+    if (declared_type == NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "unknown generated decode type");
+        return false;
+    }
+
+    if (declared_type->stream != NULL) {
+        fprintf(
+            output,
+            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n",
+            target,
+            target);
+        return true;
+    }
+
+    if (declared_type->enum_count > 0u) {
+        char enum_name[256];
+        declared_c_name(
+            declared_type->name,
+            enum_name,
+            sizeof(enum_name));
+
+        fprintf(
+            output,
+            "    {\n"
+            "        uint8_t _meta_enum = 0u;\n"
+            "        if (!aether_meta_read_u8(&ctx->reader, &_meta_enum)) return AETHER_ERR_PROTOCOL;\n"
+            "        if (_meta_enum >= %zuu) return AETHER_ERR_PROTOCOL;\n"
+            "        (%s) = (%s_t)_meta_enum;\n"
+            "    }\n",
+            declared_type->enum_count,
+            target,
+            enum_name);
+        return true;
+    }
+
+    if (type_is_polymorphic_reference(
+            document,
+            declared_type)) {
+        return emit_decode_hierarchy_expression(
+            output,
+            document,
+            declared_type,
+            target,
+            base_snake,
+            depth,
+            error,
+            error_capacity);
+    }
+
+    if (declared_type->is_abstract) {
+        set_error(
+            error,
+            error_capacity,
+            "abstract generated value has no concrete hierarchy descendants");
+        return false;
+    }
+
+    fprintf(
+        output,
+        "    /* concrete struct value */\n");
+
+
+    {
+        char address[1024];
+        int address_size =
+            snprintf(
+                address,
+                sizeof(address),
+                "(&(%s))",
+                target);
+
+        if (address_size < 0 ||
+            (size_t)address_size >= sizeof(address)) {
+            set_error(
+                error,
+                error_capacity,
+                "generated concrete struct decode target is too long");
+            return false;
+        }
+
+        return emit_decode_struct_fields(
+            output,
+            document,
+            declared_type,
+            address,
+            base_snake,
+            depth,
+            error,
+            error_capacity);
+    }
+
 }

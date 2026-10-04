@@ -337,6 +337,156 @@ static void test_static_parameter(void) {
         sizeof(expected));
 }
 
+
+/*
+ * Round-trip test: the same wire bytes verified by the serializer must
+ * decode back into an equivalent caller-owned struct without heap.
+ * byte[] fields must be borrowed views into the RX buffer (zero-copy).
+ */
+static void test_roundtrip_holder_decode(void) {
+
+    static const uint8_t wire[] = {
+        0x01u,
+
+        0x03u, 0xaau, 0xbbu, 0xccu,
+        0x02u, 0x34u, 0x12u, 0xfeu, 0xffu,
+        0x01u,
+        0x01u, 0x02u, 0x03u, 0x04u, 0x05u, 0x06u, 0x07u, 0x08u,
+        0x11u, 0x12u, 0x13u, 0x14u, 0x15u, 0x16u, 0x17u, 0x18u,
+        0x02u, 0x01u, 0x61u, 0x02u, 0x62u, 0x63u,
+        0x02u, 0x07u, 0x00u, 0x34u, 0x12u,
+        0x01u, 0x02u, 0x03u, 0x04u,
+        0x22u, 0x11u, 0x44u, 0x33u, 0x66u, 0x55u
+    };
+
+    uint8_t scratch[1024] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
+
+    array_holder_t value = {0};
+
+    assert(
+        arrays_deserialize_array_holder(
+            &ctx,
+            &value) ==
+        AETHER_OK);
+
+    assert(ctx.reader.position == sizeof(wire));
+    assert(value.maybeBytes == NULL);
+
+    /* byte[] must be a zero-copy borrowed view into the RX buffer. */
+    assert(value.bytes.length == 3u);
+    assert(value.bytes.data >= wire);
+    assert(value.bytes.data < wire + sizeof(wire));
+    assert(value.bytes.data[0] == 0xaau);
+    assert(value.bytes.data[2] == 0xccu);
+
+    assert(value.shorts.length == 2u);
+    assert(value.shorts.data[0] == INT16_C(0x1234));
+    assert(value.shorts.data[1] == INT16_C(-2));
+
+    assert(value.ids.length == 1u);
+    assert(value.ids.data[0].msb == UINT64_C(0x0102030405060708));
+    assert(value.ids.data[0].lsb == UINT64_C(0x1112131415161718));
+
+    assert(value.names.length == 2u);
+    assert(value.names.data[0].length == 1u);
+    assert(value.names.data[0].data[0] == 0x61u);
+    assert(value.names.data[1].length == 2u);
+    assert(value.names.data[1].data[0] == 0x62u);
+    assert(value.names.data[1].data[1] == 0x63u);
+
+    assert(value.items.length == 2u);
+    assert(value.items.data[0].code == INT16_C(7));
+    assert(value.items.data[1].code == INT16_C(0x1234));
+
+    assert(value.fixedBytes.data[0] == INT8_C(1));
+    assert(value.fixedBytes.data[3] == INT8_C(4));
+
+    assert(value.fixedShorts.data[0] == INT16_C(0x1122));
+    assert(value.fixedShorts.data[2] == INT16_C(0x5566));
+
+    /* Re-serializing the decoded value must produce the same bytes. */
+    uint8_t tx[256] = {0};
+    size_t position = 0u;
+
+    assert(
+        arrays_serialize_array_holder(
+            tx,
+            sizeof(tx),
+            &position,
+            &value) ==
+        AETHER_OK);
+
+    assert(position == sizeof(wire));
+    assert(memcmp(tx, wire, sizeof(wire)) == 0);
+}
+
+
+/*
+ * Insufficient scratch must fail with AETHER_ERR_OVERFLOW rather than
+ * silently truncating or using heap.
+ */
+static void test_scratch_overflow(void) {
+    static const uint8_t wire[] = {
+        0x01u,
+        0x03u, 0xaau, 0xbbu, 0xccu,
+        0x02u, 0x34u, 0x12u, 0xfeu, 0xffu,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u, 0x00u, 0x00u, 0x00u,
+        0x00u, 0x00u, 0x00u, 0x00u
+    };
+
+    uint8_t scratch[2] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
+
+    array_holder_t value = {0};
+
+    assert(
+        arrays_deserialize_array_holder(
+            &ctx,
+            &value) ==
+        AETHER_ERR_OVERFLOW);
+}
+
+
+/*
+ * Truncated input must fail with AETHER_ERR_PROTOCOL rather than read
+ * past the RX buffer.
+ */
+static void test_truncated_input(void) {
+    static const uint8_t wire[] = {
+        0x00u,
+        0x03u, 0xaau, 0xbbu, 0xccu
+    };
+
+    uint8_t scratch[512] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
+
+    array_holder_t value = {0};
+
+    assert(
+        arrays_deserialize_array_holder(
+            &ctx,
+            &value) ==
+        AETHER_ERR_PROTOCOL);
+}
+
+
 static void test_empty_dynamic_null_data(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
@@ -491,7 +641,12 @@ int main(void) {
     test_static_parameter();
     test_empty_dynamic_null_data();
     test_invalid_dynamic_null_data();
+
     test_nullable_array_present();
+    test_roundtrip_holder_decode();
+    test_scratch_overflow();
+    test_truncated_input();
+
 
     return 0;
 }

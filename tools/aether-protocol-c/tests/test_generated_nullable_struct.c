@@ -290,13 +290,172 @@ static void test_nullable_view_validation(void) {
     assert(capture.calls == 0u);
 }
 
+
+/*
+ * Round-trip test for the nullable mask semantics. Bit 1 means NULL,
+ * parent fields precede child fields, and only non-null fields carry
+ * payload. Decoded pointers must land in caller scratch.
+ */
+static void test_nullable_decode_mask(void) {
+    /* Wire from test_nullable_mixed: mask=0x05 (maybeShort null, maybeInner null). */
+    static const uint8_t wire[] = {
+        0x05u,
+        0x2au,
+        0x02u,
+        0x6fu,
+        0x6bu
+    };
+
+    uint8_t scratch[256] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
+
+    nullable_mixed_t value = {0};
+
+    assert(
+        nullable_struct_deserialize_nullable_mixed(
+            &ctx,
+            &value) ==
+        AETHER_OK);
+
+    assert(ctx.reader.position == sizeof(wire));
+    assert(value.maybeShort == NULL);
+    assert(value.required == INT8_C(0x2a));
+    assert(value.maybeName != NULL);
+    assert(
+        (const uint8_t *)value.maybeName >= scratch);
+    assert(
+        (const uint8_t *)value.maybeName <
+        scratch + sizeof(scratch));
+    assert(value.maybeName->length == 2u);
+    assert(value.maybeName->data[0] == 0x6fu);
+    assert(value.maybeName->data[1] == 0x6bu);
+    assert(value.maybeInner == NULL);
+
+    uint8_t tx[128] = {0};
+    size_t pos = 0u;
+
+    assert(
+        nullable_struct_serialize_nullable_mixed(
+            tx,
+            sizeof(tx),
+            &pos,
+            &value) ==
+        AETHER_OK);
+
+    assert(pos == sizeof(wire));
+    assert(memcmp(tx, wire, sizeof(wire)) == 0);
+}
+
+
+/*
+ * mask9: nine nullable fields, mask width is two bytes. All fields null.
+ * Java generator writes bit = 1 for NULL. Byte 0 is 0xff, byte 1 is 0x01.
+ */
+static void test_nullable_mask9_decode(void) {
+    static const uint8_t wire[] = {
+        0xffu,
+        0x01u
+    };
+
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+
+    mask9_t value = {0};
+
+    assert(
+        nullable_struct_deserialize_mask9(
+            &ctx,
+            &value) ==
+        AETHER_OK);
+
+    assert(ctx.reader.position == sizeof(wire));
+    assert(value.n0 == NULL);
+    assert(value.n8 == NULL);
+}
+
+
+/*
+ * mask17: seventeen nullable fields, mask width is four bytes.
+ * All fields null.
+ */
+static void test_nullable_mask17_decode(void) {
+    static const uint8_t wire[] = {
+        0xffu,
+        0xffu,
+        0x01u,
+        0x00u
+    };
+
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+
+    mask17_t value = {0};
+
+    assert(
+        nullable_struct_deserialize_mask17(
+            &ctx,
+            &value) ==
+        AETHER_OK);
+
+    assert(ctx.reader.position == sizeof(wire));
+    assert(value.n0 == NULL);
+    assert(value.n16 == NULL);
+}
+
+
+/*
+ * mask33: thirty-three nullable fields, mask width is eight bytes.
+ * All fields null.
+ */
+static void test_nullable_mask33_decode(void) {
+    static const uint8_t wire[] = {
+        0xffu,
+        0xffu,
+        0xffu,
+        0xffu,
+        0x01u,
+        0x00u,
+        0x00u,
+        0x00u
+    };
+
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+
+    mask33_t value = {0};
+
+    assert(
+        nullable_struct_deserialize_mask33(
+            &ctx,
+            &value) ==
+        AETHER_OK);
+
+    assert(ctx.reader.position == sizeof(wire));
+    assert(value.n0 == NULL);
+    assert(value.n32 == NULL);
+}
+
+
 int main(void) {
     test_nullable_mixed();
     test_nullable_present_values();
     test_mask_width_2();
     test_mask_width_4();
     test_mask_width_8();
+
     test_nullable_view_validation();
+    test_nullable_decode_mask();
+    test_nullable_mask9_decode();
+    test_nullable_mask17_decode();
+    test_nullable_mask33_decode();
+
 
     return 0;
 }

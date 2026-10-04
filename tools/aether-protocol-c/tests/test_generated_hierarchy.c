@@ -296,12 +296,113 @@ static void test_selected_concrete_pointer_required(void) {
     assert(capture.calls == 0u);
 }
 
+
+/*
+ * Round-trip decode of a polymorphic hierarchy ref through the generic
+ * decoder. Concrete child must land in caller scratch, and the existing
+ * expected bytes must survive serialize -> deserialize -> serialize.
+ */
+static void test_hierarchy_roundtrip(void) {
+    static const uint8_t wire[] = {
+        0x07u,
+        0x01u,
+        0x2au,
+        0x34u,
+        0x12u,
+        0x00u,
+        0x00u,
+        0xacu,
+        0x41u
+    };
+
+    uint8_t scratch[256] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
+
+    event_ref_t decoded = {0};
+
+    assert(
+        hierarchy_deserialize_event(
+            &ctx,
+            &decoded) ==
+        AETHER_OK);
+
+    assert(ctx.reader.position == sizeof(wire));
+    assert(decoded.type_id == UINT8_C(7));
+    assert(decoded.as.temperature_event != NULL);
+    assert(
+        (const uint8_t *)decoded.as.temperature_event >= scratch);
+    assert(
+        (const uint8_t *)decoded.as.temperature_event <
+        scratch + sizeof(scratch));
+
+    assert(decoded.as.temperature_event->source == INT8_C(0x2a));
+    assert(decoded.as.temperature_event->note == NULL);
+    assert(decoded.as.temperature_event->sequence == INT16_C(0x1234));
+    assert(decoded.as.temperature_event->temperature == 21.5f);
+
+    uint8_t tx[64] = {0};
+    size_t pos = 0u;
+
+    assert(
+        hierarchy_serialize_event(
+            tx,
+            sizeof(tx),
+            &pos,
+            &decoded) ==
+        AETHER_OK);
+
+    assert(pos == sizeof(wire));
+    assert(memcmp(tx, wire, sizeof(wire)) == 0);
+}
+
+
+/*
+ * Unknown discriminator must be rejected as AETHER_ERR_PROTOCOL.
+ */
+static void test_hierarchy_unknown_discriminator(void) {
+    static const uint8_t wire[] = {
+        0x08u,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u,
+        0x00u
+    };
+
+    uint8_t scratch[256] = {0};
+    aether_meta_read_context_t ctx = {0};
+    ctx.reader.data = wire;
+    ctx.reader.length = sizeof(wire);
+    ctx.scratch = scratch;
+    ctx.scratch_capacity = sizeof(scratch);
+
+    event_ref_t decoded = {0};
+
+    assert(
+        hierarchy_deserialize_event(
+            &ctx,
+            &decoded) ==
+        AETHER_ERR_PROTOCOL);
+}
+
+
 int main(void) {
     test_abstract_reference_writes_type_id();
     test_nested_polymorphic_field();
     test_concrete_leaf_has_no_discriminator();
     test_unknown_type_id_rejected();
+
     test_selected_concrete_pointer_required();
+    test_hierarchy_roundtrip();
+    test_hierarchy_unknown_discriminator();
+
 
     return 0;
 }

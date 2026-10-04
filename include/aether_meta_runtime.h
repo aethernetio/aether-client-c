@@ -446,6 +446,78 @@ static inline bool aether_meta_read_i64le(
 }
 
 
+
+/*
+ * Decode context for generic generated deserializers.
+ *
+ * The reader borrows immutable RX bytes. Scratch is optional caller-owned
+ * storage used for values that cannot be represented as borrowed RX views
+ * or inline struct fields:
+ *
+ *   - polymorphic hierarchy concrete child objects;
+ *   - dynamic non-byte arrays whose host representation differs from wire;
+ *   - nullable fields whose generated representation is a pointer.
+ *
+ * Scratch is a linear bump allocator: individual allocations are never
+ * freed. Reset scratch_position (or reinitialize the whole context) before
+ * decoding another frame.
+ *
+ * Generated code never uses heap. Callers that cannot provide scratch may
+ * still decode types that never need it. Types that need scratch fail with
+ * AETHER_ERR_OVERFLOW when scratch_capacity is insufficient.
+ */
+typedef struct {
+    aether_meta_reader_t reader;
+
+    uint8_t *scratch;
+    size_t scratch_capacity;
+    size_t scratch_position;
+} aether_meta_read_context_t;
+
+
+/*
+ * Allocate size bytes with power-of-two alignment from the context scratch
+ * arena. Returns NULL when scratch is not supplied, alignment is invalid, or
+ * the arena is exhausted.
+ *
+ * Lifetime: the returned pointer remains valid until the caller resets
+ * scratch_position or stops using the context. Individual allocations are
+ * never released.
+ */
+static inline void *aether_meta_scratch_alloc(
+    aether_meta_read_context_t *context,
+    size_t size,
+    size_t alignment) {
+
+    if (context == NULL ||
+        context->scratch == NULL ||
+        alignment == 0u ||
+        (alignment & (alignment - 1u)) != 0u) {
+
+        return NULL;
+    }
+
+    size_t aligned =
+        (context->scratch_position + (alignment - 1u)) &
+        ~(alignment - 1u);
+
+    if (aligned > context->scratch_capacity ||
+        size > context->scratch_capacity - aligned) {
+
+        return NULL;
+    }
+
+    uint8_t *result =
+        context->scratch + aligned;
+
+    context->scratch_position =
+        aligned + size;
+
+    return result;
+}
+
+
+
 #ifdef __cplusplus
 }
 #endif
