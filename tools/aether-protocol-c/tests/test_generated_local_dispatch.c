@@ -45,9 +45,16 @@ typedef struct {
     uint32_t last_ping_request_id;
     int16_t last_ping_code;
 
+
     uint32_t last_query_request_id;
     int16_t last_query_code;
+
+    size_t send_large_fixed_calls;
+    size_t last_large_fixed_length;
+    uint8_t last_large_fixed_first;
+    uint8_t last_large_fixed_last;
 } capture_t;
+
 
 
 static aether_status_t on_enter(
@@ -187,6 +194,22 @@ static aether_status_t on_query_value(
 }
 
 
+
+static aether_status_t on_send_large_fixed(
+    void *ctx,
+    const byte_array_512_t *data) {
+
+    capture_t *capture = ctx;
+    assert(capture != NULL);
+    assert(data != NULL);
+    capture->send_large_fixed_calls++;
+    capture->last_large_fixed_length = sizeof(data->data);
+    capture->last_large_fixed_first = data->data[0];
+    capture->last_large_fixed_last = data->data[511];
+    return AETHER_OK;
+}
+
+
 static local_api_local_t make_local(capture_t *capture) {
     local_api_local_t local = {
         .ctx = capture,
@@ -199,10 +222,12 @@ static local_api_local_t make_local(capture_t *capture) {
         .send_holder = on_send_holder,
         .noop = on_noop,
         .ping_void = on_ping_void,
-        .query_value = on_query_value
+        .query_value = on_query_value,
+        .send_large_fixed = on_send_large_fixed
     };
     return local;
 }
+
 
 
 static aether_meta_read_context_t make_ctx(
@@ -541,6 +566,127 @@ static void test_argument_validation(void) {
 }
 
 
+
+static void test_scratch_reuse_between_commands(void) {
+    uint8_t frame[] = {
+        9u,
+        0x02u, 0xaau, 0xbbu,
+        0x01u, 0x34u, 0x12u,
+        0x00u,
+        0x01u, 0x02u, 0x03u, 0x04u,
+        9u,
+        0x02u, 0xaau, 0xbbu,
+        0x01u, 0x34u, 0x12u,
+        0x00u,
+        0x01u, 0x02u, 0x03u, 0x04u
+    };
+
+    capture_t capture = {0};
+    local_api_local_t local = make_local(&capture);
+
+    /*
+     * Scratch capacity is enough for exactly one command. Without
+     * dispatcher-level scratch restoration the second dispatch would
+     * overflow.
+     */
+    uint8_t scratch[256] = {0};
+    aether_meta_read_context_t ctx =
+        make_ctx(frame, sizeof(frame), scratch, sizeof(scratch));
+
+    size_t initial = ctx.scratch_position;
+
+    assert(local_api_dispatch(&local, &ctx) == AETHER_OK);
+    assert(ctx.scratch_position == initial);
+
+    assert(local_api_dispatch(&local, &ctx) == AETHER_OK);
+    assert(ctx.scratch_position == initial);
+
+    assert(capture.send_holder_calls == 2u);
+}
+
+
+static void test_large_fixed_scratch_enough(void) {
+    uint8_t frame[513];
+    frame[0] = 13u;
+    for (size_t i = 0u; i < 512u; ++i) {
+        frame[1u + i] = (uint8_t)(i & 0xffu);
+    }
+
+    capture_t capture = {0};
+    local_api_local_t local = make_local(&capture);
+
+    uint8_t scratch[512] = {0};
+    aether_meta_read_context_t ctx =
+        make_ctx(frame, sizeof(frame), scratch, sizeof(scratch));
+
+    assert(local_api_dispatch(&local, &ctx) == AETHER_OK);
+    assert(ctx.reader.position == sizeof(frame));
+    assert(capture.send_large_fixed_calls == 1u);
+    assert(capture.last_large_fixed_length == 512u);
+    assert(capture.last_large_fixed_first == 0u);
+    assert(capture.last_large_fixed_last == 0xffu);
+    assert(ctx.scratch_position == 0u);
+}
+
+
+static void test_large_fixed_scratch_too_small(void) {
+    uint8_t frame[513];
+    frame[0] = 13u;
+    for (size_t i = 0u; i < 512u; ++i) {
+        frame[1u + i] = (uint8_t)(i & 0xffu);
+    }
+
+    capture_t capture = {0};
+    local_api_local_t local = make_local(&capture);
+
+    uint8_t scratch[64] = {0};
+    aether_meta_read_context_t ctx =
+        make_ctx(frame, sizeof(frame), scratch, sizeof(scratch));
+
+    assert(local_api_dispatch(&local, &ctx) == AETHER_ERR_OVERFLOW);
+    assert(capture.send_large_fixed_calls == 0u);
+}
+
+
+static void test_inherited_enter_dispatches_via_child(void) {
+    uint8_t frame[] = {
+        3u,
+        0x02u, 0xa1u, 0xb2u
+    };
+
+    capture_t capture = {0};
+    local_api_local_t local = make_local(&capture);
+
+    uint8_t scratch[8] = {0};
+    aether_meta_read_context_t ctx =
+        make_ctx(frame, sizeof(frame), scratch, sizeof(scratch));
+
+    assert(local_api_dispatch(&local, &ctx) == AETHER_OK);
+    assert(capture.enter_calls == 1u);
+    assert(capture.last_stream_length == 2u);
+}
+
+
+static void test_inherited_enter_global_dispatches_via_child(void) {
+    uint8_t frame[] = {
+        4u,
+        0x01u, 0x99u
+    };
+
+    capture_t capture = {0};
+    local_api_local_t local = make_local(&capture);
+
+    uint8_t scratch[8] = {0};
+    aether_meta_read_context_t ctx =
+        make_ctx(frame, sizeof(frame), scratch, sizeof(scratch));
+
+    assert(local_api_dispatch(&local, &ctx) == AETHER_OK);
+    assert(capture.enter_global_calls == 1u);
+    assert(capture.last_stream_length == 1u);
+}
+
+
+
 int main(void) {
     test_byte_array_zero_copy();
     test_multiple_primitive_params();
@@ -552,7 +698,15 @@ int main(void) {
     test_typed_response_method();
     test_stream_zero_copy();
     test_stream_two_byte_pack();
+
     test_concatenated_commands();
+
+    test_scratch_reuse_between_commands();
+    test_large_fixed_scratch_enough();
+    test_large_fixed_scratch_too_small();
+    test_inherited_enter_dispatches_via_child();
+    test_inherited_enter_global_dispatches_via_child();
+
     test_truncated_input_rejected();
     test_unknown_command_rejected();
     test_missing_callback_rejected();

@@ -105,8 +105,17 @@ typedef struct {
 } adsl_method_t;
 
 
+
 typedef struct {
     char *name;
+
+    /*
+     * `abstract: true` in ADSL. Documents intent only: C flattens API
+     * inheritance at generation time, so this field has no C runtime
+     * effect. Retained so production schemas such as AuthDsl AuthBaseApi
+     * parse without a spurious "unsupported API property" error.
+     */
+    bool is_abstract;
 
     char **parents;
     size_t parent_count;
@@ -114,6 +123,8 @@ typedef struct {
     adsl_method_t *methods;
     size_t method_count;
 } adsl_api_t;
+
+
 
 
 /*
@@ -136,6 +147,44 @@ typedef struct {
     adsl_api_t *apis;
     size_t api_count;
 } adsl_document_t;
+
+
+
+/*
+ * One resolved (api, method) pair produced by effective API inheritance.
+ *
+ * C has no interface inheritance, so child APIs are flattened at
+ * generation time using the same parent-first ordering as Java
+ * ApiGenerator.getAllMethods(): parents recursively in declared order,
+ * then the API's own methods. Diamond-identical duplicates are emitted
+ * once; conflicting duplicates are rejected during validation.
+ *
+ * owner points to the API that declares the method; method points into
+ * owner->methods. Both remain valid for the lifetime of the document.
+ */
+typedef struct {
+    const adsl_api_t *owner;
+    const adsl_method_t *method;
+} adsl_effective_method_t;
+
+/*
+ * Collect effective API methods in Java ApiGenerator order.
+ *
+ * On success *out_methods is a heap-allocated array of *out_count entries
+ * that the caller must release with free(). A zero method count returns
+ * *out_methods == NULL.
+ *
+ * On failure returns false with a human-readable error message. Duplicate
+ * conflicting method declarations sharing one effective name, and two
+ * different effective methods sharing a command id, are reported here.
+ */
+bool adsl_collect_effective_methods(
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity);
 
 
 void adsl_document_init(

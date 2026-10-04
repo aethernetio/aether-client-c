@@ -879,6 +879,109 @@ static bool emit_decode_array_expression(
     size_t error_capacity);
 
 
+
+/*
+ * Generated local parameter storage/pass classification.
+ *
+ * Local callbacks and the remote ABI must stay in step, so this helper is
+ * the single place that decides how a decoded root parameter becomes a
+ * callback argument:
+ *
+ *   scalar / enum / UUID   -> by value, stack local
+ *   dynamic array view     -> by value, stack local
+ *   stream / ref wrapper   -> stack local, address passed
+ *   concrete struct        -> caller scratch, pointer passed (MCU stack)
+ *   static array alias     -> caller scratch, pointer passed (MCU stack)
+ *
+ * `valid` is set to false for unknown/abstract types so the caller can
+ * raise a generation error with its own context.
+ */
+typedef enum {
+    C_PARAM_KIND_SCALAR,
+    C_PARAM_KIND_DYNAMIC_VIEW,
+    C_PARAM_KIND_STREAM_PTR,
+    C_PARAM_KIND_REF_PTR,
+    C_PARAM_KIND_ROOT_STRUCT,
+    C_PARAM_KIND_ROOT_STATIC_ARRAY
+} c_param_kind_t;
+
+static c_param_kind_t classify_param_kind(
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    bool *valid) {
+
+    *valid = false;
+
+    if (document == NULL || param == NULL || param->type == NULL) {
+        return C_PARAM_KIND_SCALAR;
+    }
+
+    if (param->stream != NULL) {
+        *valid = true;
+        return C_PARAM_KIND_STREAM_PTR;
+    }
+
+    char array_element[128];
+    bool array_dynamic;
+    size_t array_static_size;
+
+    if (parse_array_type(
+            param->type,
+            array_element,
+            sizeof(array_element),
+            &array_dynamic,
+            &array_static_size)) {
+
+        (void)array_static_size;
+
+        if (array_dynamic) {
+            *valid = true;
+            return C_PARAM_KIND_DYNAMIC_VIEW;
+        }
+
+        *valid = true;
+        return C_PARAM_KIND_ROOT_STATIC_ARRAY;
+    }
+
+    char base[128];
+
+    if (!scalar_type_name(param->type, base, sizeof(base))) {
+        return C_PARAM_KIND_SCALAR;
+    }
+
+    if (primitive_c_type(base) != NULL) {
+        *valid = true;
+        return C_PARAM_KIND_SCALAR;
+    }
+
+    const adsl_type_t *declared =
+        find_declared_type(document, base);
+
+    if (declared == NULL) {
+        return C_PARAM_KIND_SCALAR;
+    }
+
+    if (declared->stream != NULL ||
+        declared->enum_count > 0u) {
+
+        *valid = true;
+        return C_PARAM_KIND_SCALAR;
+    }
+
+    if (type_is_polymorphic_reference(document, declared)) {
+        *valid = true;
+        return C_PARAM_KIND_REF_PTR;
+    }
+
+    if (declared->is_abstract) {
+        return C_PARAM_KIND_SCALAR;
+    }
+
+    *valid = true;
+    return C_PARAM_KIND_ROOT_STRUCT;
+}
+
+
 static bool emit_parameter_type(
     FILE *output,
     const adsl_document_t *document,
@@ -2163,6 +2266,65 @@ static const adsl_api_t *find_api_definition(
     return NULL;
 }
 
+
+/*
+ * Emitter-side wrapper around adsl_collect_effective_methods.
+ *
+ * All API iteration sites use this so a child API flattens its parents'
+ * methods parent-first, exactly like the Java reference generator. C has
+ * no interface inheritance at runtime; inheritance is resolved here at
+ * generation time.
+ *
+ * On failure the helper writes a human-readable error and the caller must
+ * abort generation. On success *out_methods is heap-allocated and must be
+ * released with free(); a zero count returns *out_methods == NULL.
+ */
+static bool emitter_collect_effective(
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity) {
+
+    return adsl_collect_effective_methods(
+        document,
+        api,
+        out_methods,
+        out_count,
+        error,
+        error_capacity);
+}
+
+
+/*
+ * Lookup a single effective method by name. Unlike find_api_definition,
+ * this traverses inherited methods so `--api ChildApi --method parentMethod`
+ * resolves for the Java-compatible call semantics.
+ */
+static const adsl_effective_method_t *emitter_find_effective_method(
+    const adsl_effective_method_t *methods,
+    size_t count,
+    const char *name) {
+
+    if (methods == NULL ||
+        name == NULL) {
+
+        return NULL;
+    }
+
+    for (size_t i = 0u; i < count; ++i) {
+
+        if (strcmp(methods[i].method->name, name) == 0) {
+
+            return &methods[i];
+        }
+    }
+
+    return NULL;
+}
+
+
 static bool stream_has_builder_api(
     const adsl_stream_t *stream) {
 
@@ -2269,12 +2431,28 @@ static bool emit_stream_builder_declarations_for_api(
         api_name,
         sizeof(api_name));
 
+
+    adsl_effective_method_t *effective = NULL;
+    size_t effective_count = 0u;
+
+    if (!emitter_collect_effective(
+            document,
+            api,
+            &effective,
+            &effective_count,
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
     for (size_t m = 0u;
-         m < api->method_count;
+         m < effective_count;
          ++m) {
 
         const adsl_method_t *method =
-            &api->methods[m];
+            effective[m].method;
+
 
         bool has_response =
             method->returns_type != NULL ||
@@ -2332,7 +2510,12 @@ static bool emit_stream_builder_declarations_for_api(
         fputs(
             ");\n\n",
             output);
+
     }
+
+    free(effective);
+
+
 
     return !ferror(output);
 }
@@ -2825,12 +3008,29 @@ static bool emit_api_header(
 
 
 
+
+        adsl_effective_method_t *effective = NULL;
+        size_t effective_count = 0u;
+
+        if (!emitter_collect_effective(
+                document,
+                api,
+                &effective,
+                &effective_count,
+                error,
+                error_capacity)) {
+
+            fclose(output);
+            return false;
+        }
+
         for (size_t m = 0u;
-             m < api->method_count;
+             m < effective_count;
              ++m) {
 
             const adsl_method_t *method =
-                &api->methods[m];
+                effective[m].method;
+
 
             if (selected_method_name != NULL &&
                 strcmp(
@@ -2895,6 +3095,9 @@ static bool emit_api_header(
                 ");\n\n",
                 output);
         }
+
+        free(effective);
+
     }
 
     if (selected_api_name == NULL &&
@@ -3023,12 +3226,29 @@ static bool emit_api_source(
             api_name,
             sizeof(api_name));
 
+
+        adsl_effective_method_t *effective = NULL;
+        size_t effective_count = 0u;
+
+        if (!emitter_collect_effective(
+                document,
+                api,
+                &effective,
+                &effective_count,
+                error,
+                error_capacity)) {
+
+            fclose(output);
+            return false;
+        }
+
         for (size_t m = 0u;
-             m < api->method_count;
+             m < effective_count;
              ++m) {
 
             const adsl_method_t *method =
-                &api->methods[m];
+                effective[m].method;
+
 
             if (selected_method_name != NULL &&
                 strcmp(
@@ -3166,6 +3386,9 @@ static bool emit_api_source(
 
 
         }
+
+        free(effective);
+
     }
 
     if (selected_api_name == NULL &&
@@ -3235,23 +3458,31 @@ bool adsl_emit_c_method(
             return false;
         }
 
+
         if (selected_method_name != NULL) {
-            bool method_found = false;
+            adsl_effective_method_t *effective = NULL;
+            size_t effective_count = 0u;
 
-            for (size_t m = 0u;
-                 m < selected_api->method_count;
-                 ++m) {
+            if (!emitter_collect_effective(
+                    document,
+                    selected_api,
+                    &effective,
+                    &effective_count,
+                    error,
+                    error_capacity)) {
 
-                if (strcmp(
-                        selected_api->methods[m].name,
-                        selected_method_name) == 0) {
-
-                    method_found = true;
-                    break;
-                }
+                return false;
             }
 
-            if (!method_found) {
+            const adsl_effective_method_t *found =
+                emitter_find_effective_method(
+                    effective,
+                    effective_count,
+                    selected_method_name);
+
+            free(effective);
+
+            if (found == NULL) {
                 set_error(
                     error,
                     error_capacity,
@@ -3260,6 +3491,7 @@ bool adsl_emit_c_method(
                 return false;
             }
         }
+
     }
 
     char base_snake[256];
@@ -5399,10 +5631,13 @@ static bool local_api_supported(
         return false;
     }
 
-    if (api->method_count == 0u) {
+
+    if (api->method_count == 0u &&
+        api->parent_count == 0u) {
         set_error(error, error_capacity, "selected local API has no methods");
         return false;
     }
+
 
     for (size_t m = 0u; m < api->method_count; ++m) {
         const adsl_method_t *method = &api->methods[m];
@@ -5411,6 +5646,7 @@ static bool local_api_supported(
             set_error(error, error_capacity, "local API method has no id");
             return false;
         }
+
 
         /*
          * Nullable and collapsible method parameters are not generated for
@@ -5545,29 +5781,47 @@ static bool emit_local_api_header(
         guard,
         base_snake);
 
-    for (size_t m = 0u; m < api->method_count; ++m) {
+
+    adsl_effective_method_t *effective = NULL;
+    size_t effective_count = 0u;
+
+    if (!emitter_collect_effective(
+            document,
+            api,
+            &effective,
+            &effective_count,
+            error,
+            error_capacity)) {
+        fclose(output);
+        return false;
+    }
+
+    for (size_t m = 0u; m < effective_count; ++m) {
         if (!emit_local_callback_declaration(
                 output,
                 document,
                 api,
-                &api->methods[m],
+                effective[m].method,
                 error,
                 error_capacity)) {
+            free(effective);
             fclose(output);
             return false;
         }
     }
+
 
     fprintf(
         output,
         "typedef struct {\n"
         "    void *ctx;\n");
 
-    for (size_t m = 0u; m < api->method_count; ++m) {
+
+    for (size_t m = 0u; m < effective_count; ++m) {
         char method_name[256];
 
         snake_name(
-            api->methods[m].name,
+            effective[m].method->name,
             method_name,
             sizeof(method_name));
 
@@ -5578,6 +5832,9 @@ static bool emit_local_api_header(
             method_name,
             method_name);
     }
+
+    free(effective);
+
 
     fprintf(
         output,
@@ -5665,6 +5922,7 @@ static bool emit_local_param_decode(
     bool array_dynamic;
     size_t array_static_size;
 
+
     if (parse_array_type(
             type,
             array_element,
@@ -5687,13 +5945,65 @@ static bool emit_local_param_decode(
             return false;
         }
 
-        fprintf(output, "        %s %s = {0};\n", alias, param->name);
+        if (array_dynamic) {
+            fprintf(output, "        %s %s = {0};\n", alias, param->name);
+
+            if (!emit_decode_value_expression(
+                    output,
+                    document,
+                    type,
+                    param->name,
+                    base_snake,
+                    0u,
+                    error,
+                    error_capacity)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        /*
+         * Root static array parameter: the callback ABI passes it by
+         * pointer, so back it with caller scratch instead of a hidden
+         * MCU stack object (byte[512] would otherwise become a 512-byte
+         * stack local).
+         */
+        fprintf(
+            output,
+            "        %s *%s = (%s *)aether_meta_scratch_alloc(\n"
+            "            ctx,\n"
+            "            sizeof(%s),\n"
+            "            _Alignof(%s));\n"
+            "        if (%s == NULL) {\n"
+            "            return AETHER_ERR_OVERFLOW;\n"
+            "        }\n"
+            "        memset(%s, 0, sizeof(*%s));\n",
+            alias, param->name, alias,
+            alias, alias,
+            param->name,
+            param->name, param->name);
+
+        char array_target[320];
+
+        int array_target_size = snprintf(
+            array_target,
+            sizeof(array_target),
+            "(*%s)",
+            param->name);
+
+        if (array_target_size < 0 ||
+            (size_t)array_target_size >= sizeof(array_target)) {
+            set_error(error, error_capacity,
+                "generated array decode target is too long");
+            return false;
+        }
 
         if (!emit_decode_value_expression(
                 output,
                 document,
                 type,
-                param->name,
+                array_target,
                 base_snake,
                 0u,
                 error,
@@ -5703,6 +6013,7 @@ static bool emit_local_param_decode(
 
         return true;
     }
+
 
     char base[128];
 
@@ -5763,13 +6074,58 @@ static bool emit_local_param_decode(
         set_error(error, error_capacity,
             "abstract parameter has no concrete hierarchy descendants");
         return false;
+
     } else {
+        /*
+         * Root concrete struct parameter: the callback ABI is pointer-shaped,
+         * so back the decoded struct with caller scratch. Large nested
+         * structures must not grow the dispatcher stack frame on MCU.
+         */
         fprintf(
             output,
-            "        %s_t %s = {0};\n",
-            declared_name,
+            "        %s_t *%s = (%s_t *)aether_meta_scratch_alloc(\n"
+            "            ctx,\n"
+            "            sizeof(%s_t),\n"
+            "            _Alignof(%s_t));\n"
+            "        if (%s == NULL) {\n"
+            "            return AETHER_ERR_OVERFLOW;\n"
+            "        }\n"
+            "        memset(%s, 0, sizeof(*%s));\n",
+            declared_name, param->name, declared_name,
+            declared_name, declared_name,
+            param->name,
+            param->name, param->name);
+
+        char struct_target[320];
+
+        int struct_target_size = snprintf(
+            struct_target,
+            sizeof(struct_target),
+            "(*%s)",
             param->name);
+
+        if (struct_target_size < 0 ||
+            (size_t)struct_target_size >= sizeof(struct_target)) {
+            set_error(error, error_capacity,
+                "generated struct decode target is too long");
+            return false;
+        }
+
+        if (!emit_decode_value_expression(
+                output,
+                document,
+                type,
+                struct_target,
+                base_snake,
+                0u,
+                error,
+                error_capacity)) {
+            return false;
+        }
+
+        return true;
     }
+
 
     if (!emit_decode_value_expression(
             output,
@@ -5819,62 +6175,31 @@ static bool emit_local_callback_invocation(
         fputs(",\n                request_id", output);
     }
 
+
     for (size_t p = 0u; p < method->param_count; ++p) {
         const adsl_param_t *param = &method->params[p];
 
-        bool needs_address;
+        bool valid = false;
+        c_param_kind_t kind =
+            classify_param_kind(document, param, &valid);
 
-        if (param->stream != NULL) {
-            needs_address = true;
-        } else {
-            char array_element[128];
-            bool array_dynamic;
-            size_t array_static_size;
-
-            if (parse_array_type(
-                    param->type,
-                    array_element,
-                    sizeof(array_element),
-                    &array_dynamic,
-                    &array_static_size)) {
-
-                (void)array_element;
-                (void)array_static_size;
-
-                needs_address = !array_dynamic;
-            } else {
-                char base[128];
-
-                if (!scalar_type_name(
-                        param->type,
-                        base,
-                        sizeof(base))) {
-                    set_error(error, error_capacity,
-                        "unsupported parameter shape");
-                    return false;
-                }
-
-                if (primitive_c_type(base) != NULL) {
-                    needs_address = false;
-                } else {
-                    const adsl_type_t *declared =
-                        find_declared_type(document, base);
-
-                    if (declared == NULL) {
-                        set_error(error, error_capacity,
-                            "unknown parameter type");
-                        return false;
-                    }
-
-                    if (declared->stream != NULL ||
-                        declared->enum_count > 0u) {
-                        needs_address = declared->stream != NULL;
-                    } else {
-                        needs_address = true;
-                    }
-                }
-            }
+        if (!valid) {
+            set_error(error, error_capacity,
+                "unsupported local parameter shape");
+            return false;
         }
+
+        /*
+         * Scalar, enum, dynamic array view and stream/ref wrappers are
+         * stack locals in the dispatcher; the callback ABI takes them by
+         * value. Root concrete structs and root static arrays live in
+         * caller scratch and the callback ABI takes them by pointer, so
+         * their generated local is already a pointer and must not be
+         * address-taken again.
+         */
+        bool needs_address =
+            kind == C_PARAM_KIND_STREAM_PTR ||
+            kind == C_PARAM_KIND_REF_PTR;
 
         fprintf(
             output,
@@ -5882,6 +6207,7 @@ static bool emit_local_callback_invocation(
             needs_address ? "&" : "",
             param->name);
     }
+
 
     fputs(");\n\n", output);
 
@@ -5918,22 +6244,49 @@ static bool emit_local_api_source(
 
         "aether_status_t %s_dispatch(\n"
         "    %s_local_t *api,\n"
+
         "    aether_meta_read_context_t *ctx) {\n\n"
         "    if (api == NULL || ctx == NULL) {\n"
         "        return AETHER_ERR_ARGUMENT;\n"
         "    }\n\n"
+        "    /*\n"
+        "     * Scratch is a per-command temporary arena. Parameters decoded\n"
+        "     * into RX-backed views or scratch storage are valid only for the\n"
+        "     * duration of the local callback. Applications that need to\n"
+        "     * retain them asynchronously must copy the required data into\n"
+        "     * application-owned storage before returning from the callback.\n"
+        "     * request_id may be retained, decoded pointer/view params may not.\n"
+        "     */\n"
+        "    size_t scratch_mark = ctx->scratch_position;\n\n"
         "    uint8_t command = 0u;\n\n"
         "    if (!aether_meta_read_u8(&ctx->reader, &command)) {\n"
         "        return AETHER_ERR_PROTOCOL;\n"
         "    }\n\n"
         "    switch (command) {\n",
 
+
         base_snake,
         api_name,
         api_name);
 
-    for (size_t m = 0u; m < api->method_count; ++m) {
-        const adsl_method_t *method = &api->methods[m];
+
+    adsl_effective_method_t *effective = NULL;
+    size_t effective_count = 0u;
+
+    if (!emitter_collect_effective(
+            document,
+            api,
+            &effective,
+            &effective_count,
+            error,
+            error_capacity)) {
+        fclose(output);
+        return false;
+    }
+
+    for (size_t m = 0u; m < effective_count; ++m) {
+        const adsl_method_t *method = effective[m].method;
+
 
         char method_name[256];
         snake_name(method->name, method_name, sizeof(method_name));
@@ -5983,11 +6336,16 @@ static bool emit_local_api_source(
             return false;
         }
 
+
         fputs(
+            "        ctx->scratch_position = scratch_mark;\n"
             "        return status;\n"
             "    }\n\n",
             output);
     }
+
+    free(effective);
+
 
     fputs(
         "    default:\n"

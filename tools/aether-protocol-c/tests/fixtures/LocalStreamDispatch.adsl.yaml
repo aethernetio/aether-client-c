@@ -32,13 +32,10 @@ types:
       items: Item[]
       fixed: byte[4]
 
-api:
-  InnerApi:
-    methods:
-      ping:
-        id: 3
 
-  LocalApi:
+
+api:
+  BaseLocalApi:
     methods:
       enter:
         id: 3
@@ -55,6 +52,13 @@ api:
             name: GlobalStream
             stream:
               api: InnerApi
+
+  LocalApi:
+    parents:
+      - BaseLocalApi
+
+    methods:
+
 
       sendMessage:
         id: 5
@@ -97,3 +101,11 @@ api:
         returns: bool
         params:
           code: short
+      sendLargeFixed:
+        id: 13
+        params:
+          data: byte[512]
+  InnerApi:
+    methods:
+      ping:
+        id: 3

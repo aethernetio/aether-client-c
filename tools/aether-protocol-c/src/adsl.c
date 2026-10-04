@@ -1088,15 +1088,84 @@ static bool parse_api_body(
             return false;
         }
 
+
+        /*
+         * Flow-style parents list: `parents: [ A, B ]`. The block form
+         * `parents:` followed by `- A` lines is handled below. Both forms
+         * are used by production schemas, so accept both here.
+         */
+        if (strcmp(key, "parents") == 0 &&
+            value[0] == '[') {
+
+            char *cursor = value + 1;
+
+            while (*cursor != '\0' && *cursor != ']') {
+
+                while (*cursor == ' ' || *cursor == '\t' ||
+                       *cursor == ',') {
+                    cursor++;
+                }
+
+                if (*cursor == ']' || *cursor == '\0') {
+                    break;
+                }
+
+                char *start = cursor;
+
+                while (*cursor != '\0' && *cursor != ',' &&
+                       *cursor != ']') {
+                    cursor++;
+                }
+
+                char saved = *cursor;
+                *cursor = '\0';
+
+                char *name = trim(start);
+                unquote(name);
+
+                if (*name != '\0' &&
+                    !append_string(
+                        &api->parents,
+                        &api->parent_count,
+                        name)) {
+                    return false;
+                }
+
+                *cursor = saved;
+            }
+
+            *body = API_BODY_PARENTS;
+            return true;
+        }
+
         if (strcmp(key, "parents") == 0) {
             *body = API_BODY_PARENTS;
             return true;
         }
 
+
+
         if (strcmp(key, "methods") == 0) {
             *body = API_BODY_METHODS;
             return true;
         }
+
+        if (strcmp(key, "abstract") == 0) {
+            bool parsed = false;
+            if (!parse_boolean(value, &parsed)) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "line %zu: invalid API abstract flag",
+                    line_number);
+
+                return false;
+            }
+
+            api->is_abstract = parsed;
+            return true;
+        }
+
 
         set_error(
             error,
@@ -2264,6 +2333,23 @@ static adsl_api_t *find_api_mutable(
     return NULL;
 }
 
+
+static const adsl_api_t *find_api_const(
+    const adsl_document_t *document,
+    const char *name) {
+
+    for (size_t i = 0u; i < document->api_count; ++i) {
+
+        if (same_name(document->apis[i].name, name)) {
+
+            return &document->apis[i];
+        }
+    }
+
+    return NULL;
+}
+
+
 static bool validate_type_reference(
     const adsl_document_t *document,
     const char *reference,
@@ -2445,6 +2531,330 @@ static bool assign_method_ids(
 
     return true;
 }
+
+
+/*
+ * Effective-method equality used for diamond-inheritance dedup.
+ *
+ * Two effective methods with the same name are considered identical only
+ * when their entire protocol-significant shape matches: command id, ordered
+ * parameter list (name, type, stream shape), returns type, anonymous result
+ * fields and throws type. Parameter names are part of the shape because the
+ * generated C callback ABI uses them.
+ */
+static bool effective_method_equal(
+    const adsl_method_t *a,
+    const adsl_method_t *b) {
+
+    if (a == NULL ||
+        b == NULL) {
+
+        return a == b;
+    }
+
+    if (a->id != b->id ||
+        a->param_count != b->param_count ||
+        a->return_field_count != b->return_field_count) {
+
+        return false;
+    }
+
+    if ((a->returns_type == NULL) !=
+        (b->returns_type == NULL)) {
+
+        return false;
+    }
+
+    if (a->returns_type != NULL &&
+        strcmp(a->returns_type, b->returns_type) != 0) {
+
+        return false;
+    }
+
+    if ((a->throws_type == NULL) !=
+        (b->throws_type == NULL)) {
+
+        return false;
+    }
+
+    if (a->throws_type != NULL &&
+        strcmp(a->throws_type, b->throws_type) != 0) {
+
+        return false;
+    }
+
+    for (size_t p = 0u; p < a->param_count; ++p) {
+
+        const adsl_param_t *pa = &a->params[p];
+        const adsl_param_t *pb = &b->params[p];
+
+        if (strcmp(pa->name, pb->name) != 0 ||
+            strcmp(pa->type, pb->type) != 0) {
+
+            return false;
+        }
+
+        if ((pa->stream == NULL) != (pb->stream == NULL)) {
+
+            return false;
+        }
+
+        if (pa->stream != NULL &&
+            (pa->stream->has_crypto != pb->stream->has_crypto ||
+             pa->stream->crypto != pb->stream->crypto ||
+             pa->stream->api_count != pb->stream->api_count ||
+             pa->stream->key_count != pb->stream->key_count)) {
+
+            return false;
+        }
+    }
+
+    for (size_t f = 0u; f < a->return_field_count; ++f) {
+
+        if (strcmp(a->return_fields[f].name,
+                   b->return_fields[f].name) != 0 ||
+            strcmp(a->return_fields[f].type,
+                   b->return_fields[f].type) != 0) {
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+static bool effective_append(
+    adsl_effective_method_t *methods,
+    size_t *count,
+    const adsl_api_t *owner,
+    const adsl_method_t *method) {
+
+    methods[*count].owner = owner;
+    methods[*count].method = method;
+    *count += 1u;
+
+    return true;
+}
+
+
+static bool effective_collect_recursive(
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    size_t depth,
+    adsl_effective_method_t *methods,
+    size_t *count,
+    char *error,
+    size_t error_capacity) {
+
+    if (depth > document->api_count) {
+
+        set_error(
+            error,
+            error_capacity,
+            "API inheritance cycle near '%s'",
+            api->name);
+
+        return false;
+    }
+
+    for (size_t i = 0u; i < api->parent_count; ++i) {
+
+        const adsl_api_t *parent =
+            find_api_const(document, api->parents[i]);
+
+        if (parent == NULL) {
+
+            set_error(
+                error,
+                error_capacity,
+                "API '%s' has unknown parent '%s'",
+                api->name,
+                api->parents[i]);
+
+            return false;
+        }
+
+        if (!effective_collect_recursive(
+                document,
+                parent,
+                depth + 1u,
+                methods,
+                count,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+    }
+
+    for (size_t m = 0u; m < api->method_count; ++m) {
+
+        const adsl_method_t *method = &api->methods[m];
+
+        bool duplicate_identical = false;
+        bool duplicate_conflict = false;
+
+        for (size_t e = 0u; e < *count; ++e) {
+
+            if (strcmp(methods[e].method->name,
+                       method->name) != 0) {
+
+                continue;
+            }
+
+            if (effective_method_equal(
+                    methods[e].method,
+                    method)) {
+
+                duplicate_identical = true;
+                break;
+            }
+
+            duplicate_conflict = true;
+            break;
+        }
+
+        if (duplicate_identical) {
+
+            continue;
+        }
+
+        if (duplicate_conflict) {
+
+            set_error(
+                error,
+                error_capacity,
+                "API '%s' has conflicting effective method '%s' via inheritance",
+                api->name,
+                method->name);
+
+            return false;
+        }
+
+        effective_append(
+            methods,
+            count,
+            api,
+            method);
+    }
+
+    return true;
+}
+
+
+bool adsl_collect_effective_methods(
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity) {
+
+    if (out_methods == NULL || out_count == NULL) {
+
+        set_error(error, error_capacity, "invalid effective method collector arguments");
+        return false;
+    }
+
+    *out_methods = NULL;
+    *out_count = 0u;
+
+    if (document == NULL || api == NULL) {
+
+        set_error(error, error_capacity, "selected API not found");
+        return false;
+    }
+
+    /*
+     * Upper bound: total methods declared across every API. Any recursive
+     * parent/own traversal can never exceed this because diamond duplicates
+     * are deduplicated by name and conflicting duplicates abort early.
+     */
+    size_t capacity = 0u;
+
+    for (size_t i = 0u; i < document->api_count; ++i) {
+
+        capacity += document->apis[i].method_count;
+    }
+
+    if (capacity == 0u) {
+
+        return true;
+    }
+
+    adsl_effective_method_t *methods =
+        (adsl_effective_method_t *)calloc(
+            capacity,
+            sizeof(adsl_effective_method_t));
+
+    if (methods == NULL) {
+
+        set_error(error, error_capacity, "out of memory collecting effective methods");
+        return false;
+    }
+
+    size_t count = 0u;
+
+    if (!effective_collect_recursive(
+            document,
+            api,
+            0u,
+            methods,
+            &count,
+            error,
+            error_capacity)) {
+
+        free(methods);
+        return false;
+    }
+
+    /*
+     * Command id collision across the whole effective set is a hard error.
+     * This catches parent vs parent, parent vs child, and any residual
+     * diamond inconsistency that survived name-based dedup.
+     */
+    for (size_t i = 0u; i < count; ++i) {
+
+        if (!methods[i].method->has_id) {
+
+            set_error(
+                error,
+                error_capacity,
+                "API '%s' effective method '%s' has no command id",
+                api->name,
+                methods[i].method->name);
+
+            free(methods);
+            return false;
+        }
+
+        for (size_t j = i + 1u; j < count; ++j) {
+
+            if (methods[i].method->id ==
+                methods[j].method->id) {
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "API '%s' has duplicate effective method id %u ('%s' vs '%s')",
+                    api->name,
+                    (unsigned int)methods[i].method->id,
+                    methods[i].method->name,
+                    methods[j].method->name);
+
+                free(methods);
+                return false;
+            }
+        }
+    }
+
+    *out_methods = methods;
+    *out_count = count;
+
+    return true;
+}
+
 
 bool adsl_validate(
     adsl_document_t *document,
@@ -2671,6 +3081,32 @@ bool adsl_validate(
                 }
             }
         }
+
+        /*
+         * Effective-set validation. The per-API checks above only cover
+         * methods declared directly on this API; here we also cover methods
+         * that arrive via inheritance, matching the Java reference generator
+         * which flattens APIs parent-first.
+         */
+        {
+            adsl_effective_method_t *effective = NULL;
+            size_t effective_count = 0u;
+
+            if (!adsl_collect_effective_methods(
+                    document,
+                    api,
+                    &effective,
+                    &effective_count,
+                    error,
+                    error_capacity)) {
+
+                return false;
+            }
+
+            free(effective);
+        }
+
+
     }
 
     return true;

@@ -843,10 +843,44 @@ add_custom_command(
     VERBATIM
 )
 
+
+add_library(aether_generated_local_dispatch_obj OBJECT
+    "${AETHER_ADSLC_LOCAL_DISPATCH_GENERATED_DIR}/local_dispatch_local.c"
+)
+
+target_include_directories(aether_generated_local_dispatch_obj
+    PRIVATE
+        "${AETHER_ADSLC_LOCAL_DISPATCH_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_local_dispatch_obj
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    # MCU stack probe: generated local dispatcher must not create a large
+    # stack frame even for schemas with large fixed array parameters.
+    # This limit is only applied to the generated dispatcher translation
+    # unit, not to the whole project.
+    target_compile_options(
+        aether_generated_local_dispatch_obj
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -O2
+            -Wframe-larger-than=256
+    )
+endif()
+
 add_executable(aether_generated_local_dispatch_test
     tests/test_generated_local_dispatch.c
     "${AETHER_ADSLC_LOCAL_DISPATCH_GENERATED_DIR}/local_dispatch_types.c"
-    "${AETHER_ADSLC_LOCAL_DISPATCH_GENERATED_DIR}/local_dispatch_local.c"
+    $<TARGET_OBJECTS:aether_generated_local_dispatch_obj>
 )
 
 target_include_directories(aether_generated_local_dispatch_test
@@ -871,6 +905,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
             -Werror
     )
 endif()
+
 
 add_test(
     NAME aether_generated_local_dispatch_test
