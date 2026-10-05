@@ -1,30 +1,26 @@
 
-
-
 /*
  * Semantic transport server implementation.
  *
- * Phase 2A backend: existing Aether server/cloud send path through
- * aether_client_app_send_with_id(). Batch lifecycle matches the generic
- * contract in aether_transport.h.
+ * Phase 2A backend: the existing Aether server/cloud path through
+ * aether_client_app_send_with_id(), which uses the existing
+ * ADSL/generated serializer.
  *
- * Command descriptors live inline in the transport object. Their count
- * is a private bounded limit of this concrete implementation, not a
- * public batch-storage contract. Borrowed payload pointers are valid
- * until on_flush_done for the current batch or until reset() returns.
+ * This implementation does NOT keep its own command queue and does NOT
+ * store any borrowed {uid, data, size} triples. Each send_message()
+ * call goes directly through the generated serializer path.
+ *
+ * Borrowed lifetime is a public contract: the caller must keep the
+ * memory range [data, data + length) valid and unchanged until
+ * on_flush_done() for the current batch or until reset() returns.
+ * In practice this implementation stops reading the range as soon as
+ * the message has been serialized and handed to the platform transport.
  */
 
 #include "aether_transport_server.h"
 #include "aether_client_app.h"
 
 #include <string.h>
-
-
-static void clear_batch(
-    aether_transport_server_t *server) {
-
-    server->command_count = 0u;
-}
 
 
 void aether_transport_server_init(
@@ -42,9 +38,7 @@ void aether_transport_server_init(
 
     server->app = app;
     server->status = AETHER_TRANSPORT_IDLE;
-    server->generation = 1u;
 }
-
 
 
 static aether_transport_status_t server_status(
@@ -70,6 +64,10 @@ static void server_set_listener(
         return;
     }
 
+    /*
+     * The listener structure is copied by value. The caller may pass
+     * the address of a stack variable; no pointer to it is retained.
+     */
     if (listener == NULL) {
 
         memset(
@@ -100,7 +98,6 @@ static aether_status_t server_send_message(
         return AETHER_ERR_ARGUMENT;
     }
 
-
     if (server->status ==
         AETHER_TRANSPORT_FLUSHING) {
 
@@ -119,21 +116,22 @@ static aether_status_t server_send_message(
         return AETHER_ERR_STATE;
     }
 
+    /*
+     * Hand the message directly to the existing generated serializer
+     * path. Its request id is allocated by the core. There is no
+     * intermediate queue and no descriptor storage here.
+     */
+    aether_status_t status =
+        aether_client_app_send_with_id(
+            server->app,
+            uid,
+            data,
+            length,
+            NULL);
 
-    if (server->command_count >=
-        AETHER_TRANSPORT_SERVER_MAX_COMMANDS) {
-
-        return AETHER_ERR_OVERFLOW;
+    if (status != AETHER_OK) {
+        return status;
     }
-
-    aether_transport_server_command_t *command =
-        &server->commands[server->command_count];
-
-    command->uid = uid;
-    command->data = data;
-    command->length = length;
-
-    server->command_count += 1u;
 
     server->status = AETHER_TRANSPORT_BUILDING;
 
@@ -177,48 +175,8 @@ static void server_reset(
         return;
     }
 
-    /*
-     * Invalidate any in-flight internal operation before releasing
-     * borrowed input. Stale completions of the previous generation are
-     * dropped by tick().
-     */
-    server->generation += 1u;
 
-    clear_batch(server);
     server->status = AETHER_TRANSPORT_IDLE;
-}
-
-
-static aether_status_t server_execute_batch(
-    aether_transport_server_t *server) {
-
-    if (server->app == NULL) {
-        return AETHER_ERR_STATE;
-    }
-
-    for (size_t i = 0u;
-
-         i < server->command_count;
-         ++i) {
-
-        aether_transport_server_command_t *command =
-            &server->commands[i];
-
-        aether_status_t status =
-            aether_client_app_send_with_id(
-                server->app,
-                command->uid,
-                command->data,
-                command->length,
-                NULL);
-
-        if (status != AETHER_OK) {
-            return status;
-        }
-    }
-
-
-    return AETHER_OK;
 }
 
 
@@ -237,28 +195,22 @@ static aether_status_t server_tick(
         return AETHER_OK;
     }
 
-    uint32_t generation =
-        server->generation;
-
-    aether_status_t status =
-        server_execute_batch(server);
-
-    if (generation != server->generation) {
-        return AETHER_OK;
-    }
 
     /*
-     * Release borrowed input and return to IDLE before invoking the
-     * listener so the callback may begin the next batch.
+     * Server transport is synchronous with respect to the platform
+     * transport: send_with_id() has already handed each message to the
+     * physical channel. There is nothing further to progress here. The
+     * batch simply closes and the listener is invoked.
      */
-    clear_batch(server);
+
+
     server->status = AETHER_TRANSPORT_IDLE;
 
     if (server->listener.on_flush_done != NULL) {
 
         server->listener.on_flush_done(
             server->listener.ctx,
-            status);
+            AETHER_OK);
     }
 
     return AETHER_OK;

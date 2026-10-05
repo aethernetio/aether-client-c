@@ -2,12 +2,18 @@
 /*
  * Concrete semantic transport implementation for the Aether server path.
  *
- * Phase 2A: only route is the existing server/cloud send path. The
- * implementation captures a batch of send_message commands and executes
- * them through aether_client_app_send_with_id(), preserving the current
- * synchronous behavior of aether_send_message().
+ * Phase 2A: the only route is the existing server/cloud send path. This
+ * implementation does NOT keep its own command queue and does NOT store
+ * any borrowed {uid, data, size} triples. Each send_message() call goes
+ * directly through the existing aether_client_app_send_with_id() path,
+ * which uses the existing ADSL/generated serializer.
  *
- * Caller owns storage: the object itself and the batch descriptor array.
+ * Borrowed lifetime is a public contract: the caller must keep each
+ * memory range [data, data + length) valid and unchanged until
+ * on_flush_done() for the current batch or until reset() returns. This
+ * implementation may in practice stop reading the range immediately
+ * after serialization; the external contract is nevertheless the
+ * conservative one above.
  */
 
 #ifndef AETHER_TRANSPORT_SERVER_H
@@ -27,39 +33,11 @@ extern "C" {
 struct aether_client_app;
 
 
-
-/*
- * Concrete semantic transport implementation for the Aether server path.
- *
- * send_message() only appends a semantic command to the current BUILDING
- * batch. Physical transmission happens in tick(), which is driven by
- * aether_work(). Borrowed payload pointers are valid until on_flush_done
- * for the current batch or until reset() returns.
- *
- * Command capacity is an internal property of this concrete transport
- * implementation. It is intentionally small and bounded; broader batch
- * semantics belong to a future mux/peer implementation.
- */
-
-#define AETHER_TRANSPORT_SERVER_MAX_COMMANDS 4u
-
-
-typedef struct {
-    aether_uuid_t uid;
-    const uint8_t *data;
-    size_t length;
-} aether_transport_server_command_t;
-
-
 /*
  * Caller-owned server transport instance.
  */
 typedef struct {
     struct aether_client_app *app;
-
-    aether_transport_server_command_t commands[
-        AETHER_TRANSPORT_SERVER_MAX_COMMANDS];
-    size_t command_count;
 
     aether_transport_status_t status;
     uint32_t generation;
@@ -71,7 +49,6 @@ typedef struct {
 void aether_transport_server_init(
     aether_transport_server_t *server,
     struct aether_client_app *app);
-
 
 
 /*

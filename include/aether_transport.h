@@ -18,10 +18,12 @@
  *   IDLE     -> no batch pending; new semantic commands accepted.
  *   BUILDING -> commands accumulated; more commands accepted.
  *   FLUSHING -> flush accepted; new semantic commands return BUSY.
+
  *
- * Borrowed input: any pointer passed to a semantic command remains owned
- * by the transport until the batch completes (via on_flush_done) or until
- * aether_transport_reset() returns.
+ * Borrowed input: the caller retains ownership of any memory range
+ * passed to a semantic command. The transport only borrows it. The
+ * range must remain valid and unchanged until the batch completes
+ * (on_flush_done) or until aether_transport_reset() returns.
  *
  * aether_transport_reset() drops the current batch and returns the
  * implementation to IDLE. It does not roll back bytes already handed to
@@ -86,9 +88,16 @@ typedef struct aether_transport_vtable {
     void (*reset)(
         void *ctx);
 
+
+    /*
+     * Install a listener. The implementation copies the ctx and
+     * callbacks by value during this call and does not retain a
+     * pointer to the caller's listener structure.
+     */
     void (*set_listener)(
         void *ctx,
         const aether_transport_listener_t *listener);
+
 
     aether_status_t (*tick)(
         void *ctx);
@@ -132,22 +141,6 @@ aether_status_t aether_transport_send_message(
     aether_uuid_t uid,
     const uint8_t *data,
     size_t length);
-
-
-aether_status_t aether_transport_flush(
-    aether_transport_t *transport);
-
-
-void aether_transport_reset(
-    aether_transport_t *transport);
-
-
-/*
- * Advance the transport. Safe when nothing is pending. Intended to be
- * driven from the application's normal poll/tick loop.
- */
-aether_status_t aether_transport_tick(
-    aether_transport_t *transport);
 
 
 #ifdef __cplusplus

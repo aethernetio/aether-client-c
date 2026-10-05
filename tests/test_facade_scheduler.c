@@ -8,7 +8,10 @@
  *   - component callbacks participate in the same batch,
  *   - a command queued from on_flush_done stays BUILDING until the next
  *     aether_work() call (no second flush in the same pass),
- *   - callback/RX guard blocks send_message.
+
+ *   - send_message may be called from anywhere; the only constraint is
+ *     the lifetime of the borrowed memory range passed to it.
+
  *
  * The test uses a small fake semantic transport so it can directly
  * count send/flush/tick invocations. It does NOT try to fake protocol
@@ -20,6 +23,9 @@
 #include "aether.h"
 #include "aether_platform.h"
 #include "aether_transport.h"
+
+#include "aether_internal.h"
+
 
 #include <assert.h>
 #include <stdio.h>

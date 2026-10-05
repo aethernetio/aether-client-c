@@ -321,6 +321,14 @@ target_link_libraries(
         tests/test_facade_scheduler.c
     )
 
+
+    target_include_directories(
+        aether_facade_scheduler_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+
     target_link_libraries(
         aether_facade_scheduler_test
         PRIVATE
@@ -529,10 +537,19 @@ target_link_libraries(
         tests/test_transport.c
     )
 
+
+    target_include_directories(
+        aether_transport_test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+
     target_link_libraries(
         aether_transport_test
         PRIVATE
             aether_client
+            aether_hydrogen_test_support
     )
 
     target_compile_features(

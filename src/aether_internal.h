@@ -14,6 +14,9 @@
 
 #include "aether.h"
 
+#include "aether_transport.h"
+
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -50,6 +53,28 @@ aether_status_t aether_dispatch_message_internal(
     aether_uuid_t from,
     const uint8_t *data,
     size_t size);
+
+
+
+/*
+ * Internal transport lifecycle dispatch.
+ *
+ * These are used by the facade (aether_work) and, in the future, by
+ * a mux transport that drives its child transports. Ordinary
+ * applications must call aether_work() only. Flush boundary and
+ * transport progression belong to the scheduler, not to the
+ * application loop.
+ */
+aether_status_t aether_transport_flush(
+    aether_transport_t *transport);
+
+aether_status_t aether_transport_tick(
+    aether_transport_t *transport);
+
+
+void aether_transport_reset(
+    aether_transport_t *transport);
+
 
 
 #ifdef __cplusplus

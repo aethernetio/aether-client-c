@@ -573,12 +573,20 @@ aether_status_t aether_work(
                 &client->app.transport);
     }
 
-    if (transport_error == AETHER_OK) {
 
-        transport_error =
-            aether_transport_tick(
-                &client->app.transport);
+    /*
+     * Exactly one transport progress step, even if flush returned an
+     * error. A transport that failed flush may still need to clear its
+     * internal state and invoke on_flush_done.
+     */
+    aether_status_t tick_error =
+        aether_transport_tick(
+            &client->app.transport);
+
+    if (transport_error == AETHER_OK) {
+        transport_error = tick_error;
     }
+
 
     /*
      * Priority: core non-OK, then transport orchestration error,
