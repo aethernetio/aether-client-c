@@ -446,7 +446,7 @@ static aether_status_t parse_registration_uri(
             hostname,
             &address)) {
 
-        if (platform->resolve == NULL) {
+        if (platform->transport.resolve == NULL) {
             return AETHER_ERR_UNSUPPORTED;
         }
 
@@ -455,11 +455,13 @@ static aether_status_t parse_registration_uri(
             0,
             sizeof(address));
 
+
         aether_status_t status =
-            platform->resolve(
-                platform->ctx,
+            platform->transport.resolve(
+                platform->transport.ctx,
                 hostname,
                 &address);
+
 
         if (status != AETHER_OK) {
             return status;
@@ -602,10 +604,10 @@ static bool pull_rx_pair_is_valid(
     const aether_client_app_t *client) {
 
     bool have_receive =
-        client->platform.receive != NULL;
+        client->platform.transport.receive != NULL;
 
     bool have_consume =
-        client->platform.consume != NULL;
+        client->platform.transport.consume != NULL;
 
     return
         have_receive ==
@@ -698,11 +700,13 @@ aether_status_t aether_client_app_start(
     }
 
 
-    if (client->platform.bind != NULL) {
+    if (client->platform.transport.bind != NULL) {
         status =
-            client->platform.bind(
-                client->platform.ctx,
+
+            client->platform.transport.bind(
+                client->platform.transport.ctx,
                 &client->core);
+
 
         if (status != AETHER_OK) {
             return status;
@@ -748,7 +752,7 @@ void aether_client_app_stop(
 static aether_status_t receive_one(
     aether_client_app_t *client) {
 
-    if (client->platform.receive == NULL) {
+    if (client->platform.transport.receive == NULL) {
         return AETHER_OK;
     }
 
@@ -786,10 +790,12 @@ static aether_status_t receive_one(
         };
 
         aether_status_t status =
-            client->platform.receive(
-                client->platform.ctx,
+
+            client->platform.transport.receive(
+                client->platform.transport.ctx,
                 channels[i],
                 &frame);
+
 
         if (status != AETHER_OK) {
             return status;
@@ -814,11 +820,13 @@ static aether_status_t receive_one(
             if (!aether_client_rx_active(
                     &client->core)) {
 
-                client->platform.consume(
-                    client->platform.ctx,
+
+                client->platform.transport.consume(
+                    client->platform.transport.ctx,
                     channels[i],
                     frame.data,
                     frame.length);
+
             }
 
             return status;
@@ -836,11 +844,13 @@ static aether_status_t receive_one(
         if (!aether_client_rx_active(
                 &client->core)) {
 
-            client->platform.consume(
-                client->platform.ctx,
+
+            client->platform.transport.consume(
+                client->platform.transport.ctx,
                 channels[i],
                 frame.data,
                 frame.length);
+
         }
 
         return AETHER_OK;
@@ -884,11 +894,13 @@ aether_status_t aether_client_app_tick(
      * until parser progress releases that frame.
      */
     if (!frame_pinned &&
-        client->platform.poll != NULL) {
+        client->platform.transport.poll != NULL) {
 
         aether_status_t status =
-            client->platform.poll(
-                client->platform.ctx);
+
+            client->platform.transport.poll(
+                client->platform.transport.ctx);
+
 
         if (status != AETHER_OK) {
             return status;
@@ -965,8 +977,10 @@ aether_status_t aether_client_app_consume_ingress(
         return AETHER_OK;
     }
 
-    if (client->platform.receive == NULL ||
-        client->platform.consume == NULL) {
+
+    if (client->platform.transport.receive == NULL ||
+        client->platform.transport.consume == NULL) {
+
 
         return AETHER_ERR_STATE;
     }
@@ -981,10 +995,12 @@ aether_status_t aether_client_app_consume_ingress(
     };
 
     aether_status_t status =
-        client->platform.receive(
-            client->platform.ctx,
+
+        client->platform.transport.receive(
+            client->platform.transport.ctx,
             channel,
             &frame);
+
 
     if (status != AETHER_OK) {
         return status;
@@ -1000,11 +1016,13 @@ aether_status_t aether_client_app_consume_ingress(
     if (!aether_client_rx_active(
             &client->core)) {
 
-        client->platform.consume(
-            client->platform.ctx,
+
+        client->platform.transport.consume(
+            client->platform.transport.ctx,
             channel,
             frame.data,
             frame.length);
+
     }
 
     return AETHER_OK;

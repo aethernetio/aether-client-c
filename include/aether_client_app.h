@@ -39,47 +39,12 @@ extern const aether_uuid_t AETHER_ANONYMOUS_UID;
  * The platform owns physical I/O, persistence, crypto and time.
  * Protocol/application scheduling belongs to Aether.
  */
-typedef aether_status_t (*aether_client_resolve_fn)(
-    void *ctx,
-    const char *hostname,
-    aether_address_t *address);
 
 typedef uint64_t (*aether_client_now_ms_fn)(
     void *ctx);
 
-typedef aether_status_t (*aether_client_platform_poll_fn)(
-    void *ctx);
-
-typedef aether_status_t (*aether_client_platform_bind_fn)(
-    void *ctx,
-    aether_client_t *core);
 
 
-/*
- * Zero-copy pull RX boundary.
- *
- * Platform socket/task/callback code only accumulates bytes in
- * platform-owned storage.
- *
- * receive() exposes one complete borrowed transport frame.
- * frame->data == NULL means that no complete frame is ready.
- *
- * The returned view remains valid until consume() is called for exactly
- * that frame.
- *
- * Protocol parsing and crypto therefore execute from
- * aether_client_app_tick(), never from an ISR/socket callback.
- */
-typedef aether_status_t (*aether_client_platform_receive_fn)(
-    void *ctx,
-    aether_channel_t channel,
-    aether_bytes_view_t *frame);
-
-typedef void (*aether_client_platform_consume_fn)(
-    void *ctx,
-    aether_channel_t channel,
-    const uint8_t *data,
-    size_t length);
 
 
 /*
@@ -113,47 +78,12 @@ typedef struct {
     const uint8_t *trusted_sign_keys;
     size_t trusted_sign_key_count;
 
-    /*
-     * Used only when registration_uri contains a hostname.
-     */
-    aether_client_resolve_fn resolve;
 
     /*
      * Monotonic milliseconds for mandatory protocol timers.
      */
     aether_client_now_ms_fn now_ms;
 
-    /*
-     * Optional physical I/O pump.
-     *
-     * It may:
-     *   - read sockets into platform-owned buffers;
-     *   - report transport writable/disconnected state.
-     *
-     * It must NOT parse Aether RX protocol data.
-     *
-     * Event-driven/RTOS platforms may leave poll NULL and fill the same
-     * platform-owned RX storage from their normal task/callback mechanism.
-     */
-    aether_client_platform_poll_fn poll;
-
-    /*
-     * Pull RX mechanism.
-     *
-     * Both must either be NULL or supplied together.
-     */
-    aether_client_platform_receive_fn receive;
-    aether_client_platform_consume_fn consume;
-
-    /*
-     * Optional adapter hook after the low-level core object exists.
-     *
-     * A transport may remember the core pointer in order to report transport
-     * state via aether_client_on_transport_state().
-     *
-     * RX payload itself remains pull-based through receive()/consume().
-     */
-    aether_client_platform_bind_fn bind;
 } aether_client_platform_t;
 
 

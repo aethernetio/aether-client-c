@@ -403,23 +403,25 @@ aether_status_t aether_platform_init(
     platform->trusted_sign_key_count =
         1u;
 
-    platform->resolve =
-        platform_resolve;
 
     platform->now_ms =
         platform_now_ms;
 
-    platform->poll =
+    platform->transport.resolve =
+        platform_resolve;
+
+    platform->transport.poll =
         platform_poll;
 
-    platform->receive =
+    platform->transport.receive =
         platform_receive;
 
-    platform->consume =
+    platform->transport.consume =
         platform_consume;
 
-    platform->bind =
+    platform->transport.bind =
         platform_bind;
+
 
     return AETHER_OK;
 }

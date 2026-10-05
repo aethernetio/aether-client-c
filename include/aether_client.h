@@ -318,6 +318,38 @@ typedef struct {
 
 
 
+
+/*
+ * Transport callback types.
+ *
+ * Every inbound callback is addressed through transport.ctx, never
+ * through a separate platform context. The vtable is the sole owner
+ * of these callbacks.
+ */
+typedef aether_status_t (*aether_client_resolve_fn)(
+    void *ctx,
+    const char *hostname,
+    aether_address_t *address);
+
+typedef aether_status_t (*aether_client_poll_fn)(
+    void *ctx);
+
+typedef aether_status_t (*aether_client_receive_fn)(
+    void *ctx,
+    aether_channel_t channel,
+    aether_bytes_view_t *frame);
+
+typedef void (*aether_client_consume_fn)(
+    void *ctx,
+    aether_channel_t channel,
+    const uint8_t *data,
+    size_t length);
+
+typedef aether_status_t (*aether_client_bind_fn)(
+    void *ctx,
+    struct aether_client *core);
+
+
 /*
 - Asynchronous transport mechanism supplied by the platform.
 -
@@ -359,6 +391,44 @@ typedef struct {
         aether_channel_t channel,
         const uint8_t *data,
         size_t length);
+
+
+    /*
+     * Used only when registration_uri contains a hostname.
+     */
+    aether_client_resolve_fn resolve;
+
+    /*
+     * Optional physical I/O pump.
+     *
+     * May read sockets into transport-owned buffers and report
+     * transport writable/disconnected state. Must NOT parse Aether
+     * RX protocol data.
+     *
+     * Event-driven/RTOS transports may leave poll NULL and fill the
+     * same transport-owned RX storage from their normal task/callback
+     * mechanism.
+     */
+    aether_client_poll_fn poll;
+
+    /*
+     * Pull RX mechanism.
+     *
+     * Both must either be NULL or supplied together.
+     */
+    aether_client_receive_fn receive;
+    aether_client_consume_fn consume;
+
+    /*
+     * Optional adapter hook after the low-level core object exists.
+     *
+     * A transport may remember the core pointer in order to report
+     * transport state via aether_client_on_transport_state().
+     *
+     * RX payload itself remains pull-based through receive()/consume().
+     */
+    aether_client_bind_fn bind;
+
 } aether_transport_vtable_t;
 
 
