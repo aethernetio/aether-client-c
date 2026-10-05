@@ -34,8 +34,8 @@ add_library(aether_client STATIC
 
     src/aether_send_future.c
     src/aether_messages.c
-    src/aether_delivery.c
-    src/aether_delivery_cloud.c
+    src/aether_transport.c
+    src/aether_transport_server.c
 
 
     src/aether_registration.c
@@ -316,6 +316,42 @@ target_link_libraries(
 
 
 
+    add_executable(
+        aether_facade_scheduler_test
+        tests/test_facade_scheduler.c
+    )
+
+    target_link_libraries(
+        aether_facade_scheduler_test
+        PRIVATE
+            aether_client
+    )
+
+    target_compile_features(
+        aether_facade_scheduler_test
+        PRIVATE
+            c_std_11
+    )
+
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            aether_facade_scheduler_test
+            PRIVATE
+                -Wall
+                -Wextra
+                -Wpedantic
+                -Werror
+        )
+    endif()
+
+    add_test(
+        NAME aether_facade_scheduler_test
+        COMMAND aether_facade_scheduler_test
+    )
+
+
+
+
 
 
 
@@ -487,26 +523,27 @@ target_link_libraries(
         COMMAND aether_messages_test
     )
 
+
     add_executable(
-        aether_delivery_test
-        tests/test_delivery.c
+        aether_transport_test
+        tests/test_transport.c
     )
 
     target_link_libraries(
-        aether_delivery_test
+        aether_transport_test
         PRIVATE
             aether_client
     )
 
     target_compile_features(
-        aether_delivery_test
+        aether_transport_test
         PRIVATE
             c_std_11
     )
 
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(
-            aether_delivery_test
+            aether_transport_test
             PRIVATE
                 -Wall
                 -Wextra
@@ -516,8 +553,8 @@ target_link_libraries(
     endif()
 
     add_test(
-        NAME aether_delivery_test
-        COMMAND aether_delivery_test
+        NAME aether_transport_test
+        COMMAND aether_transport_test
     )
 
 
@@ -576,47 +613,6 @@ target_link_libraries(
 
 
 
-    add_executable(
-        aether_lan_e2e
-        tests/test_lan_e2e.c
-    )
-
-    target_include_directories(
-        aether_lan_e2e
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
-    )
-
-    target_link_libraries(
-        aether_lan_e2e
-        PRIVATE
-            aether_client
-            aether_hydrogen_vendor
-    )
-
-    target_compile_features(
-        aether_lan_e2e
-        PRIVATE
-            c_std_11
-    )
-
-    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-        target_compile_options(
-            aether_lan_e2e
-            PRIVATE
-                -Wall
-                -Wextra
-                -Wpedantic
-                -Werror
-                -UNDEBUG
-        )
-    endif()
-
-    add_test(
-        NAME aether_lan_e2e
-        COMMAND aether_lan_e2e
-    )
 
 
 

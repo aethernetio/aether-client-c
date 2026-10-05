@@ -17,14 +17,14 @@
 #include "nvs_flash.h"
 
 #include "aether.h"
+
 #include "aether_credentials.h"
+#include "aether_transport.h"
 #include "client_server_api_types.h"
+
 #include "aether_esp32_wifi.h"
 #include "echo_secrets.h"
 
-#include "aether_delivery.h"
-#include "aether_delivery_cloud.h"
-#include "aether_lan.h"
 
 
 #include "aether_uuid_ECHO_UID.h"
@@ -33,63 +33,56 @@
 
 
 
+
+typedef enum {
+    ECHO_STAGE_EMPTY = 0,
+    ECHO_STAGE_READY,
+    ECHO_STAGE_IN_FLIGHT
+} echo_stage_state_t;
+
+typedef struct {
+    aether_uuid_t sender;
+    uint8_t payload[AETHER_MAX_PACKET];
+    size_t length;
+    echo_stage_state_t state;
+} echo_staging_t;
+
 static aether_t client;
 static bool credentials_installed;
 
+static aether_component_t components[1];
 
-/*
- * Transport-agnostic delivery: producer callback only enqueues a copy of
- * the borrowed payload into caller-owned storage. The actual echo send is
- * performed later by aether_delivery_work() as a normal component driven by
- * aether_work().
- */
+static echo_staging_t staging;
+static unsigned sent_count;
+static unsigned flush_done_count;
+static aether_status_t last_flush_status;
 
-
-static aether_delivery_t delivery;
-static aether_delivery_slot_t delivery_slots[2];
-static uint8_t delivery_payload_storage[2 * AETHER_MAX_PACKET];
-
-static aether_delivery_provider_t delivery_providers[2];
-static aether_component_t components[2];
-
-/*
- * LAN direct delivery is compiled in only when the build provides an
- * ECHO_LAN_IDENTITY_DEFINED macro. Without it echo runs cloud-only.
- */
-#ifdef ECHO_LAN_IDENTITY_DEFINED
-static aether_lan_t lan;
-static aether_lan_peer_t lan_peers[4];
-static uint8_t lan_rx[576];
-static uint8_t lan_tx[576];
-static aether_lan_identity_t lan_identity;
-static aether_lan_provider_context_t lan_provider_context;
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-static void on_delivery_error(
+static void on_flush_done(
     void *ctx,
-    aether_uuid_t recipient,
     aether_status_t status) {
 
     (void)ctx;
 
-    printf(
-        "AETHER_ECHO_DELIVERY_ERROR to=%016" PRIx64 ":%016" PRIx64
-        " status=%d\n",
-        (uint64_t)recipient.msb,
-        (uint64_t)recipient.lsb,
-        (int)status);
+    flush_done_count += 1u;
+    last_flush_status = status;
+
+    /*
+     * The transport no longer reads the borrowed staging buffer, so
+     * the staging slot is free again.
+     */
+    if (staging.state == ECHO_STAGE_IN_FLIGHT) {
+        staging.state = ECHO_STAGE_EMPTY;
+    }
+
+    if (status != AETHER_OK) {
+        printf(
+            "AETHER_ECHO_FLUSH_DONE status=%d\n",
+            (int)status);
+    }
 }
+
+
+
 
 
 static void on_message(
@@ -101,26 +94,36 @@ static void on_message(
     (void)aether;
 
     /*
-     * Producer API is transport-agnostic and callback-safe: it only copies
-     * the borrowed payload into caller-owned storage. The actual send is
-     * performed later by aether_delivery_work() driven by aether_work().
+     * The RX callback owns borrowed payload memory. The semantic
+     * transport is zero-copy and keeps the pointer until flush, so
+     * staging must be an application-owned copy.
      */
-    aether_status_t status =
-        aether_delivery_send(
-            &delivery,
-            from,
+    if (staging.state != ECHO_STAGE_EMPTY) {
+        printf(
+            "AETHER_ECHO_STAGE_BUSY size=%u\n",
+            (unsigned)size);
+        return;
+    }
+
+    if (size > sizeof(staging.payload)) {
+        printf(
+            "AETHER_ECHO_STAGE_OVERFLOW size=%u\n",
+            (unsigned)size);
+        return;
+    }
+
+    staging.sender = from;
+    staging.length = size;
+
+    if (size != 0u) {
+        memcpy(
+            staging.payload,
             data,
             size);
-
-    if (status != AETHER_OK) {
-        printf(
-            "AETHER_ECHO_ENQUEUE_ERROR status=%d size=%u\n",
-            (int)status,
-            (unsigned)size);
     }
+
+    staging.state = ECHO_STAGE_READY;
 }
-
-
 
 
 static void on_error(
@@ -135,6 +138,11 @@ static void on_error(
         (int)code,
         (int)origin);
 }
+
+
+
+
+
 
 
 void app_main(void) {
@@ -188,62 +196,21 @@ void app_main(void) {
 
 
 
+
+
     aether_set_components(
         &client,
         components,
-        2u);
+        1u);
 
+    aether_transport_listener_t listener = {
+        NULL,
+        on_flush_done
+    };
 
-    aether_delivery_init(
-        &delivery,
-        &client,
-        delivery_slots,
-        2u,
-        delivery_payload_storage,
-        AETHER_MAX_PACKET);
-
-    aether_delivery_set_error_callback(
-        &delivery,
-        on_delivery_error,
-        NULL);
-
-
-    aether_delivery_set_providers(
-        &delivery,
-        delivery_providers,
-        2u);
-
-#ifdef ECHO_LAN_IDENTITY_DEFINED
-    /*
-     * LAN first: direct-first, cloud-fallback policy.
-     * LAN identity is provisioned by the build (see ECHO_LAN_*).
-     */
-    if (aether_lan_init(
-            &lan,
-            &client,
-            &lan_identity,
-            lan_peers,
-            4u,
-            lan_rx, sizeof(lan_rx),
-            lan_tx, sizeof(lan_tx)) == AETHER_OK) {
-
-        aether_delivery_provider_t lan_provider =
-            aether_lan_delivery_provider(&lan_provider_context, &lan);
-        (void)aether_delivery_add_provider(&delivery, lan_provider);
-        (void)aether_register_component(&client, &lan, aether_lan_work);
-    }
-#endif
-
-    aether_delivery_add_cloud(
-        &delivery,
-        &client);
-
-
-
-    aether_register_component(
-        &client,
-        &delivery,
-        aether_delivery_work);
+    aether_transport_set_listener(
+        &client.app.transport,
+        &listener);
 
     aether_on_message(
         &client,
@@ -252,6 +219,7 @@ void app_main(void) {
     aether_on_error(
         &client,
         on_error);
+
 
 
 
@@ -296,21 +264,40 @@ void app_main(void) {
 
 
 
+            /*
+             * Attempt to enqueue the staged message. Transport will
+             * borrow the staging buffer until on_flush_done.
+             */
+            if (staging.state == ECHO_STAGE_READY) {
 
-            aether_status_t poll_status =
+                aether_status_t send_status =
+                    aether_send_message(
+                        &client,
+                        staging.sender,
+                        staging.payload,
+                        staging.length);
+
+                if (send_status == AETHER_OK) {
+                    staging.state = ECHO_STAGE_IN_FLIGHT;
+                    sent_count += 1u;
+                } else if (send_status != AETHER_ERR_BUSY) {
+                    printf(
+                        "AETHER_ECHO_SEND_ERROR status=%d\n",
+                        (int)send_status);
+                    staging.state = ECHO_STAGE_EMPTY;
+                }
+            }
+
+            aether_status_t work_status =
                 aether_work(
                     &client);
 
-
-            if (poll_status != AETHER_OK) {
+            if (work_status != AETHER_OK) {
                 printf(
                     "AETHER_ECHO_WORK_ERROR=%d\n",
-                    (int)poll_status);
+                    (int)work_status);
             }
 
-
-
-        }
 
 
 

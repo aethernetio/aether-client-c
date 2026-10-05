@@ -18,7 +18,7 @@ extern "C" {
  * default event loop, esp_wifi_init/config/start and the STA reconnect
  * policy). They are a platform utility, not part of the generic aether.h API.
  *
- * They are deliberately NOT tied to aether_start()/aether_poll(): a device may
+ * They are deliberately NOT tied to aether_start()/aether_work(): a device may
  * already own its network lifecycle (Ethernet, PPP, a custom Wi-Fi task, or a
  * station that is already connected). Calling these helpers is an application
  * policy decision.
@@ -36,7 +36,7 @@ extern "C" {
  *
  *     for (;;) {
  *         aether_esp32_wifi_connect(WIFI_SSID, WIFI_PASSWORD);
- *         aether_poll(&client);
+ *         aether_work(&client);
  *         vTaskDelay(...);
  *     }
  *

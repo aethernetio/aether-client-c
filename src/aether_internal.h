@@ -26,7 +26,7 @@ extern "C" {
  * Dispatch one already-authenticated logical message to the application.
  *
  * Used by:
- *   - the cloud ingress path (aether_poll), after the core parser
+ *   - the cloud ingress path, after the core parser
  *     yielded an AETHER_INGRESS_MESSAGE and the RX-all policy accepted
  *     it;
  *   - the LAN component, after a direct packet has been decrypted,

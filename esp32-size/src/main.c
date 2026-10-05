@@ -87,7 +87,7 @@ void app_main(void) {
         (void)aether_start(
             &aether_size_public_client);
 
-        (void)aether_poll(
+        (void)aether_work(
             &aether_size_public_client);
 
         (void)aether_send(

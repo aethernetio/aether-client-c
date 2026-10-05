@@ -821,12 +821,12 @@ void aether_host_transport_init(
 }
 
 
-aether_transport_vtable_t aether_host_transport_vtable(
+aether_transport_io_vtable_t aether_host_transport_vtable(
     aether_host_transport_t *transport) {
 
 
     return
-        (aether_transport_vtable_t){
+        (aether_transport_io_vtable_t){
             transport,
             host_open,
             host_close,

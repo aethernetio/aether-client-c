@@ -402,7 +402,7 @@ aether_status_t aether_platform_init(
     platform->ctx =
         ctx;
 
-    platform->transport =
+    platform->transport_io =
         aether_host_transport_vtable(
             &ctx->transport);
 
@@ -435,19 +435,19 @@ aether_status_t aether_platform_init(
     platform->now_ms =
         platform_now_ms;
 
-    platform->transport.resolve =
+    platform->transport_io.resolve =
         platform_resolve;
 
-    platform->transport.poll =
+    platform->transport_io.poll =
         platform_poll;
 
-    platform->transport.receive =
+    platform->transport_io.receive =
         platform_receive;
 
-    platform->transport.consume =
+    platform->transport_io.consume =
         platform_consume;
 
-    platform->transport.bind =
+    platform->transport_io.bind =
         platform_bind;
 
 

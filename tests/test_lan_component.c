@@ -138,7 +138,7 @@ aether_status_t aether_platform_init(
     p->ctx = (void*)1;
     p->now_ms = fake_now_ms;
 
-    p->transport = (aether_transport_vtable_t){
+    p->transport_io = (aether_transport_io_vtable_t){
         (void*)1, fake_open, fake_close, fake_send,
         fake_resolve, fake_poll, fake_recv, fake_consume,
         NULL

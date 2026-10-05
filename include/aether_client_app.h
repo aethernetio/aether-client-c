@@ -17,6 +17,12 @@
 
 #include "aether_client.h"
 
+
+#include "aether_transport.h"
+#include "aether_transport_server.h"
+
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -67,7 +73,7 @@ typedef void (*aether_client_error_fn)(
 typedef struct {
     void *ctx;
 
-    aether_transport_vtable_t transport;
+    aether_transport_io_vtable_t transport_io;
     aether_flash_vtable_t flash;
 
     const aether_crypto_vtable_t *crypto;
@@ -113,10 +119,13 @@ typedef struct {
     aether_client_ready_fn on_ready;
     aether_client_error_fn on_error;
     void *callback_ctx;
+
 } aether_client_app_config_t;
 
 
-typedef struct {
+
+
+typedef struct aether_client_app {
     /*
      * Mandatory protocol state only.
      *
@@ -127,6 +136,19 @@ typedef struct {
 
     aether_client_app_config_t config;
     aether_client_platform_t platform;
+
+
+
+    /*
+     * Semantic Aether transport. See aether_transport.h. The server
+     * transport is the only concrete implementation in Phase 2A; later
+     * peer/LAN or mux implementations plug into the same handle.
+     */
+    aether_transport_t transport;
+    aether_transport_server_t transport_server;
+
+
+
 
     bool started;
 } aether_client_app_t;
@@ -178,13 +200,6 @@ aether_status_t aether_client_app_tick(
     aether_client_app_t *client);
 
 
-/*
- * Compatibility alias.
- *
- * New low-level code should use tick().
- */
-aether_status_t aether_client_app_poll(
-    aether_client_app_t *client);
 
 
 /*

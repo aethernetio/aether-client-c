@@ -29,7 +29,7 @@
 
 
 #include "aether.h"
-#include "aether_delivery.h"
+
 
 #include <stddef.h>
 #include <stdint.h>
@@ -195,19 +195,6 @@ aether_status_t aether_lan_work(
     aether_t *client,
     void *context);
 
-typedef struct {
-    aether_lan_t *lan;
-} aether_lan_provider_context_t;
-
-aether_delivery_attempt_t aether_lan_delivery_try(
-    void *context,
-    aether_uuid_t recipient,
-    const uint8_t *payload,
-    size_t length);
-
-aether_delivery_provider_t aether_lan_delivery_provider(
-    aether_lan_provider_context_t *provider_context,
-    aether_lan_t *lan);
 
 aether_lan_peer_state_t aether_lan_peer_state(
     const aether_lan_t *lan,

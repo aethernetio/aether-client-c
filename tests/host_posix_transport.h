@@ -46,7 +46,7 @@ void aether_host_transport_init(
     aether_client_t *client);
 
 
-aether_transport_vtable_t aether_host_transport_vtable(
+aether_transport_io_vtable_t aether_host_transport_vtable(
     aether_host_transport_t *transport);
 
 

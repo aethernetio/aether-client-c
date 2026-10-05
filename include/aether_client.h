@@ -433,7 +433,7 @@ typedef aether_status_t (*aether_client_bind_fn)(
      */
     aether_client_bind_fn bind;
 
-} aether_transport_vtable_t;
+} aether_transport_io_vtable_t;
 
 
 
@@ -617,7 +617,7 @@ typedef void (*aether_event_callback_t)(
     uint32_t rx_window_ms;
     uint32_t request_timeout_ms;
 
-    aether_transport_vtable_t transport;
+    aether_transport_io_vtable_t transport_io;
     aether_flash_vtable_t flash;
 
     const aether_crypto_vtable_t *crypto;

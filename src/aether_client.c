@@ -862,15 +862,15 @@ static aether_status_t transport_send(
     const uint8_t *data,
     size_t length) {
 
-    if (client->config.transport.send ==
+    if (client->config.transport_io.send ==
         NULL) {
 
         return AETHER_ERR_TRANSPORT;
     }
 
     return
-        client->config.transport.send(
-            client->config.transport.ctx,
+        client->config.transport_io.send(
+            client->config.transport_io.ctx,
             channel,
             data,
             length);
@@ -882,15 +882,15 @@ static aether_status_t transport_open(
     aether_channel_t channel,
     const aether_endpoint_t *endpoint) {
 
-    if (client->config.transport.open ==
+    if (client->config.transport_io.open ==
         NULL) {
 
         return AETHER_ERR_TRANSPORT;
     }
 
     return
-        client->config.transport.open(
-            client->config.transport.ctx,
+        client->config.transport_io.open(
+            client->config.transport_io.ctx,
             channel,
             endpoint);
 }
@@ -900,11 +900,11 @@ static void transport_close(
     aether_client_t *client,
     aether_channel_t channel) {
 
-    if (client->config.transport.close !=
+    if (client->config.transport_io.close !=
         NULL) {
 
-        client->config.transport.close(
-            client->config.transport.ctx,
+        client->config.transport_io.close(
+            client->config.transport_io.ctx,
             channel);
     }
 }
@@ -1887,9 +1887,9 @@ static aether_status_t ensure_required_callbacks(
     aether_client_t *client) {
 
 
-    if (client->config.transport.open ==
+    if (client->config.transport_io.open ==
             NULL ||
-        client->config.transport.send ==
+        client->config.transport_io.send ==
             NULL ||
         client->config.crypto ==
             NULL) {

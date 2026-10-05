@@ -18,6 +18,9 @@
 #include "aether_platform.h"
 #include "aether_internal.h"
 
+#include "aether_transport.h"
+
+
 #include <string.h>
 
 
@@ -335,8 +338,10 @@ void aether_stop(
 }
 
 
-aether_status_t aether_poll(
+
+static aether_status_t facade_core_step(
     aether_t *client) {
+
 
     if (client == NULL) {
         return AETHER_ERR_ARGUMENT;
@@ -481,9 +486,11 @@ aether_status_t aether_work(
      * components must still get their tick so they can make progress
      * on the conditions the core is waiting for.
      */
+
     aether_status_t core_status =
-        aether_poll(
+        facade_core_step(
             client);
+
 
     if (core_status == AETHER_ERR_ARGUMENT ||
         core_status == AETHER_ERR_STATE) {
@@ -541,17 +548,54 @@ aether_status_t aether_work(
         }
     }
 
+
     /*
-     * Core non-OK status has precedence over component errors: the
-     * caller needs to know that the core step itself did not complete
-     * cleanly.
+     * Semantic transport batch boundary.
+     *
+     * Application code and components may have enqueued semantic
+     * commands during this pass. aether_work() is the single owner of
+     * the batch boundary: at most one flush() and at most one tick()
+     * per work call. Commands queued from an on_flush_done callback
+     * remain BUILDING until the next aether_work().
+     */
+    aether_status_t transport_error =
+        AETHER_OK;
+
+    aether_transport_status_t transport_status =
+        aether_transport_status(
+            &client->app.transport);
+
+    if (transport_status ==
+        AETHER_TRANSPORT_BUILDING) {
+
+        transport_error =
+            aether_transport_flush(
+                &client->app.transport);
+    }
+
+    if (transport_error == AETHER_OK) {
+
+        transport_error =
+            aether_transport_tick(
+                &client->app.transport);
+    }
+
+    /*
+     * Priority: core non-OK, then transport orchestration error,
+     * then the first component error. on_flush_done(status) is a
+     * per-batch result and does not become aether_work() status.
      */
     if (core_status != AETHER_OK) {
         return core_status;
     }
 
+    if (transport_error != AETHER_OK) {
+        return transport_error;
+    }
+
     return component_error;
 }
+
 
 
 

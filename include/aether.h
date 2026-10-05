@@ -10,7 +10,7 @@
  * aether_platform_init().
  *
  * Scheduling remains explicit: Aether creates no background thread or hidden
- * event loop. Call aether_poll() regularly from the application's normal
+ * event loop. Call aether_work() regularly from the application's normal
  * loop/task.
  *
  * Memory is caller-owned. aether_t contains the protocol/application state plus
@@ -308,24 +308,6 @@ aether_status_t aether_register_component(
 
 
 
-/*
- * Low-level core step: platform poll + parser + mandatory timers.
- *
- * Prefer aether_work(): that is the only entry point an ordinary
- * application should call, and it drives both the core step and every
- * registered component in one bounded call.
- *
- * This function is kept for:
- *   - advanced callers that want explicit control over component
- *     dispatch (for example, a custom scheduler);
- *   - backwards compatibility with existing integrations.
- *
- * There is exactly one core-step implementation; aether_work() calls
- * this function internally rather than duplicating it.
- */
-aether_status_t aether_poll(
-    aether_t *client);
-
 
 
 
@@ -341,7 +323,7 @@ aether_status_t aether_poll(
  *
  * It executes:
  *
- *   1. one core aether_poll() step;
+ *   1. one core mechanism step;
  *   2. one bounded work step for every registered component, in
  *      registration order.
  *

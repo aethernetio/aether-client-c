@@ -267,7 +267,7 @@ aether_status_t aether_platform_init(
     p->ctx = (void *)1;
     p->now_ms = fake_now;
 
-    p->transport = (aether_transport_vtable_t){
+    p->transport_io = (aether_transport_io_vtable_t){
         (void *)1, f_open, f_close, f_send,
         fake_resolve, f_poll, f_recv, f_consume,
         NULL };

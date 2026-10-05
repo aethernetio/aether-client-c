@@ -120,7 +120,7 @@ aether_status_t aether_platform_init(
     platform->now_ms = fake_now_ms;
 
 
-    platform->transport = (aether_transport_vtable_t){
+    platform->transport_io = (aether_transport_io_vtable_t){
         platform_context,
         fake_transport_open,
         fake_transport_close,

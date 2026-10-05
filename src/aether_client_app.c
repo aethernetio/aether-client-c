@@ -13,6 +13,12 @@
 #include <string.h>
 
 
+#include "aether_transport.h"
+#include "aether_transport_server.h"
+
+
+
+
 
 const aether_uuid_t AETHER_ANONYMOUS_UID = {
     UINT64_C(0x237e2dc021a44e83),
@@ -186,6 +192,7 @@ void aether_client_app_init(
         0,
         sizeof(*client));
 
+
     aether_client_app_config_default(
         &client->config);
 
@@ -198,7 +205,25 @@ void aether_client_app_init(
         client->platform =
             *platform;
     }
+
+
+    /*
+     * Attach the semantic transport. The server transport is the only
+     * concrete implementation in Phase 2A. Its command descriptor
+     * storage is internal to the transport object; the caller is not
+     * required to provide batch storage.
+     */
+    aether_transport_server_init(
+        &client->transport_server,
+        client);
+
+
+    aether_transport_server_bind(
+        &client->transport,
+        &client->transport_server);
 }
+
+
 
 
 static bool parse_port(
@@ -446,7 +471,7 @@ static aether_status_t parse_registration_uri(
             hostname,
             &address)) {
 
-        if (platform->transport.resolve == NULL) {
+        if (platform->transport_io.resolve == NULL) {
             return AETHER_ERR_UNSUPPORTED;
         }
 
@@ -457,8 +482,8 @@ static aether_status_t parse_registration_uri(
 
 
         aether_status_t status =
-            platform->transport.resolve(
-                platform->transport.ctx,
+            platform->transport_io.resolve(
+                platform->transport_io.ctx,
                 hostname,
                 &address);
 
@@ -571,8 +596,8 @@ static void fill_core_config(
     core_config->request_timeout_ms =
         client->config.request_timeout_ms;
 
-    core_config->transport =
-        client->platform.transport;
+    core_config->transport_io =
+        client->platform.transport_io;
 
     core_config->flash =
         client->platform.flash;
@@ -604,10 +629,10 @@ static bool pull_rx_pair_is_valid(
     const aether_client_app_t *client) {
 
     bool have_receive =
-        client->platform.transport.receive != NULL;
+        client->platform.transport_io.receive != NULL;
 
     bool have_consume =
-        client->platform.transport.consume != NULL;
+        client->platform.transport_io.consume != NULL;
 
     return
         have_receive ==
@@ -700,11 +725,11 @@ aether_status_t aether_client_app_start(
     }
 
 
-    if (client->platform.transport.bind != NULL) {
+    if (client->platform.transport_io.bind != NULL) {
         status =
 
-            client->platform.transport.bind(
-                client->platform.transport.ctx,
+            client->platform.transport_io.bind(
+                client->platform.transport_io.ctx,
                 &client->core);
 
 
@@ -738,9 +763,18 @@ void aether_client_app_stop(
             &client->core);
     }
 
+
+    /*
+     * Release any borrowed semantic batch. After stop() returns the
+     * application owns all buffers it passed to aether_send_message().
+     */
+    aether_transport_reset(
+        &client->transport);
+
     client->started =
         false;
 }
+
 
 
 /*
@@ -752,7 +786,7 @@ void aether_client_app_stop(
 static aether_status_t receive_one(
     aether_client_app_t *client) {
 
-    if (client->platform.transport.receive == NULL) {
+    if (client->platform.transport_io.receive == NULL) {
         return AETHER_OK;
     }
 
@@ -791,8 +825,8 @@ static aether_status_t receive_one(
 
         aether_status_t status =
 
-            client->platform.transport.receive(
-                client->platform.transport.ctx,
+            client->platform.transport_io.receive(
+                client->platform.transport_io.ctx,
                 channels[i],
                 &frame);
 
@@ -821,8 +855,8 @@ static aether_status_t receive_one(
                     &client->core)) {
 
 
-                client->platform.transport.consume(
-                    client->platform.transport.ctx,
+                client->platform.transport_io.consume(
+                    client->platform.transport_io.ctx,
                     channels[i],
                     frame.data,
                     frame.length);
@@ -845,8 +879,8 @@ static aether_status_t receive_one(
                 &client->core)) {
 
 
-            client->platform.transport.consume(
-                client->platform.transport.ctx,
+            client->platform.transport_io.consume(
+                client->platform.transport_io.ctx,
                 channels[i],
                 frame.data,
                 frame.length);
@@ -894,12 +928,12 @@ aether_status_t aether_client_app_tick(
      * until parser progress releases that frame.
      */
     if (!frame_pinned &&
-        client->platform.transport.poll != NULL) {
+        client->platform.transport_io.poll != NULL) {
 
         aether_status_t status =
 
-            client->platform.transport.poll(
-                client->platform.transport.ctx);
+            client->platform.transport_io.poll(
+                client->platform.transport_io.ctx);
 
 
         if (status != AETHER_OK) {
@@ -931,13 +965,6 @@ aether_status_t aether_client_app_tick(
 }
 
 
-aether_status_t aether_client_app_poll(
-    aether_client_app_t *client) {
-
-    return
-        aether_client_app_tick(
-            client);
-}
 
 
 const aether_ingress_t *aether_client_app_ingress(
@@ -978,8 +1005,8 @@ aether_status_t aether_client_app_consume_ingress(
     }
 
 
-    if (client->platform.transport.receive == NULL ||
-        client->platform.transport.consume == NULL) {
+    if (client->platform.transport_io.receive == NULL ||
+        client->platform.transport_io.consume == NULL) {
 
 
         return AETHER_ERR_STATE;
@@ -996,8 +1023,8 @@ aether_status_t aether_client_app_consume_ingress(
 
     aether_status_t status =
 
-        client->platform.transport.receive(
-            client->platform.transport.ctx,
+        client->platform.transport_io.receive(
+            client->platform.transport_io.ctx,
             channel,
             &frame);
 
@@ -1017,8 +1044,8 @@ aether_status_t aether_client_app_consume_ingress(
             &client->core)) {
 
 
-        client->platform.transport.consume(
-            client->platform.transport.ctx,
+        client->platform.transport_io.consume(
+            client->platform.transport_io.ctx,
             channel,
             frame.data,
             frame.length);
@@ -1029,20 +1056,38 @@ aether_status_t aether_client_app_consume_ingress(
 }
 
 
+
+
 aether_status_t aether_client_app_send(
     aether_client_app_t *client,
     aether_uuid_t destination,
     const uint8_t *data,
     size_t length) {
 
+    if (client == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+
+    /*
+     * The caller must guarantee that the memory range
+     * [data, data + length) remains valid and unchanged until this
+     * batch completes (on_flush_done) or until reset() returns.
+     *
+     * The transport does not care where send_message() is called from;
+     * only the lifetime of the specific range matters.
+     */
+
+
     return
-        aether_client_app_send_with_id(
-            client,
+        aether_transport_send_message(
+            &client->transport,
             destination,
             data,
-            length,
-            NULL);
+            length);
 }
+
+
 
 
 aether_status_t aether_client_app_send_with_id(

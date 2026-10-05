@@ -453,7 +453,7 @@ static aether_client_config_t config_for(fixture_t *f) {
     c.rx_window_ms=5000;
 
 
-    c.transport=(aether_transport_vtable_t){
+    c.transport_io=(aether_transport_io_vtable_t){
         f,t_open,t_close,t_send,
         NULL,NULL,NULL,NULL,NULL
     };
