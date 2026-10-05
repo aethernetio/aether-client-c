@@ -305,17 +305,19 @@ aether_status_t aether_platform_init(
     memset(platform, 0, sizeof(*platform));
     platform->ctx = platform_context;
     platform->now_ms = fake_now_ms;
-    platform->resolve = fake_resolve;
-    platform->poll = fake_platform_poll;
-    platform->receive = fake_platform_receive;
-    platform->consume = fake_platform_consume;
 
     platform->transport = (aether_transport_vtable_t){
         platform_context,
         fake_transport_open,
         fake_transport_close,
-        fake_transport_send
+        fake_transport_send,
+        fake_resolve,
+        fake_platform_poll,
+        fake_platform_receive,
+        fake_platform_consume,
+        NULL
     };
+
 
     platform->flash = (aether_flash_vtable_t){
         platform_context,

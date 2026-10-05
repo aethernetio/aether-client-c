@@ -171,13 +171,13 @@ aether_status_t aether_platform_init(
     memset(plat, 0, sizeof(*plat));
     plat->ctx = (void *)1;
     plat->now_ms = now_ms;
-    plat->resolve = resolve_loopback;
-    plat->poll = t_poll;
-    plat->receive = t_recv;
-    plat->consume = t_consume;
+
     plat->transport = (aether_transport_vtable_t){
-        (void *)1, t_open, t_close, t_send
+        (void *)1, t_open, t_close, t_send,
+        resolve_loopback, t_poll, t_recv, t_consume,
+        NULL
     };
+
     plat->flash = (aether_flash_vtable_t){
         (void *)1, t_flash_load, t_flash_save
     };

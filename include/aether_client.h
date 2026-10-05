@@ -319,6 +319,10 @@ typedef struct {
 
 
 
+
+struct aether_client;
+
+
 /*
  * Transport callback types.
  *

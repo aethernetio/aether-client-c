@@ -452,9 +452,12 @@ static aether_client_config_t config_for(fixture_t *f) {
     c.ping_interval_ms=6000;
     c.rx_window_ms=5000;
 
+
     c.transport=(aether_transport_vtable_t){
-        f,t_open,t_close,t_send
+        f,t_open,t_close,t_send,
+        NULL,NULL,NULL,NULL,NULL
     };
+
     c.flash=(aether_flash_vtable_t){
         f,flash_load,flash_save
     };

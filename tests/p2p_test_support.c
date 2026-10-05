@@ -27,6 +27,21 @@ typedef struct {
     size_t flash_len;
 } p2p_platform_context_t;
 
+/*
+ * The transport vtable is handed &p2p_platform_context_t.transport as its
+ * context pointer. Recover the enclosing platform context so callbacks can
+ * reach transport, flash and crypto storage.
+ */
+static p2p_platform_context_t *p2p_platform_from_transport(
+    void *transport_ctx) {
+
+    return
+        (p2p_platform_context_t *)(
+            (uint8_t *)transport_ctx -
+            offsetof(p2p_platform_context_t, transport));
+}
+
+
 
 static p2p_platform_context_t contexts[
     P2P_TEST_STORAGE_SLOTS
@@ -122,8 +137,10 @@ static uint64_t platform_now_ms(
 static aether_status_t platform_poll(
     void *ctx) {
 
+
     p2p_platform_context_t *platform =
-        ctx;
+        p2p_platform_from_transport(ctx);
+
 
     if (platform == NULL) {
         return AETHER_ERR_ARGUMENT;
@@ -146,8 +163,10 @@ static aether_status_t platform_receive(
     aether_channel_t channel,
     aether_bytes_view_t *frame) {
 
+
     p2p_platform_context_t *platform =
-        ctx;
+        p2p_platform_from_transport(ctx);
+
 
     if (platform == NULL ||
         frame == NULL) {
@@ -169,8 +188,10 @@ static void platform_consume(
     const uint8_t *data,
     size_t length) {
 
+
     p2p_platform_context_t *platform =
-        ctx;
+        p2p_platform_from_transport(ctx);
+
 
     if (platform == NULL) {
         return;
@@ -188,8 +209,10 @@ static aether_status_t platform_bind(
     void *ctx,
     aether_client_t *core) {
 
+
     p2p_platform_context_t *platform =
-        ctx;
+        p2p_platform_from_transport(ctx);
+
 
     if (platform == NULL ||
         core == NULL) {

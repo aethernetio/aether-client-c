@@ -266,12 +266,12 @@ aether_status_t aether_platform_init(
     memset(p, 0, sizeof(*p));
     p->ctx = (void *)1;
     p->now_ms = fake_now;
-    p->resolve = fake_resolve;
-    p->poll = f_poll;
-    p->receive = f_recv;
-    p->consume = f_consume;
+
     p->transport = (aether_transport_vtable_t){
-        (void *)1, f_open, f_close, f_send };
+        (void *)1, f_open, f_close, f_send,
+        fake_resolve, f_poll, f_recv, f_consume,
+        NULL };
+
     p->flash = (aether_flash_vtable_t){
         (void *)1, f_fload, f_fsave };
     p->crypto = &vt;

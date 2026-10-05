@@ -137,13 +137,13 @@ aether_status_t aether_platform_init(
     memset(p, 0, sizeof(*p));
     p->ctx = (void*)1;
     p->now_ms = fake_now_ms;
-    p->resolve = fake_resolve;
-    p->poll = fake_poll;
-    p->receive = fake_recv;
-    p->consume = fake_consume;
+
     p->transport = (aether_transport_vtable_t){
-        (void*)1, fake_open, fake_close, fake_send
+        (void*)1, fake_open, fake_close, fake_send,
+        fake_resolve, fake_poll, fake_recv, fake_consume,
+        NULL
     };
+
     p->flash = (aether_flash_vtable_t){
         (void*)1, fake_flash_load, fake_flash_save
     };

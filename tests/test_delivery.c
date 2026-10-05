@@ -993,17 +993,19 @@ aether_status_t aether_platform_init(
 
     platform->ctx = (void *)1;
     platform->now_ms = int_fake_now_ms;
-    platform->resolve = int_fake_resolve;
-    platform->poll = int_fake_poll;
-    platform->receive = int_fake_receive;
-    platform->consume = int_fake_consume;
 
     platform->transport = (aether_transport_vtable_t){
         (void *)1,
         int_fake_transport_open,
         int_fake_transport_close,
-        int_fake_transport_send
+        int_fake_transport_send,
+        int_fake_resolve,
+        int_fake_poll,
+        int_fake_receive,
+        int_fake_consume,
+        NULL
     };
+
 
     platform->flash = (aether_flash_vtable_t){
         (void *)1,
