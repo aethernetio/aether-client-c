@@ -35,10 +35,15 @@ typedef struct {
 static p2p_platform_context_t *p2p_platform_from_transport(
     void *transport_ctx) {
 
+    if (transport_ctx == NULL) {
+        return NULL;
+    }
+
     return
         (p2p_platform_context_t *)(
             (uint8_t *)transport_ctx -
             offsetof(p2p_platform_context_t, transport));
+
 }
 
 
