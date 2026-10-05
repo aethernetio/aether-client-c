@@ -36,6 +36,7 @@ add_library(aether_client STATIC
     src/aether_messages.c
     src/aether_transport.c
     src/aether_transport_server.c
+    platform/posix/aether_posix_transport.c
 
 
     src/aether_registration.c
@@ -64,6 +65,7 @@ add_library(aether_client STATIC
 target_include_directories(aether_client
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/platform/posix
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -127,7 +129,6 @@ if(AETHER_BUILD_TESTS)
         aether_p2p_e2e
         tests/p2p_e2e.c
         tests/p2p_test_support.c
-        tests/host_posix_transport.c
     )
 
 target_link_libraries(

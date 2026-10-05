@@ -5063,3 +5063,10 @@ Rename:
   platform->transport typo в ESP32 исправлен на transport_io.
 
 STOP.
+TASK: Портировать PeerLogin handshake из Java в C в /home/angel/projects/aether-client-c
+TASK: Портировать PeerLogin handshake из Java в C в /home/angel/projects/aether-client-c
+=== PeerLogin C port: продолжаю разведку ===
+=== PeerLogin recon: understanding serialization runtime ===
+=== PeerLogin recon: check decode/serialize presence and runtime location ===
+PeerLogin: finding source of truth ADSL for peer_api + regen recipe
+[aether-protocol-c parity task] Активно ТЗ на полный semantic/wire parity с Java generator. Начат Phase 1: сначала исследуется текущий parser/model/emitter и canonical Java TypeInfo/Validator; до чтения реального кода архитектурные правки не делать. Жёсткие ограничения target: noheap, caller-owned memory, минимальный MCU footprint, существующий scratch allocator использовать как основной decode allocator.

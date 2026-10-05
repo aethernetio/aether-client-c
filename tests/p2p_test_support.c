@@ -3,7 +3,7 @@
 
 #include "aether_platform.h"
 #include "aether_test_crypto_hydrogen.h"
-#include "host_posix_transport.h"
+#include "aether_posix_transport.h"
 
 #include <inttypes.h>
 #include <limits.h>
@@ -21,7 +21,7 @@
 typedef struct {
     void *owner;
 
-    aether_host_transport_t transport;
+    aether_posix_transport_t transport;
 
     uint8_t flash[AETHER_MAX_PACKET * 2u];
     size_t flash_len;
@@ -152,7 +152,7 @@ static aether_status_t platform_poll(
     }
 
     return
-        aether_host_transport_pump(
+        aether_posix_transport_pump(
             &platform->transport,
             5) == 0
             ? AETHER_OK
@@ -180,7 +180,7 @@ static aether_status_t platform_receive(
     }
 
     return
-        aether_host_transport_receive(
+        aether_posix_transport_receive(
             &platform->transport,
             channel,
             frame);
@@ -202,7 +202,7 @@ static void platform_consume(
         return;
     }
 
-    aether_host_transport_consume(
+    aether_posix_transport_consume(
         &platform->transport,
         channel,
         data,
@@ -225,9 +225,11 @@ static aether_status_t platform_bind(
         return AETHER_ERR_ARGUMENT;
     }
 
-    aether_host_transport_init(
+
+    aether_posix_transport_bind(
         &platform->transport,
         core);
+
 
     return AETHER_OK;
 }
@@ -403,7 +405,7 @@ aether_status_t aether_platform_init(
         ctx;
 
     platform->transport_io =
-        aether_host_transport_vtable(
+        aether_posix_transport_vtable(
             &ctx->transport);
 
     platform->flash =
@@ -476,7 +478,7 @@ void aether_platform_deinit(
             continue;
         }
 
-        aether_host_transport_shutdown(
+        aether_posix_transport_shutdown(
             &ctx->transport);
 
         ctx->owner =
