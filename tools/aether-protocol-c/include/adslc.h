@@ -60,14 +60,25 @@ typedef struct {
 /*
 - Declared ADSL type.
 -
-- A type can represent a struct, enum, inheritance node, abstract hierarchy
-- root, or stream declaration. parent names the inherited ADSL type when one
-- exists. The emitter resolves hierarchy relationships against the complete
-- merged document rather than storing C-specific information here.
+
+ * A type can represent a struct, enum, inheritance node, abstract hierarchy
+ * root, stream declaration, or named scalar such as tieredInt. parent names
+ * the inherited ADSL type when one exists. The emitter resolves hierarchy
+ * relationships against the complete merged document rather than storing
+ * C-specific information here.
+
    */
   typedef struct {
 
     char *name;
+
+    /*
+     * Physical ADSL declaration origin. Preserved across recursive include
+     * merging so generated bindings can point directly back to the schema.
+     */
+    char *source_path;
+    size_t source_line;
+
     bool has_id;
     uint8_t id;
     bool is_abstract;
@@ -78,6 +89,19 @@ typedef struct {
 
     char **enum_values;
     size_t enum_count;
+
+
+    /*
+     * Named unsigned TieredInt scalar metadata.
+     *
+     * The generator keeps only schema constants. Binary encode/decode belongs
+     * to aether_meta_runtime and is never duplicated into generated bindings.
+     */
+    bool has_tiered_int;
+    uint8_t tiered_int_min_bytes;
+    uint32_t tiered_int_limits[3];
+    size_t tiered_int_limit_count;
+
 
     adsl_stream_t *stream;
 } adsl_type_t;
@@ -91,6 +115,11 @@ typedef struct {
 
 typedef struct {
     char *name;
+
+    /* Physical ADSL declaration origin; see adsl_type_t. */
+    char *source_path;
+    size_t source_line;
+
     bool has_id;
     uint8_t id;
 
@@ -109,6 +138,11 @@ typedef struct {
 
 typedef struct {
     char *name;
+
+    /* Physical ADSL declaration origin; see adsl_type_t. */
+    char *source_path;
+    size_t source_line;
+
 
     /*
      * `abstract: true` in ADSL. Documents intent only: C flattens API

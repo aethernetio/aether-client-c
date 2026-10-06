@@ -1,0 +1,30 @@
+
+types:
+  Node:
+    fields:
+      value: int
+      next: Node?
+      children: Node[]
+
+  RecursiveRoot:
+    fields:
+      rootId: int
+      node: Node
+
+  MutualA:
+    fields:
+      tag: byte
+      child: MutualB
+
+  MutualB:
+    fields:
+      code: short
+      parent: MutualA?
+
+api:
+  RecursiveApi:
+    methods:
+      send:
+        id: 40
+        params:
+          root: RecursiveRoot

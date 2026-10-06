@@ -72,6 +72,17 @@ target_compile_definitions(aether_adslc_test
         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
 )
 
+
+file(MAKE_DIRECTORY
+    "${CMAKE_CURRENT_BINARY_DIR}/test-adsl-output"
+)
+
+target_compile_definitions(aether_adslc_test
+    PRIVATE
+        ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-adsl-output"
+)
+
+
 target_compile_features(aether_adslc_test PRIVATE c_std_11)
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -924,6 +935,10 @@ file(MAKE_DIRECTORY
 
 add_custom_command(
     OUTPUT
+
+        "${AETHER_ADSLC_RESPONSE_METHOD_GENERATED_DIR}/response_method_types.h"
+        "${AETHER_ADSLC_RESPONSE_METHOD_GENERATED_DIR}/response_method_types.c"
+
         "${AETHER_ADSLC_RESPONSE_METHOD_GENERATED_DIR}/response_method_response.h"
         "${AETHER_ADSLC_RESPONSE_METHOD_GENERATED_DIR}/response_method_response.c"
     COMMAND
@@ -941,6 +956,9 @@ add_custom_command(
 
 add_executable(aether_generated_response_method_test
     tests/test_generated_response_method.c
+
+    "${AETHER_ADSLC_RESPONSE_METHOD_GENERATED_DIR}/response_method_types.c"
+
     "${AETHER_ADSLC_RESPONSE_METHOD_GENERATED_DIR}/response_method_response.c"
 )
 
@@ -984,6 +1002,10 @@ file(MAKE_DIRECTORY
 
 add_custom_command(
     OUTPUT
+
+        "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_types.h"
+        "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_types.c"
+
         "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_response.h"
         "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_response.c"
     COMMAND
@@ -1001,6 +1023,9 @@ add_custom_command(
 
 add_executable(aether_generated_response_ping_test
     tests/test_generated_response_ping.c
+
+    "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_types.c"
+
     "${AETHER_ADSLC_RESPONSE_PING_GENERATED_DIR}/response_method_ping_response.c"
 )
 
@@ -1044,6 +1069,10 @@ file(MAKE_DIRECTORY
 
 add_custom_command(
     OUTPUT
+
+        "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_types.h"
+        "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_types.c"
+
         "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_response.h"
         "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_response.c"
     COMMAND
@@ -1061,6 +1090,9 @@ add_custom_command(
 
 add_executable(aether_generated_response_describe_test
     tests/test_generated_response_describe.c
+
+    "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_types.c"
+
     "${AETHER_ADSLC_RESPONSE_DESCRIBE_GENERATED_DIR}/response_method_describe_response.c"
 )
 
@@ -1119,3 +1151,558 @@ foreach(AETHER_GENERATED_TEST_TARGET IN ITEMS
             aether_meta_runtime_test
     )
 endforeach()
+
+
+# Collapsible (`~`) is a semantic ADSL modifier. It must not introduce a
+# different C representation or wire codec. Keep a generated regression
+# target so struct fields, nullable `?~`, and API parameters remain covered.
+set(AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-collapsible"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/collapsible_fields_types.h"
+        "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/collapsible_fields_types.c"
+        "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/collapsible_fields_api.h"
+        "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/collapsible_fields_api.c"
+    COMMAND
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/CollapsibleFields.adsl.yaml"
+        "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}"
+        CollapsibleFields
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/CollapsibleFields.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_collapsible_test
+    tests/test_generated_collapsible.c
+    "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/collapsible_fields_types.c"
+    "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/collapsible_fields_api.c"
+)
+
+target_include_directories(aether_generated_collapsible_test
+    PRIVATE
+        "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_collapsible_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_collapsible_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_generated_collapsible_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_generated_collapsible_test
+    COMMAND aether_generated_collapsible_test
+)
+
+
+# Fixed arrays of generated concrete structs are inline noheap values.
+# Generation must order complete element bodies before T[N] typedefs and keep
+# the Java wire form: exactly N payloads with no dynamic length prefix.
+set(AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-static-struct-array"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/static_struct_array_types.h"
+        "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/static_struct_array_types.c"
+        "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/static_struct_array_api.h"
+        "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/static_struct_array_api.c"
+    COMMAND
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/StaticStructArray.adsl.yaml"
+        "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}"
+        StaticStructArray
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/StaticStructArray.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_static_struct_array_test
+    tests/test_generated_static_struct_array.c
+    "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/static_struct_array_types.c"
+    "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/static_struct_array_api.c"
+)
+
+target_include_directories(aether_generated_static_struct_array_test
+    PRIVATE
+        "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_static_struct_array_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_static_struct_array_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_generated_static_struct_array_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_generated_static_struct_array_test
+    COMMAND aether_generated_static_struct_array_test
+)
+
+
+
+# Nullable API arguments use the same Java wire mask as nullable DTO fields:
+# bit 1 means NULL, nullable arguments alone consume mask bits, and a
+# response-bearing command places request_id before that mask.
+set(AETHER_ADSLC_NULLABLE_API_GENERATED_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-nullable-api"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_types.h"
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_types.c"
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_api.h"
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_api.c"
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_local.h"
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_local.c"
+    COMMAND
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/NullableApiParams.adsl.yaml"
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}"
+        NullableApiParams
+    COMMAND
+        aether-adslc
+        --local-api
+        NullableParamApi
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/NullableApiParams.adsl.yaml"
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}"
+        NullableApiParams
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/NullableApiParams.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_nullable_api_params_test
+    tests/test_generated_nullable_api_params.c
+    "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_types.c"
+    "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_api.c"
+    "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}/nullable_api_params_local.c"
+)
+
+target_include_directories(aether_generated_nullable_api_params_test
+    PRIVATE
+        "${AETHER_ADSLC_NULLABLE_API_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_nullable_api_params_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_nullable_api_params_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_generated_nullable_api_params_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_generated_nullable_api_params_test
+    COMMAND aether_generated_nullable_api_params_test
+)
+
+
+
+
+# Typed throws response parity. Keep the two selected methods in separate
+# generated directories because --response-method emits one complete type pair
+# plus one method-specific response pair per invocation.
+
+set(AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-typed-throws-calculate"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}/typed_throws_types.h"
+        "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}/typed_throws_types.c"
+        "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}/typed_throws_response.h"
+        "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}/typed_throws_response.c"
+    COMMAND
+        aether-adslc
+        --response-method
+        TypedThrowsApi.calculate
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TypedThrows.adsl.yaml"
+        "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}"
+        TypedThrows
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TypedThrows.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_typed_throws_calculate_test
+    tests/test_generated_typed_throws_calculate.c
+    "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}/typed_throws_types.c"
+    "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}/typed_throws_response.c"
+)
+
+target_include_directories(aether_generated_typed_throws_calculate_test
+    PRIVATE
+        "${AETHER_ADSLC_TYPED_THROWS_CALCULATE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_typed_throws_calculate_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_typed_throws_calculate_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_generated_typed_throws_calculate_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_generated_typed_throws_calculate_test
+    COMMAND aether_generated_typed_throws_calculate_test
+)
+
+
+set(AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-typed-throws-notify"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}/typed_throws_types.h"
+        "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}/typed_throws_types.c"
+        "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}/typed_throws_response.h"
+        "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}/typed_throws_response.c"
+    COMMAND
+        aether-adslc
+        --response-method
+        TypedThrowsApi.notify
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TypedThrows.adsl.yaml"
+        "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}"
+        TypedThrows
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TypedThrows.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_typed_throws_notify_test
+    tests/test_generated_typed_throws_notify.c
+    "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}/typed_throws_types.c"
+    "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}/typed_throws_response.c"
+)
+
+target_include_directories(aether_generated_typed_throws_notify_test
+    PRIVATE
+        "${AETHER_ADSLC_TYPED_THROWS_NOTIFY_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_typed_throws_notify_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_typed_throws_notify_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_generated_typed_throws_notify_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_generated_typed_throws_notify_test
+    COMMAND aether_generated_typed_throws_notify_test
+)
+
+
+# TieredInt wire logic is shared runtime code. Generated bindings only provide
+# schema constants and call these helpers.
+add_executable(aether_tiered_int_runtime_test
+    tests/test_tiered_int_runtime.c
+)
+
+target_include_directories(aether_tiered_int_runtime_test
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_tiered_int_runtime_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_tiered_int_runtime_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_tiered_int_runtime_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_tiered_int_runtime_test
+    COMMAND aether_tiered_int_runtime_test
+)
+
+
+
+# Named TieredInt is a scalar schema type whose wire codec lives once in the
+# handwritten runtime. This generated regression protects Java-compatible wire
+# boundaries, nullable pointer semantics, fixed arrays, and struct round trips.
+set(AETHER_ADSLC_TIERED_INT_GENERATED_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-tiered-int"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/tiered_int_types.h"
+        "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/tiered_int_types.c"
+        "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/tiered_int_api.h"
+        "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/tiered_int_api.c"
+    COMMAND
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TieredInt.adsl.yaml"
+        "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}"
+        TieredInt
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TieredInt.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_tiered_int_test
+    tests/test_generated_tiered_int.c
+    "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/tiered_int_types.c"
+    "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/tiered_int_api.c"
+)
+
+target_include_directories(aether_generated_tiered_int_test
+    PRIVATE
+        "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_tiered_int_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_tiered_int_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_generated_tiered_int_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_generated_tiered_int_test
+    COMMAND aether_generated_tiered_int_test
+)
+
+
+# Recursive named structs use the ordinary nullable-mask wire format. Nullable
+# scalar edges and dynamic arrays break the C layout cycle; nested codecs call
+# reusable named serializers/deserializers instead of source-expanding forever.
+set(AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR
+    "${CMAKE_CURRENT_BINARY_DIR}/generated-recursive-struct"
+)
+
+file(MAKE_DIRECTORY
+    "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}"
+)
+
+add_custom_command(
+    OUTPUT
+        "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/recursive_struct_types.h"
+        "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/recursive_struct_types.c"
+        "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/recursive_struct_api.h"
+        "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/recursive_struct_api.c"
+    COMMAND
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/RecursiveStruct.adsl.yaml"
+        "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}"
+        RecursiveStruct
+    DEPENDS
+        aether-adslc
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/RecursiveStruct.adsl.yaml"
+    VERBATIM
+)
+
+add_executable(aether_generated_recursive_struct_test
+    tests/test_generated_recursive_struct.c
+    "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/recursive_struct_types.c"
+    "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/recursive_struct_api.c"
+)
+
+target_include_directories(aether_generated_recursive_struct_test
+    PRIVATE
+        "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+)
+
+target_compile_features(
+    aether_generated_recursive_struct_test
+    PRIVATE
+        c_std_11
+)
+
+
+target_compile_definitions(
+    aether_generated_recursive_struct_test
+    PRIVATE
+        AETHER_META_MAX_RECURSION_DEPTH=4u
+)
+
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_generated_recursive_struct_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+target_link_libraries(
+    aether_generated_recursive_struct_test
+    PRIVATE
+        aether_meta_runtime_test
+)
+
+add_test(
+    NAME aether_generated_recursive_struct_test
+    COMMAND aether_generated_recursive_struct_test
+)

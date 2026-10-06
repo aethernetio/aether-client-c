@@ -1,7 +1,7 @@
-#ifndef CLIENT_SERVER_API_TYPES_H
-#define CLIENT_SERVER_API_TYPES_H
+#ifndef CLIENTSERVERAPI_TYPES_H
+#define CLIENTSERVERAPI_TYPES_H
 
-#include "aether_client.h"
+#include "aether_meta_runtime.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -104,6 +104,8 @@ typedef struct hydrogen_sign_public_t hydrogen_sign_public_t;
 typedef struct sign_a_e_e_d25519_t sign_a_e_e_d25519_t;
 typedef struct sign_h_y_d_r_o_g_e_n_t sign_h_y_d_r_o_g_e_n_t;
 typedef struct signed_key_t signed_key_t;
+typedef struct peer_identity_data_t peer_identity_data_t;
+typedef struct peer_identity_t peer_identity_t;
 typedef struct work_proof_b_crypt_t work_proof_b_crypt_t;
 typedef struct work_proof_d_t_o_t work_proof_d_t_o_t;
 typedef struct i_p_address_v4_t i_p_address_v4_t;
@@ -146,6 +148,9 @@ typedef struct web_rtc_session_t web_rtc_session_t;
 typedef struct client_timing_t client_timing_t;
 typedef struct probe_sample_t probe_sample_t;
 typedef struct probe_report_t probe_report_t;
+typedef struct finish_result_t finish_result_t;
+typedef struct registration_direct_result_t registration_direct_result_t;
+typedef struct recovery_result_t recovery_result_t;
 
 #define KEY_TYPE_SODIUM_CHACHA20_POLY1305 UINT8_C(6)
 #define KEY_TYPE_HYDROGEN_CURVE_PRIVATE UINT8_C(1)
@@ -460,6 +465,22 @@ typedef struct {
 } i_p_address_and_ports_array_view_t;
 #endif
 
+#ifndef AETHER_ADSLC_SIGNED_KEY_ARRAY_VIEW_T_DEFINED
+#define AETHER_ADSLC_SIGNED_KEY_ARRAY_VIEW_T_DEFINED
+typedef struct {
+    const signed_key_t *data;
+    size_t length;
+} signed_key_array_view_t;
+#endif
+
+#ifndef AETHER_ADSLC_SIGNED_KEY_ARRAY_VIEW_T_DEFINED
+#define AETHER_ADSLC_SIGNED_KEY_ARRAY_VIEW_T_DEFINED
+typedef struct {
+    const signed_key_t *data;
+    size_t length;
+} signed_key_array_view_t;
+#endif
+
 #ifndef AETHER_ADSLC_SHORT_ARRAY_VIEW_T_DEFINED
 #define AETHER_ADSLC_SHORT_ARRAY_VIEW_T_DEFINED
 typedef struct {
@@ -548,6 +569,14 @@ typedef struct {
     const probe_sample_t *data;
     size_t length;
 } probe_sample_array_view_t;
+#endif
+
+#ifndef AETHER_ADSLC_SERVER_DESCRIPTOR_ARRAY_VIEW_T_DEFINED
+#define AETHER_ADSLC_SERVER_DESCRIPTOR_ARRAY_VIEW_T_DEFINED
+typedef struct {
+    const server_descriptor_t *data;
+    size_t length;
+} server_descriptor_array_view_t;
 #endif
 
 #ifndef AETHER_ADSLC_UUID_ARRAY_VIEW_T_DEFINED
@@ -923,6 +952,17 @@ struct signed_key_t {
     sign_ref_t sign;
 };
 
+struct peer_identity_data_t {
+    aether_uuid_t uid;
+    key_sign_public_ref_t key;
+};
+
+struct peer_identity_t {
+    peer_identity_data_t data;
+    signed_key_t serverSigningKey;
+    sign_ref_t sign;
+};
+
 struct work_proof_b_crypt_t {
     int8_t costBCrypt;
     int8_t poolSize;
@@ -966,6 +1006,7 @@ struct i_p_address_and_ports_list_t {
 struct server_descriptor_t {
     int16_t id;
     i_p_address_and_ports_list_t ipAddress;
+    signed_key_array_view_t signingKeys;
 };
 
 struct server_descriptor_with_geo_t {
@@ -975,6 +1016,7 @@ struct server_descriptor_with_geo_t {
     double latitude;
     double longitude;
     server_type_t type;
+    signed_key_array_view_t signingKeys;
 };
 
 struct cloud_t {
@@ -1156,412 +1198,825 @@ struct probe_report_t {
     probe_sample_array_view_t samples;
 };
 
+struct finish_result_t {
+    aether_uuid_t alias;
+    aether_uuid_t uid;
+    cloud_t cloud;
+};
+
+struct registration_direct_result_t {
+    aether_uuid_t alias;
+    aether_uuid_t uid;
+    cloud_t cloud;
+};
+
+struct recovery_result_t {
+    aether_uuid_t alias;
+    cloud_t cloud;
+    server_descriptor_array_view_t servers;
+};
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:3 types.Key */
 aether_status_t client_server_api_serialize_key(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key(
+    aether_meta_read_context_t *ctx,
+    key_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:5 types.KeySymmetric */
 aether_status_t client_server_api_serialize_key_symmetric(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_symmetric_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key_symmetric(
+    aether_meta_read_context_t *ctx,
+    key_symmetric_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:8 types.KeyAsymmetric */
 aether_status_t client_server_api_serialize_key_asymmetric(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_asymmetric_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key_asymmetric(
+    aether_meta_read_context_t *ctx,
+    key_asymmetric_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:11 types.KeyAsymmetricPublic */
 aether_status_t client_server_api_serialize_key_asymmetric_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_asymmetric_public_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key_asymmetric_public(
+    aether_meta_read_context_t *ctx,
+    key_asymmetric_public_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:14 types.KeyAsymmetricPrivate */
 aether_status_t client_server_api_serialize_key_asymmetric_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_asymmetric_private_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key_asymmetric_private(
+    aether_meta_read_context_t *ctx,
+    key_asymmetric_private_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:17 types.KeySign */
 aether_status_t client_server_api_serialize_key_sign(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_sign_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key_sign(
+    aether_meta_read_context_t *ctx,
+    key_sign_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:20 types.KeySignPublic */
 aether_status_t client_server_api_serialize_key_sign_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_sign_public_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key_sign_public(
+    aether_meta_read_context_t *ctx,
+    key_sign_public_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:23 types.KeySignPrivate */
 aether_status_t client_server_api_serialize_key_sign_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_sign_private_ref_t *value);
 
+aether_status_t client_server_api_deserialize_key_sign_private(
+    aether_meta_read_context_t *ctx,
+    key_sign_private_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:26 types.SodiumChacha20Poly1305 */
 aether_status_t client_server_api_serialize_sodium_chacha20_poly1305(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sodium_chacha20_poly1305_t *value);
 
+aether_status_t client_server_api_deserialize_sodium_chacha20_poly1305(
+    aether_meta_read_context_t *ctx,
+    sodium_chacha20_poly1305_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:31 types.HydrogenCurvePrivate */
 aether_status_t client_server_api_serialize_hydrogen_curve_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const hydrogen_curve_private_t *value);
 
+aether_status_t client_server_api_deserialize_hydrogen_curve_private(
+    aether_meta_read_context_t *ctx,
+    hydrogen_curve_private_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:36 types.HydrogenCurvePublic */
 aether_status_t client_server_api_serialize_hydrogen_curve_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const hydrogen_curve_public_t *value);
 
+aether_status_t client_server_api_deserialize_hydrogen_curve_public(
+    aether_meta_read_context_t *ctx,
+    hydrogen_curve_public_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:41 types.HydrogenSecretBox */
 aether_status_t client_server_api_serialize_hydrogen_secret_box(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const hydrogen_secret_box_t *value);
 
+aether_status_t client_server_api_deserialize_hydrogen_secret_box(
+    aether_meta_read_context_t *ctx,
+    hydrogen_secret_box_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:46 types.SodiumCurvePublic */
 aether_status_t client_server_api_serialize_sodium_curve_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sodium_curve_public_t *value);
 
+aether_status_t client_server_api_deserialize_sodium_curve_public(
+    aether_meta_read_context_t *ctx,
+    sodium_curve_public_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:51 types.SodiumCurvePrivate */
 aether_status_t client_server_api_serialize_sodium_curve_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sodium_curve_private_t *value);
 
+aether_status_t client_server_api_deserialize_sodium_curve_private(
+    aether_meta_read_context_t *ctx,
+    sodium_curve_private_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:56 types.SodiumSignPrivate */
 aether_status_t client_server_api_serialize_sodium_sign_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sodium_sign_private_t *value);
 
+aether_status_t client_server_api_deserialize_sodium_sign_private(
+    aether_meta_read_context_t *ctx,
+    sodium_sign_private_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:61 types.SodiumSignPublic */
 aether_status_t client_server_api_serialize_sodium_sign_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sodium_sign_public_t *value);
 
+aether_status_t client_server_api_deserialize_sodium_sign_public(
+    aether_meta_read_context_t *ctx,
+    sodium_sign_public_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:66 types.HydrogenSignPrivate */
 aether_status_t client_server_api_serialize_hydrogen_sign_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const hydrogen_sign_private_t *value);
 
+aether_status_t client_server_api_deserialize_hydrogen_sign_private(
+    aether_meta_read_context_t *ctx,
+    hydrogen_sign_private_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:71 types.HydrogenSignPublic */
 aether_status_t client_server_api_serialize_hydrogen_sign_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const hydrogen_sign_public_t *value);
 
+aether_status_t client_server_api_deserialize_hydrogen_sign_public(
+    aether_meta_read_context_t *ctx,
+    hydrogen_sign_public_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:76 types.Sign */
 aether_status_t client_server_api_serialize_sign(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sign_ref_t *value);
 
+aether_status_t client_server_api_deserialize_sign(
+    aether_meta_read_context_t *ctx,
+    sign_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:78 types.SignAE_ED25519 */
 aether_status_t client_server_api_serialize_sign_a_e_e_d25519(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sign_a_e_e_d25519_t *value);
 
+aether_status_t client_server_api_deserialize_sign_a_e_e_d25519(
+    aether_meta_read_context_t *ctx,
+    sign_a_e_e_d25519_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:83 types.SignHYDROGEN */
 aether_status_t client_server_api_serialize_sign_h_y_d_r_o_g_e_n(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sign_h_y_d_r_o_g_e_n_t *value);
 
+aether_status_t client_server_api_deserialize_sign_h_y_d_r_o_g_e_n(
+    aether_meta_read_context_t *ctx,
+    sign_h_y_d_r_o_g_e_n_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:88 types.SignedKey */
 aether_status_t client_server_api_serialize_signed_key(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const signed_key_t *value);
 
+aether_status_t client_server_api_deserialize_signed_key(
+    aether_meta_read_context_t *ctx,
+    signed_key_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:93 types.PeerIdentityData */
+aether_status_t client_server_api_serialize_peer_identity_data(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const peer_identity_data_t *value);
+
+aether_status_t client_server_api_deserialize_peer_identity_data(
+    aether_meta_read_context_t *ctx,
+    peer_identity_data_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:97 types.PeerIdentity */
+aether_status_t client_server_api_serialize_peer_identity(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const peer_identity_t *value);
+
+aether_status_t client_server_api_deserialize_peer_identity(
+    aether_meta_read_context_t *ctx,
+    peer_identity_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:111 types.WorkProofConfig */
 aether_status_t client_server_api_serialize_work_proof_config(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const work_proof_config_ref_t *value);
 
+aether_status_t client_server_api_deserialize_work_proof_config(
+    aether_meta_read_context_t *ctx,
+    work_proof_config_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:113 types.WorkProofBCrypt */
 aether_status_t client_server_api_serialize_work_proof_b_crypt(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const work_proof_b_crypt_t *value);
 
+aether_status_t client_server_api_deserialize_work_proof_b_crypt(
+    aether_meta_read_context_t *ctx,
+    work_proof_b_crypt_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:120 types.WorkProofDTO */
 aether_status_t client_server_api_serialize_work_proof_d_t_o(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const work_proof_d_t_o_t *value);
 
+aether_status_t client_server_api_deserialize_work_proof_d_t_o(
+    aether_meta_read_context_t *ctx,
+    work_proof_d_t_o_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:127 types.IPAddress */
 aether_status_t client_server_api_serialize_i_p_address(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const i_p_address_ref_t *value);
 
+aether_status_t client_server_api_deserialize_i_p_address(
+    aether_meta_read_context_t *ctx,
+    i_p_address_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:129 types.IPAddressV4 */
 aether_status_t client_server_api_serialize_i_p_address_v4(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const i_p_address_v4_t *value);
 
+aether_status_t client_server_api_deserialize_i_p_address_v4(
+    aether_meta_read_context_t *ctx,
+    i_p_address_v4_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:134 types.IPAddressV6 */
 aether_status_t client_server_api_serialize_i_p_address_v6(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const i_p_address_v6_t *value);
 
+aether_status_t client_server_api_deserialize_i_p_address_v6(
+    aether_meta_read_context_t *ctx,
+    i_p_address_v6_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:139 types.IPAddressWeb */
 aether_status_t client_server_api_serialize_i_p_address_web(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const i_p_address_web_t *value);
 
+aether_status_t client_server_api_deserialize_i_p_address_web(
+    aether_meta_read_context_t *ctx,
+    i_p_address_web_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:150 types.CoderAndPort */
 aether_status_t client_server_api_serialize_coder_and_port(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const coder_and_port_t *value);
 
+aether_status_t client_server_api_deserialize_coder_and_port(
+    aether_meta_read_context_t *ctx,
+    coder_and_port_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:154 types.IPAddressAndPorts */
 aether_status_t client_server_api_serialize_i_p_address_and_ports(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const i_p_address_and_ports_t *value);
 
+aether_status_t client_server_api_deserialize_i_p_address_and_ports(
+    aether_meta_read_context_t *ctx,
+    i_p_address_and_ports_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:158 types.IPAddressAndPortsList */
 aether_status_t client_server_api_serialize_i_p_address_and_ports_list(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const i_p_address_and_ports_list_t *value);
 
+aether_status_t client_server_api_deserialize_i_p_address_and_ports_list(
+    aether_meta_read_context_t *ctx,
+    i_p_address_and_ports_list_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:161 types.ServerDescriptor */
 aether_status_t client_server_api_serialize_server_descriptor(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const server_descriptor_t *value);
 
+aether_status_t client_server_api_deserialize_server_descriptor(
+    aether_meta_read_context_t *ctx,
+    server_descriptor_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:166 types.ServerDescriptorWithGeo */
 aether_status_t client_server_api_serialize_server_descriptor_with_geo(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const server_descriptor_with_geo_t *value);
 
+aether_status_t client_server_api_deserialize_server_descriptor_with_geo(
+    aether_meta_read_context_t *ctx,
+    server_descriptor_with_geo_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:175 types.Cloud */
 aether_status_t client_server_api_serialize_cloud(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const cloud_t *value);
 
+aether_status_t client_server_api_deserialize_cloud(
+    aether_meta_read_context_t *ctx,
+    cloud_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:183 types.MoneyOperation */
 aether_status_t client_server_api_serialize_money_operation(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const money_operation_t *value);
 
+aether_status_t client_server_api_deserialize_money_operation(
+    aether_meta_read_context_t *ctx,
+    money_operation_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:192 types.AccessGroup */
 aether_status_t client_server_api_serialize_access_group(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const access_group_t *value);
 
+aether_status_t client_server_api_deserialize_access_group(
+    aether_meta_read_context_t *ctx,
+    access_group_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:198 types.UUIDAndCloud */
 aether_status_t client_server_api_serialize_u_u_i_d_and_cloud(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const u_u_i_d_and_cloud_t *value);
 
+aether_status_t client_server_api_deserialize_u_u_i_d_and_cloud(
+    aether_meta_read_context_t *ctx,
+    u_u_i_d_and_cloud_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:203 types.CloudConfig */
 aether_status_t client_server_api_serialize_cloud_config(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const cloud_config_t *value);
 
+aether_status_t client_server_api_deserialize_cloud_config(
+    aether_meta_read_context_t *ctx,
+    cloud_config_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:209 types.AppliedConfig */
 aether_status_t client_server_api_serialize_applied_config(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const applied_config_t *value);
 
+aether_status_t client_server_api_deserialize_applied_config(
+    aether_meta_read_context_t *ctx,
+    applied_config_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:216 types.PairKeys */
 aether_status_t client_server_api_serialize_pair_keys(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const pair_keys_ref_t *value);
 
+aether_status_t client_server_api_deserialize_pair_keys(
+    aether_meta_read_context_t *ctx,
+    pair_keys_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:218 types.PairKeysSign */
 aether_status_t client_server_api_serialize_pair_keys_sign(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const pair_keys_sign_t *value);
 
+aether_status_t client_server_api_deserialize_pair_keys_sign(
+    aether_meta_read_context_t *ctx,
+    pair_keys_sign_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:224 types.PairKeysAsym */
 aether_status_t client_server_api_serialize_pair_keys_asym(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const pair_keys_asym_t *value);
 
+aether_status_t client_server_api_deserialize_pair_keys_asym(
+    aether_meta_read_context_t *ctx,
+    pair_keys_asym_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:230 types.PairKeysAsymSigned */
 aether_status_t client_server_api_serialize_pair_keys_asym_signed(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const pair_keys_asym_signed_t *value);
 
+aether_status_t client_server_api_deserialize_pair_keys_asym_signed(
+    aether_meta_read_context_t *ctx,
+    pair_keys_asym_signed_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:236 types.PairKeysSym */
 aether_status_t client_server_api_serialize_pair_keys_sym(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const pair_keys_sym_t *value);
 
+aether_status_t client_server_api_deserialize_pair_keys_sym(
+    aether_meta_read_context_t *ctx,
+    pair_keys_sym_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:242 types.AccessCheckPair */
 aether_status_t client_server_api_serialize_access_check_pair(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const access_check_pair_t *value);
 
+aether_status_t client_server_api_deserialize_access_check_pair(
+    aether_meta_read_context_t *ctx,
+    access_check_pair_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:246 types.AccessCheckResult */
 aether_status_t client_server_api_serialize_access_check_result(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const access_check_result_t *value);
 
+aether_status_t client_server_api_deserialize_access_check_result(
+    aether_meta_read_context_t *ctx,
+    access_check_result_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:252 types.IpInfo */
 aether_status_t client_server_api_serialize_ip_info(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const ip_info_t *value);
 
+aether_status_t client_server_api_deserialize_ip_info(
+    aether_meta_read_context_t *ctx,
+    ip_info_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:262 types.P256AesGcmSymmetric */
 aether_status_t client_server_api_serialize_p256_aes_gcm_symmetric(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const p256_aes_gcm_symmetric_t *value);
 
+aether_status_t client_server_api_deserialize_p256_aes_gcm_symmetric(
+    aether_meta_read_context_t *ctx,
+    p256_aes_gcm_symmetric_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:267 types.P256AesGcmCurvePrivate */
 aether_status_t client_server_api_serialize_p256_aes_gcm_curve_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const p256_aes_gcm_curve_private_t *value);
 
+aether_status_t client_server_api_deserialize_p256_aes_gcm_curve_private(
+    aether_meta_read_context_t *ctx,
+    p256_aes_gcm_curve_private_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:272 types.P256AesGcmCurvePublic */
 aether_status_t client_server_api_serialize_p256_aes_gcm_curve_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const p256_aes_gcm_curve_public_t *value);
 
+aether_status_t client_server_api_deserialize_p256_aes_gcm_curve_public(
+    aether_meta_read_context_t *ctx,
+    p256_aes_gcm_curve_public_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:277 types.P256AesGcmSignPrivate */
 aether_status_t client_server_api_serialize_p256_aes_gcm_sign_private(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const p256_aes_gcm_sign_private_t *value);
 
+aether_status_t client_server_api_deserialize_p256_aes_gcm_sign_private(
+    aether_meta_read_context_t *ctx,
+    p256_aes_gcm_sign_private_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:282 types.P256AesGcmSignPublic */
 aether_status_t client_server_api_serialize_p256_aes_gcm_sign_public(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const p256_aes_gcm_sign_public_t *value);
 
+aether_status_t client_server_api_deserialize_p256_aes_gcm_sign_public(
+    aether_meta_read_context_t *ctx,
+    p256_aes_gcm_sign_public_t *value);
+
+/* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:287 types.SignP256AesGcm */
 aether_status_t client_server_api_serialize_sign_p256_aes_gcm(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const sign_p256_aes_gcm_t *value);
 
+aether_status_t client_server_api_deserialize_sign_p256_aes_gcm(
+    aether_meta_read_context_t *ctx,
+    sign_p256_aes_gcm_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:7 types.Telemetry */
 aether_status_t client_server_api_serialize_telemetry(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const telemetry_ref_t *value);
 
+aether_status_t client_server_api_deserialize_telemetry(
+    aether_meta_read_context_t *ctx,
+    telemetry_ref_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:9 types.TelemetryCPP */
 aether_status_t client_server_api_serialize_telemetry_c_p_p(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const telemetry_c_p_p_t *value);
 
+aether_status_t client_server_api_deserialize_telemetry_c_p_p(
+    aether_meta_read_context_t *ctx,
+    telemetry_c_p_p_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:37 types.Message */
 aether_status_t client_server_api_serialize_message(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const message_t *value);
 
+aether_status_t client_server_api_deserialize_message(
+    aether_meta_read_context_t *ctx,
+    message_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:53 types.ClientActivity */
 aether_status_t client_server_api_serialize_client_activity(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const client_activity_t *value);
 
+aether_status_t client_server_api_deserialize_client_activity(
+    aether_meta_read_context_t *ctx,
+    client_activity_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:61 types.KeyValuePair */
 aether_status_t client_server_api_serialize_key_value_pair(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const key_value_pair_t *value);
 
+aether_status_t client_server_api_deserialize_key_value_pair(
+    aether_meta_read_context_t *ctx,
+    key_value_pair_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:66 types.ClientLogEntry */
 aether_status_t client_server_api_serialize_client_log_entry(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const client_log_entry_t *value);
 
+aether_status_t client_server_api_deserialize_client_log_entry(
+    aether_meta_read_context_t *ctx,
+    client_log_entry_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:72 types.ClientConnectionInfo */
 aether_status_t client_server_api_serialize_client_connection_info(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const client_connection_info_t *value);
 
+aether_status_t client_server_api_deserialize_client_connection_info(
+    aether_meta_read_context_t *ctx,
+    client_connection_info_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:79 types.MessageInfo */
 aether_status_t client_server_api_serialize_message_info(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const message_info_t *value);
 
+aether_status_t client_server_api_deserialize_message_info(
+    aether_meta_read_context_t *ctx,
+    message_info_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:88 types.Uap */
 aether_status_t client_server_api_serialize_uap(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const uap_t *value);
 
+aether_status_t client_server_api_deserialize_uap(
+    aether_meta_read_context_t *ctx,
+    uap_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:94 types.IceCandidate */
 aether_status_t client_server_api_serialize_ice_candidate(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const ice_candidate_t *value);
 
+aether_status_t client_server_api_deserialize_ice_candidate(
+    aether_meta_read_context_t *ctx,
+    ice_candidate_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:97 types.WebRtcSession */
 aether_status_t client_server_api_serialize_web_rtc_session(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const web_rtc_session_t *value);
 
+aether_status_t client_server_api_deserialize_web_rtc_session(
+    aether_meta_read_context_t *ctx,
+    web_rtc_session_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:102 types.ClientTiming */
 aether_status_t client_server_api_serialize_client_timing(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const client_timing_t *value);
 
+aether_status_t client_server_api_deserialize_client_timing(
+    aether_meta_read_context_t *ctx,
+    client_timing_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:107 types.ProbeSample */
 aether_status_t client_server_api_serialize_probe_sample(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const probe_sample_t *value);
 
+aether_status_t client_server_api_deserialize_probe_sample(
+    aether_meta_read_context_t *ctx,
+    probe_sample_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:111 types.ProbeReport */
 aether_status_t client_server_api_serialize_probe_report(
     uint8_t *tx,
     size_t tx_capacity,
     size_t *position,
     const probe_report_t *value);
+
+aether_status_t client_server_api_deserialize_probe_report(
+    aether_meta_read_context_t *ctx,
+    probe_report_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:118 types.FinishResult */
+aether_status_t client_server_api_serialize_finish_result(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const finish_result_t *value);
+
+aether_status_t client_server_api_deserialize_finish_result(
+    aether_meta_read_context_t *ctx,
+    finish_result_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:124 types.RegistrationDirectResult */
+aether_status_t client_server_api_serialize_registration_direct_result(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const registration_direct_result_t *value);
+
+aether_status_t client_server_api_deserialize_registration_direct_result(
+    aether_meta_read_context_t *ctx,
+    registration_direct_result_t *value);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:130 types.RecoveryResult */
+aether_status_t client_server_api_serialize_recovery_result(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const recovery_result_t *value);
+
+aether_status_t client_server_api_deserialize_recovery_result(
+    aether_meta_read_context_t *ctx,
+    recovery_result_t *value);
 
 #endif

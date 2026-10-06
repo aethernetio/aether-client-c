@@ -1,0 +1,15 @@
+name: InvalidCollapsibleStructKey
+
+types:
+  Key:
+    fields:
+      id: int
+
+api:
+  BadApi:
+    methods:
+      bad:
+        id: 3
+        params:
+          key: Key
+          value: int~

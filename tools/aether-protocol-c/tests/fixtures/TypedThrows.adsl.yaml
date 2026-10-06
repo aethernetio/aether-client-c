@@ -1,0 +1,22 @@
+
+types:
+  TypedFailure:
+    fields:
+      code: short
+      message: String
+
+api:
+  TypedThrowsApi:
+    methods:
+      calculate:
+        id: 31
+        params:
+          value: short
+        returns: short
+        throws: TypedFailure
+
+      notify:
+        id: 32
+        params:
+          value: byte
+        throws: TypedFailure

@@ -1,0 +1,9 @@
+
+types:
+  MutualA:
+    fields:
+      child: MutualB
+
+  MutualB:
+    fields:
+      parent: MutualA

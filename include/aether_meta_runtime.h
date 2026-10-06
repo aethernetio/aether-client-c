@@ -43,7 +43,22 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <string.h>
+
 #include "aether_client.h"
+
+
+/*
+ * Maximum named-type recursion depth accepted by generated ADSL codecs.
+ *
+ * Recursive schemas are valid, but a cyclic in-memory graph or hostile deeply
+ * nested input must not consume an unbounded MCU stack. Applications may lower
+ * this compile-time limit for smaller stacks without changing generated APIs.
+ */
+#ifndef AETHER_META_MAX_RECURSION_DEPTH
+#define AETHER_META_MAX_RECURSION_DEPTH 32u
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,6 +76,41 @@ extern "C" {
    size_t length;
    size_t position;
   } aether_meta_reader_t;
+
+
+
+/*
+ * Java DataOut.writeFloat/writeDouble use Float.floatToIntBits and
+ * Double.doubleToLongBits. Both canonicalize every NaN payload while
+ * preserving the sign bit of zero. Keep this conversion shared so ordinary
+ * wire serialization and collapsible METHOD key equality cannot diverge.
+ */
+static inline uint32_t aether_meta_java_float_bits(float value) {
+    uint32_t bits;
+    memcpy(&bits, &value, sizeof(bits));
+
+    if ((bits & UINT32_C(0x7f800000)) == UINT32_C(0x7f800000) &&
+        (bits & UINT32_C(0x007fffff)) != 0u) {
+
+        return UINT32_C(0x7fc00000);
+    }
+
+    return bits;
+}
+
+static inline uint64_t aether_meta_java_double_bits(double value) {
+    uint64_t bits;
+    memcpy(&bits, &value, sizeof(bits));
+
+    if ((bits & UINT64_C(0x7ff0000000000000)) ==
+            UINT64_C(0x7ff0000000000000) &&
+        (bits & UINT64_C(0x000fffffffffffff)) != 0u) {
+
+        return UINT64_C(0x7ff8000000000000);
+    }
+
+    return bits;
+}
 
 
 
@@ -143,6 +193,36 @@ aether_status_t aether_meta_write_u64le(
 - option to inline or locally share the primitive according to its -Os cost
 - model while preserving a single implementation source.
    */
+
+/*
+ * Canonical unsigned TieredInt codec shared by every generated named
+ * tieredInt type.
+ *
+ * The configuration is compile-time schema data supplied by generated code.
+ * The wire algorithm lives here exactly once so adding more tieredInt types
+ * does not duplicate encode/decode logic in firmware.
+ *
+ * Values are restricted to INT64_MAX for wire compatibility with the Java
+ * FastMeta implementation, whose public value type is Long.
+ */
+aether_status_t aether_meta_write_tiered_int(
+    uint8_t *data,
+    size_t capacity,
+    size_t *position,
+    uint64_t value,
+    uint8_t min_tier_bytes,
+    const uint32_t *limits,
+    size_t limit_count);
+
+bool aether_meta_read_tiered_int(
+    aether_meta_reader_t *reader,
+    uint64_t *value,
+    uint8_t min_tier_bytes,
+    const uint32_t *limits,
+    size_t limit_count);
+
+
+
   static inline bool aether_meta_read_u8(
 
     aether_meta_reader_t *reader,
@@ -576,6 +656,65 @@ static inline void *aether_meta_scratch_alloc(
     return (void *)aligned_address;
 }
 
+
+
+
+
+/*
+ * Allocation-free FIFO used by generated collapsible METHOD bindings.
+ *
+ * The queue owns no storage. `items` is a caller-supplied descriptor array;
+ * actual retained METHOD entries remain in their generated caller-owned
+ * contexts. A method is registered only when it transitions from empty to
+ * pending, matching Java's one LazyPacket per pending collapsible method.
+ *
+ * Serialization is transactional with respect to logical state: callbacks may
+ * touch the caller TX buffer while probing capacity, but no METHOD context is
+ * committed and no queue entry is removed until the whole batch has serialized
+ * and the external send callback succeeds.
+ */
+typedef aether_status_t (*aether_meta_collapse_serialize_fn)(
+    void *ctx,
+    uint8_t *data,
+    size_t capacity,
+    size_t *position);
+
+typedef void (*aether_meta_collapse_commit_fn)(
+    void *ctx);
+
+typedef aether_status_t (*aether_meta_collapse_send_fn)(
+    void *ctx,
+    const uint8_t *data,
+    size_t length);
+
+typedef struct {
+    void *ctx;
+    aether_meta_collapse_serialize_fn serialize;
+    aether_meta_collapse_commit_fn commit;
+} aether_meta_collapse_pending_t;
+
+typedef struct {
+    aether_meta_collapse_pending_t *items;
+    size_t capacity;
+    size_t count;
+} aether_meta_collapse_queue_t;
+
+aether_status_t aether_meta_collapse_queue_register(
+    aether_meta_collapse_queue_t *queue,
+    void *ctx,
+    aether_meta_collapse_serialize_fn serialize,
+    aether_meta_collapse_commit_fn commit);
+
+void aether_meta_collapse_queue_cancel(
+    aether_meta_collapse_queue_t *queue,
+    void *ctx);
+
+aether_status_t aether_meta_collapse_queue_flush(
+    aether_meta_collapse_queue_t *queue,
+    void *send_ctx,
+    aether_meta_collapse_send_fn send,
+    uint8_t *data,
+    size_t capacity);
 
 
 

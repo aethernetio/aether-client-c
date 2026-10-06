@@ -1,0 +1,44 @@
+
+name: CollapsibleFields
+
+types:
+  Reading:
+    fields:
+      sensorId: long
+      temperature: float~
+      alias: String?~
+
+api:
+  CollapsibleApi:
+    methods:
+      update:
+        id: 3
+        params:
+          sensorId: long
+          temperature: float~
+
+      updateText:
+        id: 4
+        params:
+          key: string
+          value: string~
+
+
+      updateNullable:
+        id: 5
+        params:
+          key: int?
+          value: int?~
+
+
+      updateFloat:
+        id: 6
+        params:
+          key: float
+          value: int~
+
+      updateDouble:
+        id: 7
+        params:
+          key: double
+          value: int~

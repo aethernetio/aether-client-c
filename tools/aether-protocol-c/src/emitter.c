@@ -37,6 +37,57 @@ static void set_error(
     }
 }
 
+
+
+/*
+ * Generated-origin comments are intentionally stable and grep-friendly.
+ *
+ * They are part of the generated-code usability contract: a developer or AI
+ * should be able to jump from a C symbol to the physical ADSL declaration
+ * without reading the generator implementation.
+ */
+static void emit_type_origin(
+    FILE *output,
+    const adsl_type_t *type) {
+
+    fprintf(
+        output,
+        "/* ADSL: %s:%zu types.%s */\n",
+        type->source_path != NULL
+            ? type->source_path
+            : "<unknown>",
+        type->source_line,
+        type->name);
+}
+
+
+static void emit_method_origin(
+    FILE *output,
+    const adsl_api_t *owner,
+    const adsl_method_t *method) {
+
+    const char *source_path =
+        method->source_path != NULL
+            ? method->source_path
+            : owner->source_path != NULL
+                ? owner->source_path
+                : "<unknown>";
+
+    size_t source_line =
+        method->source_line != 0u
+            ? method->source_line
+            : owner->source_line;
+
+    fprintf(
+        output,
+        "/* ADSL: %s:%zu api.%s.methods.%s */\n",
+        source_path,
+        source_line,
+        owner->name,
+        method->name);
+}
+
+
 static void snake_name(
     const char *source,
     char *target,
@@ -344,16 +395,22 @@ static bool emit_hierarchy_ref(
     char *error,
     size_t error_capacity);
 
+
 static bool emit_hierarchy_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const adsl_type_t *static_type,
     const char *expression,
     const char *prefix,
     bool reference_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
+
 
 static bool emit_all_struct_dependencies(
     FILE *output,
@@ -392,16 +449,22 @@ static bool emit_all_nullable_mask_bits(
     char *error,
     size_t error_capacity);
 
+
 static bool emit_all_struct_payload(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const adsl_type_t *type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
+
 
 static bool parse_array_type(
 
@@ -551,11 +614,17 @@ static bool strip_nullable_suffix(
         return false;
     }
 
+    /*
+     * Java TypeInfo parses '~' before '?'. Both are semantic suffix
+     * modifiers and neither changes the underlying wire representation.
+     * Strip the complete modifier suffix before normal type/codec lookup.
+     */
     size_t length =
         strlen(type);
 
-    if (length > 0u &&
-        type[length - 1u] == '?') {
+    while (length > 0u &&
+           (type[length - 1u] == '?' ||
+            type[length - 1u] == '~')) {
 
         length--;
     }
@@ -762,25 +831,7 @@ static bool emit_array_alias(
         return true;
     }
 
-    const adsl_type_t *declared =
-        find_declared_type(
-            document,
-            element);
 
-    if (!dynamic &&
-        declared != NULL &&
-        declared->enum_count == 0u &&
-        !type_is_polymorphic_reference(
-            document,
-            declared)) {
-
-        set_error(
-            error,
-            error_capacity,
-            "milestone-2 static arrays of concrete generated structs are not yet supported");
-
-        return false;
-    }
 
     char alias[256];
 
@@ -865,27 +916,92 @@ static bool emit_array_alias(
     return true;
 }
 
+
+/*
+ * A fixed-size array embeds its elements inline. If the element is a normal
+ * generated struct, C therefore requires the struct body to be complete
+ * before the array typedef is emitted. Dynamic arrays contain only a pointer,
+ * while enums, hierarchy refs, streams and primitives are already complete at
+ * the early alias-emission stage.
+ */
+static bool array_alias_requires_complete_element(
+    const adsl_document_t *document,
+    const char *type) {
+
+    if (document == NULL ||
+        type == NULL) {
+
+        return false;
+    }
+
+    char element[128];
+    bool dynamic;
+    size_t static_size;
+
+    if (!parse_array_type(
+            type,
+            element,
+            sizeof(element),
+            &dynamic,
+            &static_size) ||
+        dynamic) {
+
+        return false;
+    }
+
+    (void)static_size;
+
+    const adsl_type_t *declared =
+        find_declared_type(
+            document,
+            element);
+
+
+    return declared != NULL &&
+           !declared->has_tiered_int &&
+           declared->enum_count == 0u &&
+           !declared->is_abstract &&
+           declared->stream == NULL &&
+           !type_is_polymorphic_reference(
+               document,
+               declared);
+
+}
+
+
+
 static bool emit_array_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const char *type,
     const char *expression,
     const char *prefix,
     bool array_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
+
+
 
 static bool emit_struct_value_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const adsl_type_t *declared_type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
+
 
 
 static bool emit_decode_value_expression(
@@ -895,6 +1011,9 @@ static bool emit_decode_value_expression(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
 
@@ -905,6 +1024,9 @@ static bool emit_decode_struct_fields(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
 
@@ -915,6 +1037,9 @@ static bool emit_decode_hierarchy_expression(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
 
@@ -925,6 +1050,9 @@ static bool emit_decode_array_expression(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
 
@@ -1012,6 +1140,13 @@ static c_param_kind_t classify_param_kind(
     }
 
 
+
+    if (declared->has_tiered_int) {
+        *valid = true;
+        return C_PARAM_KIND_SCALAR;
+    }
+
+
     if (declared->stream != NULL) {
         /*
          * Declared stream parameters use the same pointer ABI as anonymous
@@ -1040,6 +1175,62 @@ static c_param_kind_t classify_param_kind(
     *valid = true;
     return C_PARAM_KIND_ROOT_STRUCT;
 }
+
+
+
+static size_t method_nullable_param_count(
+    const adsl_method_t *method) {
+
+    if (method == NULL) {
+        return 0u;
+    }
+
+    size_t count = 0u;
+
+    for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        const adsl_param_t *param =
+            &method->params[p];
+
+        if (param->type != NULL &&
+            strchr(param->type, '?') != NULL) {
+
+            count++;
+        }
+    }
+
+    return count;
+}
+
+
+static size_t nullable_mask_width(
+    size_t nullable_count) {
+
+    if (nullable_count == 0u) {
+        return 0u;
+    }
+
+    if (nullable_count <= 8u) {
+        return 1u;
+    }
+
+    if (nullable_count <= 16u) {
+        return 2u;
+    }
+
+    if (nullable_count <= 32u) {
+        return 4u;
+    }
+
+    if (nullable_count <= 64u) {
+        return 8u;
+    }
+
+    return 0u;
+}
+
 
 
 static bool emit_parameter_type(
@@ -1090,16 +1281,81 @@ declared_c_name(
         return true;
     }
 
-    if (strchr(type, '?') != NULL ||
-        strchr(type, '~') != NULL) {
 
-        set_error(
-            error,
-            error_capacity,
-            "milestone-2 emitter does not yet support nullable/collapsible parameters");
 
-        return false;
+    if (strchr(type, '?') != NULL) {
+        /*
+         * Nullable method arguments are pointer-shaped in C. NULL represents
+         * an absent value; the shared method mask carries that fact on wire.
+         * Types that are already pointer-shaped keep their normal ABI.
+         */
+        char cleaned[256];
+
+        if (!strip_nullable_suffix(
+                type,
+                cleaned,
+                sizeof(cleaned))) {
+
+            set_error(
+                error,
+                error_capacity,
+                "nullable API parameter type is too long");
+
+            return false;
+        }
+
+        adsl_param_t underlying =
+            *param;
+
+        underlying.type =
+            cleaned;
+
+        bool valid = false;
+        c_param_kind_t kind =
+            classify_param_kind(
+                document,
+                &underlying,
+                &valid);
+
+        if (!valid) {
+            set_error(
+                error,
+                error_capacity,
+                "unsupported nullable API parameter type");
+
+            return false;
+        }
+
+        bool add_pointer =
+            kind == C_PARAM_KIND_SCALAR ||
+            kind == C_PARAM_KIND_DYNAMIC_VIEW;
+
+        if (add_pointer) {
+            fputs(
+                "const ",
+                output);
+        }
+
+        if (!emit_parameter_type(
+                output,
+                document,
+                &underlying,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        if (add_pointer) {
+            fputs(
+                " *",
+                output);
+        }
+
+        return true;
     }
+
+
 
     char array_element[128];
     bool array_dynamic;
@@ -1197,6 +1453,17 @@ declared_c_name(
         declared_type->name,
         generated_name,
         sizeof(generated_name));
+
+
+
+    if (declared_type->has_tiered_int) {
+        fprintf(
+            output,
+            "%s_t",
+            generated_name);
+
+        return true;
+    }
 
 
     if (declared_type->stream != NULL) {
@@ -1331,12 +1598,11 @@ static bool emit_fixed_expression(
 
         runtime_fn = "aether_meta_write_u64le";
         cast_type = "uint64_t";
-    } else if (strcmp(base, "float") == 0) {
+} else if (strcmp(base, "float") == 0) {
         fprintf(
             output,
             "    {\n"
-            "        uint32_t bits;\n"
-            "        memcpy(&bits, &%s, sizeof(bits));\n"
+            "        uint32_t bits = aether_meta_java_float_bits(%s);\n"
             "        aether_status_t meta_status = aether_meta_write_u32le(tx, tx_capacity, &pos, bits);\n"
             "        if (meta_status != AETHER_OK) return meta_status;\n"
             "    }\n",
@@ -1347,8 +1613,7 @@ static bool emit_fixed_expression(
         fprintf(
             output,
             "    {\n"
-            "        uint64_t bits;\n"
-            "        memcpy(&bits, &%s, sizeof(bits));\n"
+            "        uint64_t bits = aether_meta_java_double_bits(%s);\n"
             "        aether_status_t meta_status = aether_meta_write_u64le(tx, tx_capacity, &pos, bits);\n"
             "        if (meta_status != AETHER_OK) return meta_status;\n"
             "    }\n",
@@ -1421,16 +1686,22 @@ static void emit_bytes_view_expression(
 }
 
 
+
 static bool emit_value_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const char *type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity);
+
 
 static bool emit_struct_definition(
     FILE *output,
@@ -1499,16 +1770,98 @@ static bool emit_serialize_param(
         return true;
     }
 
-    if (strchr(param->type, '?') != NULL ||
-        strchr(param->type, '~') != NULL) {
 
-        set_error(
-            error,
-            error_capacity,
-            "milestone-2 emitter does not yet serialize nullable/collapsible parameters");
 
-        return false;
+    if (strchr(param->type, '?') != NULL) {
+        char cleaned[256];
+
+        if (!strip_nullable_suffix(
+                param->type,
+                cleaned,
+                sizeof(cleaned))) {
+
+            set_error(
+                error,
+                error_capacity,
+                "nullable API parameter type is too long");
+
+            return false;
+        }
+
+        adsl_param_t underlying =
+            *param;
+
+        underlying.type =
+            cleaned;
+
+        bool valid = false;
+        c_param_kind_t kind =
+            classify_param_kind(
+                document,
+                &underlying,
+                &valid);
+
+        if (!valid) {
+            set_error(
+                error,
+                error_capacity,
+                "unsupported nullable API parameter type");
+
+            return false;
+        }
+
+        char dereferenced_name[320];
+
+        if (kind == C_PARAM_KIND_SCALAR ||
+            kind == C_PARAM_KIND_DYNAMIC_VIEW) {
+
+            int written =
+                snprintf(
+                    dereferenced_name,
+                    sizeof(dereferenced_name),
+                    "(*%s)",
+                    param->name);
+
+            if (written < 0 ||
+                (size_t)written >=
+                    sizeof(dereferenced_name)) {
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "generated nullable parameter expression is too long");
+
+                return false;
+            }
+
+            underlying.name =
+                dereferenced_name;
+        }
+
+        fprintf(
+            output,
+            "    if (%s != NULL) {\n",
+            param->name);
+
+        if (!emit_serialize_param(
+                output,
+                document,
+                base_snake,
+                &underlying,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        fputs(
+            "    }\n",
+            output);
+
+        return true;
     }
+
+
 
     char array_element[128];
     bool array_dynamic;
@@ -1527,11 +1880,17 @@ static bool emit_serialize_param(
         return emit_array_expression(
             output,
             document,
+
+            base_snake,
+
             param->type,
             param->name,
             param->name,
             !array_dynamic,
             0u,
+
+            NULL,
+
             error,
             error_capacity);
     }
@@ -1591,21 +1950,177 @@ static bool emit_serialize_param(
     }
 
 
+
     bool struct_pointer =
         declared_type != NULL &&
-        declared_type->enum_count == 0u;
+        declared_type->enum_count == 0u &&
+        !declared_type->has_tiered_int;
+
 
     return emit_value_expression(
         output,
         document,
+
+        base_snake,
+
         param->type,
         param->name,
         param->name,
         struct_pointer,
         0u,
+
+        NULL,
+
         error,
         error_capacity);
 }
+
+
+
+
+static bool emit_remote_nullable_param_mask(
+    FILE *output,
+    const adsl_method_t *method,
+    const char *param_prefix,
+    char *error,
+    size_t error_capacity) {
+
+    size_t nullable_count =
+        method_nullable_param_count(
+            method);
+
+    if (nullable_count == 0u) {
+        return true;
+    }
+
+    size_t mask_width =
+        nullable_mask_width(
+            nullable_count);
+
+    if (mask_width == 0u) {
+        set_error(
+            error,
+            error_capacity,
+            "API method has more than 64 nullable parameters");
+
+        return false;
+    }
+
+    if (param_prefix == NULL) {
+        param_prefix = "";
+    }
+
+    fputs(
+        "    uint64_t _meta_nullable_mask = UINT64_C(0);\n",
+        output);
+
+    size_t bit_index = 0u;
+
+    for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        const adsl_param_t *param =
+            &method->params[p];
+
+        if (param->type == NULL ||
+            strchr(param->type, '?') == NULL) {
+
+            continue;
+        }
+
+        fprintf(
+            output,
+            "    if (%s%s == NULL) _meta_nullable_mask |= "
+            "(UINT64_C(1) << %zuu);\n",
+            param_prefix,
+            param->name,
+            bit_index);
+
+        bit_index++;
+    }
+
+    fprintf(
+        output,
+        "    if (pos + %zuu > tx_capacity) return AETHER_ERR_OVERFLOW;\n",
+        mask_width);
+
+    for (size_t byte_index = 0u;
+         byte_index < mask_width;
+         ++byte_index) {
+
+        fprintf(
+            output,
+            "    tx[pos++] = (uint8_t)"
+            "((_meta_nullable_mask >> %zuu) & UINT64_C(0xff));\n",
+            byte_index * 8u);
+    }
+
+    fputc(
+        '\n',
+        output);
+
+    return true;
+}
+
+
+
+static bool emit_local_nullable_param_mask(
+    FILE *output,
+    const adsl_method_t *method,
+    char *error,
+    size_t error_capacity) {
+
+    size_t nullable_count =
+        method_nullable_param_count(
+            method);
+
+    if (nullable_count == 0u) {
+        return true;
+    }
+
+    size_t mask_width =
+        nullable_mask_width(
+            nullable_count);
+
+    if (mask_width == 0u) {
+        set_error(
+            error,
+            error_capacity,
+            "API method has more than 64 nullable parameters");
+
+        return false;
+    }
+
+    fputs(
+        "        uint64_t _meta_nullable_mask = UINT64_C(0);\n",
+        output);
+
+    for (size_t byte_index = 0u;
+         byte_index < mask_width;
+         ++byte_index) {
+
+        fprintf(
+            output,
+            "        {\n"
+            "            uint8_t _meta_mask_byte = 0u;\n"
+            "            if (!aether_meta_read_u8("
+            "&ctx->reader, &_meta_mask_byte)) {\n"
+            "                return AETHER_ERR_PROTOCOL;\n"
+            "            }\n"
+            "            _meta_nullable_mask |= "
+            "((uint64_t)_meta_mask_byte) << %zuu;\n"
+            "        }\n",
+            byte_index * 8u);
+    }
+
+    fputc(
+        '\n',
+        output);
+
+    return true;
+}
+
 
 static bool emit_stream_typedef(
     FILE *output,
@@ -1691,6 +2206,39 @@ static bool emit_types_header(
         "#include <stdint.h>\n\n",
         guard,
         guard);
+
+
+
+    /*
+     * Named TieredInt types are scalar ABI types. The limits array is declared
+     * once here and defined once in types.c; every generated call site reuses
+     * that same schema constant while the wire algorithm stays in runtime.
+     */
+    for (size_t i = 0u;
+         i < document->type_count;
+         ++i) {
+
+        const adsl_type_t *type =
+            &document->types[i];
+
+        if (!type->has_tiered_int) {
+            continue;
+        }
+
+        char type_name[256];
+        declared_c_name(
+            type->name,
+            type_name,
+            sizeof(type_name));
+
+        fprintf(
+            output,
+            "typedef uint64_t %s_t;\n"
+            "extern const uint32_t %s_tiered_int_limits[%zu];\n\n",
+            type_name,
+            type_name,
+            type->tiered_int_limit_count);
+    }
 
 
 for (size_t i = 0u;
@@ -1818,9 +2366,12 @@ declared_c_name(
             &document->types[i];
 
 
+
 if (type->enum_count > 0u ||
             type->is_abstract ||
-            type->stream != NULL) {
+            type->stream != NULL ||
+            type->has_tiered_int) {
+
 
 
             continue;
@@ -1879,7 +2430,15 @@ declared_c_name(
              f < type->field_count;
              ++f) {
 
-            if (!emit_array_alias(
+
+            /*
+             * Fixed arrays of concrete structs need a complete element body.
+             * Their alias is emitted by the struct dependency walker instead.
+             */
+            if (!array_alias_requires_complete_element(
+                    document,
+                    type->fields[f].type) &&
+                !emit_array_alias(
                     output,
                     document,
                     type->fields[f].type,
@@ -1889,6 +2448,7 @@ declared_c_name(
                 fclose(output);
                 return false;
             }
+
         }
     }
 
@@ -1910,7 +2470,11 @@ declared_c_name(
                  p < method->param_count;
                  ++p) {
 
-                if (!emit_array_alias(
+
+                if (!array_alias_requires_complete_element(
+                        document,
+                        method->params[p].type) &&
+                    !emit_array_alias(
                         output,
                         document,
                         method->params[p].type,
@@ -1920,24 +2484,33 @@ declared_c_name(
                     fclose(output);
                     return false;
                 }
+
             }
 
-            if (!emit_array_alias(
-                    output,
-                    document,
-                    method->returns_type,
-                    error,
-                    error_capacity) ||
-                !emit_array_alias(
-                    output,
-                    document,
-                    method->throws_type,
-                    error,
-                    error_capacity)) {
+
+            if ((!array_alias_requires_complete_element(
+                        document,
+                        method->returns_type) &&
+                 !emit_array_alias(
+                     output,
+                     document,
+                     method->returns_type,
+                     error,
+                     error_capacity)) ||
+                (!array_alias_requires_complete_element(
+                        document,
+                        method->throws_type) &&
+                 !emit_array_alias(
+                     output,
+                     document,
+                     method->throws_type,
+                     error,
+                     error_capacity))) {
 
                 fclose(output);
                 return false;
             }
+
         }
     }
 
@@ -1984,6 +2557,71 @@ if (type->enum_count > 0u ||
 
 
     /*
+     * API-only fixed arrays of concrete structs have no owning struct whose
+     * dependency walk could emit their typedef. At this point every concrete
+     * payload body is complete, so these aliases are now safe to emit.
+     */
+    for (size_t a = 0u;
+         a < document->api_count;
+         ++a) {
+
+        const adsl_api_t *api =
+            &document->apis[a];
+
+        for (size_t m = 0u;
+             m < api->method_count;
+             ++m) {
+
+            const adsl_method_t *method =
+                &api->methods[m];
+
+            for (size_t p = 0u;
+                 p < method->param_count;
+                 ++p) {
+
+                if (array_alias_requires_complete_element(
+                        document,
+                        method->params[p].type) &&
+                    !emit_array_alias(
+                        output,
+                        document,
+                        method->params[p].type,
+                        error,
+                        error_capacity)) {
+
+                    fclose(output);
+                    return false;
+                }
+            }
+
+            if ((array_alias_requires_complete_element(
+                        document,
+                        method->returns_type) &&
+                 !emit_array_alias(
+                     output,
+                     document,
+                     method->returns_type,
+                     error,
+                     error_capacity)) ||
+                (array_alias_requires_complete_element(
+                        document,
+                        method->throws_type) &&
+                 !emit_array_alias(
+                     output,
+                     document,
+                     method->throws_type,
+                     error,
+                     error_capacity))) {
+
+                fclose(output);
+                return false;
+            }
+        }
+    }
+
+
+
+    /*
      * Reusable serializers are declared only after all concrete payload
      * definitions are complete, so hierarchy ref and payload types are fully
      * visible here.
@@ -2007,11 +2645,14 @@ if (type->enum_count > 0u ||
                 document,
                 type);
 
+
         bool concrete_struct =
             type->enum_count == 0u &&
             !type->is_abstract &&
             type->stream == NULL &&
+            !type->has_tiered_int &&
             !hierarchy;
+
 
         if (!hierarchy &&
             !concrete_struct) {
@@ -2025,6 +2666,12 @@ if (type->enum_count > 0u ||
             type->name,
             type_name,
             sizeof(type_name));
+
+
+        emit_type_origin(
+            output,
+            type);
+
 
         if (hierarchy) {
 
@@ -2112,6 +2759,52 @@ static bool emit_types_source(
         base_snake);
 
 
+
+    for (size_t i = 0u;
+         i < document->type_count;
+         ++i) {
+
+        const adsl_type_t *type =
+            &document->types[i];
+
+        if (!type->has_tiered_int) {
+            continue;
+        }
+
+        char type_name[256];
+        declared_c_name(
+            type->name,
+            type_name,
+            sizeof(type_name));
+
+        fprintf(
+            output,
+            "const uint32_t %s_tiered_int_limits[%zu] = {\n",
+            type_name,
+            type->tiered_int_limit_count);
+
+        for (size_t l = 0u;
+             l < type->tiered_int_limit_count;
+             ++l) {
+
+            fprintf(
+                output,
+                "    UINT32_C(%u)%s\n",
+                (unsigned int)type->tiered_int_limits[l],
+                l + 1u == type->tiered_int_limit_count
+                    ? ""
+                    : ",");
+        }
+
+        fputs("};\n\n", output);
+    }
+
+
+    /*
+     * Private codec helpers are forward-declared as one group because named
+     * structs may be mutually recursive. They stay out of the generated header:
+     * callers enter through the stable public codec ABI at recursion depth zero.
+     */
     for (size_t i = 0u;
          i < document->type_count;
          ++i) {
@@ -2128,6 +2821,7 @@ static bool emit_types_source(
             type->enum_count == 0u &&
             !type->is_abstract &&
             type->stream == NULL &&
+            !type->has_tiered_int &&
             !hierarchy;
 
         if (!hierarchy &&
@@ -2146,11 +2840,107 @@ static bool emit_types_source(
         if (hierarchy) {
             fprintf(
                 output,
+                "static aether_status_t %s_serialize_%s_impl(\n"
+                "    uint8_t *tx,\n"
+                "    size_t tx_capacity,\n"
+                "    size_t *position,\n"
+                "    const %s_ref_t *value,\n"
+                "    unsigned int recursion_depth);\n\n"
+                "static aether_status_t %s_deserialize_%s_impl(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_ref_t *value,\n"
+                "    unsigned int recursion_depth);\n\n",
+                base_snake,
+                type_name,
+                type_name,
+                base_snake,
+                type_name,
+                type_name);
+        } else {
+            fprintf(
+                output,
+                "static aether_status_t %s_serialize_%s_impl(\n"
+                "    uint8_t *tx,\n"
+                "    size_t tx_capacity,\n"
+                "    size_t *position,\n"
+                "    const %s_t *value,\n"
+                "    unsigned int recursion_depth);\n\n"
+                "static aether_status_t %s_deserialize_%s_impl(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_t *value,\n"
+                "    unsigned int recursion_depth);\n\n",
+                base_snake,
+                type_name,
+                type_name,
+                base_snake,
+                type_name,
+                type_name);
+        }
+    }
+
+
+
+    for (size_t i = 0u;
+         i < document->type_count;
+         ++i) {
+
+        const adsl_type_t *type =
+            &document->types[i];
+
+        bool hierarchy =
+            type_is_polymorphic_reference(
+                document,
+                type);
+
+
+        bool concrete_struct =
+            type->enum_count == 0u &&
+            !type->is_abstract &&
+            type->stream == NULL &&
+            !type->has_tiered_int &&
+            !hierarchy;
+
+
+        if (!hierarchy &&
+            !concrete_struct) {
+
+            continue;
+        }
+
+        char type_name[256];
+
+        declared_c_name(
+            type->name,
+            type_name,
+            sizeof(type_name));
+
+
+        if (hierarchy) {
+            fprintf(
+                output,
                 "aether_status_t %s_serialize_%s(\n"
                 "    uint8_t *tx,\n"
                 "    size_t tx_capacity,\n"
                 "    size_t *position,\n"
-                "    const %s_ref_t *value) {\n\n",
+                "    const %s_ref_t *value) {\n\n"
+                "    return %s_serialize_%s_impl(\n"
+                "        tx,\n"
+                "        tx_capacity,\n"
+                "        position,\n"
+                "        value,\n"
+                "        0u);\n"
+                "}\n\n"
+                "static aether_status_t %s_serialize_%s_impl(\n"
+                "    uint8_t *tx,\n"
+                "    size_t tx_capacity,\n"
+                "    size_t *position,\n"
+                "    const %s_ref_t *value,\n"
+                "    unsigned int recursion_depth) {\n\n",
+                base_snake,
+                type_name,
+                type_name,
+                base_snake,
+                type_name,
                 base_snake,
                 type_name,
                 type_name);
@@ -2161,13 +2951,34 @@ static bool emit_types_source(
                 "    uint8_t *tx,\n"
                 "    size_t tx_capacity,\n"
                 "    size_t *position,\n"
-                "    const %s_t *value) {\n\n",
+                "    const %s_t *value) {\n\n"
+                "    return %s_serialize_%s_impl(\n"
+                "        tx,\n"
+                "        tx_capacity,\n"
+                "        position,\n"
+                "        value,\n"
+                "        0u);\n"
+                "}\n\n"
+                "static aether_status_t %s_serialize_%s_impl(\n"
+                "    uint8_t *tx,\n"
+                "    size_t tx_capacity,\n"
+                "    size_t *position,\n"
+                "    const %s_t *value,\n"
+                "    unsigned int recursion_depth) {\n\n",
+                base_snake,
+                type_name,
+                type_name,
+                base_snake,
+                type_name,
                 base_snake,
                 type_name,
                 type_name);
         }
 
         fputs(
+            "    if (recursion_depth >= AETHER_META_MAX_RECURSION_DEPTH) {\n"
+            "        return AETHER_ERR_OVERFLOW;\n"
+            "    }\n\n"
             "    if (position == NULL || value == NULL ||\n"
             "        (tx_capacity != 0u && tx == NULL)) {\n"
             "        return AETHER_ERR_ARGUMENT;\n"
@@ -2185,23 +2996,31 @@ static bool emit_types_source(
                 emit_hierarchy_expression(
                     output,
                     document,
+                    base_snake,
                     type,
                     "value",
                     "value",
                     true,
                     0u,
+
+                    "recursion_depth",
+
                     error,
                     error_capacity);
         } else {
             emitted =
-                emit_value_expression(
+                emit_struct_value_expression(
                     output,
                     document,
-                    type->name,
+                    base_snake,
+                    type,
                     "value",
                     "value",
                     true,
                     0u,
+
+                    "recursion_depth",
+
                     error,
                     error_capacity);
         }
@@ -2223,7 +3042,21 @@ static bool emit_types_source(
                 output,
                 "aether_status_t %s_deserialize_%s(\n"
                 "    aether_meta_read_context_t *ctx,\n"
-                "    %s_ref_t *value) {\n\n",
+                "    %s_ref_t *value) {\n\n"
+                "    return %s_deserialize_%s_impl(\n"
+                "        ctx,\n"
+                "        value,\n"
+                "        0u);\n"
+                "}\n\n"
+                "static aether_status_t %s_deserialize_%s_impl(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_ref_t *value,\n"
+                "    unsigned int recursion_depth) {\n\n",
+                base_snake,
+                type_name,
+                type_name,
+                base_snake,
+                type_name,
                 base_snake,
                 type_name,
                 type_name);
@@ -2232,13 +3065,30 @@ static bool emit_types_source(
                 output,
                 "aether_status_t %s_deserialize_%s(\n"
                 "    aether_meta_read_context_t *ctx,\n"
-                "    %s_t *value) {\n\n",
+                "    %s_t *value) {\n\n"
+                "    return %s_deserialize_%s_impl(\n"
+                "        ctx,\n"
+                "        value,\n"
+                "        0u);\n"
+                "}\n\n"
+                "static aether_status_t %s_deserialize_%s_impl(\n"
+                "    aether_meta_read_context_t *ctx,\n"
+                "    %s_t *value,\n"
+                "    unsigned int recursion_depth) {\n\n",
+                base_snake,
+                type_name,
+                type_name,
+                base_snake,
+                type_name,
                 base_snake,
                 type_name,
                 type_name);
         }
 
         fputs(
+            "    if (recursion_depth >= AETHER_META_MAX_RECURSION_DEPTH) {\n"
+            "        return AETHER_ERR_OVERFLOW;\n"
+            "    }\n\n"
             "    if (ctx == NULL || value == NULL) {\n"
             "        return AETHER_ERR_ARGUMENT;\n"
             "    }\n\n"
@@ -2256,6 +3106,9 @@ static bool emit_types_source(
                     "(*value)",
                     base_snake,
                     0u,
+
+                    "recursion_depth",
+
                     error,
                     error_capacity);
         } else {
@@ -2267,6 +3120,9 @@ static bool emit_types_source(
                     "value",
                     base_snake,
                     0u,
+
+                    "recursion_depth",
+
                     error,
                     error_capacity);
         }
@@ -2281,6 +3137,7 @@ static bool emit_types_source(
             "    return AETHER_OK;\n"
             "}\n\n",
             output);
+
 
     }
 
@@ -2456,6 +3313,12 @@ static bool document_has_stream_builders(
     return false;
 }
 
+
+static bool method_has_collapsible_params(
+    const adsl_method_t *method);
+
+
+
 static bool emit_stream_builder_declarations_for_api(
     FILE *output,
     const adsl_document_t *document,
@@ -2526,6 +3389,18 @@ static bool emit_stream_builder_declarations_for_api(
             method_name,
             sizeof(method_name));
 
+        bool collapsible =
+            method_has_collapsible_params(
+                method);
+
+
+
+        emit_method_origin(
+            output,
+            effective[m].owner,
+            method);
+
+
         fprintf(
             output,
 
@@ -2535,6 +3410,16 @@ static bool emit_stream_builder_declarations_for_api(
             api_name,
             method_name,
             stream_c_name);
+
+
+
+        if (collapsible) {
+            fprintf(
+                output,
+                ",\n    %s_%s_context_t *collapse",
+                api_name,
+                method_name);
+        }
 
 
         if (has_response) {
@@ -2570,6 +3455,28 @@ static bool emit_stream_builder_declarations_for_api(
         fputs(
             ");\n\n",
             output);
+
+        if (collapsible) {
+
+            emit_method_origin(
+                output,
+                effective[m].owner,
+                method);
+
+
+            fprintf(
+                output,
+                "aether_status_t %s_%s_%s_flush(\n"
+                "    %s_t *builder_stream,\n"
+                "    %s_%s_context_t *collapse);\n\n",
+                stream_c_name,
+                api_name,
+                method_name,
+                stream_c_name,
+                api_name,
+                method_name);
+        }
+
 
     }
 
@@ -2767,6 +3674,149 @@ static bool emit_stream_builder_definitions_for_api(
             method->name,
             method_name,
             sizeof(method_name));
+
+        bool collapsible =
+            method_has_collapsible_params(
+                method);
+
+
+        emit_method_origin(
+            output,
+            effective[m].owner,
+            method);
+
+
+        if (collapsible) {
+            fprintf(
+                output,
+                "aether_status_t %s_%s_%s(\n"
+                "    %s_t *builder_stream,\n"
+                "    %s_%s_context_t *collapse",
+                stream_c_name,
+                api_name,
+                method_name,
+                stream_c_name,
+                api_name,
+                method_name);
+
+            for (size_t p = 0u;
+                 p < method->param_count;
+                 ++p) {
+
+                fputs(
+                    ",\n    ",
+                    output);
+
+                if (!emit_parameter_type(
+                        output,
+                        document,
+                        &method->params[p],
+                        error,
+                        error_capacity)) {
+
+                    free(effective);
+                    return false;
+                }
+
+                fprintf(
+                    output,
+                    " %s",
+                    method->params[p].name);
+            }
+
+            fprintf(
+                output,
+                ") {\n\n"
+                "    if (builder_stream == NULL ||\n"
+                "        collapse == NULL ||\n"
+                "        builder_stream->length > builder_stream->capacity ||\n"
+                "        (builder_stream->capacity != 0u && "
+                "builder_stream->data == NULL)) {\n"
+                "        return AETHER_ERR_ARGUMENT;\n"
+                "    }\n\n"
+                "    %s_remote_t remote = {0};\n\n"
+                "    return %s_%s(\n"
+                "        &remote,\n"
+                "        collapse",
+                api_name,
+                api_name,
+                method_name);
+
+            for (size_t p = 0u;
+                 p < method->param_count;
+                 ++p) {
+
+                fprintf(
+                    output,
+                    ",\n        %s",
+                    method->params[p].name);
+            }
+
+            fputs(
+                ");\n"
+                "}\n\n",
+                output);
+
+
+            emit_method_origin(
+                output,
+                effective[m].owner,
+                method);
+
+
+            fprintf(
+                output,
+                "aether_status_t %s_%s_%s_flush(\n"
+                "    %s_t *builder_stream,\n"
+                "    %s_%s_context_t *collapse) {\n\n"
+                "    if (builder_stream == NULL ||\n"
+                "        collapse == NULL ||\n"
+                "        builder_stream->length > builder_stream->capacity ||\n"
+                "        (builder_stream->capacity != 0u && "
+                "builder_stream->data == NULL)) {\n"
+                "        return AETHER_ERR_ARGUMENT;\n"
+                "    }\n\n"
+
+                "    if (collapse->count == 0u &&\n"
+                "        (collapse->queue == NULL || collapse->queue->count == 0u)) {\n"
+
+                "        return AETHER_OK;\n"
+                "    }\n\n"
+                "    size_t remaining =\n"
+                "        builder_stream->capacity - builder_stream->length;\n\n"
+                "    if (remaining == 0u) {\n"
+                "        return AETHER_ERR_OVERFLOW;\n"
+                "    }\n\n"
+                "    %s_stream_commit_t commit = {\n"
+                "        &builder_stream->length,\n"
+                "        remaining\n"
+                "    };\n\n"
+                "    %s_remote_t remote = {\n"
+                "        &commit,\n"
+                "        %s_stream_commit,\n"
+                "        builder_stream->data + builder_stream->length,\n"
+                "        remaining\n"
+                "    };\n\n"
+                "    return %s_%s_flush(\n"
+                "        &remote,\n"
+                "        collapse);\n"
+                "}\n\n",
+                stream_c_name,
+                api_name,
+                method_name,
+                stream_c_name,
+                api_name,
+                method_name,
+                base_snake,
+                api_name,
+                base_snake,
+                api_name,
+                method_name);
+
+            continue;
+        }
+
+
 
         fprintf(
             output,
@@ -2996,6 +4046,1024 @@ static bool emit_all_stream_builder_definitions(
     return true;
 }
 
+
+static bool param_is_collapsible(
+    const adsl_param_t *param) {
+
+    if (param == NULL ||
+        param->type == NULL) {
+
+        return false;
+    }
+
+    size_t length =
+        strlen(param->type);
+
+    return length > 0u &&
+           param->type[length - 1u] == '~';
+}
+
+
+static bool method_has_collapsible_params(
+    const adsl_method_t *method) {
+
+    if (method == NULL) {
+        return false;
+    }
+
+    for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        if (param_is_collapsible(
+                &method->params[p])) {
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+/*
+ * Emit comparison of one METHOD collapse key component.
+ *
+ * The generated table deliberately compares logical key values rather than
+ * pointer addresses. String/URI keys therefore compare byte content, UUIDs
+ * compare their canonical two-word value, and integer-like scalar keys compare
+ * directly. More complex key shapes are rejected until their Java equality
+ * semantics can be reproduced exactly.
+ */
+static bool emit_collapsible_key_match(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    char *error,
+    size_t error_capacity) {
+
+    if (param == NULL ||
+        param->type == NULL ||
+        param_is_collapsible(param)) {
+
+        return true;
+    }
+
+    if (param->stream != NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "collapsible METHOD stream key parameters are not supported");
+
+        return false;
+    }
+
+    bool nullable =
+        strchr(param->type, '?') != NULL;
+
+    char cleaned[256];
+
+    if (!strip_nullable_suffix(
+            param->type,
+            cleaned,
+            sizeof(cleaned))) {
+
+        set_error(
+            error,
+            error_capacity,
+            "collapsible METHOD key type is too long");
+
+        return false;
+    }
+
+    char array_element[128];
+    bool array_dynamic = false;
+    size_t array_static_size = 0u;
+
+    if (parse_array_type(
+            cleaned,
+            array_element,
+            sizeof(array_element),
+            &array_dynamic,
+            &array_static_size)) {
+
+        (void)array_dynamic;
+        (void)array_static_size;
+
+        set_error(
+            error,
+            error_capacity,
+            "collapsible METHOD array key parameters are not supported");
+
+        return false;
+    }
+
+    char base[128];
+
+    if (!scalar_type_name(
+            cleaned,
+            base,
+            sizeof(base))) {
+
+        set_error(
+            error,
+            error_capacity,
+            "unsupported collapsible METHOD key type");
+
+        return false;
+    }
+
+    const adsl_type_t *declared =
+        find_declared_type(
+            document,
+            base);
+
+bool is_bytes =
+        strcmp(base, "string") == 0;
+
+    bool is_uuid =
+        strcmp(base, "uuid") == 0;
+
+    bool is_float =
+        strcmp(base, "float") == 0;
+
+    bool is_double =
+        strcmp(base, "double") == 0;
+
+    bool is_scalar =
+        primitive_c_type(base) != NULL &&
+        !is_bytes &&
+        !is_uuid &&
+        !is_float &&
+        !is_double;
+
+    if (declared != NULL &&
+        (declared->enum_count > 0u ||
+         declared->has_tiered_int)) {
+
+        is_scalar = true;
+    }
+
+    if (is_float || is_double) {
+        const char *bits_fn = is_float
+            ? "aether_meta_java_float_bits"
+            : "aether_meta_java_double_bits";
+
+        if (nullable) {
+            fprintf(
+                output,
+                "        if (_match && "
+                "((_entry->%s == NULL) != (%s == NULL))) {\n"
+                "            _match = false;\n"
+                "        } else if (_match && %s != NULL &&\n"
+                "                   %s(*_entry->%s) != %s(*%s)) {\n"
+                "            _match = false;\n"
+                "        }\n",
+                param->name,
+                param->name,
+                param->name,
+                bits_fn,
+                param->name,
+                bits_fn,
+                param->name);
+        } else {
+            fprintf(
+                output,
+                "        if (_match && %s(_entry->%s) != %s(%s)) {\n"
+                "            _match = false;\n"
+                "        }\n",
+                bits_fn,
+                param->name,
+                bits_fn,
+                param->name);
+        }
+
+        return !ferror(output);
+    }
+
+    if (!is_scalar &&
+        !is_bytes &&
+        !is_uuid) {
+
+        set_error(
+            error,
+            error_capacity,
+            "collapsible METHOD key type has no exact Java Objects.equals mapping");
+
+        return false;
+    }
+
+    if (is_scalar) {
+        if (nullable) {
+            fprintf(
+                output,
+                "        if (_match && "
+                "((_entry->%s == NULL) != (%s == NULL))) {\n"
+                "            _match = false;\n"
+                "        } else if (_match && %s != NULL && "
+                "*_entry->%s != *%s) {\n"
+                "            _match = false;\n"
+                "        }\n",
+                param->name,
+                param->name,
+                param->name,
+                param->name,
+                param->name);
+        } else {
+            fprintf(
+                output,
+                "        if (_match && _entry->%s != %s) {\n"
+                "            _match = false;\n"
+                "        }\n",
+                param->name,
+                param->name);
+        }
+
+        return true;
+    }
+
+    if (is_uuid) {
+        if (nullable) {
+            fprintf(
+                output,
+                "        if (_match && "
+                "((_entry->%s == NULL) != (%s == NULL))) {\n"
+                "            _match = false;\n"
+                "        } else if (_match && %s != NULL &&\n"
+                "                   (_entry->%s->msb != %s->msb ||\n"
+                "                    _entry->%s->lsb != %s->lsb)) {\n"
+                "            _match = false;\n"
+                "        }\n",
+                param->name,
+                param->name,
+                param->name,
+                param->name,
+                param->name,
+                param->name,
+                param->name);
+        } else {
+            fprintf(
+                output,
+                "        if (_match &&\n"
+                "            (_entry->%s.msb != %s.msb ||\n"
+                "             _entry->%s.lsb != %s.lsb)) {\n"
+                "            _match = false;\n"
+                "        }\n",
+                param->name,
+                param->name,
+                param->name,
+                param->name);
+        }
+
+        return true;
+    }
+
+    if (nullable) {
+        fprintf(
+            output,
+            "        if (_match && "
+            "((_entry->%s == NULL) != (%s == NULL))) {\n"
+            "            _match = false;\n"
+            "        } else if (_match && %s != NULL &&\n"
+            "                   (_entry->%s->length != %s->length ||\n"
+            "                    (%s->length != 0u &&\n"
+            "                     (_entry->%s->data == NULL ||\n"
+            "                      %s->data == NULL ||\n"
+            "                      memcmp(_entry->%s->data,\n"
+            "                             %s->data,\n"
+            "                             %s->length) != 0)))) {\n"
+            "            _match = false;\n"
+            "        }\n",
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name);
+    } else {
+        fprintf(
+            output,
+            "        if (_match &&\n"
+            "            (_entry->%s.length != %s.length ||\n"
+            "             (%s.length != 0u &&\n"
+            "              (_entry->%s.data == NULL ||\n"
+            "               %s.data == NULL ||\n"
+            "               memcmp(_entry->%s.data,\n"
+            "                      %s.data,\n"
+            "                      %s.length) != 0)))) {\n"
+            "            _match = false;\n"
+            "        }\n",
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name,
+            param->name);
+    }
+
+    return true;
+}
+
+
+
+static bool collapsible_param_snapshots_nullable_value(
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    bool *snapshot,
+    char *error,
+    size_t error_capacity) {
+
+    if (snapshot == NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "invalid collapsible METHOD snapshot metadata");
+
+        return false;
+    }
+
+    *snapshot = false;
+
+    if (param == NULL ||
+        param->type == NULL ||
+        strchr(param->type, '?') == NULL) {
+
+        return true;
+    }
+
+    char cleaned[256];
+
+    if (!strip_nullable_suffix(
+            param->type,
+            cleaned,
+            sizeof(cleaned))) {
+
+        set_error(
+            error,
+            error_capacity,
+            "collapsible METHOD nullable parameter type is too long");
+
+        return false;
+    }
+
+    adsl_param_t underlying =
+        *param;
+
+    underlying.type =
+        cleaned;
+
+    bool valid = false;
+
+    c_param_kind_t kind =
+        classify_param_kind(
+            document,
+            &underlying,
+            &valid);
+
+    if (!valid) {
+        set_error(
+            error,
+            error_capacity,
+            "unsupported collapsible METHOD nullable parameter type");
+
+        return false;
+    }
+
+    /*
+     * Nullable scalar and dynamic-view arguments add one pointer solely to
+     * represent NULL in the public C ABI. Retaining that caller pointer would
+     * violate Java's value snapshot semantics, so generated entries keep the
+     * underlying value/descriptor and point back to their own storage.
+     *
+     * Struct/static-array/stream/ref arguments are already pointer-shaped
+     * without nullable and remain borrowed by the established METHOD lifetime
+     * contract.
+     */
+    *snapshot =
+        kind == C_PARAM_KIND_SCALAR ||
+        kind == C_PARAM_KIND_DYNAMIC_VIEW;
+
+    return true;
+}
+
+
+static bool emit_collapsible_entry_field(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    char *error,
+    size_t error_capacity) {
+
+    bool snapshot = false;
+
+    if (!collapsible_param_snapshots_nullable_value(
+            document,
+            param,
+            &snapshot,
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
+    if (snapshot) {
+        char cleaned[256];
+
+        if (!strip_nullable_suffix(
+                param->type,
+                cleaned,
+                sizeof(cleaned))) {
+
+            set_error(
+                error,
+                error_capacity,
+                "collapsible METHOD nullable parameter type is too long");
+
+            return false;
+        }
+
+        adsl_param_t underlying =
+            *param;
+
+        underlying.type =
+            cleaned;
+
+        fputs(
+            "    ",
+            output);
+
+        if (!emit_parameter_type(
+                output,
+                document,
+                &underlying,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        fprintf(
+            output,
+            " %s_value;\n",
+            param->name);
+    }
+
+    fputs(
+        "    ",
+        output);
+
+    if (!emit_parameter_type(
+            output,
+            document,
+            param,
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
+    fprintf(
+        output,
+        " %s;\n",
+        param->name);
+
+    return !ferror(output);
+}
+
+
+static bool emit_collapsible_entry_store(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    char *error,
+    size_t error_capacity) {
+
+    bool snapshot = false;
+
+    if (!collapsible_param_snapshots_nullable_value(
+            document,
+            param,
+            &snapshot,
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
+    if (!snapshot) {
+        fprintf(
+            output,
+            "        _entry->%s = %s;\n",
+            param->name,
+            param->name);
+
+        return !ferror(output);
+    }
+
+    fprintf(
+        output,
+        "        if (%s != NULL) {\n"
+        "            _entry->%s_value = *%s;\n"
+        "            _entry->%s = &_entry->%s_value;\n"
+        "        } else {\n"
+        "            _entry->%s = NULL;\n"
+        "        }\n",
+        param->name,
+        param->name,
+        param->name,
+        param->name,
+        param->name,
+        param->name);
+
+    return !ferror(output);
+}
+
+
+
+static bool emit_collapsible_method_declarations(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *api_name,
+    const char *method_name,
+    const adsl_method_t *method,
+    char *error,
+    size_t error_capacity) {
+
+    fprintf(
+        output,
+        "typedef struct {\n");
+
+
+for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        if (!emit_collapsible_entry_field(
+                output,
+                document,
+                &method->params[p],
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+    }
+
+
+    fprintf(
+        output,
+        "} %s_%s_entry_t;\n\n"
+
+        "typedef struct {\n"
+        "    %s_%s_entry_t *entries;\n"
+        "    size_t capacity;\n"
+        "    size_t count;\n"
+        "    aether_meta_collapse_queue_t *queue;\n"
+        "} %s_%s_context_t;\n\n"
+
+        "aether_status_t %s_%s(\n"
+        "    %s_remote_t *api,\n"
+        "    %s_%s_context_t *collapse",
+
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        api_name,
+        method_name);
+
+
+    for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        fputs(
+            ",\n    ",
+            output);
+
+        if (!emit_parameter_type(
+                output,
+                document,
+                &method->params[p],
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        fprintf(
+            output,
+            " %s",
+            method->params[p].name);
+    }
+
+    fprintf(
+        output,
+        ");\n\n"
+        "aether_status_t %s_%s_flush(\n"
+        "    %s_remote_t *api,\n"
+        "    %s_%s_context_t *collapse);\n\n"
+        "void %s_%s_reset(\n"
+        "    %s_%s_context_t *collapse);\n\n",
+        api_name,
+        method_name,
+        api_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name);
+
+    return !ferror(output);
+}
+
+
+static bool emit_collapsible_method_source(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *base_snake,
+    const char *api_name,
+    const char *method_name,
+    const adsl_method_t *method,
+    uint8_t command_id,
+    char *error,
+    size_t error_capacity) {
+
+
+fprintf(
+        output,
+        "static aether_status_t %s_%s_collapse_serialize(\n"
+        "    void *ctx,\n"
+        "    uint8_t *tx,\n"
+        "    size_t tx_capacity,\n"
+        "    size_t *position);\n\n"
+        "static void %s_%s_collapse_commit(void *ctx);\n\n"
+        "aether_status_t %s_%s(\n"
+        "    %s_remote_t *api,\n"
+        "    %s_%s_context_t *collapse",
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        api_name,
+        method_name);
+
+
+    for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        fputs(
+            ",\n    ",
+            output);
+
+        if (!emit_parameter_type(
+                output,
+                document,
+                &method->params[p],
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        fprintf(
+            output,
+            " %s",
+            method->params[p].name);
+    }
+
+    fprintf(
+        output,
+        ") {\n\n"
+        "    if (api == NULL ||\n"
+        "        collapse == NULL ||\n"
+        "        collapse->count > collapse->capacity ||\n"
+        "        (collapse->capacity != 0u && collapse->entries == NULL)) {\n"
+        "        return AETHER_ERR_ARGUMENT;\n"
+        "    }\n\n"
+
+        "    bool _was_empty = collapse->count == 0u;\n\n"
+
+        "    size_t _index = collapse->count;\n\n"
+        "    for (size_t i = 0u; i < collapse->count; ++i) {\n"
+        "        %s_%s_entry_t *_entry = &collapse->entries[i];\n"
+        "        bool _match = true;\n",
+        api_name,
+        method_name);
+
+    for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        const adsl_param_t *param =
+            &method->params[p];
+
+        if (param_is_collapsible(param)) {
+            continue;
+        }
+
+        if (!emit_collapsible_key_match(
+                output,
+                document,
+                param,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+    }
+
+    fputs(
+        "\n"
+        "        if (_match) {\n"
+        "            _index = i;\n"
+        "            break;\n"
+        "        }\n"
+        "    }\n\n"
+        "    ",
+        output);
+
+    fprintf(
+        output,
+        "%s_%s_entry_t *_entry = NULL;\n\n"
+        "    if (_index == collapse->count) {\n"
+        "        if (collapse->count >= collapse->capacity) {\n"
+        "            return AETHER_ERR_OVERFLOW;\n"
+        "        }\n\n"
+        "        _entry = &collapse->entries[collapse->count];\n",
+        api_name,
+        method_name);
+
+
+for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        const adsl_param_t *param =
+            &method->params[p];
+
+        if (param_is_collapsible(param)) {
+            continue;
+        }
+
+        if (!emit_collapsible_entry_store(
+                output,
+                document,
+                param,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+    }
+
+
+    fputs(
+        "        collapse->count++;\n"
+        "    } else {\n"
+        "        _entry = &collapse->entries[_index];\n"
+        "    }\n\n",
+        output);
+
+
+for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        const adsl_param_t *param =
+            &method->params[p];
+
+        if (!param_is_collapsible(param)) {
+            continue;
+        }
+
+        if (!emit_collapsible_entry_store(
+                output,
+                document,
+                param,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+    }
+
+
+
+fprintf(
+        output,
+        "\n"
+        "    if (_was_empty && collapse->queue != NULL) {\n"
+        "        aether_status_t queue_status =\n"
+        "            aether_meta_collapse_queue_register(\n"
+        "                collapse->queue,\n"
+        "                collapse,\n"
+        "                %s_%s_collapse_serialize,\n"
+        "                %s_%s_collapse_commit);\n"
+        "        if (queue_status != AETHER_OK) {\n"
+        "            collapse->count = 0u;\n"
+        "            return queue_status;\n"
+        "        }\n"
+        "    }\n\n"
+        "    return AETHER_OK;\n"
+        "}\n\n"
+        "static aether_status_t %s_%s_collapse_serialize(\n"
+        "    void *ctx,\n"
+        "    uint8_t *tx,\n"
+        "    size_t tx_capacity,\n"
+        "    size_t *position) {\n\n"
+        "    %s_%s_context_t *collapse = ctx;\n\n"
+        "    if (collapse == NULL ||\n"
+        "        position == NULL ||\n"
+        "        collapse->count > collapse->capacity ||\n"
+        "        (collapse->capacity != 0u && collapse->entries == NULL)) {\n"
+        "        return AETHER_ERR_ARGUMENT;\n"
+        "    }\n\n"
+        "    if (collapse->count == 0u) {\n"
+        "        return AETHER_OK;\n"
+        "    }\n\n"
+        "    if (tx == NULL) {\n"
+        "        return AETHER_ERR_ARGUMENT;\n"
+        "    }\n\n"
+        "    size_t pos = *position;\n\n"
+        "    for (size_t i = 0u; i < collapse->count; ++i) {\n"
+        "        %s_%s_entry_t *_entry = &collapse->entries[i];\n\n"
+        "        if (pos >= tx_capacity) {\n"
+        "            return AETHER_ERR_OVERFLOW;\n"
+        "        }\n\n"
+        "        tx[pos++] = %uu;\n",
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        (unsigned int)command_id);
+
+
+    if (!emit_remote_nullable_param_mask(
+            output,
+            method,
+            "_entry->",
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
+    for (size_t p = 0u;
+         p < method->param_count;
+         ++p) {
+
+        char expression[384];
+
+        int written =
+            snprintf(
+                expression,
+                sizeof(expression),
+                "_entry->%s",
+                method->params[p].name);
+
+        if (written < 0 ||
+            (size_t)written >= sizeof(expression)) {
+
+            set_error(
+                error,
+                error_capacity,
+                "collapsible METHOD parameter expression is too long");
+
+            return false;
+        }
+
+        adsl_param_t stored =
+            method->params[p];
+
+        stored.name =
+            expression;
+
+        if (!emit_serialize_param(
+                output,
+                document,
+                base_snake,
+                &stored,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+    }
+
+
+fprintf(
+        output,
+        "    }\n\n"
+        "    *position = pos;\n"
+        "    return AETHER_OK;\n"
+        "}\n\n"
+        "static void %s_%s_collapse_commit(void *ctx) {\n\n"
+        "    %s_%s_context_t *collapse = ctx;\n"
+        "    if (collapse != NULL) {\n"
+        "        collapse->count = 0u;\n"
+        "    }\n"
+        "}\n\n"
+        "aether_status_t %s_%s_flush(\n"
+        "    %s_remote_t *api,\n"
+        "    %s_%s_context_t *collapse) {\n\n"
+        "    if (api == NULL ||\n"
+        "        collapse == NULL ||\n"
+        "        collapse->count > collapse->capacity ||\n"
+        "        (collapse->capacity != 0u && collapse->entries == NULL)) {\n"
+        "        return AETHER_ERR_ARGUMENT;\n"
+        "    }\n\n"
+        "    if (collapse->queue != NULL) {\n"
+        "        return aether_meta_collapse_queue_flush(\n"
+        "            collapse->queue,\n"
+        "            api->send_ctx,\n"
+        "            api->send,\n"
+        "            api->tx,\n"
+        "            api->tx_capacity);\n"
+        "    }\n\n"
+        "    if (collapse->count == 0u) {\n"
+        "        return AETHER_OK;\n"
+        "    }\n\n"
+        "    if (api->send == NULL || api->tx == NULL) {\n"
+        "        return AETHER_ERR_ARGUMENT;\n"
+        "    }\n\n"
+        "    size_t pos = 0u;\n"
+        "    aether_status_t status =\n"
+        "        %s_%s_collapse_serialize(\n"
+        "            collapse,\n"
+        "            api->tx,\n"
+        "            api->tx_capacity,\n"
+        "            &pos);\n\n"
+        "    if (status != AETHER_OK) {\n"
+        "        return status;\n"
+        "    }\n\n"
+        "    status = api->send(\n"
+        "        api->send_ctx,\n"
+        "        api->tx,\n"
+        "        pos);\n\n"
+        "    if (status == AETHER_OK) {\n"
+        "        %s_%s_collapse_commit(collapse);\n"
+        "    }\n\n"
+        "    return status;\n"
+        "}\n\n"
+        "void %s_%s_reset(\n"
+        "    %s_%s_context_t *collapse) {\n\n"
+        "    if (collapse != NULL) {\n"
+        "        if (collapse->queue != NULL) {\n"
+        "            aether_meta_collapse_queue_cancel(\n"
+        "                collapse->queue,\n"
+        "                collapse);\n"
+        "        }\n"
+        "        collapse->count = 0u;\n"
+        "    }\n"
+        "}\n\n",
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name);
+
+
+    return !ferror(output);
+}
+
+
+
 static bool emit_api_header(
     const adsl_document_t *document,
     const char *path,
@@ -3036,7 +5104,10 @@ static bool emit_api_header(
         output,
         "#ifndef %s_API_H\n"
         "#define %s_API_H\n\n"
-        "#include \"%s_types.h\"\n\n"
+
+        "#include \"%s_types.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
+
         "#ifdef __cplusplus\n"
         "extern \"C\" {\n"
         "#endif\n\n"
@@ -3131,6 +5202,40 @@ static bool emit_api_header(
                 method->name,
                 method_name,
                 sizeof(method_name));
+
+
+
+            emit_method_origin(
+                output,
+                effective[m].owner,
+                method);
+
+
+            if (method_has_collapsible_params(method)) {
+                if (!emit_collapsible_method_declarations(
+                        output,
+                        document,
+                        api_name,
+                        method_name,
+                        method,
+                        error,
+                        error_capacity)) {
+
+                    free(effective);
+                    fclose(output);
+                    return false;
+                }
+
+                continue;
+            }
+
+
+
+            emit_method_origin(
+                output,
+                effective[m].owner,
+                method);
+
 
             fprintf(
                 output,
@@ -3350,6 +5455,42 @@ static bool emit_api_source(
                 method_name,
                 sizeof(method_name));
 
+
+
+            emit_method_origin(
+                output,
+                effective[m].owner,
+                method);
+
+
+            if (method_has_collapsible_params(method)) {
+                if (!emit_collapsible_method_source(
+                        output,
+                        document,
+                        base_snake,
+                        api_name,
+                        method_name,
+                        method,
+                        effective[m].id,
+                        error,
+                        error_capacity)) {
+
+                    free(effective);
+                    fclose(output);
+                    return false;
+                }
+
+                continue;
+            }
+
+
+
+            emit_method_origin(
+                output,
+                effective[m].owner,
+                method);
+
+
             fprintf(
                 output,
                 "aether_status_t %s_%s(\n"
@@ -3435,6 +5576,21 @@ static bool emit_api_source(
                     "(uint8_t)((request_id >> 24u) & UINT32_C(0xff));\n",
                     output);
             }
+
+
+
+            if (!emit_remote_nullable_param_mask(
+                    output,
+                    method,
+                    "",
+                    error,
+                    error_capacity)) {
+
+
+                fclose(output);
+                return false;
+            }
+
 
             for (size_t p = 0u;
                  p < method->param_count;
@@ -3684,16 +5840,22 @@ bool adsl_emit_c(
 }
 
 
+
 static bool emit_value_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const char *type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity) {
+
 
     if (depth > 64u) {
         set_error(
@@ -3704,14 +5866,6 @@ static bool emit_value_expression(
         return false;
     }
 
-    if (strchr(type, '~') != NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "milestone-2 emitter does not yet serialize collapsible values");
-
-        return false;
-    }
 
     if (strchr(type, '?') != NULL) {
         set_error(
@@ -3740,11 +5894,17 @@ static bool emit_value_expression(
         return emit_array_expression(
             output,
             document,
+
+            base_snake,
+
             type,
             expression,
             prefix,
             struct_pointer,
             depth,
+
+            runtime_depth,
+
             error,
             error_capacity);
     }
@@ -3854,6 +6014,65 @@ static bool emit_value_expression(
 
 }
 
+
+
+    if (declared_type->has_tiered_int) {
+        char tiered_name[256];
+        char tiered_expression[768];
+
+        declared_c_name(
+            declared_type->name,
+            tiered_name,
+            sizeof(tiered_name));
+
+        int tiered_expression_size =
+            struct_pointer
+                ? snprintf(
+                      tiered_expression,
+                      sizeof(tiered_expression),
+                      "(*(%s))",
+                      expression)
+                : snprintf(
+                      tiered_expression,
+                      sizeof(tiered_expression),
+                      "%s",
+                      expression);
+
+        if (tiered_expression_size < 0 ||
+            (size_t)tiered_expression_size >=
+                sizeof(tiered_expression)) {
+
+            set_error(
+                error,
+                error_capacity,
+                "generated tieredInt expression is too long");
+
+            return false;
+        }
+
+        fprintf(
+            output,
+            "    {\n"
+            "        aether_status_t meta_status = aether_meta_write_tiered_int(\n"
+            "            tx,\n"
+            "            tx_capacity,\n"
+            "            &pos,\n"
+            "            (uint64_t)(%s),\n"
+            "            %uu,\n"
+            "            %s_tiered_int_limits,\n"
+            "            %zuu);\n"
+            "        if (meta_status != AETHER_OK) return meta_status;\n"
+            "    }\n",
+            tiered_expression,
+            (unsigned int)declared_type->tiered_int_min_bytes,
+            tiered_name,
+            declared_type->tiered_int_limit_count);
+
+        return true;
+    }
+
+
+
     if (declared_type->stream != NULL) {
         if (struct_pointer) {
             fprintf(
@@ -3925,11 +6144,17 @@ static bool emit_value_expression(
         return emit_hierarchy_expression(
             output,
             document,
+
+            base_snake,
+
             declared_type,
             expression,
             prefix,
             struct_pointer,
             depth,
+
+            runtime_depth,
+
             error,
             error_capacity);
     }
@@ -3943,16 +6168,68 @@ static bool emit_value_expression(
         return false;
     }
 
-    return emit_struct_value_expression(
-        output,
-        document,
-        declared_type,
-        expression,
-        prefix,
-        struct_pointer,
-        depth,
-        error,
-        error_capacity);
+
+    char nested_name[256];
+    declared_c_name(
+        declared_type->name,
+        nested_name,
+        sizeof(nested_name));
+
+    char nested_value[1024];
+    int nested_value_size =
+        snprintf(
+            nested_value,
+            sizeof(nested_value),
+            struct_pointer ? "%s" : "(&(%s))",
+            expression);
+
+    if (nested_value_size < 0 ||
+        (size_t)nested_value_size >= sizeof(nested_value)) {
+
+        set_error(
+            error,
+            error_capacity,
+            "generated nested struct serializer expression is too long");
+
+        return false;
+    }
+
+
+    if (runtime_depth != NULL) {
+        fprintf(
+            output,
+            "    {\n"
+            "        aether_status_t meta_status = %s_serialize_%s_impl(\n"
+            "            tx,\n"
+            "            tx_capacity,\n"
+            "            &pos,\n"
+            "            %s,\n"
+            "            %s + 1u);\n"
+            "        if (meta_status != AETHER_OK) return meta_status;\n"
+            "    }\n",
+            base_snake,
+            nested_name,
+            nested_value,
+            runtime_depth);
+    } else {
+        fprintf(
+            output,
+            "    {\n"
+            "        aether_status_t meta_status = %s_serialize_%s(\n"
+            "            tx,\n"
+            "            tx_capacity,\n"
+            "            &pos,\n"
+            "            %s);\n"
+            "        if (meta_status != AETHER_OK) return meta_status;\n"
+            "    }\n",
+            base_snake,
+            nested_name,
+            nested_value);
+    }
+
+
+    return true;
+
 }
 
 static bool emit_struct_definition(
@@ -3963,26 +6240,37 @@ static bool emit_struct_definition(
     char *error,
     size_t error_capacity) {
 
+
+    const adsl_type_t *type =
+        &document->types[type_index];
+
     if (states[type_index] == 2u) {
         return true;
     }
 
     if (states[type_index] == 1u) {
+        /*
+         * Only dependencies that require a complete inline C type reach this
+         * DFS edge. Nullable references and dynamic arrays deliberately do not.
+         * Returning to an active node therefore means the schema requires an
+         * infinitely sized C object (directly, mutually, or through T[N]).
+         */
         set_error(
             error,
             error_capacity,
-            "recursive generated struct dependency is not yet supported");
+            "non-nullable by-value type cycle cannot be represented in generated C");
 
         return false;
     }
 
-    const adsl_type_t *type =
-        &document->types[type_index];
+
 
 
 if (type->enum_count > 0u ||
         type->is_abstract ||
-        type->stream != NULL) {
+        type->stream != NULL ||
+        type->has_tiered_int) {
+
 
 
         states[type_index] =
@@ -4042,16 +6330,22 @@ declared_c_name(
 }
 
 
+
 static bool emit_array_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const char *type,
     const char *expression,
     const char *prefix,
     bool array_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity) {
+
 
     if (depth > 64u) {
         set_error(
@@ -4271,11 +6565,17 @@ static bool emit_array_expression(
     if (!emit_value_expression(
             output,
             document,
+
+            base_snake,
+
             element,
             element_expression,
             element_prefix,
             false,
             depth + 1u,
+
+            runtime_depth,
+
             error,
             error_capacity)) {
 
@@ -4289,16 +6589,22 @@ static bool emit_array_expression(
     return true;
 }
 
+
 static bool emit_struct_value_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const adsl_type_t *declared_type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity) {
+
 
     if (depth > 64u) {
         set_error(
@@ -4393,11 +6699,17 @@ static bool emit_struct_value_expression(
     return emit_all_struct_payload(
         output,
         document,
+
+        base_snake,
+
         declared_type,
         expression,
         prefix,
         struct_pointer,
         depth,
+
+        runtime_depth,
+
         error,
         error_capacity);
 }
@@ -4435,12 +6747,15 @@ static bool type_is_polymorphic_reference(
     const adsl_document_t *document,
     const adsl_type_t *type) {
 
+
     return type != NULL &&
+           !type->has_tiered_int &&
            type->enum_count == 0u &&
            (type->is_abstract ||
             type_has_children(
                 document,
                 type));
+
 }
 
 static bool type_is_descendant_or_self(
@@ -4716,16 +7031,22 @@ declared_c_name(
     return true;
 }
 
+
 static bool emit_hierarchy_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const adsl_type_t *static_type,
     const char *expression,
     const char *prefix,
     bool reference_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity) {
+
 
     if (depth > 64u) {
         set_error(
@@ -4861,11 +7182,17 @@ declared_c_name(
         if (!emit_struct_value_expression(
                 output,
                 document,
+
+                base_snake,
+
                 candidate,
                 child_expression,
                 child_prefix,
                 true,
                 depth + 1u,
+
+                runtime_depth,
+
                 error,
                 error_capacity)) {
 
@@ -4949,14 +7276,6 @@ static bool emit_all_struct_dependencies(
         const adsl_field_t *field =
             &type->fields[f];
 
-        if (strchr(field->type, '~') != NULL) {
-            set_error(
-                error,
-                error_capacity,
-                "milestone-2 emitter does not yet emit collapsible struct fields");
-
-            return false;
-        }
 
         char array_element[128];
         bool array_dynamic;
@@ -4974,23 +7293,63 @@ static bool emit_all_struct_dependencies(
                     document,
                     array_element);
 
+
             if (!array_dynamic &&
                 element_type != NULL &&
+
+                !element_type->has_tiered_int &&
+
                 element_type->enum_count == 0u &&
+                !element_type->is_abstract &&
+                element_type->stream == NULL &&
                 !type_is_polymorphic_reference(
                     document,
                     element_type)) {
 
-                set_error(
-                    error,
-                    error_capacity,
-                    "milestone-2 static arrays of concrete generated structs are not yet supported");
+                /*
+                 * Inline T[N] needs sizeof(T), so finish T first. Once its
+                 * body is complete the array alias can safely be emitted
+                 * immediately before the owning struct definition.
+                 */
+                size_t nested_index =
+                    (size_t)(
+                        element_type -
+                        document->types);
 
-                return false;
+                if (!emit_struct_definition(
+                        output,
+                        document,
+                        nested_index,
+                        states,
+                        error,
+                        error_capacity) ||
+                    !emit_array_alias(
+                        output,
+                        document,
+                        field->type,
+                        error,
+                        error_capacity)) {
+
+                    return false;
+                }
             }
 
             continue;
+
         }
+
+
+        /*
+         * A nullable scalar field is represented as `const T *`. It therefore
+         * does not require T to be complete before the containing struct body
+         * is emitted. Skipping this dependency is what lets nullable edges
+         * terminate self- and mutual-recursive C layouts without changing the
+         * ordinary nullable ABI or wire format.
+         */
+        if (strchr(field->type, '?') != NULL) {
+            continue;
+        }
+
 
         char base[128];
 
@@ -5025,10 +7384,13 @@ static bool emit_all_struct_dependencies(
             return false;
         }
 
-        if (field_type->enum_count > 0u ||
+
+        if (field_type->has_tiered_int ||
+            field_type->enum_count > 0u ||
             type_is_polymorphic_reference(
                 document,
                 field_type)) {
+
 
             continue;
         }
@@ -5097,11 +7459,6 @@ static bool format_c_type(
         return false;
     }
 
-    if (strchr(type, '~') != NULL) {
-        set_error(error, error_capacity,
-            "collapsible fields are not generated for MCU targets");
-        return false;
-    }
 
     bool nullable =
         strchr(type, '?') != NULL;
@@ -5170,8 +7527,11 @@ static bool format_c_type(
     char name[256];
     declared_c_name(declared->name, name, sizeof(name));
 
+
     if (declared->stream != NULL ||
-        declared->enum_count > 0u) {
+        declared->enum_count > 0u ||
+        declared->has_tiered_int) {
+
         int written = snprintf(base_out, base_capacity, "%s_t", name);
         if (written < 0 || (size_t)written >= base_capacity) {
             set_error(error, error_capacity, "field type is too long");
@@ -5449,16 +7809,22 @@ static bool emit_all_nullable_mask_bits(
     return true;
 }
 
+
 static bool emit_all_struct_payload(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
     const adsl_type_t *type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
+
+    const char *runtime_depth,
+
     char *error,
     size_t error_capacity) {
+
 
     if (depth > 64u) {
         set_error(
@@ -5487,11 +7853,17 @@ static bool emit_all_struct_payload(
         if (!emit_all_struct_payload(
                 output,
                 document,
+
+                base_snake,
+
                 parent,
                 expression,
                 prefix,
                 struct_pointer,
                 depth + 1u,
+
+                runtime_depth,
+
                 error,
                 error_capacity)) {
 
@@ -5506,14 +7878,6 @@ static bool emit_all_struct_payload(
         const adsl_field_t *field =
             &type->fields[f];
 
-        if (strchr(field->type, '~') != NULL) {
-            set_error(
-                error,
-                error_capacity,
-                "milestone-2 emitter does not yet serialize collapsible struct fields");
-
-            return false;
-        }
 
         bool nullable =
             strchr(
@@ -5571,11 +7935,17 @@ static bool emit_all_struct_payload(
             if (!emit_value_expression(
                     output,
                     document,
+
+                    base_snake,
+
                     field->type,
                     field_expression,
                     field_prefix,
                     false,
                     depth + 1u,
+
+                    runtime_depth,
+
                     error,
                     error_capacity)) {
 
@@ -5676,11 +8046,17 @@ static bool emit_all_struct_payload(
         if (!emit_value_expression(
                 output,
                 document,
+
+                base_snake,
+
                 underlying_type,
                 nullable_expression,
                 field_prefix,
                 pointer_value,
                 depth + 1u,
+
+                runtime_depth,
+
                 error,
                 error_capacity)) {
 
@@ -5739,27 +8115,24 @@ static bool local_api_supported(
 
 
 
-        /*
-         * Nullable and collapsible method parameters are not generated for
-         * MCU targets, matching the remote API ABI. Keep the support gap
-         * symmetric so local and remote stay in step.
-         */
-        for (size_t p = 0u; p < method->param_count; ++p) {
-            const adsl_param_t *param = &method->params[p];
 
-            if (param->stream != NULL) {
-                continue;
-            }
 
-            if (param->type != NULL &&
-                (strchr(param->type, '?') != NULL ||
-                 strchr(param->type, '~') != NULL)) {
-                set_error(error, error_capacity,
-                    "nullable/collapsible parameters are not generated for MCU targets");
-                return false;
-            }
+        size_t nullable_count =
+            method_nullable_param_count(
+                method);
+
+        if (nullable_count > 64u) {
+            set_error(
+                error,
+                error_capacity,
+                "API method has more than 64 nullable parameters");
+
+            return false;
         }
+
     }
+
+
 
     return true;
 }
@@ -5888,6 +8261,13 @@ static bool emit_local_api_header(
     }
 
     for (size_t m = 0u; m < effective_count; ++m) {
+
+        emit_method_origin(
+            output,
+            effective[m].owner,
+            effective[m].method);
+
+
         if (!emit_local_callback_declaration(
                 output,
                 document,
@@ -5960,15 +8340,171 @@ static bool emit_local_api_header(
  * by emit_parameter_type(); the decode statement uses the generic type
  * decoder.
  */
+
 static bool emit_local_param_decode(
     FILE *output,
     const adsl_document_t *document,
     const adsl_param_t *param,
     const char *base_snake,
+    size_t nullable_bit_index,
     char *error,
     size_t error_capacity) {
 
+
     const char *type = param->type;
+
+
+    if (type != NULL &&
+        strchr(type, '?') != NULL) {
+
+        char cleaned[256];
+
+        if (!strip_nullable_suffix(
+                type,
+                cleaned,
+                sizeof(cleaned))) {
+
+            set_error(
+                error,
+                error_capacity,
+                "nullable local parameter type is too long");
+
+            return false;
+        }
+
+        if (param->stream != NULL) {
+            char stream_name[256];
+
+            declared_c_name(
+                cleaned,
+                stream_name,
+                sizeof(stream_name));
+
+            fprintf(
+                output,
+                "        %s_t *%s = NULL;\n"
+                "        if ((_meta_nullable_mask & "
+                "(UINT64_C(1) << %zuu)) == 0u) {\n"
+                "            %s = (%s_t *)aether_meta_scratch_alloc(\n"
+                "                ctx,\n"
+                "                sizeof(%s_t),\n"
+                "                _Alignof(%s_t));\n"
+                "            if (%s == NULL) return AETHER_ERR_OVERFLOW;\n"
+                "            memset(%s, 0, sizeof(*%s));\n"
+                "            {\n"
+                "                const uint8_t *_meta_stream_data = NULL;\n"
+                "                size_t _meta_stream_length = 0u;\n"
+                "                if (!aether_meta_read_view(\n"
+                "                        &ctx->reader,\n"
+                "                        &_meta_stream_data,\n"
+                "                        &_meta_stream_length)) {\n"
+                "                    return AETHER_ERR_PROTOCOL;\n"
+                "                }\n"
+                "                %s->data = (uint8_t *)_meta_stream_data;\n"
+                "                %s->capacity = _meta_stream_length;\n"
+                "                %s->length = _meta_stream_length;\n"
+                "            }\n"
+                "        }\n",
+                stream_name,
+                param->name,
+                nullable_bit_index,
+                param->name,
+                stream_name,
+                stream_name,
+                stream_name,
+                param->name,
+                param->name,
+                param->name,
+                param->name,
+                param->name,
+                param->name);
+
+            return true;
+        }
+
+        char ctype[272];
+        bool ignored_pointer = false;
+
+        if (!format_c_type(
+                document,
+                cleaned,
+                ctype,
+                sizeof(ctype),
+                &ignored_pointer,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        (void)ignored_pointer;
+
+        fprintf(
+            output,
+            "        %s *%s = NULL;\n"
+            "        if ((_meta_nullable_mask & "
+            "(UINT64_C(1) << %zuu)) == 0u) {\n"
+            "            %s = (%s *)aether_meta_scratch_alloc(\n"
+            "                ctx,\n"
+            "                sizeof(%s),\n"
+            "                _Alignof(%s));\n"
+            "            if (%s == NULL) return AETHER_ERR_OVERFLOW;\n"
+            "            memset(%s, 0, sizeof(*%s));\n",
+            ctype,
+            param->name,
+            nullable_bit_index,
+            param->name,
+            ctype,
+            ctype,
+            ctype,
+            param->name,
+            param->name,
+            param->name);
+
+        char target[320];
+
+        int target_size =
+            snprintf(
+                target,
+                sizeof(target),
+                "(*%s)",
+                param->name);
+
+        if (target_size < 0 ||
+            (size_t)target_size >=
+                sizeof(target)) {
+
+            set_error(
+                error,
+                error_capacity,
+                "generated nullable decode target is too long");
+
+            return false;
+        }
+
+        if (!emit_decode_value_expression(
+                output,
+                document,
+                cleaned,
+                target,
+                base_snake,
+                0u,
+
+                NULL,
+
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        fputs(
+            "        }\n",
+            output);
+
+        return true;
+    }
+
 
 
     if (param->stream != NULL) {
@@ -6048,6 +8584,9 @@ static bool emit_local_param_decode(
                     param->name,
                     base_snake,
                     0u,
+
+                    NULL,
+
                     error,
                     error_capacity)) {
                 return false;
@@ -6099,6 +8638,9 @@ static bool emit_local_param_decode(
                 array_target,
                 base_snake,
                 0u,
+
+                NULL,
+
                 error,
                 error_capacity)) {
             return false;
@@ -6131,6 +8673,9 @@ static bool emit_local_param_decode(
                 param->name,
                 base_snake,
                 0u,
+
+                NULL,
+
                 error,
                 error_capacity)) {
             return false;
@@ -6183,12 +8728,15 @@ static bool emit_local_param_decode(
         return true;
     }
 
-    if (declared->enum_count > 0u) {
+
+    if (declared->enum_count > 0u ||
+        declared->has_tiered_int) {
         fprintf(
             output,
             "        %s_t %s = {0};\n",
             declared_name,
             param->name);
+
     } else if (type_is_polymorphic_reference(document, declared)) {
 
         fprintf(
@@ -6244,6 +8792,9 @@ static bool emit_local_param_decode(
                 struct_target,
                 base_snake,
                 0u,
+
+                NULL,
+
                 error,
                 error_capacity)) {
             return false;
@@ -6260,6 +8811,9 @@ static bool emit_local_param_decode(
             param->name,
             base_snake,
             0u,
+
+            NULL,
+
             error,
             error_capacity)) {
         return false;
@@ -6323,9 +8877,16 @@ static bool emit_local_callback_invocation(
          * their generated local is already a pointer and must not be
          * address-taken again.
          */
+
+        bool nullable =
+            param->type != NULL &&
+            strchr(param->type, '?') != NULL;
+
         bool needs_address =
-            kind == C_PARAM_KIND_STREAM_PTR ||
-            kind == C_PARAM_KIND_REF_PTR;
+            !nullable &&
+            (kind == C_PARAM_KIND_STREAM_PTR ||
+             kind == C_PARAM_KIND_REF_PTR);
+
 
         fprintf(
             output,
@@ -6417,6 +8978,13 @@ static bool emit_local_api_source(
         char method_name[256];
         c_identifier(method->name, method_name, sizeof(method_name));
 
+
+        emit_method_origin(
+            output,
+            effective[m].owner,
+            method);
+
+
         fprintf(
             output,
             "    case %uu: {\n",
@@ -6438,18 +9006,51 @@ static bool emit_local_api_source(
                 output);
         }
 
-        for (size_t p = 0u; p < method->param_count; ++p) {
+
+        if (!emit_local_nullable_param_mask(
+                output,
+                method,
+                error,
+                error_capacity)) {
+
+            fclose(output);
+            return false;
+        }
+
+
+
+        size_t nullable_bit_index = 0u;
+
+        for (size_t p = 0u;
+             p < method->param_count;
+             ++p) {
+
+            const adsl_param_t *param =
+                &method->params[p];
+
+            size_t param_nullable_bit =
+                nullable_bit_index;
+
+            if (param->type != NULL &&
+                strchr(param->type, '?') != NULL) {
+
+                nullable_bit_index++;
+            }
+
             if (!emit_local_param_decode(
                     output,
                     document,
-                    &method->params[p],
+                    param,
                     base_snake,
+                    param_nullable_bit,
                     error,
                     error_capacity)) {
+
                 fclose(output);
                 return false;
             }
         }
+
 
         if (!emit_local_callback_invocation(
                 output,
@@ -6738,6 +9339,26 @@ static bool emit_field_declaration(
 
 
 
+
+static bool method_has_result_payload(
+    const adsl_method_t *method) {
+
+    if (method == NULL) {
+        return false;
+    }
+
+    if (method->return_field_count > 0u) {
+        return true;
+    }
+
+    return method->returns_type != NULL &&
+           strcmp(
+               method->returns_type,
+               "void") != 0;
+}
+
+
+
 static bool method_returns_void(
     const adsl_method_t *method);
 
@@ -6752,14 +9373,15 @@ static bool response_emit_result_struct(
     char *error,
     size_t error_capacity) {
 
+
     /*
-     * returns: void carries no result payload at all. Do not emit a
-     * placeholder struct, and do not try to resolve a declared type
-     * "void" against the ADSL type table.
+     * A throws-only method and `returns: void` both have a successful
+     * response envelope but no success payload.
      */
-    if (method_returns_void(method)) {
+    if (!method_has_result_payload(method)) {
         return true;
     }
+
 
     fprintf(output, "typedef struct {\n");
 
@@ -6800,6 +9422,48 @@ static bool response_emit_result_struct(
 
 
 
+static bool response_emit_error_struct(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_method_t *method,
+    const char *api_name,
+    const char *method_name,
+    char *error,
+    size_t error_capacity) {
+
+    if (method == NULL ||
+        method->throws_type == NULL) {
+
+        return true;
+    }
+
+    fputs(
+        "typedef struct {\n",
+        output);
+
+    if (!emit_field_declaration(
+            output,
+            document,
+            method->throws_type,
+            "value",
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
+    fprintf(
+        output,
+        "} %s_%s_error_t;\n\n",
+        api_name,
+        method_name);
+
+    return true;
+}
+
+
+
+
 
 static bool method_returns_void(
     const adsl_method_t *method) {
@@ -6823,11 +9487,12 @@ static bool response_method_supported(
         return false;
     }
 
-    if (method->throws_type != NULL) {
-        set_error(error, error_capacity,
-            "typed throws are not yet supported by the C response decoder");
-        return false;
-    }
+
+    /*
+     * A declared `throws` type is supported by the response decoder. Its
+     * payload uses the ordinary ADSL value codec after META_ERROR+request_id.
+     */
+
 
     /*
      * returns: void is a response-bearing method: the wire format still
@@ -6838,11 +9503,18 @@ static bool response_method_supported(
         return true;
     }
 
-    if (method->returns_type == NULL &&
-        method->return_field_count == 0u) {
-        set_error(error, error_capacity, "selected response method has no result");
+
+    if (!method_has_result_payload(method) &&
+        method->throws_type == NULL) {
+
+        set_error(
+            error,
+            error_capacity,
+            "selected response method has no result or throws");
+
         return false;
     }
+
 
     if (method->returns_type != NULL &&
         method->return_field_count > 0u) {
@@ -6863,7 +9535,8 @@ static void response_emit_frame_declaration(
     const char *method_name,
     const char *api_upper,
     const char *method_upper,
-    bool has_result) {
+    bool has_result,
+    bool has_typed_error) {
 
     fprintf(
         output,
@@ -6875,39 +9548,58 @@ static void response_emit_frame_declaration(
         api_upper, method_upper,
         api_name, method_name);
 
-    if (has_result) {
-        fprintf(
-            output,
-            "typedef struct {\n"
-            "    %s_%s_response_kind_t kind;\n"
-            "    uint32_t request_id;\n"
-            "    %s_%s_result_t result;\n"
-            "} %s_%s_response_frame_t;\n\n",
-            api_name, method_name,
-            api_name, method_name,
-            api_name, method_name);
-    } else {
+    fprintf(
+        output,
+        "typedef struct {\n"
+        "    %s_%s_response_kind_t kind;\n"
+        "    uint32_t request_id;\n",
+        api_name,
+        method_name);
+
+    if (has_result &&
+        has_typed_error) {
+
         /*
-         * returns: void has no result payload. The frame intentionally
-         * omits a result member so the wire semantics stay explicit.
+         * A response can carry either a result payload or a typed error, never
+         * both. Keep them in an anonymous union so MCU RAM is max(result,error)
+         * while preserving the existing frame.result source API.
          */
         fprintf(
             output,
-            "typedef struct {\n"
-            "    %s_%s_response_kind_t kind;\n"
-            "    uint32_t request_id;\n"
-            "} %s_%s_response_frame_t;\n\n",
-            api_name, method_name,
-            api_name, method_name);
+            "    union {\n"
+            "        %s_%s_result_t result;\n"
+            "        %s_%s_error_t error;\n"
+            "    };\n",
+            api_name,
+            method_name,
+            api_name,
+            method_name);
+    } else if (has_result) {
+        fprintf(
+            output,
+            "    %s_%s_result_t result;\n",
+            api_name,
+            method_name);
+    } else if (has_typed_error) {
+        fprintf(
+            output,
+            "    %s_%s_error_t error;\n",
+            api_name,
+            method_name);
     }
 
     fprintf(
         output,
+        "} %s_%s_response_frame_t;\n\n"
         "aether_status_t %s_%s_response_decode(\n"
         "    aether_meta_read_context_t *ctx,\n"
         "    %s_%s_response_frame_t *frame);\n\n",
-        api_name, method_name,
-        api_name, method_name);
+        api_name,
+        method_name,
+        api_name,
+        method_name,
+        api_name,
+        method_name);
 }
 
 
@@ -6955,6 +9647,14 @@ static bool emit_response_method_header(
         guard,
         base_snake);
 
+
+
+    emit_method_origin(
+        output,
+        api,
+        method);
+
+
     bool ok =
         response_emit_result_struct(
             output,
@@ -6966,16 +9666,28 @@ static bool emit_response_method_header(
             error_capacity);
 
     if (ok) {
+        ok =
+            response_emit_error_struct(
+                output,
+                document,
+                method,
+                api_name,
+                method_name,
+                error,
+                error_capacity);
+    }
 
+    if (ok) {
         response_emit_frame_declaration(
             output,
             api_name,
             method_name,
             api_upper,
             method_upper,
-            !method_returns_void(method));
-
+            method_has_result_payload(method),
+            method->throws_type != NULL);
     }
+
 
     fprintf(
         output,
@@ -7022,6 +9734,7 @@ static bool emit_response_method_source(
     upper_name(api_name, api_upper, sizeof(api_upper));
     upper_name(method_name, method_upper, sizeof(method_upper));
 
+
     fprintf(
         output,
         "#include \"%s_response.h\"\n"
@@ -7040,24 +9753,60 @@ static bool emit_response_method_source(
         "    if (!aether_meta_read_u32le(&ctx->reader, &request_id)) return AETHER_ERR_PROTOCOL;\n"
         "    frame->request_id = request_id;\n\n"
         "    if (command == 1u) {\n"
-        "        frame->kind = %s_%s_RESPONSE_ERROR;\n"
-        "        return AETHER_OK;\n"
-        "    }\n\n"
-        "    if (command != 0u) {\n"
-        "        return AETHER_ERR_PROTOCOL;\n"
-        "    }\n\n"
-        "    frame->kind = %s_%s_RESPONSE_RESULT;\n\n",
+        "        frame->kind = %s_%s_RESPONSE_ERROR;\n",
         base_snake,
         api_name, method_name,
         api_name, method_name,
-        api_upper, method_upper,
         api_upper, method_upper);
 
-    bool ok;
+    bool ok = true;
+
+    if (method->throws_type != NULL) {
+        ok =
+            emit_decode_value_expression(
+                output,
+                document,
+                method->throws_type,
+                "frame->error.value",
+                base_snake,
+                0u,
+
+                NULL,
+
+                error,
+                error_capacity);
+    }
+
+    if (ok) {
+        fputs(
+            "\n"
+            "        return AETHER_OK;\n"
+            "    }\n\n"
+            "    if (command != 0u) {\n"
+            "        return AETHER_ERR_PROTOCOL;\n"
+            "    }\n\n",
+            output);
+
+        fprintf(
+            output,
+            "    frame->kind = %s_%s_RESPONSE_RESULT;\n\n",
+            api_upper,
+            method_upper);
+    }
+
+    if (!ok) {
+        fclose(output);
+        return false;
+    }
+
+    ok = true;
 
 
-    if (method_returns_void(method)) {
+
+
+    if (!method_has_result_payload(method)) {
         ok = true;
+
     } else if (method->returns_type != NULL) {
         ok = emit_decode_value_expression(
             output,
@@ -7067,21 +9816,18 @@ static bool emit_response_method_source(
             "frame->result.value",
             base_snake,
             0u,
+
+            NULL,
+
             error,
             error_capacity);
     } else {
+
         adsl_type_t synthetic = {
-            NULL,
-            false,
-            0u,
-            false,
-            NULL,
-            method->return_fields,
-            method->return_field_count,
-            NULL,
-            0u,
-            NULL
+            .fields = method->return_fields,
+            .field_count = method->return_field_count
         };
+
 
         ok = emit_decode_struct_fields(
             output,
@@ -7090,6 +9836,7 @@ static bool emit_response_method_source(
             "(&frame->result)",
             base_snake,
             0u,
+NULL,
             error,
             error_capacity);
     }
@@ -7256,6 +10003,7 @@ static bool emit_decode_struct_fields_recursive(
     const char *base_snake,
     size_t *bit_index,
     unsigned int depth,
+const char *runtime_depth,
     char *error,
     size_t error_capacity) {
 
@@ -7287,6 +10035,7 @@ static bool emit_decode_struct_fields_recursive(
                 base_snake,
                 bit_index,
                 depth + 1u,
+runtime_depth,
                 error,
                 error_capacity)) {
             return false;
@@ -7296,13 +10045,6 @@ static bool emit_decode_struct_fields_recursive(
     for (size_t f = 0u; f < type->field_count; ++f) {
         const adsl_field_t *field = &type->fields[f];
 
-        if (strchr(field->type, '~') != NULL) {
-            set_error(
-                error,
-                error_capacity,
-                "collapsible struct fields are not generated for MCU targets");
-            return false;
-        }
 
         bool nullable =
             strchr(field->type, '?') != NULL;
@@ -7334,6 +10076,7 @@ static bool emit_decode_struct_fields_recursive(
                     field_target,
                     base_snake,
                     depth + 1u,
+runtime_depth,
                     error,
                     error_capacity)) {
                 return false;
@@ -7377,7 +10120,7 @@ static bool emit_decode_struct_fields_recursive(
         (void)array_static_size;
 
         const char *ctype = NULL;
-        char ctype_buf[256];
+        char ctype_buf[272];
 
         if (field_is_array) {
             if (!array_alias_name(
@@ -7502,6 +10245,7 @@ static bool emit_decode_struct_fields_recursive(
                 nullable_target,
                 base_snake,
                 depth + 1u,
+runtime_depth,
                 error,
                 error_capacity)) {
             return false;
@@ -7534,6 +10278,7 @@ static bool emit_decode_struct_fields(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+const char *runtime_depth,
     char *error,
     size_t error_capacity) {
 
@@ -7613,6 +10358,7 @@ static bool emit_decode_struct_fields(
             base_snake,
             &bit_index,
             depth,
+runtime_depth,
             error,
             error_capacity);
 
@@ -7634,6 +10380,7 @@ static bool emit_decode_array_expression(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+const char *runtime_depth,
     char *error,
     size_t error_capacity) {
 
@@ -7726,6 +10473,7 @@ static bool emit_decode_array_expression(
                 elem_target,
                 base_snake,
                 depth + 1u,
+runtime_depth,
                 error,
                 error_capacity)) {
             return false;
@@ -7743,7 +10491,7 @@ static bool emit_decode_array_expression(
      * from caller scratch, then decode each element.
      */
     const char *ctype = primitive_c_type(element);
-    char ctype_buf[256];
+    char ctype_buf[272];
 
     if (ctype == NULL) {
         const adsl_type_t *declared =
@@ -7848,6 +10596,7 @@ static bool emit_decode_array_expression(
             array_target,
             base_snake,
             depth + 1u,
+runtime_depth,
             error,
             error_capacity)) {
         return false;
@@ -7879,6 +10628,7 @@ static bool emit_decode_hierarchy_expression(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+const char *runtime_depth,
     char *error,
     size_t error_capacity) {
 
@@ -7967,6 +10717,7 @@ static bool emit_decode_hierarchy_expression(
                 child_target,
                 base_snake,
                 depth + 1u,
+runtime_depth,
                 error,
                 error_capacity)) {
             return false;
@@ -8012,6 +10763,7 @@ static bool emit_decode_value_expression(
     const char *target,
     const char *base_snake,
     unsigned int depth,
+const char *runtime_depth,
     char *error,
     size_t error_capacity) {
 
@@ -8023,13 +10775,6 @@ static bool emit_decode_value_expression(
         return false;
     }
 
-    if (strchr(type, '~') != NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "collapsible values are not generated for MCU targets");
-        return false;
-    }
 
     if (strchr(type, '?') != NULL) {
         set_error(
@@ -8056,6 +10801,7 @@ static bool emit_decode_value_expression(
             target,
             base_snake,
             depth,
+runtime_depth,
             error,
             error_capacity);
     }
@@ -8189,6 +10935,39 @@ static bool emit_decode_value_expression(
     }
 
 
+
+    if (declared_type->has_tiered_int) {
+        char tiered_name[256];
+
+        declared_c_name(
+            declared_type->name,
+            tiered_name,
+            sizeof(tiered_name));
+
+        fprintf(
+            output,
+            "    {\n"
+            "        uint64_t _meta_tiered_int = 0u;\n"
+            "        if (!aether_meta_read_tiered_int(\n"
+            "                &ctx->reader,\n"
+            "                &_meta_tiered_int,\n"
+            "                %uu,\n"
+            "                %s_tiered_int_limits,\n"
+            "                %zuu)) {\n"
+            "            return AETHER_ERR_PROTOCOL;\n"
+            "        }\n"
+            "        (%s) = (%s_t)_meta_tiered_int;\n"
+            "    }\n",
+            (unsigned int)declared_type->tiered_int_min_bytes,
+            tiered_name,
+            declared_type->tiered_int_limit_count,
+            target,
+            tiered_name);
+
+        return true;
+    }
+
+
     if (declared_type->stream != NULL) {
         /*
          * Incoming stream borrows the immutable RX frame. The historical
@@ -8239,6 +11018,7 @@ static bool emit_decode_value_expression(
             target,
             base_snake,
             depth,
+runtime_depth,
             error,
             error_capacity);
     }
@@ -8251,38 +11031,44 @@ static bool emit_decode_value_expression(
         return false;
     }
 
-    fprintf(
-        output,
-        "    /* concrete struct value */\n");
+
+    char nested_name[256];
+    declared_c_name(
+        declared_type->name,
+        nested_name,
+        sizeof(nested_name));
 
 
-    {
-        char address[1024];
-        int address_size =
-            snprintf(
-                address,
-                sizeof(address),
-                "(&(%s))",
-                target);
-
-        if (address_size < 0 ||
-            (size_t)address_size >= sizeof(address)) {
-            set_error(
-                error,
-                error_capacity,
-                "generated concrete struct decode target is too long");
-            return false;
-        }
-
-        return emit_decode_struct_fields(
+if (runtime_depth != NULL) {
+        fprintf(
             output,
-            document,
-            declared_type,
-            address,
+            "    {\n"
+            "        aether_status_t meta_status = %s_deserialize_%s_impl(\n"
+            "            ctx,\n"
+            "            &(%s),\n"
+            "            %s + 1u);\n"
+            "        if (meta_status != AETHER_OK) return meta_status;\n"
+            "    }\n",
             base_snake,
-            depth,
-            error,
-            error_capacity);
+            nested_name,
+            target,
+            runtime_depth);
+    } else {
+        fprintf(
+            output,
+            "    {\n"
+            "        aether_status_t meta_status = %s_deserialize_%s(\n"
+            "            ctx,\n"
+            "            &(%s));\n"
+            "        if (meta_status != AETHER_OK) return meta_status;\n"
+            "    }\n",
+            base_snake,
+            nested_name,
+            target);
     }
+
+
+    return true;
+
 
 }

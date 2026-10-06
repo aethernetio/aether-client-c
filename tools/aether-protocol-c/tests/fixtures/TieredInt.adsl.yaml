@@ -1,0 +1,42 @@
+
+types:
+  Counter:
+    tieredInt:
+      minTierBytes: 1
+      limits:
+        - 250
+        - 1514
+        - 1049834
+
+
+  WideCounter:
+    tieredInt:
+      minTierBytes: 2
+      limits:
+        - 4000
+        - 100000000
+
+
+  CounterHolder:
+    fields:
+      value: Counter
+      optionalValue: Counter?
+      pair: Counter[2]
+
+api:
+  CounterApi:
+    methods:
+      setCounter:
+        id: 32
+        params:
+          value: Counter
+
+      setOptional:
+        id: 33
+        params:
+          value: Counter?
+
+      setHolder:
+        id: 34
+        params:
+          holder: CounterHolder

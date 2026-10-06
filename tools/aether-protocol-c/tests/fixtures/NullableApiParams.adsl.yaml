@@ -1,0 +1,23 @@
+
+types:
+  NullableParamItem:
+    fields:
+      code: short
+
+api:
+  NullableParamApi:
+    methods:
+      send:
+        id: 21
+        params:
+          maybeShort: short?
+          required: byte
+          maybeBytes: byte[]?
+          maybeItem: NullableParamItem?
+
+      query:
+        id: 22
+        params:
+          maybeCode: short?
+          required: byte
+        returns: short

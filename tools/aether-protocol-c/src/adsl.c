@@ -31,6 +31,10 @@ typedef enum {
     TYPE_BODY_NONE = 0,
     TYPE_BODY_FIELDS,
     TYPE_BODY_ENUM,
+
+    TYPE_BODY_TIERED_INT,
+    TYPE_BODY_TIERED_INT_LIMITS,
+
     TYPE_BODY_STREAM,
     TYPE_BODY_STREAM_APIS,
     TYPE_BODY_STREAM_KEYS
@@ -723,6 +727,42 @@ static bool parse_u8(
     return true;
 }
 
+
+
+static bool parse_u32(
+    const char *value,
+    uint32_t *out) {
+
+    if (value == NULL ||
+        out == NULL ||
+        value[0] == '-') {
+
+        return false;
+    }
+
+    errno = 0;
+
+    char *end = NULL;
+
+    unsigned long parsed =
+        strtoul(
+            value,
+            &end,
+            10);
+
+    if (errno != 0 ||
+        end == value ||
+        *end != '\0' ||
+        parsed > UINT32_MAX) {
+
+        return false;
+    }
+
+    *out = (uint32_t)parsed;
+    return true;
+}
+
+
 static size_t leading_spaces(
     const char *line,
     bool *has_tab) {
@@ -775,6 +815,24 @@ static bool parse_type_body(
 
             return false;
         }
+
+
+        if (strcmp(key, "tieredInt") == 0) {
+            if (*value != '\0') {
+                set_error(
+                    error,
+                    error_capacity,
+                    "line %zu: tieredInt definition must be a map",
+                    line_number);
+
+                return false;
+            }
+
+            type->has_tiered_int = true;
+            *body = TYPE_BODY_TIERED_INT;
+            return true;
+        }
+
 
         if (strcmp(key, "fields") == 0) {
             *body = TYPE_BODY_FIELDS;
@@ -859,6 +917,71 @@ static bool parse_type_body(
         return false;
     }
 
+
+    if (indent == 6u &&
+        (*body == TYPE_BODY_TIERED_INT ||
+         *body == TYPE_BODY_TIERED_INT_LIMITS)) {
+
+        char *key = NULL;
+        char *value = NULL;
+
+        if (!split_mapping(
+                text,
+                &key,
+                &value)) {
+
+            set_error(
+                error,
+                error_capacity,
+                "line %zu: expected tieredInt property",
+                line_number);
+
+            return false;
+        }
+
+        if (strcmp(key, "minTierBytes") == 0) {
+            if (!parse_u8(
+                    value,
+                    &type->tiered_int_min_bytes)) {
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "line %zu: tieredInt minTierBytes must be an integer",
+                    line_number);
+
+                return false;
+            }
+
+            *body = TYPE_BODY_TIERED_INT;
+            return true;
+        }
+
+        if (strcmp(key, "limits") == 0) {
+            if (*value != '\0') {
+                set_error(
+                    error,
+                    error_capacity,
+                    "line %zu: tieredInt limits must use a YAML list",
+                    line_number);
+
+                return false;
+            }
+
+            *body = TYPE_BODY_TIERED_INT_LIMITS;
+            return true;
+        }
+
+        set_error(
+            error,
+            error_capacity,
+            "line %zu: tieredInt supports only minTierBytes and limits",
+            line_number);
+
+        return false;
+    }
+
+
     if (indent == 6u &&
         *body == TYPE_BODY_FIELDS) {
 
@@ -900,6 +1023,50 @@ static bool parse_type_body(
             &type->enum_count,
             value);
     }
+
+
+    if (indent == 8u &&
+        *body == TYPE_BODY_TIERED_INT_LIMITS &&
+        text[0] == '-') {
+
+        if (type->tiered_int_limit_count >=
+            sizeof(type->tiered_int_limits) /
+                sizeof(type->tiered_int_limits[0])) {
+
+            set_error(
+                error,
+                error_capacity,
+                "line %zu: tieredInt configuration exceeds the canonical four-tier / 8-byte wire limit",
+                line_number);
+
+            return false;
+        }
+
+        char *limit_text =
+            trim(text + 1);
+
+        uint32_t limit = 0u;
+
+        if (!parse_u32(
+                limit_text,
+                &limit)) {
+
+            set_error(
+                error,
+                error_capacity,
+                "line %zu: tieredInt limits must be uint32 integers",
+                line_number);
+
+            return false;
+        }
+
+        type->tiered_int_limits[
+            type->tiered_int_limit_count++] =
+                limit;
+
+        return true;
+    }
+
 
     if (type->stream != NULL &&
         indent == 6u) {
@@ -1227,6 +1394,19 @@ static bool parse_api_body(
             append_method(
                 api,
                 name);
+
+
+        if (*method != NULL) {
+            (*method)->source_path =
+                copy_string(api->source_path);
+            (*method)->source_line =
+                line_number;
+
+            if ((*method)->source_path == NULL) {
+                return false;
+            }
+        }
+
 
         return *method != NULL;
     }
@@ -1753,6 +1933,9 @@ void adsl_document_free(
             &document->types[i];
 
         free(type->name);
+
+        free(type->source_path);
+
         free(type->parent);
 
         for (size_t f = 0u;
@@ -1787,6 +1970,9 @@ void adsl_document_free(
 
         free(api->name);
 
+        free(api->source_path);
+
+
         for (size_t p = 0u;
              p < api->parent_count;
              ++p) {
@@ -1804,6 +1990,9 @@ void adsl_document_free(
                 &api->methods[m];
 
             free(method->name);
+
+            free(method->source_path);
+
             free(method->returns_type);
             free(method->throws_type);
 
@@ -2072,6 +2261,23 @@ if (indent == 0u) {
                 break;
             }
 
+
+            current_type->source_path =
+                copy_string(path);
+            current_type->source_line =
+                line_number;
+
+            if (current_type->source_path == NULL) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "out of memory");
+
+                ok = false;
+                break;
+            }
+
+
             continue;
         }
 
@@ -2136,6 +2342,23 @@ if (indent == 0u) {
                 ok = false;
                 break;
             }
+
+
+            current_api->source_path =
+                copy_string(path);
+            current_api->source_line =
+                line_number;
+
+            if (current_api->source_path == NULL) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "out of memory");
+
+                ok = false;
+                break;
+            }
+
 
             continue;
         }
@@ -2313,6 +2536,97 @@ static const adsl_type_t *find_type(
 
     return NULL;
 }
+
+
+/*
+ * Validate collapsible METHOD key shapes whose Java CollapsibleKey
+ * Objects.equals semantics have an exact representation in the current C ABI.
+ *
+ * Do not silently substitute byte equality for java.net.URI.equals, content
+ * equality for Java array identity, or raw-struct comparison for generated
+ * DTO equals semantics.
+ */
+static bool validate_collapsible_key_parameter(
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    const char *method_name,
+    char *error,
+    size_t error_capacity) {
+
+    if (param == NULL) {
+        return true;
+    }
+
+    if (param->stream != NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "collapsible API method '%s' stream key cannot reproduce Java Objects.equals semantics in C",
+            method_name);
+        return false;
+    }
+
+    if (param->type == NULL) {
+        return true;
+    }
+
+    if (strchr(param->type, '[') != NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "collapsible API method '%s' array key cannot reproduce Java array identity semantics in C",
+            method_name);
+        return false;
+    }
+
+    char canonical[256];
+    base_type(
+        param->type,
+        canonical,
+        sizeof(canonical));
+
+    if (same_name(canonical, "uri")) {
+        set_error(
+            error,
+            error_capacity,
+            "collapsible API method '%s' URI key cannot reproduce java.net.URI.equals semantics in C",
+            method_name);
+        return false;
+    }
+
+    if (primitive_type(canonical)) {
+        if (same_name(canonical, "void")) {
+            set_error(
+                error,
+                error_capacity,
+                "collapsible API method '%s' has invalid void key parameter",
+                method_name);
+            return false;
+        }
+
+        return true;
+    }
+
+    const adsl_type_t *declared =
+        find_type(document, canonical);
+
+    if (declared != NULL &&
+        (declared->enum_count > 0u ||
+         declared->has_tiered_int)) {
+
+        return true;
+    }
+
+    set_error(
+        error,
+        error_capacity,
+        "collapsible API method '%s' complex key type '%s' cannot reproduce Java Objects.equals semantics in C",
+        method_name,
+        canonical);
+
+    return false;
+}
+
 
 
 static const adsl_api_t *find_api_const(
@@ -2622,6 +2936,176 @@ bool adsl_collect_effective_methods(
 }
 
 
+
+static bool validate_tiered_int(
+    const adsl_type_t *type,
+    char *error,
+    size_t error_capacity) {
+
+    if (type == NULL ||
+        !type->has_tiered_int) {
+
+        return true;
+    }
+
+    if (type->field_count != 0u ||
+        type->enum_count != 0u ||
+        type->stream != NULL ||
+        type->parent != NULL ||
+        type->is_abstract ||
+        type->has_id) {
+
+        set_error(
+            error,
+            error_capacity,
+            "type '%s' tieredInt declaration cannot contain structure or other type-definition keys",
+            type->name);
+
+        return false;
+    }
+
+    const uint8_t base_bytes =
+        type->tiered_int_min_bytes;
+
+    if (base_bytes != 1u &&
+        base_bytes != 2u &&
+        base_bytes != 4u) {
+
+        set_error(
+            error,
+            error_capacity,
+            "type '%s' tieredInt minTierBytes must be 1, 2, or 4",
+            type->name);
+
+        return false;
+    }
+
+    const size_t limit_count =
+        type->tiered_int_limit_count;
+
+    if (limit_count == 0u) {
+        set_error(
+            error,
+            error_capacity,
+            "type '%s' tieredInt limits must be a non-empty array of integers",
+            type->name);
+
+        return false;
+    }
+
+    if (limit_count > 3u ||
+        ((size_t)base_bytes << limit_count) > 8u) {
+
+        set_error(
+            error,
+            error_capacity,
+            "type '%s' tieredInt configuration exceeds the canonical four-tier / 8-byte wire limit",
+            type->name);
+
+        return false;
+    }
+
+    for (size_t i = 1u;
+         i < limit_count;
+         ++i) {
+
+        if (type->tiered_int_limits[i] <=
+            type->tiered_int_limits[i - 1u]) {
+
+            set_error(
+                error,
+                error_capacity,
+                "type '%s' tieredInt limits must be strictly increasing",
+                type->name);
+
+            return false;
+        }
+    }
+
+    const uint64_t word =
+        UINT64_C(1) <<
+        (8u * base_bytes);
+
+    const uint64_t header_max =
+        word - UINT64_C(1);
+
+    if ((uint64_t)type->tiered_int_limits[0] >=
+        header_max) {
+
+        set_error(
+            error,
+            error_capacity,
+            "type '%s' tieredInt first limit must leave extension header space",
+            type->name);
+
+        return false;
+    }
+
+    uint64_t span =
+        header_max -
+        (uint64_t)type->tiered_int_limits[0] -
+        UINT64_C(1);
+
+    uint64_t tail =
+        (uint64_t)type->tiered_int_limits[0] +
+        UINT64_C(1) +
+        header_max;
+
+    uint64_t max_encodable =
+        span != 0u &&
+        word > (UINT64_MAX - tail) / span
+            ? UINT64_MAX
+            : span * word + tail;
+
+    for (size_t i = 1u;
+         i < limit_count;
+         ++i) {
+
+        const uint64_t limit =
+            (uint64_t)type->tiered_int_limits[i];
+
+        if (limit > max_encodable) {
+            set_error(
+                error,
+                error_capacity,
+                "type '%s' tieredInt limit %u cannot be represented by the previous wire tier",
+                type->name,
+                (unsigned int)type->tiered_int_limits[i]);
+
+            return false;
+        }
+
+        const unsigned int low_bytes =
+            (unsigned int)base_bytes << i;
+
+        const uint64_t modulus =
+            UINT64_C(1) <<
+            (8u * low_bytes);
+
+        span =
+            max_encodable -
+            limit -
+            UINT64_C(1);
+
+        tail =
+            limit +
+            UINT64_C(1) +
+            modulus -
+            UINT64_C(1);
+
+        max_encodable =
+            span != 0u &&
+            modulus >
+                (UINT64_MAX - tail) / span
+                    ? UINT64_MAX
+                    : span * modulus + tail;
+    }
+
+    return true;
+}
+
+
+
 bool adsl_validate(
     adsl_document_t *document,
     char *error,
@@ -2657,20 +3141,55 @@ bool adsl_validate(
         adsl_type_t *type =
             &document->types[i];
 
-        if (type->parent != NULL &&
-            find_type(
-                document,
-                type->parent) == NULL) {
 
-            set_error(
-                error,
-                error_capacity,
-                "type '%s' has unknown parent '%s'",
-                type->name,
-                type->parent);
+        if (type->has_tiered_int) {
+            if (!validate_tiered_int(
+                    type,
+                    error,
+                    error_capacity)) {
 
-            return false;
+                return false;
+            }
+
+            continue;
         }
+
+
+
+        if (type->parent != NULL) {
+            const adsl_type_t *parent_type =
+                find_type(
+                    document,
+                    type->parent);
+
+            if (parent_type == NULL) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "type '%s' has unknown parent '%s'",
+                    type->name,
+                    type->parent);
+
+                return false;
+            }
+
+            /*
+             * tieredInt is a named scalar, not a structural inheritance node.
+             * Allowing a struct to inherit from it would make the semantic
+             * model disagree with the generated uint64_t ABI.
+             */
+            if (parent_type->has_tiered_int) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "type '%s' cannot inherit from scalar tieredInt type '%s'",
+                    type->name,
+                    type->parent);
+
+                return false;
+            }
+        }
+
 
         size_t nullable_count =
             0u;
@@ -2764,10 +3283,14 @@ bool adsl_validate(
          * This phase deliberately does NOT assign automatic command ids and
          * does NOT compute the effective set.
          */
+
         for (size_t m = 0u; m < api->method_count; ++m) {
 
             const adsl_method_t *method =
                 &api->methods[m];
+
+            size_t collapsible_param_count =
+                0u;
 
             for (size_t p = 0u;
                  p < method->param_count;
@@ -2775,6 +3298,17 @@ bool adsl_validate(
 
                 const adsl_param_t *param =
                     &method->params[p];
+
+                if (param->type != NULL) {
+                    size_t type_length =
+                        strlen(param->type);
+
+                    if (type_length > 0u &&
+                        param->type[type_length - 1u] == '~') {
+
+                        collapsible_param_count++;
+                    }
+                }
 
                 if (param->stream != NULL) {
                     continue;
@@ -2790,6 +3324,62 @@ bool adsl_validate(
                 }
             }
 
+            if (collapsible_param_count > 0u) {
+                if (method->returns_type != NULL ||
+                    method->return_field_count > 0u ||
+                    method->throws_type != NULL) {
+
+                    set_error(
+                        error,
+                        error_capacity,
+                        "collapsible API method '%s' cannot declare returns or throws",
+                        method->name);
+
+                    return false;
+                }
+
+                if (collapsible_param_count ==
+                    method->param_count) {
+
+                    set_error(
+                        error,
+                        error_capacity,
+                        "collapsible API method '%s' requires at least one non-collapsible key parameter",
+                        method->name);
+
+                    return false;
+                }
+                for (size_t p = 0u;
+                     p < method->param_count;
+                     ++p) {
+
+                    const adsl_param_t *param =
+                        &method->params[p];
+
+                    if (param->type != NULL) {
+                        size_t type_length =
+                            strlen(param->type);
+
+                        if (type_length > 0u &&
+                            param->type[type_length - 1u] == '~') {
+
+                            continue;
+                        }
+                    }
+
+                    if (!validate_collapsible_key_parameter(
+                            document,
+                            param,
+                            method->name,
+                            error,
+                            error_capacity)) {
+
+                        return false;
+                    }
+                }
+
+            }
+
             if (!validate_type_reference(
                     document,
                     method->returns_type,
@@ -2803,6 +3393,7 @@ bool adsl_validate(
 
                 return false;
             }
+
 
             for (size_t f = 0u;
                  f < method->return_field_count;

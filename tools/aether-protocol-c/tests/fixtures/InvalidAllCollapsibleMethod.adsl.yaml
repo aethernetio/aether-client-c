@@ -1,0 +1,10 @@
+
+name: InvalidAllCollapsibleMethod
+
+api:
+  BadApi:
+    methods:
+      bad:
+        id: 3
+        params:
+          value: int~

@@ -1,0 +1,5 @@
+
+types:
+  DirectNode:
+    fields:
+      next: DirectNode

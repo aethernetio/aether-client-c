@@ -1,0 +1,10 @@
+name: InvalidCollapsibleArrayKey
+
+api:
+  BadApi:
+    methods:
+      bad:
+        id: 3
+        params:
+          key: int[]
+          value: int~

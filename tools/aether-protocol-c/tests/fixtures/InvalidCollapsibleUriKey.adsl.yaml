@@ -1,0 +1,10 @@
+name: InvalidCollapsibleUriKey
+
+api:
+  BadApi:
+    methods:
+      bad:
+        id: 3
+        params:
+          key: URI
+          value: int~

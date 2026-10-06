@@ -1,0 +1,12 @@
+
+name: InvalidCollapsibleResponse
+
+api:
+  BadApi:
+    methods:
+      bad:
+        id: 3
+        returns: int
+        params:
+          key: int
+          value: int~

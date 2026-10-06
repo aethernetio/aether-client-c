@@ -1,0 +1,22 @@
+
+types:
+  StaticItem:
+    fields:
+      code: short
+
+  StaticHolder:
+    fields:
+      items: StaticItem[2]
+
+api:
+  StaticStructArrayApi:
+    methods:
+      sendHolder:
+        id: 7
+        params:
+          value: StaticHolder
+
+      sendItems:
+        id: 8
+        params:
+          values: StaticItem[2]

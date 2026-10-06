@@ -17,3 +17,10 @@ api:
         returns: bool
         params:
           code: short
+
+
+      updateValue:
+        id: 5
+        params:
+          key: int
+          value: int~

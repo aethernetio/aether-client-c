@@ -1,0 +1,5 @@
+
+types:
+  FixedNode:
+    fields:
+      children: FixedNode[2]
