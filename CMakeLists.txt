@@ -38,6 +38,8 @@ add_library(aether_client STATIC
     src/aether_transport_server.c
     src/aether_peer_frame.c
     src/aether_peer_uap.c
+    src/aether_peer_identity.c
+    src/aether_peer_identity_verify.c
     platform/posix/aether_posix_transport.c
 
 
@@ -72,9 +74,9 @@ target_include_directories(aether_client
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/platform/posix
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
 )
 
 target_include_directories(aether_client
@@ -147,6 +149,40 @@ if(AETHER_BUILD_TESTS)
         NAME aether_peer_uap_test
         COMMAND aether_peer_uap_test
     )
+
+    add_executable(
+        aether_peer_identity_test
+        tests/test_peer_identity.c
+    )
+
+    target_link_libraries(
+        aether_peer_identity_test
+        PRIVATE
+            aether_client
+    )
+
+    add_test(
+        NAME aether_peer_identity_test
+        COMMAND aether_peer_identity_test
+    )
+
+    add_executable(
+        aether_peer_identity_verify_test
+        tests/test_peer_identity_verify.c
+    )
+
+    target_link_libraries(
+        aether_peer_identity_verify_test
+        PRIVATE
+            aether_client
+    )
+
+    add_test(
+        NAME aether_peer_identity_verify_test
+        COMMAND aether_peer_identity_verify_test
+    )
+
+
 
 
     add_executable(
