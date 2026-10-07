@@ -507,6 +507,23 @@ typedef struct {
         uint8_t *out_key,
         size_t key_len);
 
+
+
+
+    aether_status_t (*random_bytes)(
+        void *ctx,
+        uint8_t *out,
+        size_t length);
+
+
+    aether_status_t (*sha256)(
+        void *ctx,
+        const uint8_t *data,
+        size_t data_len,
+        uint8_t out[32]);
+
+
+
     aether_status_t (*verify_signature)(
         void *ctx,
         const uint8_t *public_key,
