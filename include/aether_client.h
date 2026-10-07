@@ -510,17 +510,6 @@ typedef struct {
 
 
 
-    aether_status_t (*random_bytes)(
-        void *ctx,
-        uint8_t *out,
-        size_t length);
-
-
-    aether_status_t (*sha256)(
-        void *ctx,
-        const uint8_t *data,
-        size_t data_len,
-        uint8_t out[32]);
 
 
 

@@ -1907,10 +1907,6 @@ static aether_status_t ensure_required_callbacks(
     if (crypto->random_symmetric_key ==
             NULL ||
 
-        crypto->random_bytes ==
-            NULL ||
-        crypto->sha256 ==
-            NULL ||
 
         crypto->verify_signature ==
             NULL ||
