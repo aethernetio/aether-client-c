@@ -21,6 +21,7 @@
 
 
 #include "aether_client_app.h"
+#include "aether_peer.h"
 #include "aether_rx.h"
 
 #include <stdbool.h>

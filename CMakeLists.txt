@@ -36,6 +36,8 @@ add_library(aether_client STATIC
     src/aether_messages.c
     src/aether_transport.c
     src/aether_transport_server.c
+    src/aether_peer_frame.c
+    src/aether_peer_uap.c
     platform/posix/aether_posix_transport.c
 
 
@@ -45,6 +47,10 @@ add_library(aether_client STATIC
 
     src/generated/client_server_api_api.c
     src/generated/client_server_api_types.c
+
+    src/generated/peer_api_api.c
+    src/generated/peer_api_types.c
+
 
 
     src/aether_internal.c
@@ -68,6 +74,7 @@ target_include_directories(aether_client
         ${CMAKE_CURRENT_SOURCE_DIR}/platform/posix
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
 )
 
 target_include_directories(aether_client
@@ -122,6 +129,23 @@ if(AETHER_BUILD_TESTS)
         aether_hydrogen_test_support
         PUBLIC
             c_std_11
+    )
+
+
+    add_executable(
+        aether_peer_uap_test
+        tests/test_peer_uap.c
+    )
+
+    target_link_libraries(
+        aether_peer_uap_test
+        PRIVATE
+            aether_client
+    )
+
+    add_test(
+        NAME aether_peer_uap_test
+        COMMAND aether_peer_uap_test
     )
 
 
