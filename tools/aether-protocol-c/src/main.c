@@ -365,6 +365,8 @@ int main(
         adsl_document_free(&document);
         return 1;
     }
+    fprintf(stderr, "MAIN DEBUG: document loaded types=%zu apis=%zu\n", document.type_count, document.api_count);
+
 
     if (!adsl_validate(
             &document,

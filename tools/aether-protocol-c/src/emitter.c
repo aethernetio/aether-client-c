@@ -2252,6 +2252,9 @@ for (size_t i = 0u;
             continue;
         }
 
+
+
+
         if (!emit_stream_typedef(
                 output,
                 type->name,
@@ -2269,6 +2272,9 @@ for (size_t i = 0u;
 
         const adsl_api_t *api =
             &document->apis[a];
+
+
+
 
         for (size_t m = 0u;
              m < api->method_count;
@@ -2364,6 +2370,9 @@ declared_c_name(
 
         const adsl_type_t *type =
             &document->types[i];
+
+
+
 
 
 
@@ -4010,6 +4019,9 @@ static bool emit_all_stream_builder_definitions(
         const adsl_api_t *api =
             &document->apis[a];
 
+
+
+
         for (size_t m = 0u;
              m < api->method_count;
              ++m) {
@@ -4027,7 +4039,6 @@ static bool emit_all_stream_builder_definitions(
                 if (param->stream == NULL) {
                     continue;
                 }
-
                 if (!emit_stream_builder_definitions(
                         output,
                         document,
@@ -4039,6 +4050,11 @@ static bool emit_all_stream_builder_definitions(
 
                     return false;
                 }
+
+
+
+
+
             }
         }
     }

@@ -173,6 +173,10 @@ typedef struct {
    */
   typedef struct {
 
+
+    char *root_source_path;
+
+
     char *name;
 
     char **includes;
@@ -183,7 +187,26 @@ typedef struct {
 
     adsl_api_t *apis;
     size_t api_count;
+
+    /*
+     * Full type/api lookup context.
+     *
+     * `types` and `apis` represent declarations owned by the root ADSL file and
+     * are the only declarations emitted for this protocol.
+     *
+     * `resolved_types` and `resolved_apis` contain the complete include closure
+     * plus root declarations and are used only for semantic lookup and validation.
+     */
+    adsl_type_t *resolved_types;
+    size_t resolved_type_count;
+
+    adsl_api_t *resolved_apis;
+    size_t resolved_api_count;
+
 } adsl_document_t;
+
+    
+
 
 
 

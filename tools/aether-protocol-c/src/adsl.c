@@ -1907,51 +1907,30 @@ void adsl_document_init(
     }
 }
 
-void adsl_document_free(
-    adsl_document_t *document) {
 
-    if (document == NULL) {
+static void free_type_array(
+    adsl_type_t *types,
+    size_t count) {
+
+    if (types == NULL) {
         return;
     }
 
-    free(document->name);
-
-    for (size_t i = 0u;
-         i < document->include_count;
-         ++i) {
-
-        free(document->includes[i]);
-    }
-
-    free(document->includes);
-
-    for (size_t i = 0u;
-         i < document->type_count;
-         ++i) {
-
-        adsl_type_t *type =
-            &document->types[i];
+    for (size_t i = 0u; i < count; ++i) {
+        adsl_type_t *type = &types[i];
 
         free(type->name);
-
         free(type->source_path);
-
         free(type->parent);
 
-        for (size_t f = 0u;
-             f < type->field_count;
-             ++f) {
-
+        for (size_t f = 0u; f < type->field_count; ++f) {
             free(type->fields[f].name);
             free(type->fields[f].type);
         }
 
         free(type->fields);
 
-        for (size_t e = 0u;
-             e < type->enum_count;
-             ++e) {
-
+        for (size_t e = 0u; e < type->enum_count; ++e) {
             free(type->enum_values[e]);
         }
 
@@ -1959,57 +1938,46 @@ void adsl_document_free(
         free_stream(type->stream);
     }
 
-    free(document->types);
+    free(types);
+}
 
-    for (size_t i = 0u;
-         i < document->api_count;
-         ++i) {
 
-        adsl_api_t *api =
-            &document->apis[i];
+static void free_api_array(
+    adsl_api_t *apis,
+    size_t count) {
+
+    if (apis == NULL) {
+        return;
+    }
+
+    for (size_t i = 0u; i < count; ++i) {
+        adsl_api_t *api = &apis[i];
 
         free(api->name);
-
         free(api->source_path);
 
-
-        for (size_t p = 0u;
-             p < api->parent_count;
-             ++p) {
-
+        for (size_t p = 0u; p < api->parent_count; ++p) {
             free(api->parents[p]);
         }
 
         free(api->parents);
 
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
-
-            adsl_method_t *method =
-                &api->methods[m];
+        for (size_t m = 0u; m < api->method_count; ++m) {
+            adsl_method_t *method = &api->methods[m];
 
             free(method->name);
-
             free(method->source_path);
-
             free(method->returns_type);
             free(method->throws_type);
 
-            for (size_t f = 0u;
-                 f < method->return_field_count;
-                 ++f) {
-
+            for (size_t f = 0u; f < method->return_field_count; ++f) {
                 free(method->return_fields[f].name);
                 free(method->return_fields[f].type);
             }
 
             free(method->return_fields);
 
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
+            for (size_t p = 0u; p < method->param_count; ++p) {
                 free(method->params[p].name);
                 free(method->params[p].type);
                 free_stream(method->params[p].stream);
@@ -2021,7 +1989,42 @@ void adsl_document_free(
         free(api->methods);
     }
 
-    free(document->apis);
+    free(apis);
+}
+
+
+void adsl_document_free(
+    adsl_document_t *document) {
+
+    if (document == NULL) {
+        return;
+    }
+
+    free(document->root_source_path);
+    free(document->name);
+
+    for (size_t i = 0u;
+         i < document->include_count;
+         ++i) {
+        free(document->includes[i]);
+    }
+
+    free(document->includes);
+
+    free_type_array(
+        document->types,
+        document->type_count);
+
+    free_api_array(
+        document->apis,
+        document->api_count);
+
+    /*
+     * resolved arrays are semantic lookup indexes.
+     * They are independent copies built from the complete include closure.
+     */
+    free(document->resolved_types);
+    free(document->resolved_apis);
 
     adsl_document_init(document);
 }
@@ -2523,6 +2526,18 @@ static const adsl_type_t *find_type(
     const char *name) {
 
     for (size_t i = 0u;
+         i < document->resolved_type_count;
+         ++i) {
+
+        if (same_name(
+                document->resolved_types[i].name,
+                name)) {
+
+            return &document->resolved_types[i];
+        }
+    }
+
+    for (size_t i = 0u;
          i < document->type_count;
          ++i) {
 
@@ -2633,9 +2648,25 @@ static const adsl_api_t *find_api_const(
     const adsl_document_t *document,
     const char *name) {
 
-    for (size_t i = 0u; i < document->api_count; ++i) {
+    for (size_t i = 0u;
+         i < document->resolved_api_count;
+         ++i) {
 
-        if (same_name(document->apis[i].name, name)) {
+        if (same_name(
+                document->resolved_apis[i].name,
+                name)) {
+
+            return &document->resolved_apis[i];
+        }
+    }
+
+    for (size_t i = 0u;
+         i < document->api_count;
+         ++i) {
+
+        if (same_name(
+                document->apis[i].name,
+                name)) {
 
             return &document->apis[i];
         }
@@ -2724,7 +2755,7 @@ static bool effective_collect_recursive(
     char *error,
     size_t error_capacity) {
 
-    if (depth > document->api_count) {
+if (depth > document->resolved_api_count) {
 
         set_error(
             error,
@@ -2737,7 +2768,7 @@ static bool effective_collect_recursive(
 
     for (size_t i = 0u; i < api->parent_count; ++i) {
 
-        const adsl_api_t *parent =
+const adsl_api_t *parent =
             find_api_const(document, api->parents[i]);
 
         if (parent == NULL) {
@@ -2846,8 +2877,7 @@ bool adsl_collect_effective_methods(
         set_error(error, error_capacity, "invalid effective method collector arguments");
         return false;
     }
-
-    *out_methods = NULL;
+*out_methods = NULL;
     *out_count = 0u;
 
     if (document == NULL || api == NULL) {
@@ -2857,15 +2887,15 @@ bool adsl_collect_effective_methods(
     }
 
 
-    /*
-     * Upper bound: total methods declared across every API. A parent-first
-     * traversal that deduplicates by name cannot exceed this.
+/*
+     * Upper bound: total methods declared across every resolved API.
+     * Parent-first traversal that deduplicates by name cannot exceed this.
      */
     size_t capacity = 0u;
 
-    for (size_t i = 0u; i < document->api_count; ++i) {
+    for (size_t i = 0u; i < document->resolved_api_count; ++i) {
 
-        capacity += document->apis[i].method_count;
+        capacity += document->resolved_apis[i].method_count;
     }
 
     if (capacity == 0u) {
@@ -3116,30 +3146,32 @@ bool adsl_validate(
     }
 
     for (size_t i = 0u;
-         i < document->type_count;
+i < document->resolved_type_count;
          ++i) {
 
+
         for (size_t j = i + 1u;
-             j < document->type_count;
+             j < document->resolved_type_count;
              ++j) {
 
+
             if (same_name(
-                    document->types[i].name,
-                    document->types[j].name)) {
+                    document->resolved_types[i].name,
+                    document->resolved_types[j].name)) {
 
                 set_error(
                     error,
                     error_capacity,
                     "type declarations differ only by case: '%s' and '%s'",
-                    document->types[i].name,
-                    document->types[j].name);
+                    document->resolved_types[i].name,
+                    document->resolved_types[j].name);
 
                 return false;
             }
         }
 
         adsl_type_t *type =
-            &document->types[i];
+&document->resolved_types[i];
 
 
         if (type->has_tiered_int) {
@@ -3246,23 +3278,27 @@ bool adsl_validate(
     }
 
     for (size_t i = 0u;
-         i < document->api_count;
+
+         i < document->resolved_api_count;
          ++i) {
 
+
+
         for (size_t j = i + 1u;
-             j < document->api_count;
+             j < document->resolved_api_count;
              ++j) {
 
+
             if (same_name(
-                    document->apis[i].name,
-                    document->apis[j].name)) {
+                    document->resolved_apis[i].name,
+                    document->resolved_apis[j].name)) {
 
                 set_error(
                     error,
                     error_capacity,
                     "API declarations differ only by case: '%s' and '%s'",
-                    document->apis[i].name,
-                    document->apis[j].name);
+                    document->resolved_apis[i].name,
+                    document->resolved_apis[j].name);
 
                 return false;
             }
@@ -4149,25 +4185,25 @@ static bool adsl_validate_unique_declarations(
     size_t error_capacity) {
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         for (size_t j = i + 1u;
-             j < document->type_count;
+             j < document->resolved_type_count;
              ++j) {
 
             if (same_name(
-                    document->types[i].name,
-                    document->types[j].name) &&
+document->resolved_types[i].name,
+                     document->resolved_types[j].name) &&
                 !adsl_same_type_definition(
-                    &document->types[i],
-                    &document->types[j])) {
+                    &document->resolved_types[i],
+                    &document->resolved_types[j])) {
 
                 set_error(
                     error,
                     error_capacity,
                     "conflicting type declaration '%s'",
-                    document->types[i].name);
+                    document->resolved_types[i].name);
 
                 return false;
             }
@@ -4175,25 +4211,25 @@ static bool adsl_validate_unique_declarations(
     }
 
     for (size_t i = 0u;
-         i < document->api_count;
+         i < document->resolved_api_count;
          ++i) {
 
         for (size_t j = i + 1u;
-             j < document->api_count;
+             j < document->resolved_api_count;
              ++j) {
 
             if (same_name(
-                    document->apis[i].name,
-                    document->apis[j].name) &&
+document->resolved_apis[i].name,
+                     document->resolved_apis[j].name) &&
                 !adsl_same_api_definition(
-                    &document->apis[i],
-                    &document->apis[j])) {
+                    &document->resolved_apis[i],
+                    &document->resolved_apis[j])) {
 
                 set_error(
                     error,
                     error_capacity,
                     "conflicting api declaration '%s'",
-                    document->apis[i].name);
+                    document->resolved_apis[i].name);
 
                 return false;
             }
@@ -4204,31 +4240,81 @@ static bool adsl_validate_unique_declarations(
 }
 
 
+static bool adsl_build_resolved_context(
+    adsl_document_t *document) {
+
+    document->resolved_types = NULL;
+    document->resolved_type_count = 0u;
+    document->resolved_apis = NULL;
+    document->resolved_api_count = 0u;
+
+    if (document->type_count > 0u) {
+        document->resolved_types = calloc(
+            document->type_count,
+            sizeof(*document->resolved_types));
+
+        if (document->resolved_types == NULL) {
+            return false;
+        }
+
+        memcpy(
+            document->resolved_types,
+            document->types,
+            document->type_count * sizeof(*document->types));
+
+        document->resolved_type_count = document->type_count;
+    }
+
+    if (document->api_count > 0u) {
+        document->resolved_apis = calloc(
+            document->api_count,
+            sizeof(*document->resolved_apis));
+
+        if (document->resolved_apis == NULL) {
+            free(document->resolved_types);
+            document->resolved_types = NULL;
+            document->resolved_type_count = 0u;
+            return false;
+        }
+
+        memcpy(
+            document->resolved_apis,
+            document->apis,
+            document->api_count * sizeof(*document->apis));
+
+        document->resolved_api_count = document->api_count;
+    }
+
+    return true;
+}
+
+
+
 static bool adsl_normalize_document(
     adsl_document_t *document,
     char *error,
     size_t error_capacity) {
 
-    for (size_t i = 0u; i < document->type_count; ++i) {
-        for (size_t j = i + 1u; j < document->type_count; ) {
+for (size_t i = 0u; i < document->resolved_type_count; ++i) {
+        for (size_t j = i + 1u; j < document->resolved_type_count; ) {
 
             if (!same_name(
-                    document->types[i].name,
-                    document->types[j].name)) {
+document->resolved_types[i].name,
+                     document->resolved_types[j].name)) {
 
                 ++j;
                 continue;
             }
 
-            if (!adsl_same_type_definition(
-                    &document->types[i],
-                    &document->types[j])) {
+                if (!adsl_same_type_definition(
+                    &document->resolved_types[i],
+                    &document->resolved_types[j])) {
 
                 set_error(
                     error,
                     error_capacity,
                     "conflicting type declaration '%s'",
-                    document->types[i].name);
+                    document->resolved_types[i].name);
 
                 return false;
             }
@@ -4243,22 +4329,22 @@ static bool adsl_normalize_document(
         for (size_t j = i + 1u; j < document->api_count; ) {
 
             if (!same_name(
-                    document->apis[i].name,
-                    document->apis[j].name)) {
+document->resolved_apis[i].name,
+                     document->resolved_apis[j].name)) {
 
                 ++j;
                 continue;
             }
 
-            if (!adsl_same_api_definition(
-                    &document->apis[i],
-                    &document->apis[j])) {
+                if (!adsl_same_api_definition(
+                    &document->resolved_apis[i],
+                    &document->resolved_apis[j])) {
 
                 set_error(
                     error,
                     error_capacity,
                     "conflicting api declaration '%s'",
-                    document->apis[i].name);
+                    document->resolved_apis[i].name);
 
                 return false;
             }
@@ -4276,18 +4362,24 @@ static bool adsl_normalize_document(
 static bool adsl_merge_loaded_document(
     adsl_document_t *destination,
     adsl_document_t *source,
+    bool root_declaration,
     char *error,
     size_t error_capacity) {
 
+    (void)error;
+    (void)error_capacity;
+
+
+
+    (void)root_declaration;
+
     if (source->type_count > 0u) {
-        size_t old_count =
-            destination->type_count;
+        size_t old_count = destination->type_count;
 
         adsl_type_t *types =
             realloc(
                 destination->types,
-                (old_count + source->type_count) *
-                    sizeof(*types));
+                (old_count + source->type_count) * sizeof(*types));
 
         if (types == NULL) {
             return false;
@@ -4298,8 +4390,7 @@ static bool adsl_merge_loaded_document(
         memcpy(
             destination->types + old_count,
             source->types,
-            source->type_count *
-                sizeof(*source->types));
+            source->type_count * sizeof(*source->types));
 
         destination->type_count =
             old_count + source->type_count;
@@ -4310,14 +4401,12 @@ static bool adsl_merge_loaded_document(
     }
 
     if (source->api_count > 0u) {
-        size_t old_count =
-            destination->api_count;
+        size_t old_count = destination->api_count;
 
         adsl_api_t *apis =
             realloc(
                 destination->apis,
-                (old_count + source->api_count) *
-                    sizeof(*apis));
+                (old_count + source->api_count) * sizeof(*apis));
 
         if (apis == NULL) {
             return false;
@@ -4328,8 +4417,7 @@ static bool adsl_merge_loaded_document(
         memcpy(
             destination->apis + old_count,
             source->apis,
-            source->api_count *
-                sizeof(*source->apis));
+            source->api_count * sizeof(*source->apis));
 
         destination->api_count =
             old_count + source->api_count;
@@ -4339,19 +4427,9 @@ static bool adsl_merge_loaded_document(
         source->api_count = 0u;
     }
 
-    if (!adsl_validate_unique_declarations(
-            destination,
-            error,
-            error_capacity)) {
-
-        return false;
-    }
-
-    return adsl_normalize_document(
-        destination,
-        error,
-        error_capacity);
+    return true;
 }
+
 
 static bool adsl_load_recursive(
     const char *path,
@@ -4360,8 +4438,10 @@ static bool adsl_load_recursive(
     adsl_document_t *destination,
     adsl_load_state_t *state,
     size_t depth,
+    bool root_declaration,
     char *error,
     size_t error_capacity) {
+
 
     if (depth > 128u) {
         set_error(
@@ -4446,6 +4526,7 @@ static bool adsl_load_recursive(
             return false;
         }
 
+
         if (!adsl_load_recursive(
                 include_path,
                 include_paths,
@@ -4453,8 +4534,10 @@ static bool adsl_load_recursive(
                 destination,
                 state,
                 depth + 1u,
+                false,
                 error,
                 error_capacity)) {
+
 
             adsl_document_free(&current);
             return false;
@@ -4462,11 +4545,14 @@ static bool adsl_load_recursive(
     }
 
 
+
     if (!adsl_merge_loaded_document(
             destination,
             &current,
+            root_declaration,
             error,
             error_capacity)) {
+
 
 
         set_error(
@@ -4508,6 +4594,9 @@ bool adsl_load_file_with_include_paths(
     char *error,
     size_t error_capacity) {
 
+
+
+
     if (path == NULL ||
         document == NULL ||
         (include_path_count > 0u &&
@@ -4521,10 +4610,28 @@ bool adsl_load_file_with_include_paths(
         return false;
     }
 
+    
+    document->root_source_path =
+        strdup(path);
+
+    
+    if (document->root_source_path == NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "out of memory");
+        return false;
+    }
+
+
+
+
+
     adsl_load_state_t state = {
         NULL,
         0u
     };
+
 
     bool loaded =
         adsl_load_recursive(
@@ -4534,10 +4641,38 @@ bool adsl_load_file_with_include_paths(
             document,
             &state,
             0u,
+            true,
             error,
             error_capacity);
 
+
+    fprintf(stderr, "ADSL DEBUG: loaded=%d types=%zu apis=%zu root=%s\n", loaded, document->type_count, document->api_count, document->root_source_path != NULL ? document->root_source_path : "<null>");
+
+    for (size_t i = 0u; i < document->type_count; ++i) {
+        fprintf(stderr, "ADSL DEBUG TYPE: %s source=%s\n", document->types[i].name, document->types[i].source_path != NULL ? document->types[i].source_path : "<null>");
+    }
+
+    for (size_t i = 0u; i < document->api_count; ++i) {
+        fprintf(stderr, "ADSL DEBUG API: %s source=%s\n", document->apis[i].name, document->apis[i].source_path != NULL ? document->apis[i].source_path : "<null>");
+    }
+
+
+
+
+
+
+    if (loaded) {
+        if (!adsl_build_resolved_context(document) ||
+            !adsl_normalize_document(document, error, error_capacity) ||
+            !adsl_validate_unique_declarations(document, error, error_capacity)) {
+            loaded = false;
+        }
+    }
+
+
+
     adsl_load_state_free(&state);
+
 
     return loaded;
 }

@@ -40,7 +40,8 @@
     /home/angel/projects/aether,
     /home/angel/projects/aether-client-java,
     /home/angel/projects/client-ts,
-    /home/angel/projects/aiedit
+    /home/angel/projects/aiedit,
+    /tmp/aether-c-client-server-generated
   ]
   ,
   provod: {
