@@ -197,6 +197,45 @@ add_test(
 )
 
 
+add_executable(aether_adslc_project_test
+    tests/test_project.c
+)
+
+target_link_libraries(aether_adslc_project_test
+    PRIVATE
+        aether_adslc_core
+)
+
+target_compile_definitions(aether_adslc_project_test
+    PRIVATE
+        ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+)
+
+target_compile_features(
+    aether_adslc_project_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_adslc_project_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+add_test(
+    NAME aether_adslc_project_test
+    COMMAND aether_adslc_project_test
+)
+
+
+
 set(AETHER_ADSLC_STRUCT_GENERATED_DIR
     "${CMAKE_CURRENT_BINARY_DIR}/generated-struct"
 )

@@ -4606,6 +4606,118 @@ bool adsl_load_file_with_include_paths(
 }
 
 
+void adsl_project_init(
+    adsl_project_t *project) {
+
+    if (project != NULL) {
+        memset(
+            project,
+            0,
+            sizeof(*project));
+    }
+}
+
+
+void adsl_project_free(
+    adsl_project_t *project) {
+
+    if (project == NULL) {
+        return;
+    }
+
+    for (size_t i = 0u;
+         i < project->document_count;
+         ++i) {
+
+        adsl_document_free(
+            &project->documents[i]);
+    }
+
+    free(project->documents);
+
+    adsl_project_init(project);
+}
+
+
+bool adsl_project_load_files(
+    const char *const *paths,
+    size_t path_count,
+    const char *const *include_paths,
+    size_t include_path_count,
+    adsl_project_t *project,
+    char *error,
+    size_t error_capacity) {
+
+    if (paths == NULL ||
+        path_count == 0u ||
+        project == NULL ||
+        (include_path_count > 0u &&
+         include_paths == NULL)) {
+
+        set_error(
+            error,
+            error_capacity,
+            "invalid project loader arguments");
+
+        return false;
+    }
+
+    if (project->documents != NULL ||
+        project->document_count != 0u) {
+
+        set_error(
+            error,
+            error_capacity,
+            "project is not empty");
+
+        return false;
+    }
+
+    adsl_document_t *documents =
+        calloc(
+            path_count,
+            sizeof(*documents));
+
+    if (documents == NULL) {
+
+        set_error(
+            error,
+            error_capacity,
+            "out of memory");
+
+        return false;
+    }
+
+    for (size_t i = 0u; i < path_count; ++i) {
+
+        adsl_document_init(&documents[i]);
+
+        if (!adsl_load_file_with_include_paths(
+                paths[i],
+                include_paths,
+                include_path_count,
+                &documents[i],
+                error,
+                error_capacity)) {
+
+            for (size_t j = 0u; j <= i; ++j) {
+                adsl_document_free(&documents[j]);
+            }
+
+            free(documents);
+
+            return false;
+        }
+    }
+
+    project->documents = documents;
+    project->document_count = path_count;
+
+    return true;
+}
+
+
+
 static bool adsl_same_type_definition(
     const adsl_type_t *left,
     const adsl_type_t *right) {

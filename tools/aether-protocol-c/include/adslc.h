@@ -205,6 +205,23 @@ typedef struct {
 
 } adsl_document_t;
 
+
+/*
+ * Logical protocol project.
+ *
+ * Holds one or more fully loaded top-level ADSL documents that are meant to be
+ * processed together. Each document keeps its own include closure and its own
+ * root_source_path; the project layer does not merge declarations.
+ *
+ * This is a preparatory model only: existing single-document generation and
+ * the current CLI keep working unchanged.
+ */
+typedef struct {
+    adsl_document_t *documents;
+    size_t document_count;
+} adsl_project_t;
+
+
     
 
 
@@ -358,6 +375,37 @@ void adsl_document_free(
    char *error,
    size_t error_capacity);
 
+
+
+
+/*
+ * Initialize an empty project.
+ */
+void adsl_project_init(
+    adsl_project_t *project);
+
+/*
+ * Release every owned document and reset the project to empty.
+ */
+void adsl_project_free(
+    adsl_project_t *project);
+
+/*
+ * Load each path as one top-level document in the project.
+ *
+ * The project must be empty before the call. Each document resolves its own
+ * include closure using the usual rules and records its own root_source_path.
+ *
+ * On failure the project is left empty.
+ */
+bool adsl_project_load_files(
+    const char *const *paths,
+    size_t path_count,
+    const char *const *include_paths,
+    size_t include_path_count,
+    adsl_project_t *project,
+    char *error,
+    size_t error_capacity);
 
 
 #endif

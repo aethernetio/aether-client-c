@@ -1,0 +1,5 @@
+
+types:
+  TypeB:
+    fields:
+      value: int
