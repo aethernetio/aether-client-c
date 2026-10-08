@@ -388,6 +388,13 @@ static bool type_is_descendant_or_self(
     const adsl_type_t *candidate,
     const adsl_type_t *ancestor);
 
+
+typedef struct {
+    char aliases[256][256];
+    size_t count;
+} array_alias_state_t;
+
+
 static bool emit_hierarchy_ref(
     FILE *output,
     const adsl_document_t *document,
@@ -412,14 +419,17 @@ static bool emit_hierarchy_expression(
     size_t error_capacity);
 
 
+
 static bool emit_all_struct_dependencies(
     FILE *output,
     const adsl_document_t *document,
     const adsl_type_t *type,
     uint8_t *states,
     unsigned int depth,
+    array_alias_state_t *alias_state,
     char *error,
     size_t error_capacity);
+
 
 static bool emit_all_struct_field_declarations(
     FILE *output,
@@ -804,9 +814,37 @@ declared_c_name(
     return true;
 }
 
+
+
+static bool has_array_alias(
+        const array_alias_state_t *state,
+        const char *alias) {
+    for (size_t i = 0u; i < state->count; ++i) {
+        if (strcmp(state->aliases[i], alias) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool remember_array_alias(
+        array_alias_state_t *state,
+        const char *alias,
+        char *error,
+        size_t error_capacity) {
+    if (state->count >= 256u) {
+        set_error(error, error_capacity, "too many generated array aliases");
+        return false;
+    }
+
+    strcpy(state->aliases[state->count++], alias);
+    return true;
+}
+
 static bool emit_array_alias(
     FILE *output,
     const adsl_document_t *document,
+    array_alias_state_t *alias_state,
     const char *type,
     char *error,
     size_t error_capacity) {
@@ -831,8 +869,6 @@ static bool emit_array_alias(
         return true;
     }
 
-
-
     char alias[256];
 
     if (!array_alias_name(
@@ -847,6 +883,10 @@ static bool emit_array_alias(
             "generated array alias name is too long");
 
         return false;
+    }
+
+    if (has_array_alias(alias_state, alias)) {
+        return true;
     }
 
     char guard[320];
@@ -864,6 +904,7 @@ static bool emit_array_alias(
         guard);
 
     if (dynamic) {
+
         fputs(
             "typedef struct {\n"
             "    const ",
@@ -887,33 +928,37 @@ static bool emit_array_alias(
             "#endif\n\n",
             alias);
 
-        return true;
-    }
+    } else {
 
-    fputs(
-        "typedef struct {\n"
-        "    ",
-        output);
+        fputs(
+            "typedef struct {\n"
+            "    ",
+            output);
 
-    if (!emit_array_element_c_type(
+        if (!emit_array_element_c_type(
+                output,
+                document,
+                element,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+
+        fprintf(
             output,
-            document,
-            element,
-            error,
-            error_capacity)) {
-
-        return false;
+            " data[%zu];\n"
+            "} %s;\n"
+            "#endif\n\n",
+            static_size,
+            alias);
     }
 
-    fprintf(
-        output,
-        " data[%zu];\n"
-        "} %s;\n"
-        "#endif\n\n",
-        static_size,
-        alias);
-
-    return true;
+    return remember_array_alias(
+        alias_state,
+        alias,
+        error,
+        error_capacity);
 }
 
 
@@ -1703,13 +1748,16 @@ static bool emit_value_expression(
     size_t error_capacity);
 
 
+
 static bool emit_struct_definition(
     FILE *output,
     const adsl_document_t *document,
     size_t type_index,
     uint8_t *states,
+    array_alias_state_t *alias_state,
     char *error,
     size_t error_capacity);
+
 
 
 static bool emit_serialize_param(
@@ -2189,6 +2237,12 @@ static bool emit_types_header(
         return false;
     }
 
+    
+    array_alias_state_t alias_state = {0};
+
+    
+
+
     char guard[256];
 
     upper_name(
@@ -2447,12 +2501,15 @@ declared_c_name(
             if (!array_alias_requires_complete_element(
                     document,
                     type->fields[f].type) &&
+
                 !emit_array_alias(
                     output,
                     document,
+                    &alias_state,
                     type->fields[f].type,
                     error,
                     error_capacity)) {
+
 
                 fclose(output);
                 return false;
@@ -2483,12 +2540,15 @@ declared_c_name(
                 if (!array_alias_requires_complete_element(
                         document,
                         method->params[p].type) &&
+
                     !emit_array_alias(
                         output,
                         document,
+                        &alias_state,
                         method->params[p].type,
                         error,
                         error_capacity)) {
+
 
                     fclose(output);
                     return false;
@@ -2500,21 +2560,27 @@ declared_c_name(
             if ((!array_alias_requires_complete_element(
                         document,
                         method->returns_type) &&
-                 !emit_array_alias(
-                     output,
-                     document,
-                     method->returns_type,
-                     error,
-                     error_capacity)) ||
+
+                  !emit_array_alias(
+                      output,
+                      document,
+                      &alias_state,
+                      method->returns_type,
+                      error,
+                      error_capacity)) ||
+
                 (!array_alias_requires_complete_element(
                         document,
                         method->throws_type) &&
-                 !emit_array_alias(
-                     output,
-                     document,
-                     method->throws_type,
-                     error,
-                     error_capacity))) {
+
+                  !emit_array_alias(
+                      output,
+                      document,
+                      &alias_state,
+                      method->throws_type,
+                      error,
+                      error_capacity))) {
+
 
                 fclose(output);
                 return false;
@@ -2551,13 +2617,16 @@ if (type->enum_count > 0u ||
             continue;
         }
 
+
         if (!emit_struct_definition(
                 output,
                 document,
                 i,
                 states,
+                &alias_state,
                 error,
                 error_capacity)) {
+
 
             fclose(output);
             return false;
@@ -2591,12 +2660,15 @@ if (type->enum_count > 0u ||
                 if (array_alias_requires_complete_element(
                         document,
                         method->params[p].type) &&
+
                     !emit_array_alias(
                         output,
                         document,
+                        &alias_state,
                         method->params[p].type,
                         error,
                         error_capacity)) {
+
 
                     fclose(output);
                     return false;
@@ -2606,21 +2678,27 @@ if (type->enum_count > 0u ||
             if ((array_alias_requires_complete_element(
                         document,
                         method->returns_type) &&
-                 !emit_array_alias(
-                     output,
-                     document,
-                     method->returns_type,
-                     error,
-                     error_capacity)) ||
+
+                  !emit_array_alias(
+                      output,
+                      document,
+                      &alias_state,
+                      method->returns_type,
+                      error,
+                      error_capacity)) ||
+
                 (array_alias_requires_complete_element(
                         document,
                         method->throws_type) &&
-                 !emit_array_alias(
-                     output,
-                     document,
-                     method->throws_type,
-                     error,
-                     error_capacity))) {
+
+                  !emit_array_alias(
+                      output,
+                      document,
+                      &alias_state,
+                      method->throws_type,
+                      error,
+                      error_capacity))) {
+
 
                 fclose(output);
                 return false;
@@ -6249,12 +6327,15 @@ static bool emit_value_expression(
 }
 
 static bool emit_struct_definition(
+
     FILE *output,
     const adsl_document_t *document,
     size_t type_index,
     uint8_t *states,
+    array_alias_state_t *alias_state,
     char *error,
     size_t error_capacity) {
+
 
 
     const adsl_type_t *type =
@@ -6298,14 +6379,17 @@ if (type->enum_count > 0u ||
     states[type_index] =
         1u;
 
+
     if (!emit_all_struct_dependencies(
             output,
             document,
             type,
             states,
             0u,
+            alias_state,
             error,
             error_capacity)) {
+
 
         return false;
     }
@@ -7240,13 +7324,16 @@ declared_c_name(
 }
 
 static bool emit_all_struct_dependencies(
+
     FILE *output,
     const adsl_document_t *document,
     const adsl_type_t *type,
     uint8_t *states,
     unsigned int depth,
+    array_alias_state_t *alias_state,
     char *error,
     size_t error_capacity) {
+
 
     if (depth > 64u) {
         set_error(
@@ -7272,14 +7359,17 @@ static bool emit_all_struct_dependencies(
             return false;
         }
 
+
         if (!emit_all_struct_dependencies(
                 output,
                 document,
                 parent,
                 states,
                 depth + 1u,
+                alias_state,
                 error,
                 error_capacity)) {
+
 
             return false;
         }
@@ -7332,19 +7422,27 @@ static bool emit_all_struct_dependencies(
                         element_type -
                         document->types);
 
+
                 if (!emit_struct_definition(
                         output,
                         document,
                         nested_index,
                         states,
+                        alias_state,
                         error,
                         error_capacity) ||
+
+
+
                     !emit_array_alias(
                         output,
                         document,
+                        alias_state,
                         field->type,
                         error,
                         error_capacity)) {
+
+
 
                     return false;
                 }
@@ -7425,13 +7523,16 @@ static bool emit_all_struct_dependencies(
                 field_type -
                 document->types);
 
+
         if (!emit_struct_definition(
                 output,
                 document,
                 nested_index,
                 states,
+                alias_state,
                 error,
                 error_capacity)) {
+
 
             return false;
         }

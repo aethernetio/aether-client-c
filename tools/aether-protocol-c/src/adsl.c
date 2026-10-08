@@ -4063,109 +4063,37 @@ static bool adsl_load_state_add(
 
 
 
-static void adsl_remove_type_at(
+
+
+
+
+static void adsl_remove_resolved_type_at(
     adsl_document_t *document,
     size_t index) {
 
-    adsl_type_t *type =
-        &document->types[index];
-
-    free(type->name);
-    free(type->source_path);
-    free(type->parent);
-
-    for (size_t i = 0u;
-         i < type->field_count;
-         ++i) {
-
-        free(type->fields[i].name);
-        free(type->fields[i].type);
-    }
-
-    free(type->fields);
-
-    for (size_t i = 0u;
-         i < type->enum_count;
-         ++i) {
-
-        free(type->enum_values[i]);
-    }
-
-    free(type->enum_values);
-    free_stream(type->stream);
-
     memmove(
-        &document->types[index],
-        &document->types[index + 1u],
-        (document->type_count - index - 1u) *
-            sizeof(document->types[0]));
+        &document->resolved_types[index],
+        &document->resolved_types[index + 1u],
+        (document->resolved_type_count - index - 1u) *
+            sizeof(document->resolved_types[0]));
 
-    document->type_count--;
+    document->resolved_type_count--;
 }
 
-static void adsl_remove_api_at(
+
+static void adsl_remove_resolved_api_at(
     adsl_document_t *document,
     size_t index) {
 
-    adsl_api_t *api =
-        &document->apis[index];
-
-    free(api->name);
-    free(api->source_path);
-
-    for (size_t i = 0u;
-         i < api->parent_count;
-         ++i) {
-
-        free(api->parents[i]);
-    }
-
-    free(api->parents);
-
-    for (size_t i = 0u;
-         i < api->method_count;
-         ++i) {
-
-        adsl_method_t *method =
-            &api->methods[i];
-
-        free(method->name);
-        free(method->source_path);
-        free(method->returns_type);
-        free(method->throws_type);
-
-        for (size_t f = 0u;
-             f < method->return_field_count;
-             ++f) {
-
-            free(method->return_fields[f].name);
-            free(method->return_fields[f].type);
-        }
-
-        free(method->return_fields);
-
-        for (size_t p = 0u;
-             p < method->param_count;
-             ++p) {
-
-            free(method->params[p].name);
-            free(method->params[p].type);
-            free_stream(method->params[p].stream);
-        }
-
-        free(method->params);
-    }
-
-    free(api->methods);
-
     memmove(
-        &document->apis[index],
-        &document->apis[index + 1u],
-        (document->api_count - index - 1u) *
-            sizeof(document->apis[0]));
+        &document->resolved_apis[index],
+        &document->resolved_apis[index + 1u],
+        (document->resolved_api_count - index - 1u) *
+            sizeof(document->resolved_apis[0]));
 
-    document->api_count--;
+    document->resolved_api_count--;
 }
+
 
 
 
@@ -4319,7 +4247,7 @@ document->resolved_types[i].name,
                 return false;
             }
 
-            adsl_remove_type_at(
+            adsl_remove_resolved_type_at(
                 document,
                 j);
         }
@@ -4349,7 +4277,7 @@ document->resolved_apis[i].name,
                 return false;
             }
 
-            adsl_remove_api_at(
+            adsl_remove_resolved_api_at(
                 document,
                 j);
         }
