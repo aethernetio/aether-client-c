@@ -1,0 +1,8 @@
+
+include:
+  - DuplicateIncludeCommon
+
+types:
+  ChildType:
+    fields:
+      value: string

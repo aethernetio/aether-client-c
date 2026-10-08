@@ -4023,115 +4023,334 @@ static bool adsl_load_state_add(
     return true;
 }
 
-static bool adsl_move_types(
-    adsl_document_t *destination,
-    adsl_document_t *source) {
 
-    if (source->type_count == 0u) {
-        return true;
+
+
+
+static void adsl_remove_type_at(
+    adsl_document_t *document,
+    size_t index) {
+
+    adsl_type_t *type =
+        &document->types[index];
+
+    free(type->name);
+    free(type->source_path);
+    free(type->parent);
+
+    for (size_t i = 0u;
+         i < type->field_count;
+         ++i) {
+
+        free(type->fields[i].name);
+        free(type->fields[i].type);
     }
 
-    size_t old_count =
-        destination->type_count;
+    free(type->fields);
 
-    size_t new_count =
-        old_count +
-        source->type_count;
+    for (size_t i = 0u;
+         i < type->enum_count;
+         ++i) {
 
-    adsl_type_t *next =
-        realloc(
-            destination->types,
-            new_count *
-                sizeof(*next));
-
-    if (next == NULL) {
-        return false;
+        free(type->enum_values[i]);
     }
 
-    destination->types =
-        next;
+    free(type->enum_values);
+    free_stream(type->stream);
 
-    memcpy(
-        destination->types +
-            old_count,
-        source->types,
-        source->type_count *
-            sizeof(*source->types));
+    memmove(
+        &document->types[index],
+        &document->types[index + 1u],
+        (document->type_count - index - 1u) *
+            sizeof(document->types[0]));
 
-    destination->type_count =
-        new_count;
+    document->type_count--;
+}
 
-    free(source->types);
+static void adsl_remove_api_at(
+    adsl_document_t *document,
+    size_t index) {
 
-    source->types =
-        NULL;
+    adsl_api_t *api =
+        &document->apis[index];
 
-    source->type_count =
-        0u;
+    free(api->name);
+    free(api->source_path);
+
+    for (size_t i = 0u;
+         i < api->parent_count;
+         ++i) {
+
+        free(api->parents[i]);
+    }
+
+    free(api->parents);
+
+    for (size_t i = 0u;
+         i < api->method_count;
+         ++i) {
+
+        adsl_method_t *method =
+            &api->methods[i];
+
+        free(method->name);
+        free(method->source_path);
+        free(method->returns_type);
+        free(method->throws_type);
+
+        for (size_t f = 0u;
+             f < method->return_field_count;
+             ++f) {
+
+            free(method->return_fields[f].name);
+            free(method->return_fields[f].type);
+        }
+
+        free(method->return_fields);
+
+        for (size_t p = 0u;
+             p < method->param_count;
+             ++p) {
+
+            free(method->params[p].name);
+            free(method->params[p].type);
+            free_stream(method->params[p].stream);
+        }
+
+        free(method->params);
+    }
+
+    free(api->methods);
+
+    memmove(
+        &document->apis[index],
+        &document->apis[index + 1u],
+        (document->api_count - index - 1u) *
+            sizeof(document->apis[0]));
+
+    document->api_count--;
+}
+
+
+
+
+static bool adsl_same_type_definition(
+    const adsl_type_t *left,
+    const adsl_type_t *right);
+
+static bool adsl_same_api_definition(
+    const adsl_api_t *left,
+    const adsl_api_t *right);
+
+
+static bool adsl_validate_unique_declarations(
+    const adsl_document_t *document,
+    char *error,
+    size_t error_capacity) {
+
+    for (size_t i = 0u;
+         i < document->type_count;
+         ++i) {
+
+        for (size_t j = i + 1u;
+             j < document->type_count;
+             ++j) {
+
+            if (same_name(
+                    document->types[i].name,
+                    document->types[j].name) &&
+                !adsl_same_type_definition(
+                    &document->types[i],
+                    &document->types[j])) {
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "conflicting type declaration '%s'",
+                    document->types[i].name);
+
+                return false;
+            }
+        }
+    }
+
+    for (size_t i = 0u;
+         i < document->api_count;
+         ++i) {
+
+        for (size_t j = i + 1u;
+             j < document->api_count;
+             ++j) {
+
+            if (same_name(
+                    document->apis[i].name,
+                    document->apis[j].name) &&
+                !adsl_same_api_definition(
+                    &document->apis[i],
+                    &document->apis[j])) {
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "conflicting api declaration '%s'",
+                    document->apis[i].name);
+
+                return false;
+            }
+        }
+    }
 
     return true;
 }
 
-static bool adsl_move_apis(
-    adsl_document_t *destination,
-    adsl_document_t *source) {
 
-    if (source->api_count == 0u) {
-        return true;
+static bool adsl_normalize_document(
+    adsl_document_t *document,
+    char *error,
+    size_t error_capacity) {
+
+    for (size_t i = 0u; i < document->type_count; ++i) {
+        for (size_t j = i + 1u; j < document->type_count; ) {
+
+            if (!same_name(
+                    document->types[i].name,
+                    document->types[j].name)) {
+
+                ++j;
+                continue;
+            }
+
+            if (!adsl_same_type_definition(
+                    &document->types[i],
+                    &document->types[j])) {
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "conflicting type declaration '%s'",
+                    document->types[i].name);
+
+                return false;
+            }
+
+            adsl_remove_type_at(
+                document,
+                j);
+        }
     }
 
-    size_t old_count =
-        destination->api_count;
+    for (size_t i = 0u; i < document->api_count; ++i) {
+        for (size_t j = i + 1u; j < document->api_count; ) {
 
-    size_t new_count =
-        old_count +
-        source->api_count;
+            if (!same_name(
+                    document->apis[i].name,
+                    document->apis[j].name)) {
 
-    adsl_api_t *next =
-        realloc(
-            destination->apis,
-            new_count *
-                sizeof(*next));
+                ++j;
+                continue;
+            }
 
-    if (next == NULL) {
-        return false;
+            if (!adsl_same_api_definition(
+                    &document->apis[i],
+                    &document->apis[j])) {
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "conflicting api declaration '%s'",
+                    document->apis[i].name);
+
+                return false;
+            }
+
+            adsl_remove_api_at(
+                document,
+                j);
+        }
     }
-
-    destination->apis =
-        next;
-
-    memcpy(
-        destination->apis +
-            old_count,
-        source->apis,
-        source->api_count *
-            sizeof(*source->apis));
-
-    destination->api_count =
-        new_count;
-
-    free(source->apis);
-
-    source->apis =
-        NULL;
-
-    source->api_count =
-        0u;
 
     return true;
 }
+
 
 static bool adsl_merge_loaded_document(
     adsl_document_t *destination,
-    adsl_document_t *source) {
+    adsl_document_t *source,
+    char *error,
+    size_t error_capacity) {
 
-    return
-        adsl_move_types(
+    if (source->type_count > 0u) {
+        size_t old_count =
+            destination->type_count;
+
+        adsl_type_t *types =
+            realloc(
+                destination->types,
+                (old_count + source->type_count) *
+                    sizeof(*types));
+
+        if (types == NULL) {
+            return false;
+        }
+
+        destination->types = types;
+
+        memcpy(
+            destination->types + old_count,
+            source->types,
+            source->type_count *
+                sizeof(*source->types));
+
+        destination->type_count =
+            old_count + source->type_count;
+
+        free(source->types);
+        source->types = NULL;
+        source->type_count = 0u;
+    }
+
+    if (source->api_count > 0u) {
+        size_t old_count =
+            destination->api_count;
+
+        adsl_api_t *apis =
+            realloc(
+                destination->apis,
+                (old_count + source->api_count) *
+                    sizeof(*apis));
+
+        if (apis == NULL) {
+            return false;
+        }
+
+        destination->apis = apis;
+
+        memcpy(
+            destination->apis + old_count,
+            source->apis,
+            source->api_count *
+                sizeof(*source->apis));
+
+        destination->api_count =
+            old_count + source->api_count;
+
+        free(source->apis);
+        source->apis = NULL;
+        source->api_count = 0u;
+    }
+
+    if (!adsl_validate_unique_declarations(
             destination,
-            source) &&
-        adsl_move_apis(
-            destination,
-            source);
+            error,
+            error_capacity)) {
+
+        return false;
+    }
+
+    return adsl_normalize_document(
+        destination,
+        error,
+        error_capacity);
 }
 
 static bool adsl_load_recursive(
@@ -4242,9 +4461,13 @@ static bool adsl_load_recursive(
         }
     }
 
+
     if (!adsl_merge_loaded_document(
             destination,
-            &current)) {
+            &current,
+            error,
+            error_capacity)) {
+
 
         set_error(
             error,
@@ -4317,4 +4540,179 @@ bool adsl_load_file_with_include_paths(
     adsl_load_state_free(&state);
 
     return loaded;
+}
+
+
+static bool adsl_same_type_definition(
+    const adsl_type_t *left,
+    const adsl_type_t *right) {
+
+    if (!same_name(left->name, right->name) ||
+        !same_name(left->parent, right->parent) ||
+        left->has_id != right->has_id ||
+
+        (left->has_id &&
+         left->id != right->id) ||
+
+        left->is_abstract != right->is_abstract ||
+        left->field_count != right->field_count ||
+        left->enum_count != right->enum_count ||
+        left->has_tiered_int != right->has_tiered_int ||
+        left->tiered_int_min_bytes != right->tiered_int_min_bytes ||
+        left->tiered_int_limit_count != right->tiered_int_limit_count) {
+
+        return false;
+    }
+
+    for (size_t i = 0u;
+         i < left->field_count;
+         ++i) {
+
+        if (!same_name(
+                left->fields[i].name,
+                right->fields[i].name) ||
+            !same_name(
+                left->fields[i].type,
+                right->fields[i].type)) {
+
+            return false;
+        }
+    }
+
+    for (size_t i = 0u;
+         i < left->enum_count;
+         ++i) {
+
+        if (!same_name(
+                left->enum_values[i],
+                right->enum_values[i])) {
+
+            return false;
+        }
+    }
+
+    if (left->has_tiered_int) {
+        for (size_t i = 0u;
+             i < left->tiered_int_limit_count;
+             ++i) {
+
+            if (left->tiered_int_limits[i] !=
+                right->tiered_int_limits[i]) {
+
+                return false;
+            }
+        }
+    }
+
+    if ((left->stream == NULL) !=
+        (right->stream == NULL)) {
+
+        return false;
+    }
+
+    if (left->stream != NULL) {
+        if (left->stream->has_crypto != right->stream->has_crypto ||
+            left->stream->crypto != right->stream->crypto ||
+            !same_name(
+                left->stream->api,
+                right->stream->api) ||
+            !same_name(
+                left->stream->remote_api,
+                right->stream->remote_api) ||
+            left->stream->api_count != right->stream->api_count ||
+            left->stream->key_count != right->stream->key_count) {
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool adsl_same_api_definition(
+    const adsl_api_t *left,
+    const adsl_api_t *right) {
+
+    if (!same_name(left->name, right->name) ||
+        left->is_abstract != right->is_abstract ||
+        left->parent_count != right->parent_count ||
+        left->method_count != right->method_count) {
+
+        return false;
+    }
+
+    for (size_t i = 0u;
+         i < left->parent_count;
+         ++i) {
+
+        if (!same_name(
+                left->parents[i],
+                right->parents[i])) {
+
+            return false;
+        }
+    }
+
+    for (size_t i = 0u;
+         i < left->method_count;
+         ++i) {
+
+        const adsl_method_t *left_method =
+            &left->methods[i];
+
+        const adsl_method_t *right_method =
+            &right->methods[i];
+
+        if (!same_name(
+                left_method->name,
+                right_method->name) ||
+            left_method->has_id != right_method->has_id ||
+
+            (left_method->has_id &&
+             left_method->id != right_method->id) ||
+
+            !same_name(
+                left_method->returns_type,
+                right_method->returns_type) ||
+            !same_name(
+                left_method->throws_type,
+                right_method->throws_type) ||
+            left_method->param_count != right_method->param_count ||
+            left_method->return_field_count != right_method->return_field_count) {
+
+            return false;
+        }
+
+        for (size_t p = 0u;
+             p < left_method->param_count;
+             ++p) {
+
+            if (!same_name(
+                    left_method->params[p].name,
+                    right_method->params[p].name) ||
+                !same_name(
+                    left_method->params[p].type,
+                    right_method->params[p].type)) {
+
+                return false;
+            }
+        }
+
+        for (size_t f = 0u;
+             f < left_method->return_field_count;
+             ++f) {
+
+            if (!same_name(
+                    left_method->return_fields[f].name,
+                    right_method->return_fields[f].name) ||
+                !same_name(
+                    left_method->return_fields[f].type,
+                    right_method->return_fields[f].type)) {
+
+                return false;
+            }
+        }
+    }
+
+    return true;
 }

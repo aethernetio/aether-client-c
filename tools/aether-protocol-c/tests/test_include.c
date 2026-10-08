@@ -197,11 +197,55 @@ static void test_explicit_include_search_path(void) {
     adsl_document_free(&document);
 }
 
+
+static void test_duplicate_include(void) {
+    char path[1024];
+
+    fixture_path(
+        "DuplicateIncludeRoot.adsl.yaml",
+        path,
+        sizeof(path));
+
+    adsl_document_t document;
+    adsl_document_init(&document);
+
+    char error[512] = {0};
+
+    assert(
+        adsl_load_file(
+            path,
+            &document,
+            error,
+            sizeof(error)));
+
+    assert(document.type_count == 2u);
+    assert(document.api_count == 1u);
+
+    assert(
+        strcmp(
+            document.types[0].name,
+            "SharedType") == 0 ||
+        strcmp(
+            document.types[1].name,
+            "SharedType") == 0);
+
+    assert(
+        strcmp(
+            document.apis[0].name,
+            "SharedApi") == 0);
+
+    adsl_document_free(&document);
+}
+
+
+
 int main(void) {
     test_adjacent_include();
     test_include_cycle();
     test_sibling_include();
+    test_duplicate_include();
     test_explicit_include_search_path();
 
     return 0;
 }
+

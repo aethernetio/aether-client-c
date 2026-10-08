@@ -1,0 +1,12 @@
+
+types:
+  SharedType:
+    fields:
+      value: string
+
+api:
+  SharedApi:
+    methods:
+      ping:
+        id: 3
+        returns: SharedType
