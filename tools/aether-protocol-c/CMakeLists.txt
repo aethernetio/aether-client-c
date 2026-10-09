@@ -313,6 +313,68 @@ add_test(
 
 
 
+add_executable(aether_adslc_emitter_hardening_test
+    tests/test_emitter_hardening.c
+)
+
+target_link_libraries(aether_adslc_emitter_hardening_test
+    PRIVATE
+        aether_adslc_core
+)
+
+target_compile_definitions(aether_adslc_emitter_hardening_test
+    PRIVATE
+        ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+        ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-emitter-hardening-output"
+)
+
+target_compile_features(
+    aether_adslc_emitter_hardening_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_adslc_emitter_hardening_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+file(MAKE_DIRECTORY
+    "${CMAKE_CURRENT_BINARY_DIR}/test-emitter-hardening-output"
+)
+
+add_test(
+    NAME aether_adslc_emitter_hardening_test
+    COMMAND aether_adslc_emitter_hardening_test
+)
+
+
+# EMIT-A3: generated local dispatcher must compile for a nullable stream
+# parameter. This is a shell test because it requires a real C compiler.
+
+add_test(
+    NAME aether_emitter_nullable_stream_test
+    COMMAND ${CMAKE_COMMAND} -E env
+        ADSL_TEST_GENERATOR=$<TARGET_FILE:aether-adslc>
+        ADSL_TEST_FIXTURES=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures
+        ADSL_TEST_RUNTIME_INCLUDE=${CMAKE_CURRENT_SOURCE_DIR}/../../include
+        ADSL_TEST_CC=${CMAKE_C_COMPILER}
+        bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_emitter_nullable_stream.sh
+)
+
+
+set_tests_properties(aether_emitter_nullable_stream_test PROPERTIES TIMEOUT 60)
+
+
+
+
 
 
 set(AETHER_ADSLC_STRUCT_GENERATED_DIR

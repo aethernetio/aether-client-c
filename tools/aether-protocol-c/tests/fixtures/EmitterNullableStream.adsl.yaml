@@ -1,0 +1,15 @@
+
+api:
+  StreamApi:
+    methods:
+      enter:
+        id: 3
+        params:
+          stream:
+            name: TestStream?
+            stream:
+              api: InnerApi
+  InnerApi:
+    methods:
+      ping:
+        id: 3

@@ -1,0 +1,8 @@
+
+api:
+  TestApi:
+    methods:
+      m:
+        id: 3
+        params:
+          p: Ty?pe
