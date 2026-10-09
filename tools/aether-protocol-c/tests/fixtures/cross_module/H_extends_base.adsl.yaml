@@ -1,0 +1,7 @@
+
+types:
+  Child:
+    id: 2
+    parent: Base
+    fields:
+      value: short

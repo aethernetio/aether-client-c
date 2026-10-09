@@ -25,6 +25,9 @@
 
 #include "adslc.h"
 
+#include "adsl_project_internal.h"
+
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -569,10 +572,14 @@ static void pending_emission_plan_validation(void) {
     /* Plan with a missing entry for one document is rejected. */
     adsl_emission_module_t incomplete[1];
     incomplete[0].source_path = project.documents[0].root_source_path;
+
+
+
     incomplete[0].base_name = "A_uses_item";
     adsl_emission_plan_t incomplete_plan;
     incomplete_plan.modules = incomplete;
     incomplete_plan.module_count = 1u;
+
 
     error[0] = '\0';
     assert(!adsl_emit_c_project(
@@ -663,6 +670,123 @@ static void pending_emission_plan_validation(void) {
 
 
 
+
+/* PENDING_API: cross-file inheritance in the global hierarchy view. */
+static void pending_cross_file_hierarchy_resolves(void) {
+    char base_path[1024];
+    char child_path[1024];
+
+    fixture_path(
+        "cross_module/G_defines_base.adsl.yaml",
+        base_path, sizeof(base_path));
+    fixture_path(
+        "cross_module/H_extends_base.adsl.yaml",
+        child_path, sizeof(child_path));
+
+    const char *paths[] = { base_path, child_path };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    char error[512] = {0};
+
+    assert(adsl_project_load_files(
+        paths, 2u, NULL, 0u,
+        &project, error, sizeof(error)));
+
+    /*
+     * Base is declared in G, Child extends it in H, without an include
+     * directive. Project validation must succeed: both documents
+     * contribute to the same global namespace, and the parent chain is
+     * resolved through the project-global type index.
+     */
+    assert(adsl_project_validate(&project, error, sizeof(error)));
+
+    /*
+     * The project resolver exposes both physical declarations through
+     * the global view, so a hierarchy walk initiated from either module
+     * sees both Base and Child.
+     */
+    adsl_project_resolver_t *resolver = NULL;
+    assert(adsl_project_resolver_build(
+        &project, &resolver, error, sizeof(error)));
+
+    const adsl_type_t *base =
+        adsl_project_resolver_type(resolver, "Base");
+    const adsl_type_t *child =
+        adsl_project_resolver_type(resolver, "Child");
+
+    assert(base != NULL);
+    assert(child != NULL);
+    assert(child->parent != NULL);
+    assert(strcmp(child->parent, "Base") == 0);
+
+    size_t hierarchy_count = adsl_project_resolver_type_count(resolver);
+    assert(hierarchy_count >= 2u);
+
+    bool saw_base = false;
+    bool saw_child = false;
+
+    for (size_t i = 0u; i < hierarchy_count; ++i) {
+        const adsl_type_t *entry =
+            adsl_project_resolver_type_at(resolver, i);
+
+        assert(entry != NULL);
+        assert(entry->name != NULL);
+
+        if (strcmp(entry->name, "Base") == 0) {
+            saw_base = true;
+        }
+        if (strcmp(entry->name, "Child") == 0) {
+            saw_child = true;
+        }
+    }
+
+    assert(saw_base);
+    assert(saw_child);
+
+    adsl_project_resolver_release(resolver);
+    adsl_project_free(&project);
+}
+
+/* PENDING_API: by-value field of a type declared in another document. */
+static void pending_cross_file_by_value_field(void) {
+    char holder_path[1024];
+    char item_path[1024];
+
+    fixture_path(
+        "cross_module/I_holds_external.adsl.yaml",
+        holder_path, sizeof(holder_path));
+    fixture_path(
+        "cross_module/B_defines_item.adsl.yaml",
+        item_path, sizeof(item_path));
+
+    const char *paths[] = { holder_path, item_path };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    char error[512] = {0};
+
+    assert(adsl_project_load_files(
+        paths, 2u, NULL, 0u,
+        &project, error, sizeof(error)));
+
+    /*
+     * Holder.item references Item, declared in a separate project
+     * document without an include directive. Global namespace
+     * resolution must accept this at the project validation stage.
+     *
+     * Generating the corresponding C code requires the owning module's
+     * full definition of Item to be visible before Holder is emitted;
+     * that is the subject of ТЗ №4-Б2.4 and is not exercised here yet.
+     */
+    assert(adsl_project_validate(&project, error, sizeof(error)));
+
+    adsl_project_free(&project);
+}
+
+
 int main(void) {
     pending_res_001_cross_file_without_include();
     pending_res_003_resolution_order_independent();
@@ -679,6 +803,10 @@ int main(void) {
     pending_global_api_collision_rejected();
 
     pending_emission_plan_validation();
+
+    pending_cross_file_hierarchy_resolves();
+    pending_cross_file_by_value_field();
+
 
 
 

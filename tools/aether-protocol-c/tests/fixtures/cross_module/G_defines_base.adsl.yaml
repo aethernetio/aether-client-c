@@ -1,0 +1,7 @@
+
+types:
+  Base:
+    abstract: true
+    id: 1
+    fields:
+      source: byte

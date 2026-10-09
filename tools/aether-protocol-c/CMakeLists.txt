@@ -325,6 +325,12 @@ target_link_libraries(aether_adslc_cross_module_pending_test
         aether_adslc_core
 )
 
+target_include_directories(aether_adslc_cross_module_pending_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+
 target_compile_definitions(aether_adslc_cross_module_pending_test
     PRIVATE
         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"

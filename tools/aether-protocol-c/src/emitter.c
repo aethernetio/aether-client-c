@@ -304,6 +304,7 @@ static const adsl_type_t *ctx_hierarchy_type_at(
  * pointers that belong to different arrays is undefined behaviour, and
  * a project can reference a type declared in another document.
  */
+
 static size_t ctx_local_type_index(
     const emitter_ctx_t *ctx,
     const adsl_type_t *type) {
@@ -319,12 +320,22 @@ static size_t ctx_local_type_index(
         count = ctx->document->resolved_type_count;
     }
 
-    if (type < base || type >= base + count) {
-        return SIZE_MAX;
+    /*
+     * Compare element addresses for equality rather than performing
+     * pointer subtraction across potentially unrelated arrays. If the
+     * referenced type is declared in a different project module, its
+     * address will not match any local element and the caller treats it
+     * as an external by-value dependency.
+     */
+    for (size_t i = 0u; i < count; ++i) {
+        if (&base[i] == type) {
+            return i;
+        }
     }
 
-    return (size_t)(type - base);
+    return SIZE_MAX;
 }
+
 
 
 
