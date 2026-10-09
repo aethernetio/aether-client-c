@@ -676,18 +676,8 @@ static bool emit_hierarchy_expression_ctx(
     char *error,
     size_t error_capacity);
 
-static bool emit_hierarchy_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const adsl_type_t *static_type,
-    const char *expression,
-    const char *prefix,
-    bool reference_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity);
+
+
 
 
 
@@ -724,21 +714,17 @@ static bool emit_struct_definition_ctx(
     size_t error_capacity);
 
 
-
-
-
-
-static bool count_all_nullable_fields(
-    const adsl_document_t *document,
+static bool count_all_nullable_fields_ctx(
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     unsigned int depth,
     size_t *count,
     char *error,
     size_t error_capacity);
 
-static bool emit_all_nullable_mask_bits(
+static bool emit_all_nullable_mask_bits_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     const char *expression,
     const char *prefix,
@@ -748,21 +734,19 @@ static bool emit_all_nullable_mask_bits(
     char *error,
     size_t error_capacity);
 
-
-static bool emit_all_struct_payload(
+static bool emit_all_struct_payload_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const adsl_type_t *type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
+
 
 
 static bool parse_array_type(
@@ -1341,6 +1325,20 @@ static bool array_alias_requires_complete_element_ctx(
 
 
 
+
+static bool emit_array_expression_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    const char *base_snake,
+    const char *type,
+    const char *expression,
+    const char *prefix,
+    bool array_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity);
+
 static bool emit_array_expression(
     FILE *output,
     const adsl_document_t *document,
@@ -1350,13 +1348,26 @@ static bool emit_array_expression(
     const char *prefix,
     bool array_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
 
 
+
+
+
+static bool emit_struct_value_expression_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    const char *base_snake,
+    const adsl_type_t *declared_type,
+    const char *expression,
+    const char *prefix,
+    bool struct_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity);
 
 static bool emit_struct_value_expression(
     FILE *output,
@@ -1367,11 +1378,10 @@ static bool emit_struct_value_expression(
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
+
 
 
 
@@ -2120,6 +2130,20 @@ static void emit_bytes_view_expression(
 
 
 
+
+static bool emit_value_expression_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    const char *base_snake,
+    const char *type,
+    const char *expression,
+    const char *prefix,
+    bool struct_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity);
+
 static bool emit_value_expression(
     FILE *output,
     const adsl_document_t *document,
@@ -2129,11 +2153,10 @@ static bool emit_value_expression(
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
+
 
 
 
@@ -6576,38 +6599,38 @@ bool adsl_emit_c_project(
 
 
 
-static bool emit_value_expression(
+
+static bool emit_value_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const char *type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid value expression context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "generated value serialization depth exceeds 64");
-
         return false;
     }
-
 
     if (strchr(type, '?') != NULL) {
         set_error(
             error,
             error_capacity,
             "nullable values must be serialized by their containing field mask");
-
         return false;
     }
 
@@ -6626,20 +6649,16 @@ static bool emit_value_expression(
         (void)array_dynamic;
         (void)array_static_size;
 
-        return emit_array_expression(
+        return emit_array_expression_ctx(
             output,
-            document,
-
+            ctx,
             base_snake,
-
             type,
             expression,
             prefix,
             struct_pointer,
             depth,
-
             runtime_depth,
-
             error,
             error_capacity);
     }
@@ -6655,7 +6674,6 @@ static bool emit_value_expression(
             error,
             error_capacity,
             "milestone-2 emitter supports scalar or one-dimensional array values only");
-
         return false;
     }
 
@@ -6713,7 +6731,6 @@ static bool emit_value_expression(
                 error,
                 error_capacity,
                 "generated intpack value name is too long");
-
             return false;
         }
 
@@ -6730,26 +6747,19 @@ static bool emit_value_expression(
             error,
             error_capacity,
             "milestone-2 emitter does not yet serialize this primitive");
-
         return false;
     }
 
     const adsl_type_t *declared_type =
-        find_declared_type(
-            document,
-            base);
+        find_declared_type_ctx(ctx, base);
 
     if (declared_type == NULL) {
         set_error(
             error,
             error_capacity,
             "unknown generated value type");
-
         return false;
-
-}
-
-
+    }
 
     if (declared_type->has_tiered_int) {
         char tiered_name[256];
@@ -6781,7 +6791,6 @@ static bool emit_value_expression(
                 error,
                 error_capacity,
                 "generated tieredInt expression is too long");
-
             return false;
         }
 
@@ -6805,8 +6814,6 @@ static bool emit_value_expression(
 
         return true;
     }
-
-
 
     if (declared_type->stream != NULL) {
         if (struct_pointer) {
@@ -6835,7 +6842,6 @@ static bool emit_value_expression(
                     error,
                     error_capacity,
                     "generated stream expression is too long");
-
                 return false;
             }
 
@@ -6863,33 +6869,25 @@ static bool emit_value_expression(
 
         fprintf(
             output,
-
             "    if (pos + 1u > tx_capacity) return AETHER_ERR_OVERFLOW;\n"
             "    tx[pos++] = (uint8_t)%s;\n",
-
             expression);
 
         return true;
     }
 
-    if (type_is_polymorphic_reference(
-            document,
-            declared_type)) {
+    if (type_is_polymorphic_reference_ctx(ctx, declared_type)) {
 
-        return emit_hierarchy_expression(
+        return emit_hierarchy_expression_ctx(
             output,
-            document,
-
+            ctx,
             base_snake,
-
             declared_type,
             expression,
             prefix,
             struct_pointer,
             depth,
-
             runtime_depth,
-
             error,
             error_capacity);
     }
@@ -6899,10 +6897,8 @@ static bool emit_value_expression(
             error,
             error_capacity,
             "abstract generated value has no concrete hierarchy descendants");
-
         return false;
     }
-
 
     char nested_name[256];
     declared_c_name(
@@ -6925,10 +6921,8 @@ static bool emit_value_expression(
             error,
             error_capacity,
             "generated nested struct serializer expression is too long");
-
         return false;
     }
-
 
     if (runtime_depth != NULL) {
         fprintf(
@@ -6962,10 +6956,29 @@ static bool emit_value_expression(
             nested_value);
     }
 
-
     return true;
-
 }
+
+
+static bool emit_value_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *base_snake,
+    const char *type,
+    const char *expression,
+    const char *prefix,
+    bool struct_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_value_expression_ctx(
+        output, &ctx, base_snake, type, expression, prefix,
+        struct_pointer, depth, runtime_depth, error, error_capacity);
+}
+
 
 
 static bool emit_struct_definition_ctx(
@@ -7065,28 +7078,30 @@ static bool emit_struct_definition_ctx(
 
 
 
-static bool emit_array_expression(
+
+static bool emit_array_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const char *type,
     const char *expression,
     const char *prefix,
     bool array_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid array expression context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "generated array serialization depth exceeds 64");
-
         return false;
     }
 
@@ -7105,7 +7120,6 @@ static bool emit_array_expression(
             error,
             error_capacity,
             "invalid generated array type");
-
         return false;
     }
 
@@ -7144,7 +7158,6 @@ static bool emit_array_expression(
             error,
             error_capacity,
             "generated array expression is too long");
-
         return false;
     }
 
@@ -7164,10 +7177,8 @@ static bool emit_array_expression(
 
         fprintf(
             output,
-
             "    if (pos + %zuu > tx_capacity) return AETHER_ERR_OVERFLOW;\n"
             "    memcpy(tx + pos, %s.data, %zuu);\n"
-
             "    pos += %zuu;\n",
             static_size,
             value_expression,
@@ -7204,7 +7215,6 @@ static bool emit_array_expression(
                 error,
                 error_capacity,
                 "generated array length name is too long");
-
             return false;
         }
 
@@ -7231,7 +7241,6 @@ static bool emit_array_expression(
             error,
             error_capacity,
             "generated array index name is too long");
-
         return false;
     }
 
@@ -7271,7 +7280,6 @@ static bool emit_array_expression(
             error,
             error_capacity,
             "generated array element expression is too long");
-
         return false;
     }
 
@@ -7292,24 +7300,19 @@ static bool emit_array_expression(
             error,
             error_capacity,
             "generated array element prefix is too long");
-
         return false;
     }
 
-    if (!emit_value_expression(
+    if (!emit_value_expression_ctx(
             output,
-            document,
-
+            ctx,
             base_snake,
-
             element,
             element_expression,
             element_prefix,
             false,
             depth + 1u,
-
             runtime_depth,
-
             error,
             error_capacity)) {
 
@@ -7324,28 +7327,51 @@ static bool emit_array_expression(
 }
 
 
-static bool emit_struct_value_expression(
+static bool emit_array_expression(
     FILE *output,
     const adsl_document_t *document,
+    const char *base_snake,
+    const char *type,
+    const char *expression,
+    const char *prefix,
+    bool array_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_array_expression_ctx(
+        output, &ctx, base_snake, type, expression, prefix,
+        array_pointer, depth, runtime_depth, error, error_capacity);
+}
+
+
+
+
+static bool emit_struct_value_expression_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const adsl_type_t *declared_type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid struct value expression context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "nested struct serialization depth exceeds 64");
-
         return false;
     }
 
@@ -7356,11 +7382,10 @@ static bool emit_struct_value_expression(
             expression);
     }
 
-    size_t nullable_count =
-        0u;
+    size_t nullable_count = 0u;
 
-    if (!count_all_nullable_fields(
-            document,
+    if (!count_all_nullable_fields_ctx(
+            ctx,
             declared_type,
             0u,
             &nullable_count,
@@ -7375,7 +7400,6 @@ static bool emit_struct_value_expression(
             error,
             error_capacity,
             "generated struct hierarchy has more than 64 nullable fields");
-
         return false;
     }
 
@@ -7394,12 +7418,11 @@ static bool emit_struct_value_expression(
             "    uint64_t %s_nullable_mask = UINT64_C(0);\n",
             prefix);
 
-        size_t bit_index =
-            0u;
+        size_t bit_index = 0u;
 
-        if (!emit_all_nullable_mask_bits(
+        if (!emit_all_nullable_mask_bits_ctx(
                 output,
-                document,
+                ctx,
                 declared_type,
                 expression,
                 prefix,
@@ -7417,9 +7440,7 @@ static bool emit_struct_value_expression(
             "    if (pos + %zuu > tx_capacity) return AETHER_ERR_OVERFLOW;\n",
             mask_width);
 
-        for (size_t b = 0u;
-             b < mask_width;
-             ++b) {
+        for (size_t b = 0u; b < mask_width; ++b) {
 
             fprintf(
                 output,
@@ -7430,23 +7451,40 @@ static bool emit_struct_value_expression(
         }
     }
 
-    return emit_all_struct_payload(
+    return emit_all_struct_payload_ctx(
         output,
-        document,
-
+        ctx,
         base_snake,
-
         declared_type,
         expression,
         prefix,
         struct_pointer,
         depth,
-
         runtime_depth,
-
         error,
         error_capacity);
 }
+
+
+static bool emit_struct_value_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *base_snake,
+    const adsl_type_t *declared_type,
+    const char *expression,
+    const char *prefix,
+    bool struct_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_struct_value_expression_ctx(
+        output, &ctx, base_snake, declared_type, expression, prefix,
+        struct_pointer, depth, runtime_depth, error, error_capacity);
+}
+
 
 
 
@@ -7966,33 +8004,8 @@ static bool emit_hierarchy_expression_ctx(
 }
 
 
-static bool emit_hierarchy_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const adsl_type_t *static_type,
-    const char *expression,
-    const char *prefix,
-    bool reference_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_hierarchy_expression_ctx(
-        output,
-        &ctx,
-        base_snake,
-        static_type,
-        expression,
-        prefix,
-        reference_pointer,
-        depth,
-        runtime_depth,
-        error,
-        error_capacity);
-}
+
 
 
 
@@ -8615,23 +8628,8 @@ static bool emit_all_nullable_mask_bits_ctx(
 }
 
 
-static bool emit_all_nullable_mask_bits(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_type_t *type,
-    const char *expression,
-    const char *prefix,
-    bool struct_pointer,
-    unsigned int depth,
-    size_t *bit_index,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_all_nullable_mask_bits_ctx(
-        output, &ctx, type, expression, prefix, struct_pointer,
-        depth, bit_index, error, error_capacity);
-}
+
 
 
 
@@ -8873,24 +8871,8 @@ static bool emit_all_struct_payload_ctx(
 }
 
 
-static bool emit_all_struct_payload(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const adsl_type_t *type,
-    const char *expression,
-    const char *prefix,
-    bool struct_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_all_struct_payload_ctx(
-        output, &ctx, base_snake, type, expression, prefix,
-        struct_pointer, depth, runtime_depth, error, error_capacity);
-}
+
 
 
 
