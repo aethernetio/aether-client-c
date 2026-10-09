@@ -1,0 +1,11 @@
+
+include:
+  - B_defines_item
+
+api:
+  ApiA:
+    methods:
+      useItem:
+        id: 3
+        params:
+          item: Item

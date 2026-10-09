@@ -1,0 +1,5 @@
+
+types:
+  Widget:
+    fields:
+      value: int
