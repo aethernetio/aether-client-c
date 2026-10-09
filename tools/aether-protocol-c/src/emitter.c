@@ -38,6 +38,41 @@ static void set_error(
 }
 
 
+/*
+ * Build "<directory>/<stem><suffix>" into a fixed buffer.
+ *
+ * The emitter writes every output file through a bounded path buffer. A
+ * silently truncated path is dangerous: fopen() may succeed on a prefix
+ * name and the caller never learns that the intended file was not
+ * written. This helper therefore fails loudly on truncation so callers
+ * can report the error before any file is opened.
+ */
+static bool build_output_path(
+    char *buffer,
+    size_t capacity,
+    const char *directory,
+    const char *stem,
+    const char *suffix) {
+
+    int written =
+        snprintf(
+            buffer,
+            capacity,
+            "%s/%s%s",
+            directory,
+            stem,
+            suffix);
+
+    if (written < 0 ||
+        (size_t)written >= capacity) {
+        return false;
+    }
+
+    return true;
+}
+
+
+
 
 /*
  * Generated-origin comments are intentionally stable and grep-friendly.
@@ -189,6 +224,26 @@ static bool c_identifier(
 }
 
 
+
+/*
+ * Convert an ADSL type name into its generated C identifier.
+ *
+ * Trailing nullable/collapsible modifiers ('?' and '~') are semantic
+ * suffixes that never belong in the C symbol name. Stripping them here
+ * gives every caller -- header declarations, serializers, and the local
+ * dispatcher -- one canonical name for the same stream type. Without this
+ * the nullable-stream declaration path and the decode path would disagree
+ * (e.g. "test_stream__t" vs "test_stream_t") and generated code would not
+ * compile.
+ */
+
+static bool strip_nullable_suffix(
+    const char *type,
+    char *result,
+    size_t capacity);
+
+
+
 static void declared_c_name(
     const char *source,
     char *target,
@@ -198,15 +253,24 @@ static void declared_c_name(
         return;
     }
 
+    char stripped[256];
+
+    if (!strip_nullable_suffix(source, stripped, sizeof(stripped))) {
+        stripped[0] = '\0';
+    }
+
     char generated[256];
 
     snake_name(
-        source,
+        stripped,
         generated,
         sizeof(generated));
 
+
+
     const char *prefix = "";
     size_t prefix_length = 0u;
+
 
     if (strncmp(
             generated,
@@ -1349,6 +1413,26 @@ declared_c_name(
             return false;
         }
 
+
+        /*
+         * Guard against recursion without progress: if the '?' was not a
+         * trailing modifier, strip_nullable_suffix() leaves the string
+         * unchanged and the recursive call below would re-enter this
+         * branch with the same input. Reject such malformed types instead
+         * of looping forever.
+         */
+        if (strchr(cleaned, '?') != NULL ||
+            strchr(cleaned, '~') != NULL) {
+
+            set_error(
+                error,
+                error_capacity,
+                "malformed nullable API parameter type");
+
+            return false;
+        }
+
+
         adsl_param_t underlying =
             *param;
 
@@ -1838,6 +1922,19 @@ static bool emit_serialize_param(
 
         adsl_param_t underlying =
             *param;
+
+
+        if (strchr(cleaned, '?') != NULL ||
+            strchr(cleaned, '~') != NULL) {
+
+            set_error(
+                error,
+                error_capacity,
+                "malformed nullable API parameter type");
+
+            return false;
+        }
+
 
         underlying.type =
             cleaned;
@@ -3530,7 +3627,10 @@ static bool emit_stream_builder_declarations_for_api(
                     error,
                     error_capacity)) {
 
+
+                free(effective);
                 return false;
+
             }
 
             fprintf(
@@ -3936,7 +4036,10 @@ static bool emit_stream_builder_definitions_for_api(
                     error,
                     error_capacity)) {
 
+
+                free(effective);
                 return false;
+
             }
 
             fprintf(
@@ -5360,8 +5463,11 @@ static bool emit_api_header(
                         error,
                         error_capacity)) {
 
+
+                    free(effective);
                     fclose(output);
                     return false;
+
                 }
 
                 fprintf(
@@ -5614,8 +5720,11 @@ static bool emit_api_source(
                         error,
                         error_capacity)) {
 
+
+                    free(effective);
                     fclose(output);
                     return false;
+
                 }
 
                 fprintf(
@@ -5681,8 +5790,11 @@ static bool emit_api_source(
                     error_capacity)) {
 
 
+
+                free(effective);
                 fclose(output);
                 return false;
+
             }
 
 
@@ -5698,8 +5810,11 @@ static bool emit_api_source(
                         error,
                         error_capacity)) {
 
+
+                    free(effective);
                     fclose(output);
                     return false;
+
                 }
             }
 
@@ -5843,33 +5958,20 @@ bool adsl_emit_c_method(
     char api_h[1024];
     char api_c[1024];
 
-    (void)snprintf(
-        types_h,
-        sizeof(types_h),
-        "%s/%s_types.h",
-        output_directory,
-        base_snake);
 
-    (void)snprintf(
-        types_c,
-        sizeof(types_c),
-        "%s/%s_types.c",
-        output_directory,
-        base_snake);
+    if (!build_output_path(types_h, sizeof(types_h), output_directory, base_snake, "_types.h") ||
+        !build_output_path(types_c, sizeof(types_c), output_directory, base_snake, "_types.c") ||
+        !build_output_path(api_h, sizeof(api_h), output_directory, base_snake, "_api.h") ||
+        !build_output_path(api_c, sizeof(api_c), output_directory, base_snake, "_api.c")) {
 
-    (void)snprintf(
-        api_h,
-        sizeof(api_h),
-        "%s/%s_api.h",
-        output_directory,
-        base_snake);
+        set_error(
+            error,
+            error_capacity,
+            "generated output path is too long");
 
-    (void)snprintf(
-        api_c,
-        sizeof(api_c),
-        "%s/%s_api.c",
-        output_directory,
-        base_snake);
+        return false;
+    }
+
 
     if (!emit_types_header(
             document,
@@ -9163,8 +9265,11 @@ static bool emit_local_api_source(
                     error,
                     error_capacity)) {
 
+
+                free(effective);
                 fclose(output);
                 return false;
+
             }
         }
 
@@ -9176,8 +9281,11 @@ static bool emit_local_api_source(
                 method,
                 error,
                 error_capacity)) {
+
+            free(effective);
             fclose(output);
             return false;
+
         }
 
 
@@ -9242,33 +9350,19 @@ bool adsl_emit_c_local_api(
     char local_h[1024];
     char local_c[1024];
 
-    (void)snprintf(
-        types_h,
-        sizeof(types_h),
-        "%s/%s_types.h",
-        output_directory,
-        base_snake);
+    if (!build_output_path(types_h, sizeof(types_h), output_directory, base_snake, "_types.h") ||
+        !build_output_path(types_c, sizeof(types_c), output_directory, base_snake, "_types.c") ||
+        !build_output_path(local_h, sizeof(local_h), output_directory, base_snake, "_local.h") ||
+        !build_output_path(local_c, sizeof(local_c), output_directory, base_snake, "_local.c")) {
 
-    (void)snprintf(
-        types_c,
-        sizeof(types_c),
-        "%s/%s_types.c",
-        output_directory,
-        base_snake);
+        set_error(
+            error,
+            error_capacity,
+            "generated output path is too long");
 
-    (void)snprintf(
-        local_h,
-        sizeof(local_h),
-        "%s/%s_local.h",
-        output_directory,
-        base_snake);
+        return false;
+    }
 
-    (void)snprintf(
-        local_c,
-        sizeof(local_c),
-        "%s/%s_local.c",
-        output_directory,
-        base_snake);
 
     if (!emit_types_header(
             document,
@@ -10011,6 +10105,7 @@ bool adsl_emit_c_response_method(
         return false;
     }
 
+
     char base_snake[256];
 
     snake_name(base_name, base_snake, sizeof(base_snake));
@@ -10020,33 +10115,19 @@ bool adsl_emit_c_response_method(
     char response_h[1024];
     char response_c[1024];
 
-    (void)snprintf(
-        types_h,
-        sizeof(types_h),
-        "%s/%s_types.h",
-        output_directory,
-        base_snake);
+    if (!build_output_path(types_h, sizeof(types_h), output_directory, base_snake, "_types.h") ||
+        !build_output_path(types_c, sizeof(types_c), output_directory, base_snake, "_types.c") ||
+        !build_output_path(response_h, sizeof(response_h), output_directory, base_snake, "_response.h") ||
+        !build_output_path(response_c, sizeof(response_c), output_directory, base_snake, "_response.c")) {
 
-    (void)snprintf(
-        types_c,
-        sizeof(types_c),
-        "%s/%s_types.c",
-        output_directory,
-        base_snake);
+        set_error(
+            error,
+            error_capacity,
+            "generated output path is too long");
 
-    (void)snprintf(
-        response_h,
-        sizeof(response_h),
-        "%s/%s_response.h",
-        output_directory,
-        base_snake);
+        return false;
+    }
 
-    (void)snprintf(
-        response_c,
-        sizeof(response_c),
-        "%s/%s_response.c",
-        output_directory,
-        base_snake);
 
     if (!emit_types_header(
             document,
