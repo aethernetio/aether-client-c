@@ -968,17 +968,8 @@ declared_c_name(
 
 
 
-static bool emit_array_element_c_type(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *element,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_array_element_c_type_ctx(
-        output, &ctx, element, error, error_capacity);
-}
+
 
 
 
@@ -1008,13 +999,19 @@ static bool remember_array_alias(
     return true;
 }
 
-static bool emit_array_alias(
+
+static bool emit_array_alias_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     array_alias_state_t *alias_state,
     const char *type,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid array alias context");
+        return false;
+    }
 
     char element[128];
     bool dynamic;
@@ -1038,8 +1035,8 @@ static bool emit_array_alias(
 
     char alias[256];
 
-    if (!array_alias_name(
-            document,
+    if (!array_alias_name_ctx(
+            ctx,
             type,
             alias,
             sizeof(alias))) {
@@ -1077,9 +1074,9 @@ static bool emit_array_alias(
             "    const ",
             output);
 
-        if (!emit_array_element_c_type(
+        if (!emit_array_element_c_type_ctx(
                 output,
-                document,
+                ctx,
                 element,
                 error,
                 error_capacity)) {
@@ -1102,9 +1099,9 @@ static bool emit_array_alias(
             "    ",
             output);
 
-        if (!emit_array_element_c_type(
+        if (!emit_array_element_c_type_ctx(
                 output,
-                document,
+                ctx,
                 element,
                 error,
                 error_capacity)) {
@@ -1127,6 +1124,21 @@ static bool emit_array_alias(
         error,
         error_capacity);
 }
+
+
+static bool emit_array_alias(
+    FILE *output,
+    const adsl_document_t *document,
+    array_alias_state_t *alias_state,
+    const char *type,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_array_alias_ctx(
+        output, &ctx, alias_state, type, error, error_capacity);
+}
+
 
 
 /*
