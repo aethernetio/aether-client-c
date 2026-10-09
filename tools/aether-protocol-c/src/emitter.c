@@ -550,9 +550,12 @@ static bool emit_hierarchy_expression(
 
 
 
-static bool emit_all_struct_dependencies(
+
+
+
+static bool emit_all_struct_dependencies_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     uint8_t *states,
     unsigned int depth,
@@ -560,14 +563,27 @@ static bool emit_all_struct_dependencies(
     char *error,
     size_t error_capacity);
 
-
-static bool emit_all_struct_field_declarations(
+static bool emit_all_struct_field_declarations_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     unsigned int depth,
     char *error,
     size_t error_capacity);
+
+static bool emit_struct_definition_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    size_t type_index,
+    uint8_t *states,
+    array_alias_state_t *alias_state,
+    char *error,
+    size_t error_capacity);
+
+
+
+
+
 
 static bool count_all_nullable_fields(
     const adsl_document_t *document,
@@ -7031,63 +7047,55 @@ static bool emit_value_expression(
 
 }
 
-static bool emit_struct_definition(
 
+static bool emit_struct_definition_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     size_t type_index,
     uint8_t *states,
     array_alias_state_t *alias_state,
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid struct definition context");
+        return false;
+    }
 
+    const adsl_type_t *type;
 
-    const adsl_type_t *type =
-        &document->resolved_types[type_index];
+    if (ctx->resolver != NULL) {
+        type = &ctx->document->types[type_index];
+    } else {
+        type = &ctx->document->resolved_types[type_index];
+    }
 
     if (states[type_index] == 2u) {
         return true;
     }
 
     if (states[type_index] == 1u) {
-        /*
-         * Only dependencies that require a complete inline C type reach this
-         * DFS edge. Nullable references and dynamic arrays deliberately do not.
-         * Returning to an active node therefore means the schema requires an
-         * infinitely sized C object (directly, mutually, or through T[N]).
-         */
         set_error(
             error,
             error_capacity,
             "non-nullable by-value type cycle cannot be represented in generated C");
-
         return false;
     }
 
-
-
-
-if (type->enum_count > 0u ||
+    if (type->enum_count > 0u ||
         type->is_abstract ||
         type->stream != NULL ||
         type->has_tiered_int) {
 
-
-
-        states[type_index] =
-            2u;
-
+        states[type_index] = 2u;
         return true;
     }
 
-    states[type_index] =
-        1u;
+    states[type_index] = 1u;
 
-
-    if (!emit_all_struct_dependencies(
+    if (!emit_all_struct_dependencies_ctx(
             output,
-            document,
+            ctx,
             type,
             states,
             0u,
@@ -7095,27 +7103,24 @@ if (type->enum_count > 0u ||
             error,
             error_capacity)) {
 
-
         return false;
     }
 
     char type_name[256];
 
-
-declared_c_name(
+    declared_c_name(
         type->name,
         type_name,
         sizeof(type_name));
-
 
     fprintf(
         output,
         "struct %s_t {\n",
         type_name);
 
-    if (!emit_all_struct_field_declarations(
+    if (!emit_all_struct_field_declarations_ctx(
             output,
-            document,
+            ctx,
             type,
             0u,
             error,
@@ -7128,11 +7133,26 @@ declared_c_name(
         output,
         "};\n\n");
 
-    states[type_index] =
-        2u;
+    states[type_index] = 2u;
 
     return true;
 }
+
+
+static bool emit_struct_definition(
+    FILE *output,
+    const adsl_document_t *document,
+    size_t type_index,
+    uint8_t *states,
+    array_alias_state_t *alias_state,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_struct_definition_ctx(
+        output, &ctx, type_index, states, alias_state, error, error_capacity);
+}
+
 
 
 
@@ -8256,20 +8276,8 @@ static bool emit_all_struct_dependencies_ctx(
 }
 
 
-static bool emit_all_struct_dependencies(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_type_t *type,
-    uint8_t *states,
-    unsigned int depth,
-    array_alias_state_t *alias_state,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_all_struct_dependencies_ctx(
-        output, &ctx, type, states, depth, alias_state, error, error_capacity);
-}
+
 
 
 
@@ -8444,33 +8452,36 @@ static bool emit_field_declaration(
 
 
 
-static bool emit_all_struct_field_declarations(
+
+static bool emit_all_struct_field_declarations_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     unsigned int depth,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid struct field context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "struct inheritance depth exceeds 64");
-
         return false;
     }
 
     if (type->parent != NULL) {
         const adsl_type_t *parent =
-            find_declared_type(
-                document,
-                type->parent);
+            find_declared_type_ctx(ctx, type->parent);
 
         if (parent == NULL ||
-            !emit_all_struct_field_declarations(
+            !emit_all_struct_field_declarations_ctx(
                 output,
-                document,
+                ctx,
                 parent,
                 depth + 1u,
                 error,
@@ -8487,17 +8498,13 @@ static bool emit_all_struct_field_declarations(
         }
     }
 
+    for (size_t f = 0u; f < type->field_count; ++f) {
 
-    for (size_t f = 0u;
-         f < type->field_count;
-         ++f) {
-
-        const adsl_field_t *field =
-            &type->fields[f];
+        const adsl_field_t *field = &type->fields[f];
 
         if (!emit_field_declaration(
                 output,
-                document,
+                ctx->document,
                 field->type,
                 field->name,
                 error,
@@ -8506,9 +8513,13 @@ static bool emit_all_struct_field_declarations(
         }
     }
 
-
     return true;
 }
+
+
+
+
+
 
 
 static bool count_all_nullable_fields_ctx(
