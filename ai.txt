@@ -5161,3 +5161,35 @@ PeerLogin: finding source of truth ADSL for peer_api + regen recipe
 [aether-protocol-c final regression] Full generator/runtime regression is green: 25/25 CTest tests pass. Generated ADSL origin comments are present across normal API/type headers, local dispatch bindings, response bindings, stream builders and inherited methods; inherited BaseLocalApi methods exposed through LocalApi retain the declaring API as origin. Remaining verification in this step checks physical include-origin behavior and records the optimized -Os aether_meta_runtime object footprint.
 [aether-protocol-c generated navigation COMPLETE] Fixed the remaining origin-comment gap for collapsible remote methods: emit_method_origin now runs before the collapsible early-return branches in both generated API header and source paths. Generated collapsible and stream bindings were regenerated and verified, and the full generator/runtime CTest suite was rerun.
 README прочитан. План: регенерировать peer_api из PeerApi.adsl.yaml, потом портировать Java алгоритм.
+
+=== 2026-10-10 ТЗ №4-Б2.3 D6.4–D6.5 завершены ===
+Commit: 1f731ee ("ТЗ №4-Б2.3 D6.4-D6.5: ctx-aware API emission and wired project emitter")
+Files: tools/aether-protocol-c/src/emitter.c, tools/aether-protocol-c/tests/test_cross_module_pending.c
+
+D6.4: переведены на emitter_ctx_t (с сохранением standalone-обёрток):
+  - classify_param_kind_ctx / emit_parameter_type_ctx / emit_serialize_param_ctx
+  - emit_collapsible_key_match_ctx, collapsible_param_snapshots_nullable_value_ctx,
+    emit_collapsible_entry_field_ctx, emit_collapsible_entry_store_ctx,
+    emit_collapsible_method_declarations_ctx, emit_collapsible_method_source_ctx
+  - emit_stream_builder_declarations_for_api_ctx, emit_stream_builder_declarations_ctx,
+    emit_all_stream_builder_declarations_ctx,
+    emit_stream_builder_definitions_for_api_ctx, emit_stream_builder_definitions_ctx,
+    emit_all_stream_builder_definitions_ctx
+  - emit_api_header_ctx и emit_api_source_ctx вызывают _ctx-варианты, NOTE(D6) удалены
+
+D6.5: adsl_emit_c_project() теперь строит resolver и ctx {document, resolver},
+      вызывает emit_types_header_ctx / emit_types_source_ctx /
+      emit_api_header_ctx / emit_api_source_ctx с NULL selected_api/method.
+      Публичная сигнатура в adslc.h не менялась.
+
+Тесты: ctest — 31/32 passed. aether_adslc_test падал и до рефакторинга (проверено
+через git stash на 03e9cce) — это pre-existing регрессия, не внесённая D6.
+aether_adslc_cross_module_pending_test теперь проходит и реально вызывает
+adsl_emit_c_project + проверяет наличие четырёх сгенерированных файлов.
+
+Известные ограничения (переходят в №4-Б2.4):
+  - межмодульные #include для внешних by-value/array/hierarchy зависимостей
+    ещё не генерируются автоматически (допустимо на D6.5);
+  - aether_adslc_test нужно отдельно диагностировать — это исторический провал.
+
+Этап №4-Б2.4 не начат — ожидает ревью D6.
