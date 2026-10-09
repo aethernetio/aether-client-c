@@ -2413,10 +2413,26 @@ declared_c_name(
     return true;
 }
 
+
+/*
+ * Growing list of distinct module base_names whose generated headers
+ * the current module must include. The generator itself is allowed to
+ * use dynamic memory: it runs on the developer's host, not on the MCU,
+ * and the number of project modules is not bounded by the language.
+ *
+ * Entries are module base_names without the "_types.h" suffix. The
+ * caller is responsible for releasing the array with
+ * external_modules_free().
+ */
 typedef struct {
-    char names[32][256];
+    char **names;
     size_t count;
+    size_t capacity;
 } external_modules_t;
+
+static void external_modules_free(
+    external_modules_t *state);
+
 
 
 static bool collect_external_modules_types(
@@ -2492,26 +2508,29 @@ static bool emit_types_header_ctx(
      * signatures. Standalone output remains a single self-contained
      * translation unit and does not reach this branch.
      */
-    if (ctx->resolver != NULL) {
-        external_modules_t external = {0};
 
+    if (ctx->resolver != NULL) {
+
+        external_modules_t external = {0};
 
         if (!collect_external_modules_types(
                 ctx, &external, error, error_capacity)) {
-
-
-
+            external_modules_free(&external);
             fclose(output);
             return false;
         }
 
         if (!emit_external_includes(output, &external)) {
+            external_modules_free(&external);
             fclose(output);
             return false;
         }
 
+        external_modules_free(&external);
+
         fputc('\n', output);
     }
+
 
     size_t type_count = 0u;
 
@@ -5055,16 +5074,20 @@ static bool emit_api_header_ctx(
      * module's own type dependencies. Standalone output remains one
      * self-contained translation unit and skips this branch.
      */
+
     if (ctx->resolver != NULL) {
+
         external_modules_t external_api = {0};
 
         if (!collect_external_modules_api(
                 ctx, &external_api, error, error_capacity)) {
+            external_modules_free(&external_api);
             fclose(output);
             return false;
         }
 
         if (!emit_external_includes(output, &external_api)) {
+            external_modules_free(&external_api);
             fclose(output);
             return false;
         }
@@ -5072,7 +5095,10 @@ static bool emit_api_header_ctx(
         if (external_api.count > 0u) {
             fputc('\n', output);
         }
+
+        external_modules_free(&external_api);
     }
+
 
     size_t api_count = 0u;
     const adsl_api_t *apis = ctx_apis(ctx, &api_count);
@@ -5774,7 +5800,24 @@ bool type_owner_base_snake(
 
 }
 
+
+/*
+ * Owner lookup for a field/parameter type reference.
+ *
+ * Strips nullable and array modifiers, ignores primitives and inline
+ * streams, and returns the module prefix that owns the resolved user
+ * type. external_out is set true only when the owner prefix differs
+ * from the current module.
+ *
+ * Note on by-value cycles: a cycle between two modules where each
+ * struct stores the other by value (A { B b; } and B { A a; }) cannot
+ * be represented in C. Include guards do not help: they only prevent
+ * duplicate inclusion, not recursive type completion. Such cycles
+ * must be detected and rejected explicitly; they are out of scope for
+ * this helper and for step 2B.
+ */
 bool resolve_type_owner(
+
     const emitter_ctx_t *ctx,
     const char *type_ref,
     char *owner_out,
@@ -5836,6 +5879,7 @@ bool resolve_type_owner(
 
 
 
+
 static bool external_modules_add(
     external_modules_t *state,
     const char *name) {
@@ -5846,21 +5890,58 @@ static bool external_modules_add(
         }
     }
 
-    if (state->count >= 32u) {
-        return false;
-    }
-
     size_t length = strlen(name);
 
-    if (length + 1u > sizeof(state->names[0])) {
+    if (length == 0u || length + 1u > 256u) {
         return false;
     }
 
-    memcpy(state->names[state->count], name, length + 1u);
+    if (state->count == state->capacity) {
+        size_t new_capacity =
+            state->capacity == 0u ? 4u : state->capacity * 2u;
+
+        char **grown =
+            realloc(state->names, new_capacity * sizeof(*grown));
+
+        if (grown == NULL) {
+            return false;
+        }
+
+        state->names = grown;
+        state->capacity = new_capacity;
+    }
+
+    char *copy = malloc(length + 1u);
+
+    if (copy == NULL) {
+        return false;
+    }
+
+    memcpy(copy, name, length + 1u);
+    state->names[state->count] = copy;
     state->count++;
 
     return true;
 }
+
+static void external_modules_free(
+    external_modules_t *state) {
+
+    if (state == NULL) {
+        return;
+    }
+
+    for (size_t i = 0u; i < state->count; ++i) {
+        free(state->names[i]);
+    }
+
+    free(state->names);
+
+    state->names = NULL;
+    state->count = 0u;
+    state->capacity = 0u;
+}
+
 
 static bool external_modules_record(
     const emitter_ctx_t *ctx,

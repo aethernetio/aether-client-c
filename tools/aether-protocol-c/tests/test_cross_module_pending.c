@@ -66,8 +66,40 @@ static bool file_contains(const char *path, const char *needle) {
     size_t n = fread(buffer, 1, sizeof(buffer) - 1u, f);
     fclose(f);
     buffer[n] = '\0';
+
     return strstr(buffer, needle) != NULL;
 }
+
+/*
+ * Count non-overlapping occurrences of needle in path. Used to assert
+ * that deduplicated includes appear exactly once.
+ */
+static size_t file_count_occurrences(
+    const char *path, const char *needle) {
+
+    FILE *f = fopen(path, "rb");
+    if (f == NULL) {
+        return 0u;
+    }
+    char buffer[65536];
+    size_t n = fread(buffer, 1, sizeof(buffer) - 1u, f);
+    fclose(f);
+    buffer[n] = '\0';
+
+    size_t count = 0u;
+    size_t needle_len = strlen(needle);
+    if (needle_len == 0u) {
+        return 0u;
+    }
+
+    const char *cursor = buffer;
+    while ((cursor = strstr(cursor, needle)) != NULL) {
+        count++;
+        cursor += needle_len;
+    }
+    return count;
+}
+
 
 /* PENDING_API RES-001: cross-file reference without include. */
 
@@ -631,7 +663,11 @@ static void pending_emission_plan_validation(void) {
          * mode must pull in B's generated types header so item_t has a
          * complete definition where A's API signature is declared.
          */
+
         assert(file_contains(path, "#include \"b_defines_item_types.h\""));
+        assert(file_count_occurrences(
+            path, "#include \"b_defines_item_types.h\"") == 1u);
+
 
 
 

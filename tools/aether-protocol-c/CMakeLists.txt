@@ -359,10 +359,33 @@ file(MAKE_DIRECTORY
     "${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output"
 )
 
+
 add_test(
     NAME aether_adslc_cross_module_pending_test
     COMMAND aether_adslc_cross_module_pending_test
 )
+
+# Smoke-compile the generated cross-module output after the pending test
+# wrote it. This checks that the generated headers form a syntactically
+# valid translation unit for the supported A -> B and Holder -> Item
+# scenarios. Full link and ABI checks belong to a later step.
+add_test(
+    NAME aether_adslc_cross_module_smoke_compile_test
+    COMMAND ${CMAKE_C_COMPILER}
+        -fsyntax-only
+        -I${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output
+        -I${CMAKE_CURRENT_SOURCE_DIR}/../../include
+        ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/a_uses_item_types.c
+        ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/a_uses_item_api.c
+        ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/b_defines_item_types.c
+        ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/i_holds_external_types.c
+)
+set_tests_properties(
+    aether_adslc_cross_module_smoke_compile_test
+    PROPERTIES
+        DEPENDS aether_adslc_cross_module_pending_test
+)
+
 
 
 
