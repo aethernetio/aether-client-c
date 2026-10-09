@@ -2818,6 +2818,7 @@ static bool emit_types_header_ctx(
             output,
             type);
 
+
         if (hierarchy) {
 
             fprintf(
@@ -2836,6 +2837,34 @@ static bool emit_types_header_ctx(
                 serializer_base,
                 type_name,
                 type_name);
+
+            /*
+             * Project mode adds a cross-module entry point that lets a
+             * caller in another generated module thread its current
+             * recursion depth into this module. Standalone does not
+             * need it: all recursive calls stay inside one translation
+             * unit and use the static *_impl directly.
+             */
+            if (ctx->resolver != NULL) {
+                fprintf(
+                    output,
+                    "aether_status_t %s_serialize_%s_with_depth(\n"
+                    "    uint8_t *tx,\n"
+                    "    size_t tx_capacity,\n"
+                    "    size_t *position,\n"
+                    "    const %s_ref_t *value,\n"
+                    "    unsigned int recursion_depth);\n\n"
+                    "aether_status_t %s_deserialize_%s_with_depth(\n"
+                    "    aether_meta_read_context_t *ctx,\n"
+                    "    %s_ref_t *value,\n"
+                    "    unsigned int recursion_depth);\n\n",
+                    serializer_base,
+                    type_name,
+                    type_name,
+                    serializer_base,
+                    type_name,
+                    type_name);
+            }
         } else {
             fprintf(
                 output,
@@ -2853,7 +2882,29 @@ static bool emit_types_header_ctx(
                 serializer_base,
                 type_name,
                 type_name);
+
+            if (ctx->resolver != NULL) {
+                fprintf(
+                    output,
+                    "aether_status_t %s_serialize_%s_with_depth(\n"
+                    "    uint8_t *tx,\n"
+                    "    size_t tx_capacity,\n"
+                    "    size_t *position,\n"
+                    "    const %s_t *value,\n"
+                    "    unsigned int recursion_depth);\n\n"
+                    "aether_status_t %s_deserialize_%s_with_depth(\n"
+                    "    aether_meta_read_context_t *ctx,\n"
+                    "    %s_t *value,\n"
+                    "    unsigned int recursion_depth);\n\n",
+                    serializer_base,
+                    type_name,
+                    type_name,
+                    serializer_base,
+                    type_name,
+                    type_name);
+            }
         }
+
     }
 
     fprintf(output, "#endif\n");
@@ -3159,7 +3210,50 @@ static bool emit_types_source_ctx(
             "    *position = pos;\n"
             "    return AETHER_OK;\n"
             "}\n\n",
+
             output);
+
+        /*
+         * Project mode: cross-module entry point that lets a caller in
+         * another generated module thread its current recursion depth
+         * into this module. Standalone does not need it: all recursive
+         * calls stay inside one translation unit and use the static
+         * *_impl directly.
+         */
+        if (ctx->resolver != NULL) {
+            if (hierarchy) {
+                fprintf(
+                    output,
+                    "aether_status_t %s_serialize_%s_with_depth(\n"
+                    "    uint8_t *tx,\n"
+                    "    size_t tx_capacity,\n"
+                    "    size_t *position,\n"
+                    "    const %s_ref_t *value,\n"
+                    "    unsigned int recursion_depth) {\n\n"
+                    "    return %s_serialize_%s_impl(\n"
+                    "        tx, tx_capacity, position, value,\n"
+                    "        recursion_depth);\n"
+                    "}\n\n",
+                    base_snake, type_name, type_name,
+                    base_snake, type_name);
+            } else {
+                fprintf(
+                    output,
+                    "aether_status_t %s_serialize_%s_with_depth(\n"
+                    "    uint8_t *tx,\n"
+                    "    size_t tx_capacity,\n"
+                    "    size_t *position,\n"
+                    "    const %s_t *value,\n"
+                    "    unsigned int recursion_depth) {\n\n"
+                    "    return %s_serialize_%s_impl(\n"
+                    "        tx, tx_capacity, position, value,\n"
+                    "        recursion_depth);\n"
+                    "}\n\n",
+                    base_snake, type_name, type_name,
+                    base_snake, type_name);
+            }
+        }
+
 
         if (hierarchy) {
             fprintf(
@@ -3260,7 +3354,43 @@ static bool emit_types_source_ctx(
             "\n"
             "    return AETHER_OK;\n"
             "}\n\n",
+
             output);
+
+        /*
+         * Project mode: cross-module entry point for deserialization.
+         * Mirrors the serializer's *_with_depth. Standalone keeps its
+         * single public wrapper plus static *_impl and does not
+         * generate this symbol.
+         */
+        if (ctx->resolver != NULL) {
+            if (hierarchy) {
+                fprintf(
+                    output,
+                    "aether_status_t %s_deserialize_%s_with_depth(\n"
+                    "    aether_meta_read_context_t *ctx,\n"
+                    "    %s_ref_t *value,\n"
+                    "    unsigned int recursion_depth) {\n\n"
+                    "    return %s_deserialize_%s_impl(\n"
+                    "        ctx, value, recursion_depth);\n"
+                    "}\n\n",
+                    base_snake, type_name, type_name,
+                    base_snake, type_name);
+            } else {
+                fprintf(
+                    output,
+                    "aether_status_t %s_deserialize_%s_with_depth(\n"
+                    "    aether_meta_read_context_t *ctx,\n"
+                    "    %s_t *value,\n"
+                    "    unsigned int recursion_depth) {\n\n"
+                    "    return %s_deserialize_%s_impl(\n"
+                    "        ctx, value, recursion_depth);\n"
+                    "}\n\n",
+                    base_snake, type_name, type_name,
+                    base_snake, type_name);
+            }
+        }
+
     }
 
     if (ferror(output)) {

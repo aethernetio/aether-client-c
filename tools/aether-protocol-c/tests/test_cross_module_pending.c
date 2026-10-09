@@ -592,6 +592,7 @@ static void pending_emission_plan_validation(void) {
      * module (cross-module references are resolved by the resolver but
      * never duplicated into another module's output).
      */
+
     error[0] = '\0';
     bool emitted = adsl_emit_c_project(
         &project, &plan, 0u,
@@ -599,6 +600,16 @@ static void pending_emission_plan_validation(void) {
         error, sizeof(error));
     assert(emitted);
     assert(error[0] == '\0');
+
+    /* Also generate module B: it owns Item and must expose the
+     * cross-module _with_depth entry points for it. */
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 1u,
+        ADSL_TEST_OUTPUT_DIR, "B_defines_item",
+        error, sizeof(error)));
+    assert(error[0] == '\0');
+
 
 
 {
@@ -625,6 +636,7 @@ static void pending_emission_plan_validation(void) {
          * (Item) must not be redefined here, and B's serializers must
          * not be duplicated into A's module.
          */
+
         (void)snprintf(path, sizeof(path),
             "%s/a_uses_item_types.h", ADSL_TEST_OUTPUT_DIR);
         assert(!file_contains(path, "item_t"));
@@ -633,7 +645,24 @@ static void pending_emission_plan_validation(void) {
         (void)snprintf(path, sizeof(path),
             "%s/a_uses_item_types.c", ADSL_TEST_OUTPUT_DIR);
         assert(!file_contains(path, "b_defines_item"));
+
+        /*
+         * B owns Item and therefore must expose both its public wrapper
+         * and the cross-module _with_depth entry point in project mode.
+         * The latter is the whole point of B2.4.2: let other modules
+         * call into B without resetting recursion depth.
+         */
+        (void)snprintf(path, sizeof(path),
+            "%s/b_defines_item_types.h", ADSL_TEST_OUTPUT_DIR);
+        assert(file_contains(path, "b_defines_item_serialize_item_with_depth("));
+        assert(file_contains(path, "b_defines_item_deserialize_item_with_depth("));
+
+        (void)snprintf(path, sizeof(path),
+            "%s/b_defines_item_types.c", ADSL_TEST_OUTPUT_DIR);
+        assert(file_contains(path, "b_defines_item_serialize_item_with_depth("));
+        assert(file_contains(path, "b_defines_item_deserialize_item_with_depth("));
     }
+
 
 
 
