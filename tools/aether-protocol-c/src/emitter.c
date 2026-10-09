@@ -1573,11 +1573,11 @@ static const adsl_type_t *find_declared_type(
         strlen(name);
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *candidate =
-            &document->types[i];
+            &document->resolved_types[i];
 
         size_t candidate_length =
             strlen(candidate->name);
@@ -2269,11 +2269,11 @@ static bool emit_types_header(
      * that same schema constant while the wire algorithm stays in runtime.
      */
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (!type->has_tiered_int) {
             continue;
@@ -2296,11 +2296,11 @@ static bool emit_types_header(
 
 
 for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (type->stream == NULL) {
             continue;
@@ -2321,11 +2321,11 @@ for (size_t i = 0u;
     }
 
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
 
 
@@ -2363,11 +2363,11 @@ for (size_t i = 0u;
 
     for (size_t i = 0u;
 
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (type->enum_count == 0u) {
             continue;
@@ -2419,11 +2419,11 @@ declared_c_name(
      * typed pointers, so they can be defined before concrete bodies.
      */
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
 
 
@@ -2456,7 +2456,7 @@ declared_c_name(
             type_name);
     }
 
-    if (document->type_count > 0u) {
+    if (document->resolved_type_count > 0u) {
         fputc(
             '\n',
             output);
@@ -2467,13 +2467,13 @@ declared_c_name(
      * plus a union of typed pointers to all concrete descendants.
      */
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         if (!emit_hierarchy_ref(
                 output,
                 document,
-                &document->types[i],
+                &document->resolved_types[i],
                 error,
                 error_capacity)) {
 
@@ -2483,11 +2483,11 @@ declared_c_name(
     }
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         for (size_t f = 0u;
              f < type->field_count;
@@ -2519,11 +2519,11 @@ declared_c_name(
     }
 
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
         for (size_t m = 0u;
              m < api->method_count;
@@ -2590,9 +2590,9 @@ declared_c_name(
     }
 
     size_t state_count =
-        document->type_count == 0u
+        document->resolved_type_count == 0u
             ? 1u
-            : document->type_count;
+            : document->resolved_type_count;
 
     uint8_t states[state_count];
 
@@ -2602,11 +2602,11 @@ declared_c_name(
         state_count);
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
 
 if (type->enum_count > 0u ||
@@ -2640,11 +2640,11 @@ if (type->enum_count > 0u ||
      * payload body is complete, so these aliases are now safe to emit.
      */
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
         for (size_t m = 0u;
              m < api->method_count;
@@ -2721,11 +2721,11 @@ if (type->enum_count > 0u ||
 
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         bool hierarchy =
             type_is_polymorphic_reference(
@@ -2848,11 +2848,11 @@ static bool emit_types_source(
 
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (!type->has_tiered_int) {
             continue;
@@ -2893,11 +2893,11 @@ static bool emit_types_source(
      * callers enter through the stable public codec ABI at recursion depth zero.
      */
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         bool hierarchy =
             type_is_polymorphic_reference(
@@ -2968,11 +2968,11 @@ static bool emit_types_source(
 
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         bool hierarchy =
             type_is_polymorphic_reference(
@@ -3256,14 +3256,14 @@ static const adsl_api_t *find_api_definition(
     }
 
     for (size_t i = 0u;
-         i < document->api_count;
+         i < document->resolved_api_count;
          ++i) {
 
         if (strcmp(
-                document->apis[i].name,
+                document->resolved_apis[i].name,
                 name) == 0) {
 
-            return &document->apis[i];
+            return &document->resolved_apis[i];
         }
     }
 
@@ -3360,22 +3360,22 @@ static bool document_has_stream_builders(
     const adsl_document_t *document) {
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         if (stream_has_builder_api(
-                document->types[i].stream)) {
+                document->resolved_types[i].stream)) {
 
             return true;
         }
     }
 
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
         for (size_t m = 0u;
              m < api->method_count;
@@ -3631,11 +3631,11 @@ static bool emit_all_stream_builder_declarations(
     size_t error_capacity) {
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (!emit_stream_builder_declarations(
                 output,
@@ -3650,11 +3650,11 @@ static bool emit_all_stream_builder_declarations(
     }
 
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
         for (size_t m = 0u;
              m < api->method_count;
@@ -4071,11 +4071,11 @@ static bool emit_all_stream_builder_definitions(
     size_t error_capacity) {
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *type =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (!emit_stream_builder_definitions(
                 output,
@@ -4091,11 +4091,11 @@ static bool emit_all_stream_builder_definitions(
     }
 
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
 
 
@@ -5217,11 +5217,11 @@ static bool emit_api_header(
 
 
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
         if (selected_api_name != NULL &&
             strcmp(
@@ -5484,11 +5484,11 @@ static bool emit_api_source(
     }
 
     for (size_t a = 0u;
-         a < document->api_count;
+         a < document->resolved_api_count;
          ++a) {
 
         const adsl_api_t *api =
-            &document->apis[a];
+            &document->resolved_apis[a];
 
         if (selected_api_name != NULL &&
             strcmp(
@@ -6339,7 +6339,7 @@ static bool emit_struct_definition(
 
 
     const adsl_type_t *type =
-        &document->types[type_index];
+        &document->resolved_types[type_index];
 
     if (states[type_index] == 2u) {
         return true;
@@ -6820,11 +6820,11 @@ static bool type_has_children(
     const adsl_type_t *type) {
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *candidate =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (candidate->parent == NULL) {
             continue;
@@ -6915,11 +6915,11 @@ declared_c_name(
         0u;
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *candidate =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
@@ -6963,11 +6963,11 @@ declared_c_name(
         }
 
         for (size_t j = i + 1u;
-             j < document->type_count;
+             j < document->resolved_type_count;
              ++j) {
 
             const adsl_type_t *other =
-                &document->types[j];
+                &document->resolved_types[j];
 
             if (other->enum_count > 0u ||
                 other->is_abstract ||
@@ -7014,11 +7014,11 @@ declared_c_name(
     }
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *candidate =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
@@ -7086,11 +7086,11 @@ char static_upper[256];
             output);
 
         for (size_t i = 0u;
-             i < document->type_count;
+             i < document->resolved_type_count;
              ++i) {
 
             const adsl_type_t *candidate =
-                &document->types[i];
+                &document->resolved_types[i];
 
             if (candidate->enum_count > 0u ||
                 candidate->is_abstract ||
@@ -7201,11 +7201,11 @@ static bool emit_hierarchy_expression(
         0u;
 
     for (size_t i = 0u;
-         i < document->type_count;
+         i < document->resolved_type_count;
          ++i) {
 
         const adsl_type_t *candidate =
-            &document->types[i];
+            &document->resolved_types[i];
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
@@ -7420,7 +7420,7 @@ static bool emit_all_struct_dependencies(
                 size_t nested_index =
                     (size_t)(
                         element_type -
-                        document->types);
+                        document->resolved_types);
 
 
                 if (!emit_struct_definition(
@@ -7521,7 +7521,7 @@ static bool emit_all_struct_dependencies(
         size_t nested_index =
             (size_t)(
                 field_type -
-                document->types);
+                document->resolved_types);
 
 
         if (!emit_struct_definition(
@@ -9321,16 +9321,16 @@ static const adsl_api_t *response_find_api(
     }
 
     for (size_t i = 0u;
-         i < document->api_count;
+         i < document->resolved_api_count;
          ++i) {
 
-        if (document->apis[i].name != NULL &&
+        if (document->resolved_apis[i].name != NULL &&
             strcmp(
-                document->apis[i].name,
+                document->resolved_apis[i].name,
                 name) == 0) {
 
             return
-                &document->apis[i];
+                &document->resolved_apis[i];
         }
     }
 
@@ -10771,8 +10771,8 @@ const char *runtime_depth,
 
     size_t concrete_count = 0u;
 
-    for (size_t i = 0u; i < document->type_count; ++i) {
-        const adsl_type_t *candidate = &document->types[i];
+    for (size_t i = 0u; i < document->resolved_type_count; ++i) {
+        const adsl_type_t *candidate = &document->resolved_types[i];
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||

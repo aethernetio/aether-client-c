@@ -222,6 +222,56 @@ typedef struct {
 } adsl_project_t;
 
 
+
+/*
+ * Kind of an entry in the project-level type registry.
+ *
+ * ADSL_TYPE_DECLARED refers to a type declared in one of the project's
+ * documents. ADSL_TYPE_PRIMITIVE refers to a builtin scalar recognized by the
+ * C emitter (such as "int" or "string"). Array types are deliberately not
+ * modeled here yet.
+ */
+typedef enum {
+    ADSL_TYPE_DECLARED = 0,
+    ADSL_TYPE_PRIMITIVE
+} adsl_type_kind_t;
+
+/*
+ * One entry in the project-level type registry.
+ *
+ * `module` is derived from the basename of the owning document's
+ * root_source_path with the ".adsl.yaml"/".adsl.yml" suffix removed (for
+ * example "common"). It is NULL for primitive entries, which do not belong to
+ * any module.
+ *
+ * `declaration` is a non-owning pointer into the corresponding document's
+ * types[] array; it stays valid for the lifetime of the adsl_project_t the
+ * registry was built from, and is NULL for primitive entries.
+ *
+ * Both `module` and `name` are owned by the registry and released by
+ * adsl_type_registry_free().
+ */
+typedef struct {
+    char *module;
+    char *name;
+    adsl_type_kind_t kind;
+    const adsl_type_t *declaration;
+} adsl_registry_entry_t;
+
+/*
+ * Project-level type registry.
+ *
+ * Answers exactly one question: which types are declared in the project, in
+ * which module, and where is the declaration. No resolution, include scope,
+ * array expansion, or generated names.
+ */
+typedef struct {
+    adsl_registry_entry_t *entries;
+    size_t entry_count;
+} adsl_type_registry_t;
+
+
+
     
 
 
@@ -406,6 +456,70 @@ bool adsl_project_load_files(
     adsl_project_t *project,
     char *error,
     size_t error_capacity);
+
+
+/*
+ * Recursively scan include directories for `.adsl.yaml` files.
+ *
+ * Each directory is visited once (deduplicated by canonical path); each found
+ * file is deduplicated by canonical path across all directories. Results are
+ * sorted by canonical path for deterministic output. The caller owns both the
+ * returned array and every string in it: free each element, then the array.
+ *
+ * `*files` and `*file_count` are always initialized. Zero matches is not an
+ * error. On failure the outputs are reset and the project has no partial list.
+ */
+bool adsl_find_files(
+    const char *const *include_paths,
+    size_t include_path_count,
+    char ***files,
+    size_t *file_count,
+    char *error,
+    size_t error_capacity);
+
+
+
+/*
+ * Initialize an empty type registry.
+ */
+void adsl_type_registry_init(
+    adsl_type_registry_t *registry);
+
+/*
+ * Release every owned string and reset the registry to empty.
+ */
+void adsl_type_registry_free(
+    adsl_type_registry_t *registry);
+
+/*
+ * Build a project-level type registry from an adsl_project_t.
+ *
+ * Only document->types[] is consulted; the include closure (resolved_types)
+ * is deliberately ignored. Module names are derived from each document's
+ * root_source_path. Primitive entries are registered from the builtin scalar
+ * list that mirrors primitive_c_type() in emitter.c.
+ *
+ * The registry must be empty before the call. On failure the registry is left
+ * empty.
+ */
+bool adsl_type_registry_build(
+    const adsl_project_t *project,
+    adsl_type_registry_t *registry,
+    char *error,
+    size_t error_capacity);
+
+/*
+ * Look up an entry by exact (module, name).
+ *
+ * Declared types are found by their module; primitives are found with
+ * module == NULL. There is no include-scope fallback yet.
+ */
+const adsl_registry_entry_t *adsl_type_registry_find(
+    const adsl_type_registry_t *registry,
+    const char *module,
+    const char *name);
+
+
 
 
 #endif

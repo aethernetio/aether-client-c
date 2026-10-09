@@ -1,0 +1,5 @@
+
+types:
+  ClientHello:
+    fields:
+      key: Key

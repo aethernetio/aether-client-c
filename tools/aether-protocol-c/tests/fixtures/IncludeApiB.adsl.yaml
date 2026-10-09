@@ -1,0 +1,7 @@
+
+api:
+  SharedApi:
+    methods:
+      ping:
+        id: 3
+        returns: int

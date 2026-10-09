@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <stdlib.h>
+
+
 
 static const char *file_base_name(
     const char *path) {
@@ -248,15 +251,136 @@ int main(
     int positional_count =
         argc - argument;
 
-    if (positional_count < 2 ||
-        positional_count > 3) {
+
+    bool project_mode =
+        (positional_count == 1);
+
+    if (positional_count < 1 ||
+        positional_count > 3 ||
+        (project_mode && include_path_count == 0u)) {
 
         fprintf(
             stderr,
-            "usage: aether-adslc [-I <include-dir>]... [--api ApiName | --method Api.method | --local-api ApiName] <input.adsl.yaml> <output-dir> [base-name]\n");
+            "usage: aether-adslc [-I <include-dir>]... [--api ApiName | --method Api.method | --local-api ApiName] <input.adsl.yaml> <output-dir> [base-name]\n"
+            "       aether-adslc [-I <include-dir>]... <output-dir>\n");
 
         return 2;
     }
+
+    if (project_mode &&
+        (api_selection != NULL ||
+         method_selection != NULL ||
+         local_api_selection != NULL ||
+         response_method_selection != NULL)) {
+
+        fprintf(
+            stderr,
+            "project mode does not support method/API selection\n");
+
+        return 2;
+    }
+
+    if (project_mode) {
+        const char *project_output_directory =
+            argv[argument];
+
+        char project_error[512] = {0};
+        char **project_files = NULL;
+        size_t project_file_count = 0u;
+
+        if (!adsl_find_files(
+                include_paths,
+                include_path_count,
+                &project_files,
+                &project_file_count,
+                project_error,
+                sizeof(project_error))) {
+
+            fprintf(
+                stderr,
+                "ADSL scan error: %s\n",
+                project_error);
+
+            return 1;
+        }
+
+        if (project_file_count == 0u) {
+
+            fprintf(
+                stderr,
+                "no .adsl.yaml files found in -I directories\n");
+
+            free(project_files);
+
+            return 1;
+        }
+
+        adsl_project_t project;
+        adsl_project_init(&project);
+
+        bool project_loaded =
+            adsl_project_load_files(
+                (const char *const *)project_files,
+                project_file_count,
+                include_paths,
+                include_path_count,
+                &project,
+                project_error,
+                sizeof(project_error));
+
+        for (size_t i = 0u; i < project_file_count; ++i) {
+            free(project_files[i]);
+        }
+
+        free(project_files);
+
+        if (!project_loaded) {
+
+            fprintf(
+                stderr,
+                "ADSL project load error: %s\n",
+                project_error);
+
+            adsl_project_free(&project);
+
+            return 1;
+        }
+
+
+        adsl_type_registry_t registry;
+        adsl_type_registry_init(&registry);
+
+        if (!adsl_type_registry_build(
+                &project,
+                &registry,
+                project_error,
+                sizeof(project_error))) {
+
+            fprintf(
+                stderr,
+                "ADSL type registry error: %s\n",
+                project_error);
+
+            adsl_type_registry_free(&registry);
+            adsl_project_free(&project);
+
+            return 1;
+        }
+
+        fprintf(
+            stderr,
+            "ADSL project loaded: %zu documents, %zu types, output '%s'\n",
+            project.document_count,
+            registry.entry_count,
+            project_output_directory);
+
+        adsl_type_registry_free(&registry);
+        adsl_project_free(&project);
+
+        return 0;
+
+    }
+
 
     const char *input_path =
         argv[argument];

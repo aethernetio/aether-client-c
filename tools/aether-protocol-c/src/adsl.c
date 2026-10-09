@@ -18,6 +18,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <dirent.h>
+#include <sys/stat.h>
+
+
 
 typedef enum {
     SECTION_NONE = 0,
@@ -1908,6 +1912,94 @@ void adsl_document_init(
 }
 
 
+
+static void free_type_fields(
+    adsl_type_t *type) {
+
+    free(type->name);
+    free(type->source_path);
+    free(type->parent);
+
+    for (size_t f = 0u;
+         f < type->field_count;
+         ++f) {
+
+        free(type->fields[f].name);
+        free(type->fields[f].type);
+    }
+
+    free(type->fields);
+
+    for (size_t e = 0u;
+         e < type->enum_count;
+         ++e) {
+
+        free(type->enum_values[e]);
+    }
+
+    free(type->enum_values);
+
+    free_stream(type->stream);
+
+    memset(type, 0, sizeof(*type));
+}
+
+
+static void free_api_fields(
+    adsl_api_t *api) {
+
+    free(api->name);
+    free(api->source_path);
+
+    for (size_t p = 0u;
+         p < api->parent_count;
+         ++p) {
+
+        free(api->parents[p]);
+    }
+
+    free(api->parents);
+
+    for (size_t m = 0u;
+         m < api->method_count;
+         ++m) {
+
+        adsl_method_t *method = &api->methods[m];
+
+        free(method->name);
+        free(method->source_path);
+        free(method->returns_type);
+        free(method->throws_type);
+
+        for (size_t f = 0u;
+             f < method->return_field_count;
+             ++f) {
+
+            free(method->return_fields[f].name);
+            free(method->return_fields[f].type);
+        }
+
+        free(method->return_fields);
+
+        for (size_t p = 0u;
+             p < method->param_count;
+             ++p) {
+
+            free(method->params[p].name);
+            free(method->params[p].type);
+            free_stream(method->params[p].stream);
+        }
+
+        free(method->params);
+    }
+
+    free(api->methods);
+
+    memset(api, 0, sizeof(*api));
+}
+
+
+
 static void free_type_array(
     adsl_type_t *types,
     size_t count) {
@@ -1917,25 +2009,7 @@ static void free_type_array(
     }
 
     for (size_t i = 0u; i < count; ++i) {
-        adsl_type_t *type = &types[i];
-
-        free(type->name);
-        free(type->source_path);
-        free(type->parent);
-
-        for (size_t f = 0u; f < type->field_count; ++f) {
-            free(type->fields[f].name);
-            free(type->fields[f].type);
-        }
-
-        free(type->fields);
-
-        for (size_t e = 0u; e < type->enum_count; ++e) {
-            free(type->enum_values[e]);
-        }
-
-        free(type->enum_values);
-        free_stream(type->stream);
+        free_type_fields(&types[i]);
     }
 
     free(types);
@@ -1951,42 +2025,7 @@ static void free_api_array(
     }
 
     for (size_t i = 0u; i < count; ++i) {
-        adsl_api_t *api = &apis[i];
-
-        free(api->name);
-        free(api->source_path);
-
-        for (size_t p = 0u; p < api->parent_count; ++p) {
-            free(api->parents[p]);
-        }
-
-        free(api->parents);
-
-        for (size_t m = 0u; m < api->method_count; ++m) {
-            adsl_method_t *method = &api->methods[m];
-
-            free(method->name);
-            free(method->source_path);
-            free(method->returns_type);
-            free(method->throws_type);
-
-            for (size_t f = 0u; f < method->return_field_count; ++f) {
-                free(method->return_fields[f].name);
-                free(method->return_fields[f].type);
-            }
-
-            free(method->return_fields);
-
-            for (size_t p = 0u; p < method->param_count; ++p) {
-                free(method->params[p].name);
-                free(method->params[p].type);
-                free_stream(method->params[p].stream);
-            }
-
-            free(method->params);
-        }
-
-        free(api->methods);
+        free_api_fields(&apis[i]);
     }
 
     free(apis);
@@ -2019,12 +2058,20 @@ void adsl_document_free(
         document->apis,
         document->api_count);
 
+
     /*
-     * resolved arrays are semantic lookup indexes.
-     * They are independent copies built from the complete include closure.
+     * resolved arrays are deep copies of the include closure plus the
+     * root declarations, in that order. They own their contents and are
+     * released with the same helpers used for the root arrays.
      */
-    free(document->resolved_types);
-    free(document->resolved_apis);
+    free_type_array(
+        document->resolved_types,
+        document->resolved_type_count);
+
+    free_api_array(
+        document->resolved_apis,
+        document->resolved_api_count);
+
 
     adsl_document_init(document);
 }
@@ -2411,9 +2458,14 @@ if (indent == 0u) {
     return ok;
 }
 
+
 static bool same_name(
     const char *left,
     const char *right) {
+
+    if (left == NULL || right == NULL) {
+        return left == right;
+    }
 
     while (*left != '\0' &&
            *right != '\0') {
@@ -3306,7 +3358,7 @@ i < document->resolved_type_count;
 
 
         adsl_api_t *api =
-            &document->apis[i];
+            &document->resolved_apis[i];
 
 
         /*
@@ -4071,6 +4123,8 @@ static void adsl_remove_resolved_type_at(
     adsl_document_t *document,
     size_t index) {
 
+    free_type_fields(&document->resolved_types[index]);
+
     memmove(
         &document->resolved_types[index],
         &document->resolved_types[index + 1u],
@@ -4084,6 +4138,8 @@ static void adsl_remove_resolved_type_at(
 static void adsl_remove_resolved_api_at(
     adsl_document_t *document,
     size_t index) {
+
+    free_api_fields(&document->resolved_apis[index]);
 
     memmove(
         &document->resolved_apis[index],
@@ -4168,49 +4224,459 @@ document->resolved_apis[i].name,
 }
 
 
+
+static bool adsl_dup_string(
+    const char *source,
+    char **destination) {
+
+    *destination = NULL;
+
+    if (source == NULL) {
+        return true;
+    }
+
+    *destination = copy_string(source);
+
+    return *destination != NULL;
+}
+
+
+static bool adsl_dup_stream(
+    const adsl_stream_t *source,
+    adsl_stream_t **destination) {
+
+    *destination = NULL;
+
+    if (source == NULL) {
+        return true;
+    }
+
+    adsl_stream_t *stream =
+        calloc(1u, sizeof(*stream));
+
+    if (stream == NULL) {
+        return false;
+    }
+
+    stream->has_crypto = source->has_crypto;
+    stream->crypto = source->crypto;
+
+    if (!adsl_dup_string(source->api, &stream->api) ||
+        !adsl_dup_string(source->remote_api, &stream->remote_api)) {
+
+        free_stream(stream);
+        return false;
+    }
+
+    if (source->api_count > 0u) {
+
+        stream->apis =
+            calloc(source->api_count, sizeof(*stream->apis));
+
+        if (stream->apis == NULL) {
+            free_stream(stream);
+            return false;
+        }
+
+        stream->api_count = source->api_count;
+
+        for (size_t i = 0u; i < source->api_count; ++i) {
+
+            if (!adsl_dup_string(
+                    source->apis[i].api,
+                    &stream->apis[i].api) ||
+                !adsl_dup_string(
+                    source->apis[i].remote_api,
+                    &stream->apis[i].remote_api)) {
+
+                free_stream(stream);
+                return false;
+            }
+        }
+    }
+
+    if (source->key_count > 0u) {
+
+        stream->keys =
+            calloc(source->key_count, sizeof(*stream->keys));
+
+        if (stream->keys == NULL) {
+            free_stream(stream);
+            return false;
+        }
+
+        stream->key_count = source->key_count;
+
+        for (size_t i = 0u; i < source->key_count; ++i) {
+
+            if (!adsl_dup_string(
+                    source->keys[i].name,
+                    &stream->keys[i].name) ||
+                !adsl_dup_string(
+                    source->keys[i].type,
+                    &stream->keys[i].type)) {
+
+                free_stream(stream);
+                return false;
+            }
+        }
+    }
+
+    *destination = stream;
+
+    return true;
+}
+
+
+static bool adsl_dup_type_fields(
+    const adsl_type_t *source,
+    adsl_type_t *destination) {
+
+    memset(destination, 0, sizeof(*destination));
+
+    destination->source_line = source->source_line;
+    destination->has_id = source->has_id;
+    destination->id = source->id;
+    destination->is_abstract = source->is_abstract;
+    destination->has_tiered_int = source->has_tiered_int;
+    destination->tiered_int_min_bytes = source->tiered_int_min_bytes;
+    destination->tiered_int_limit_count = source->tiered_int_limit_count;
+
+    for (size_t i = 0u; i < 3u; ++i) {
+        destination->tiered_int_limits[i] = source->tiered_int_limits[i];
+    }
+
+    if (!adsl_dup_string(source->name, &destination->name) ||
+        !adsl_dup_string(source->source_path, &destination->source_path) ||
+        !adsl_dup_string(source->parent, &destination->parent)) {
+
+        return false;
+    }
+
+    if (source->field_count > 0u) {
+
+        destination->fields =
+            calloc(source->field_count, sizeof(*destination->fields));
+
+        if (destination->fields == NULL) {
+            return false;
+        }
+
+        destination->field_count = source->field_count;
+
+        for (size_t i = 0u; i < source->field_count; ++i) {
+
+            if (!adsl_dup_string(
+                    source->fields[i].name,
+                    &destination->fields[i].name) ||
+                !adsl_dup_string(
+                    source->fields[i].type,
+                    &destination->fields[i].type)) {
+
+                return false;
+            }
+        }
+    }
+
+    if (source->enum_count > 0u) {
+
+        destination->enum_values =
+            calloc(source->enum_count, sizeof(*destination->enum_values));
+
+        if (destination->enum_values == NULL) {
+            return false;
+        }
+
+        destination->enum_count = source->enum_count;
+
+        for (size_t i = 0u; i < source->enum_count; ++i) {
+
+            if (!adsl_dup_string(
+                    source->enum_values[i],
+                    &destination->enum_values[i])) {
+
+                return false;
+            }
+        }
+    }
+
+    if (!adsl_dup_stream(source->stream, &destination->stream)) {
+        return false;
+    }
+
+    return true;
+}
+
+
+static bool adsl_dup_api_fields(
+    const adsl_api_t *source,
+    adsl_api_t *destination) {
+
+    memset(destination, 0, sizeof(*destination));
+
+    destination->source_line = source->source_line;
+    destination->is_abstract = source->is_abstract;
+
+    if (!adsl_dup_string(source->name, &destination->name) ||
+        !adsl_dup_string(source->source_path, &destination->source_path)) {
+
+        return false;
+    }
+
+    if (source->parent_count > 0u) {
+
+        destination->parents =
+            calloc(source->parent_count, sizeof(*destination->parents));
+
+        if (destination->parents == NULL) {
+            return false;
+        }
+
+        destination->parent_count = source->parent_count;
+
+        for (size_t i = 0u; i < source->parent_count; ++i) {
+
+            if (!adsl_dup_string(
+                    source->parents[i],
+                    &destination->parents[i])) {
+
+                return false;
+            }
+        }
+    }
+
+    if (source->method_count > 0u) {
+
+        destination->methods =
+            calloc(source->method_count, sizeof(*destination->methods));
+
+        if (destination->methods == NULL) {
+            return false;
+        }
+
+        destination->method_count = source->method_count;
+
+        for (size_t i = 0u; i < source->method_count; ++i) {
+
+            const adsl_method_t *src = &source->methods[i];
+            adsl_method_t *dst = &destination->methods[i];
+
+            dst->source_line = src->source_line;
+            dst->has_id = src->has_id;
+            dst->id = src->id;
+
+            if (!adsl_dup_string(src->name, &dst->name) ||
+                !adsl_dup_string(src->source_path, &dst->source_path) ||
+                !adsl_dup_string(src->returns_type, &dst->returns_type) ||
+                !adsl_dup_string(src->throws_type, &dst->throws_type)) {
+
+                return false;
+            }
+
+            if (src->param_count > 0u) {
+
+                dst->params =
+                    calloc(src->param_count, sizeof(*dst->params));
+
+                if (dst->params == NULL) {
+                    return false;
+                }
+
+                dst->param_count = src->param_count;
+
+                for (size_t p = 0u; p < src->param_count; ++p) {
+
+                    if (!adsl_dup_string(
+                            src->params[p].name,
+                            &dst->params[p].name) ||
+                        !adsl_dup_string(
+                            src->params[p].type,
+                            &dst->params[p].type) ||
+                        !adsl_dup_stream(
+                            src->params[p].stream,
+                            &dst->params[p].stream)) {
+
+                        return false;
+                    }
+                }
+            }
+
+            if (src->return_field_count > 0u) {
+
+                dst->return_fields = calloc(
+                    src->return_field_count,
+                    sizeof(*dst->return_fields));
+
+                if (dst->return_fields == NULL) {
+                    return false;
+                }
+
+                dst->return_field_count = src->return_field_count;
+
+                for (size_t f = 0u; f < src->return_field_count; ++f) {
+
+                    if (!adsl_dup_string(
+                            src->return_fields[f].name,
+                            &dst->return_fields[f].name) ||
+                        !adsl_dup_string(
+                            src->return_fields[f].type,
+                            &dst->return_fields[f].type)) {
+
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+
+
+
+/*
+ * Build the resolved declaration arrays from the include closure plus the
+ * root-owned declarations.
+ *
+ * Ordering contract: resolved_types[] and resolved_apis[] are laid out as
+ *
+ *     includes (deepest-first, in load order) ++ root declarations
+ *
+ * This matches the historical recursive-merge order and keeps generated C
+ * byte-for-byte identical to the pre-split behavior. Changing it to
+ * root-first would reorder typedefs and reorder emitted code.
+ *
+ * resolved_* are deep copies and own their contents independently of the
+ * include buffer and the root arrays. All three arrays (types, apis,
+ * includes) are released separately.
+ */
+
 static bool adsl_build_resolved_context(
-    adsl_document_t *document) {
+    adsl_document_t *document,
+    const adsl_document_t *include_destination) {
 
     document->resolved_types = NULL;
     document->resolved_type_count = 0u;
     document->resolved_apis = NULL;
     document->resolved_api_count = 0u;
 
-    if (document->type_count > 0u) {
+    size_t include_type_count =
+        include_destination != NULL
+            ? include_destination->type_count
+            : 0u;
+
+    size_t include_api_count =
+        include_destination != NULL
+            ? include_destination->api_count
+            : 0u;
+
+    size_t total_types =
+        include_type_count + document->type_count;
+
+    size_t total_apis =
+        include_api_count + document->api_count;
+
+    if (total_types > 0u) {
+
         document->resolved_types = calloc(
-            document->type_count,
+            total_types,
             sizeof(*document->resolved_types));
 
         if (document->resolved_types == NULL) {
             return false;
         }
 
-        memcpy(
-            document->resolved_types,
-            document->types,
-            document->type_count * sizeof(*document->types));
+        document->resolved_type_count = total_types;
 
-        document->resolved_type_count = document->type_count;
+        for (size_t i = 0u; i < include_type_count; ++i) {
+
+            if (!adsl_dup_type_fields(
+                    &include_destination->types[i],
+                    &document->resolved_types[i])) {
+
+                free_type_array(
+                    document->resolved_types,
+                    document->resolved_type_count);
+
+                document->resolved_types = NULL;
+                document->resolved_type_count = 0u;
+
+                return false;
+            }
+        }
+
+        for (size_t i = 0u; i < document->type_count; ++i) {
+
+            if (!adsl_dup_type_fields(
+                    &document->types[i],
+                    &document->resolved_types[include_type_count + i])) {
+
+                free_type_array(
+                    document->resolved_types,
+                    document->resolved_type_count);
+
+                document->resolved_types = NULL;
+                document->resolved_type_count = 0u;
+
+                return false;
+            }
+        }
     }
 
-    if (document->api_count > 0u) {
+    if (total_apis > 0u) {
+
         document->resolved_apis = calloc(
-            document->api_count,
+            total_apis,
             sizeof(*document->resolved_apis));
 
         if (document->resolved_apis == NULL) {
-            free(document->resolved_types);
+
+            free_type_array(
+                document->resolved_types,
+                document->resolved_type_count);
+
             document->resolved_types = NULL;
             document->resolved_type_count = 0u;
+
             return false;
         }
 
-        memcpy(
-            document->resolved_apis,
-            document->apis,
-            document->api_count * sizeof(*document->apis));
+        document->resolved_api_count = total_apis;
 
-        document->resolved_api_count = document->api_count;
+        for (size_t i = 0u; i < include_api_count; ++i) {
+
+            if (!adsl_dup_api_fields(
+                    &include_destination->apis[i],
+                    &document->resolved_apis[i])) {
+
+                free_api_array(
+                    document->resolved_apis,
+                    document->resolved_api_count);
+
+                document->resolved_apis = NULL;
+                document->resolved_api_count = 0u;
+
+                return false;
+            }
+        }
+
+        for (size_t i = 0u; i < document->api_count; ++i) {
+
+            if (!adsl_dup_api_fields(
+                    &document->apis[i],
+                    &document->resolved_apis[include_api_count + i])) {
+
+                free_api_array(
+                    document->resolved_apis,
+                    document->resolved_api_count);
+
+                document->resolved_apis = NULL;
+                document->resolved_api_count = 0u;
+
+                return false;
+            }
+        }
     }
 
     return true;
@@ -4253,8 +4719,8 @@ document->resolved_types[i].name,
         }
     }
 
-    for (size_t i = 0u; i < document->api_count; ++i) {
-        for (size_t j = i + 1u; j < document->api_count; ) {
+    for (size_t i = 0u; i < document->resolved_api_count; ++i) {
+        for (size_t j = i + 1u; j < document->resolved_api_count; ) {
 
             if (!same_name(
 document->resolved_apis[i].name,
@@ -4363,8 +4829,11 @@ static bool adsl_load_recursive(
     const char *path,
     const char *const *include_paths,
     size_t include_path_count,
+
     adsl_document_t *destination,
+    adsl_document_t *include_destination,
     adsl_load_state_t *state,
+
     size_t depth,
     bool root_declaration,
     char *error,
@@ -4459,8 +4928,11 @@ static bool adsl_load_recursive(
                 include_path,
                 include_paths,
                 include_path_count,
+
                 destination,
+                include_destination,
                 state,
+
                 depth + 1u,
                 false,
                 error,
@@ -4474,8 +4946,15 @@ static bool adsl_load_recursive(
 
 
 
+
+    adsl_document_t *merge_target =
+        root_declaration
+            ? destination
+            : include_destination;
+
     if (!adsl_merge_loaded_document(
-            destination,
+        merge_target,
+
             &current,
             root_declaration,
             error,
@@ -4555,11 +5034,14 @@ bool adsl_load_file_with_include_paths(
 
 
 
+
     adsl_load_state_t state = {
         NULL,
         0u
     };
 
+    adsl_document_t include_destination;
+    adsl_document_init(&include_destination);
 
     bool loaded =
         adsl_load_recursive(
@@ -4567,6 +5049,7 @@ bool adsl_load_file_with_include_paths(
             include_paths,
             include_path_count,
             document,
+            &include_destination,
             &state,
             0u,
             true,
@@ -4574,15 +5057,6 @@ bool adsl_load_file_with_include_paths(
             error_capacity);
 
 
-    fprintf(stderr, "ADSL DEBUG: loaded=%d types=%zu apis=%zu root=%s\n", loaded, document->type_count, document->api_count, document->root_source_path != NULL ? document->root_source_path : "<null>");
-
-    for (size_t i = 0u; i < document->type_count; ++i) {
-        fprintf(stderr, "ADSL DEBUG TYPE: %s source=%s\n", document->types[i].name, document->types[i].source_path != NULL ? document->types[i].source_path : "<null>");
-    }
-
-    for (size_t i = 0u; i < document->api_count; ++i) {
-        fprintf(stderr, "ADSL DEBUG API: %s source=%s\n", document->apis[i].name, document->apis[i].source_path != NULL ? document->apis[i].source_path : "<null>");
-    }
 
 
 
@@ -4590,13 +5064,28 @@ bool adsl_load_file_with_include_paths(
 
 
     if (loaded) {
-        if (!adsl_build_resolved_context(document) ||
-            !adsl_normalize_document(document, error, error_capacity) ||
-            !adsl_validate_unique_declarations(document, error, error_capacity)) {
+
+        if (!adsl_build_resolved_context(document, &include_destination)) {
+
+            set_error(
+                error,
+                error_capacity,
+                "out of memory while building resolved context");
+
+            loaded = false;
+
+        } else if (!adsl_normalize_document(document, error, error_capacity) ||
+                   !adsl_validate_unique_declarations(document, error, error_capacity)) {
+
             loaded = false;
         }
     }
 
+
+
+
+
+    adsl_document_free(&include_destination);
 
 
     adsl_load_state_free(&state);
@@ -4715,6 +5204,776 @@ bool adsl_project_load_files(
 
     return true;
 }
+
+
+/* Deduplicated, owned string list used by the include-directory scanner. */
+typedef struct {
+    char **items;
+    size_t count;
+    size_t capacity;
+} adsl_string_list_t;
+
+static bool adsl_string_list_contains(
+    const adsl_string_list_t *list,
+    const char *value) {
+
+    for (size_t i = 0u; i < list->count; ++i) {
+        if (strcmp(list->items[i], value) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool adsl_string_list_add(
+    adsl_string_list_t *list,
+    const char *value) {
+
+    if (adsl_string_list_contains(list, value)) {
+        return true;
+    }
+
+    if (list->count == list->capacity) {
+
+        size_t next_capacity =
+            list->capacity == 0u
+                ? 8u
+                : list->capacity * 2u;
+
+        char **items =
+            realloc(
+                list->items,
+                next_capacity * sizeof(*items));
+
+        if (items == NULL) {
+            return false;
+        }
+
+        list->items = items;
+        list->capacity = next_capacity;
+    }
+
+    char *copy =
+        copy_string(value);
+
+    if (copy == NULL) {
+        return false;
+    }
+
+    list->items[list->count++] = copy;
+
+    return true;
+}
+
+static void adsl_string_list_free(
+    adsl_string_list_t *list) {
+
+    for (size_t i = 0u; i < list->count; ++i) {
+        free(list->items[i]);
+    }
+
+    free(list->items);
+
+    list->items = NULL;
+    list->count = 0u;
+    list->capacity = 0u;
+}
+
+static int adsl_compare_canonical_paths(
+    const void *left,
+    const void *right) {
+
+    const char *const *a =
+        (const char *const *)left;
+
+    const char *const *b =
+        (const char *const *)right;
+
+    return strcmp(*a, *b);
+}
+
+static bool adsl_canonical_path(
+    const char *path,
+    char *output,
+    size_t capacity) {
+
+    char resolved[4096];
+
+    if (realpath(path, resolved) == NULL) {
+        return false;
+    }
+
+    size_t length =
+        strlen(resolved);
+
+    if (length >= capacity) {
+        return false;
+    }
+
+    memcpy(output, resolved, length + 1u);
+
+    return true;
+}
+
+static bool adsl_path_is_directory(
+    const char *path) {
+
+    struct stat info;
+
+    if (stat(path, &info) != 0) {
+        return false;
+    }
+
+    return S_ISDIR(info.st_mode) != 0;
+}
+
+static bool adsl_has_adsl_suffix(
+    const char *name) {
+
+    static const char suffix[] = ".adsl.yaml";
+    size_t name_length = strlen(name);
+    size_t suffix_length = sizeof(suffix) - 1u;
+
+    if (name_length <= suffix_length) {
+        return false;
+    }
+
+    return strcmp(
+        name + name_length - suffix_length,
+        suffix) == 0;
+}
+
+static bool adsl_scan_directory_recursive(
+    const char *directory,
+    adsl_string_list_t *directories_seen,
+    adsl_string_list_t *files_found,
+    char *error,
+    size_t error_capacity) {
+
+    DIR *dir =
+        opendir(directory);
+
+    if (dir == NULL) {
+
+        set_error(
+            error,
+            error_capacity,
+            "cannot open directory '%s'",
+            directory);
+
+        return false;
+    }
+
+    struct dirent *entry;
+
+    while ((entry = readdir(dir)) != NULL) {
+
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0) {
+
+            continue;
+        }
+
+        char full[4096];
+
+        if (!adsl_path_join(
+                directory,
+                entry->d_name,
+                full,
+                sizeof(full))) {
+
+            continue;
+        }
+
+        struct stat info;
+
+        if (stat(full, &info) != 0) {
+            continue;
+        }
+
+        if (S_ISDIR(info.st_mode)) {
+
+            char canonical[4096];
+
+            if (!adsl_canonical_path(
+                    full,
+                    canonical,
+                    sizeof(canonical))) {
+
+                continue;
+            }
+
+            if (adsl_string_list_contains(
+                    directories_seen,
+                    canonical)) {
+
+                continue;
+            }
+
+            if (!adsl_string_list_add(
+                    directories_seen,
+                    canonical)) {
+
+                closedir(dir);
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "out of memory while scanning '%s'",
+                    directory);
+
+                return false;
+            }
+
+            if (!adsl_scan_directory_recursive(
+                    canonical,
+                    directories_seen,
+                    files_found,
+                    error,
+                    error_capacity)) {
+
+                closedir(dir);
+
+                return false;
+            }
+
+            continue;
+        }
+
+        if (!S_ISREG(info.st_mode)) {
+            continue;
+        }
+
+        if (!adsl_has_adsl_suffix(entry->d_name)) {
+            continue;
+        }
+
+        char canonical[4096];
+
+        if (!adsl_canonical_path(
+                full,
+                canonical,
+                sizeof(canonical))) {
+
+            continue;
+        }
+
+        if (!adsl_string_list_add(
+                files_found,
+                canonical)) {
+
+            closedir(dir);
+
+            set_error(
+                error,
+                error_capacity,
+                "out of memory while scanning '%s'",
+                directory);
+
+            return false;
+        }
+    }
+
+    closedir(dir);
+
+    return true;
+}
+
+bool adsl_find_files(
+    const char *const *include_paths,
+    size_t include_path_count,
+    char ***files,
+    size_t *file_count,
+    char *error,
+    size_t error_capacity) {
+
+    if (files != NULL) {
+        *files = NULL;
+    }
+
+    if (file_count != NULL) {
+        *file_count = 0u;
+    }
+
+    if (files == NULL ||
+        file_count == NULL ||
+        (include_path_count > 0u &&
+         include_paths == NULL)) {
+
+        set_error(
+            error,
+            error_capacity,
+            "invalid find arguments");
+
+        return false;
+    }
+
+    adsl_string_list_t directories_seen = {0};
+    adsl_string_list_t files_found = {0};
+
+    for (size_t i = 0u; i < include_path_count; ++i) {
+
+        if (include_paths[i] == NULL ||
+            include_paths[i][0] == '\0') {
+
+            continue;
+        }
+
+        char canonical[4096];
+
+        if (!adsl_canonical_path(
+                include_paths[i],
+                canonical,
+                sizeof(canonical))) {
+
+            adsl_string_list_free(&directories_seen);
+            adsl_string_list_free(&files_found);
+
+            set_error(
+                error,
+                error_capacity,
+                "cannot resolve include directory '%s'",
+                include_paths[i]);
+
+            return false;
+        }
+
+        if (!adsl_path_is_directory(canonical)) {
+
+            adsl_string_list_free(&directories_seen);
+            adsl_string_list_free(&files_found);
+
+            set_error(
+                error,
+                error_capacity,
+                "'%s' is not a directory",
+                include_paths[i]);
+
+            return false;
+        }
+
+        if (adsl_string_list_contains(
+                &directories_seen,
+                canonical)) {
+
+            continue;
+        }
+
+        if (!adsl_string_list_add(
+                &directories_seen,
+                canonical)) {
+
+            adsl_string_list_free(&directories_seen);
+            adsl_string_list_free(&files_found);
+
+            set_error(
+                error,
+                error_capacity,
+                "out of memory");
+
+            return false;
+        }
+
+        if (!adsl_scan_directory_recursive(
+                canonical,
+                &directories_seen,
+                &files_found,
+                error,
+                error_capacity)) {
+
+            adsl_string_list_free(&directories_seen);
+            adsl_string_list_free(&files_found);
+
+            return false;
+        }
+    }
+
+    adsl_string_list_free(&directories_seen);
+
+    if (files_found.count > 1u) {
+
+        qsort(
+            files_found.items,
+            files_found.count,
+            sizeof(*files_found.items),
+            adsl_compare_canonical_paths);
+    }
+
+    *files = files_found.items;
+    *file_count = files_found.count;
+
+    return true;
+}
+
+
+
+static bool adsl_strings_equal_or_both_null(
+    const char *left,
+    const char *right) {
+
+    if (left == NULL && right == NULL) {
+        return true;
+    }
+
+    if (left == NULL || right == NULL) {
+        return false;
+    }
+
+    return strcmp(left, right) == 0;
+}
+
+static bool adsl_module_name_from_root(
+    const char *root_source_path,
+    char *module,
+    size_t capacity) {
+
+    if (root_source_path == NULL ||
+        module == NULL ||
+        capacity == 0u) {
+
+        return false;
+    }
+
+    const char *base = root_source_path;
+
+    for (const char *p = root_source_path; *p != '\0'; ++p) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+
+    static const char suffix_yaml[] = ".adsl.yaml";
+    static const char suffix_yml[] = ".adsl.yml";
+
+    size_t base_length = strlen(base);
+    size_t yaml_length = sizeof(suffix_yaml) - 1u;
+    size_t yml_length = sizeof(suffix_yml) - 1u;
+
+    size_t stem_length = 0u;
+
+    if (base_length > yaml_length &&
+        strcmp(base + base_length - yaml_length, suffix_yaml) == 0) {
+
+        stem_length = base_length - yaml_length;
+    } else if (base_length > yml_length &&
+               strcmp(base + base_length - yml_length, suffix_yml) == 0) {
+
+        stem_length = base_length - yml_length;
+    } else {
+
+        return false;
+    }
+
+    if (stem_length == 0u || stem_length >= capacity) {
+        return false;
+    }
+
+    memcpy(module, base, stem_length);
+    module[stem_length] = '\0';
+
+    return true;
+}
+
+static bool adsl_type_registry_insert(
+    adsl_type_registry_t *registry,
+    const char *module,
+    const char *name,
+    adsl_type_kind_t kind,
+    const adsl_type_t *declaration,
+    char *error,
+    size_t error_capacity) {
+
+    for (size_t i = 0u; i < registry->entry_count; ++i) {
+
+        const adsl_registry_entry_t *existing = &registry->entries[i];
+
+        if (!adsl_strings_equal_or_both_null(existing->module, module) ||
+            !adsl_strings_equal_or_both_null(existing->name, name)) {
+
+            continue;
+        }
+
+        if (existing->kind == kind) {
+
+            if (kind == ADSL_TYPE_DECLARED) {
+
+                if (adsl_same_type_definition(
+                        existing->declaration,
+                        declaration)) {
+
+                    return true;
+                }
+
+                set_error(
+                    error,
+                    error_capacity,
+                    "conflicting type declaration '%s.%s'",
+                    module != NULL ? module : "<null>",
+                    name);
+
+                return false;
+            }
+
+            /* Duplicate primitive entry: nothing to do. */
+            return true;
+        }
+
+        set_error(
+            error,
+            error_capacity,
+            "conflicting type declaration '%s.%s'",
+            module != NULL ? module : "<null>",
+            name);
+
+        return false;
+    }
+
+    adsl_registry_entry_t *entries =
+        realloc(
+            registry->entries,
+            (registry->entry_count + 1u) * sizeof(*entries));
+
+    if (entries == NULL) {
+
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    registry->entries = entries;
+
+    adsl_registry_entry_t *entry =
+        &registry->entries[registry->entry_count];
+
+    memset(entry, 0, sizeof(*entry));
+
+    entry->name = copy_string(name);
+
+    if (module != NULL) {
+        entry->module = copy_string(module);
+    }
+
+    entry->kind = kind;
+    entry->declaration = declaration;
+
+    if (entry->name == NULL ||
+        (module != NULL && entry->module == NULL)) {
+
+        free(entry->module);
+        free(entry->name);
+
+        entry->module = NULL;
+        entry->name = NULL;
+
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    registry->entry_count++;
+
+    return true;
+}
+
+static bool adsl_register_builtin_types(
+    adsl_type_registry_t *registry,
+    char *error,
+    size_t error_capacity) {
+
+    /*
+     * This list must stay in sync with primitive_c_type() in emitter.c.
+     * Aliases are stored exactly as ADSL accepts them (e.g. both "bool" and
+     * "boolean" are registered); they are intentionally NOT normalized to a
+     * canonical form.
+     */
+    static const char *const builtin_names[] = {
+        "bool",
+        "boolean",
+        "byte",
+        "short",
+        "int",
+        "long",
+        "intpack",
+        "date",
+        "float",
+        "double",
+        "uuid",
+        "string",
+        "uri",
+    };
+
+    for (size_t i = 0u;
+         i < sizeof(builtin_names) / sizeof(builtin_names[0]);
+         ++i) {
+
+        if (!adsl_type_registry_insert(
+                registry,
+                NULL,
+                builtin_names[i],
+                ADSL_TYPE_PRIMITIVE,
+                NULL,
+                error,
+                error_capacity)) {
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void adsl_type_registry_init(
+    adsl_type_registry_t *registry) {
+
+    if (registry != NULL) {
+        memset(registry, 0, sizeof(*registry));
+    }
+}
+
+void adsl_type_registry_free(
+    adsl_type_registry_t *registry) {
+
+    if (registry == NULL) {
+        return;
+    }
+
+    for (size_t i = 0u; i < registry->entry_count; ++i) {
+        free(registry->entries[i].module);
+        free(registry->entries[i].name);
+    }
+
+    free(registry->entries);
+
+    adsl_type_registry_init(registry);
+}
+
+bool adsl_type_registry_build(
+    const adsl_project_t *project,
+    adsl_type_registry_t *registry,
+    char *error,
+    size_t error_capacity) {
+
+    if (project == NULL || registry == NULL) {
+
+        set_error(error, error_capacity, "invalid registry arguments");
+        return false;
+    }
+
+    if (registry->entries != NULL || registry->entry_count != 0u) {
+
+        set_error(error, error_capacity, "registry is not empty");
+        return false;
+    }
+
+    adsl_string_list_t seen_modules = {0};
+
+    for (size_t d = 0u; d < project->document_count; ++d) {
+
+        const adsl_document_t *document = &project->documents[d];
+
+        char module[1024];
+
+        if (!adsl_module_name_from_root(
+                document->root_source_path,
+                module,
+                sizeof(module))) {
+
+            adsl_string_list_free(&seen_modules);
+            adsl_type_registry_free(registry);
+
+            set_error(
+                error,
+                error_capacity,
+                "cannot derive module name from '%s'",
+                document->root_source_path != NULL
+                    ? document->root_source_path
+                    : "<null>");
+
+            return false;
+        }
+
+        if (adsl_string_list_contains(&seen_modules, module)) {
+
+            adsl_string_list_free(&seen_modules);
+            adsl_type_registry_free(registry);
+
+            set_error(
+                error,
+                error_capacity,
+                "duplicate module '%s' in project",
+                module);
+
+            return false;
+        }
+
+        if (!adsl_string_list_add(&seen_modules, module)) {
+
+            adsl_string_list_free(&seen_modules);
+            adsl_type_registry_free(registry);
+
+            set_error(error, error_capacity, "out of memory");
+            return false;
+        }
+
+        for (size_t t = 0u; t < document->type_count; ++t) {
+
+            const adsl_type_t *type = &document->types[t];
+
+            if (!adsl_type_registry_insert(
+                    registry,
+                    module,
+                    type->name,
+                    ADSL_TYPE_DECLARED,
+                    type,
+                    error,
+                    error_capacity)) {
+
+                adsl_string_list_free(&seen_modules);
+                adsl_type_registry_free(registry);
+                return false;
+            }
+        }
+    }
+
+    adsl_string_list_free(&seen_modules);
+
+    if (!adsl_register_builtin_types(
+            registry,
+            error,
+            error_capacity)) {
+
+        adsl_type_registry_free(registry);
+        return false;
+    }
+
+    return true;
+}
+
+const adsl_registry_entry_t *adsl_type_registry_find(
+    const adsl_type_registry_t *registry,
+    const char *module,
+    const char *name) {
+
+    if (registry == NULL || name == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0u; i < registry->entry_count; ++i) {
+
+        const adsl_registry_entry_t *entry = &registry->entries[i];
+
+        if (!adsl_strings_equal_or_both_null(entry->module, module) ||
+            !adsl_strings_equal_or_both_null(entry->name, name)) {
+
+            continue;
+        }
+
+        return entry;
+    }
+
+    return NULL;
+}
+
+
 
 
 

@@ -1,0 +1,5 @@
+
+types:
+  ClientValue:
+    fields:
+      value: int
