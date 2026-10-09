@@ -320,138 +320,24 @@ static void test_res_001_current_limitation(void) {
 }
 
 
+
 /*
- * RES-004, REGRESSION (diagnostic of the current limitation).
- *
- * Java rejects a project in which two different files declare the same
- * simple type name: Validator.addCanonicalName() raises an "Ambiguous Type
- * declaration" error.
- *
- * Current C behaviour: adsl_project_load_files() accepts both documents
- * and adsl_type_registry_build() accepts both declarations, because the
- * registry key is (module, name) and modules differ. No global uniqueness
- * check exists yet.
- *
- * This test freezes the current, wrong acceptance. ТЗ №4-Б adds
- * adsl_project_validate() (see test_cross_module_pending.c) which must
- * reject this project.
+ * RES-004 diagnostics moved to test_cross_module_pending.c as part of
+ * ТЗ №4-Б1.
  */
-static void test_res_004_current_accepts_global_collision(void) {
-    char a_path[1024];
-    char b_path[1024];
-
-    fixture_path(
-        "cross_module/B_defines_item.adsl.yaml",
-        a_path,
-        sizeof(a_path));
-
-    fixture_path(
-        "cross_module/C_defines_item_too.adsl.yaml",
-        b_path,
-        sizeof(b_path));
-
-    const char *paths[] = { a_path, b_path };
-
-    adsl_project_t project;
-    adsl_project_init(&project);
-
-    char error[512] = {0};
-
-    bool loaded =
-        adsl_project_load_files(
-            paths,
-            2u,
-            NULL,
-            0u,
-            &project,
-            error,
-            sizeof(error));
-
-    assert(loaded);
-
-    adsl_type_registry_t registry;
-    adsl_type_registry_init(&registry);
-
-    error[0] = '\0';
-
-    bool built =
-        adsl_type_registry_build(
-            &project,
-            &registry,
-            error,
-            sizeof(error));
-
-    /* Two modules, same simple name: both declarations are accepted. */
-    assert(built);
-    assert(adsl_type_registry_find(
-        &registry, "B_defines_item", "Item") != NULL);
-    assert(adsl_type_registry_find(
-        &registry, "C_defines_item_too", "Item") != NULL);
-
-    adsl_type_registry_free(&registry);
-    adsl_project_free(&project);
-}
 
 
 /*
- * RES-005, REGRESSION (diagnostic of the current limitation).
- *
- * Name comparison must be case-insensitive, as in Java: `Widget` and
- * `widget` are the same logical type and must collide.
- *
- * Current C behaviour: modules differ, so the registry accepts both. No
- * case-insensitive global check exists yet.
+ * RES-004 / RES-005 diagnostics were removed here in ТЗ №4-Б1.
+ * The standalone C generator still does not perform a project-wide
+ * uniqueness check; that contract now lives in adsl_project_validate()
+ * and is exercised by the cross-module pending test target.
  */
-static void test_res_005_current_accepts_case_collision(void) {
-    char a_path[1024];
-    char b_path[1024];
 
-    fixture_path(
-        "cross_module/case_upper.adsl.yaml",
-        a_path,
-        sizeof(a_path));
 
-    fixture_path(
-        "cross_module/case_lower.adsl.yaml",
-        b_path,
-        sizeof(b_path));
 
-    const char *paths[] = { a_path, b_path };
 
-    adsl_project_t project;
-    adsl_project_init(&project);
 
-    char error[512] = {0};
-
-    bool loaded =
-        adsl_project_load_files(
-            paths,
-            2u,
-            NULL,
-            0u,
-            &project,
-            error,
-            sizeof(error));
-
-    assert(loaded);
-
-    adsl_type_registry_t registry;
-    adsl_type_registry_init(&registry);
-
-    error[0] = '\0';
-
-    bool built =
-        adsl_type_registry_build(
-            &project,
-            &registry,
-            error,
-            sizeof(error));
-
-    assert(built);
-
-    adsl_type_registry_free(&registry);
-    adsl_project_free(&project);
-}
 
 
 int main(void) {
@@ -460,10 +346,10 @@ int main(void) {
     test_res_010_unknown_type();
     test_res_011_registry_ownership();
 
+
     /* REGRESSION diagnostics — see file header. */
     test_res_001_current_limitation();
-    test_res_004_current_accepts_global_collision();
-    test_res_005_current_accepts_case_collision();
+
 
     return 0;
 }

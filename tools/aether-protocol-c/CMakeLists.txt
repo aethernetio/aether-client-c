@@ -312,6 +312,50 @@ add_test(
 )
 
 
+add_executable(aether_adslc_cross_module_pending_test
+    tests/test_cross_module_pending.c
+)
+
+target_link_libraries(aether_adslc_cross_module_pending_test
+    PRIVATE
+        aether_adslc_core
+)
+
+target_compile_definitions(aether_adslc_cross_module_pending_test
+    PRIVATE
+        ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+        ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output"
+)
+
+target_compile_features(
+    aether_adslc_cross_module_pending_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_adslc_cross_module_pending_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+file(MAKE_DIRECTORY
+    "${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output"
+)
+
+add_test(
+    NAME aether_adslc_cross_module_pending_test
+    COMMAND aether_adslc_cross_module_pending_test
+)
+
+
+
 
 add_executable(aether_adslc_cross_module_test
     tests/test_cross_module.c

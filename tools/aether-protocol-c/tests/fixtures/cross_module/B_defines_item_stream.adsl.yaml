@@ -1,0 +1,14 @@
+
+
+types:
+  ItemStream:
+    stream:
+      api: ItemStreamApi
+      keys:
+        item: Item
+
+api:
+  ItemStreamApi:
+    methods:
+      ping:
+        id: 3

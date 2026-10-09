@@ -1,0 +1,7 @@
+
+api:
+  BaseApi:
+    methods:
+      basePing:
+        id: 3
+        returns: int

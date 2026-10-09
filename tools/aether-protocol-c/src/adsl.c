@@ -2613,12 +2613,20 @@ static const adsl_type_t *find_type(
  * equality for Java array identity, or raw-struct comparison for generated
  * DTO equals semantics.
  */
+
+typedef const adsl_type_t *(*adsl_type_lookup_fn_t)(
+    void *context,
+    const char *canonical_name);
+
 static bool validate_collapsible_key_parameter(
     const adsl_document_t *document,
+    adsl_type_lookup_fn_t project_lookup,
+    void *project_lookup_context,
     const adsl_param_t *param,
     const char *method_name,
     char *error,
     size_t error_capacity) {
+
 
     if (param == NULL) {
         return true;
@@ -2674,8 +2682,12 @@ static bool validate_collapsible_key_parameter(
         return true;
     }
 
+
     const adsl_type_t *declared =
-        find_type(document, canonical);
+        project_lookup != NULL
+            ? project_lookup(project_lookup_context, canonical)
+            : find_type(document, canonical);
+
 
     if (declared != NULL &&
         (declared->enum_count > 0u ||
@@ -3455,12 +3467,16 @@ i < document->resolved_type_count;
                         }
                     }
 
+
                     if (!validate_collapsible_key_parameter(
                             document,
+                            NULL,
+                            NULL,
                             param,
                             method->name,
                             error,
                             error_capacity)) {
+
 
                         return false;
                     }
@@ -5972,6 +5988,1290 @@ const adsl_registry_entry_t *adsl_type_registry_find(
 
     return NULL;
 }
+
+
+
+/*
+ * Project-wide global type index.
+ *
+ * Built on demand by adsl_project_validate(). Answers one question:
+ * given a simple type name, which physical declaration does the project
+ * expose for it?
+ *
+ * Ownership:
+ *   - entries[] and every owned string are released by
+ *     adsl_global_type_index_free().
+ *   - declaration is a non-owning pointer into the project's documents
+ *     and remains valid as long as the adsl_project_t does.
+ *
+ * Identity and deduplication:
+ *   - A physical declaration is identified by (source_path, name). The
+ *     same declaration reached through multiple include chains, or
+ *     through both document->types[] and document->resolved_types[], is
+ *     stored once.
+ *   - Global collisions are detected by comparing the ASCII-lowercased
+ *     simple name of two entries with different (source_path, name).
+ */
+
+typedef struct {
+    char *source_path;
+    char *name;
+    char *lowercase_name;
+    const adsl_type_t *declaration;
+} adsl_global_type_entry_t;
+
+typedef struct {
+    adsl_global_type_entry_t *entries;
+    size_t entry_count;
+} adsl_global_type_index_t;
+
+
+static void adsl_global_type_index_init(
+    adsl_global_type_index_t *index) {
+
+    if (index != NULL) {
+        memset(index, 0, sizeof(*index));
+    }
+}
+
+
+static void adsl_global_type_index_free(
+    adsl_global_type_index_t *index) {
+
+    if (index == NULL) {
+        return;
+    }
+
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        free(index->entries[i].source_path);
+        free(index->entries[i].name);
+        free(index->entries[i].lowercase_name);
+    }
+
+    free(index->entries);
+
+    adsl_global_type_index_init(index);
+}
+
+
+/*
+ * ASCII-only lowercase copy. ADSL identifiers in this toolchain are
+ * restricted to ASCII; non-ASCII bytes are passed through unchanged and
+ * would surface as a lookup miss later. This deliberately avoids the
+ * locale-dependent tolower() of the standalone path.
+ */
+static char *adsl_ascii_lowercase_copy(
+    const char *source) {
+
+    if (source == NULL) {
+        return NULL;
+    }
+
+    size_t length = strlen(source);
+
+    char *result = malloc(length + 1u);
+
+    if (result == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0u; i < length; ++i) {
+        unsigned char c = (unsigned char)source[i];
+
+        result[i] = (c >= 'A' && c <= 'Z')
+            ? (char)(c - 'A' + 'a')
+            : (char)c;
+    }
+
+    result[length] = '\0';
+
+    return result;
+}
+
+
+
+/*
+ * Project-wide global API index.
+ *
+ * Analogous to the global type index, but for API declarations.
+ * Java Validator.groovy maintains separate canonical maps for types
+ * and APIs (canonicalTypeMap vs canonicalApiMap); both are global
+ * across the project and both use case-insensitive uniqueness. The
+ * same physical API reached through repeated include chains is
+ * deduplicated by (source_path, name).
+ *
+ * This index exists so that API inheritance can be resolved across
+ * documents without an include directive, matching Java
+ * ApiGenerator.getAllMethods(), which uses a project-global
+ * findApiDefinition().
+ */
+
+typedef struct {
+    char *source_path;
+    char *name;
+    char *lowercase_name;
+    const adsl_api_t *declaration;
+} adsl_global_api_entry_t;
+
+typedef struct {
+    adsl_global_api_entry_t *entries;
+    size_t entry_count;
+} adsl_global_api_index_t;
+
+static void adsl_global_api_index_init(adsl_global_api_index_t *index) {
+    if (index != NULL) {
+        memset(index, 0, sizeof(*index));
+    }
+}
+
+static void adsl_global_api_index_free(adsl_global_api_index_t *index) {
+    if (index == NULL) {
+        return;
+    }
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        free(index->entries[i].source_path);
+        free(index->entries[i].name);
+        free(index->entries[i].lowercase_name);
+    }
+    free(index->entries);
+    adsl_global_api_index_init(index);
+}
+
+static const adsl_global_api_entry_t *adsl_global_api_index_find_identity(
+    const adsl_global_api_index_t *index,
+    const char *source_path,
+    const char *name) {
+
+    if (index == NULL || name == NULL) {
+        return NULL;
+    }
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        const adsl_global_api_entry_t *entry = &index->entries[i];
+        if (!adsl_strings_equal_or_both_null(entry->source_path, source_path) ||
+            !adsl_strings_equal_or_both_null(entry->name, name)) {
+            continue;
+        }
+        return entry;
+    }
+    return NULL;
+}
+
+static const adsl_global_api_entry_t *adsl_global_api_index_find_lowercase(
+    const adsl_global_api_index_t *index,
+    const char *name,
+    bool *collision_out,
+    const adsl_global_api_entry_t **first_out) {
+
+    if (collision_out != NULL) {
+        *collision_out = false;
+    }
+    if (first_out != NULL) {
+        *first_out = NULL;
+    }
+    if (index == NULL || name == NULL) {
+        return NULL;
+    }
+
+    char *lowercase = adsl_ascii_lowercase_copy(name);
+    if (lowercase == NULL) {
+        return NULL;
+    }
+
+    const adsl_global_api_entry_t *match = NULL;
+    size_t match_count = 0u;
+
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        const adsl_global_api_entry_t *entry = &index->entries[i];
+        if (strcmp(entry->lowercase_name, lowercase) != 0) {
+            continue;
+        }
+        if (match_count == 0u) {
+            match = entry;
+            if (first_out != NULL) {
+                *first_out = entry;
+            }
+        }
+        match_count++;
+    }
+
+    free(lowercase);
+
+    if (match_count > 1u) {
+        if (collision_out != NULL) {
+            *collision_out = true;
+        }
+        return NULL;
+    }
+    return match;
+}
+
+static bool adsl_global_api_index_add(
+    adsl_global_api_index_t *index,
+    const char *source_path,
+    const char *name,
+    const adsl_api_t *declaration,
+    char *error,
+    size_t error_capacity) {
+
+    if (index == NULL || name == NULL) {
+        set_error(error, error_capacity, "invalid global API index arguments");
+        return false;
+    }
+
+    const adsl_global_api_entry_t *existing =
+        adsl_global_api_index_find_identity(index, source_path, name);
+
+    if (existing != NULL) {
+        if (!adsl_same_api_definition(existing->declaration, declaration)) {
+            set_error(
+                error,
+                error_capacity,
+                "inconsistent declaration of API '%s' from '%s'",
+                name,
+                source_path != NULL ? source_path : "<unknown>");
+            return false;
+        }
+        return true;
+    }
+
+    char *lowercase = adsl_ascii_lowercase_copy(name);
+    if (lowercase == NULL) {
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        const adsl_global_api_entry_t *entry = &index->entries[i];
+        if (strcmp(entry->lowercase_name, lowercase) != 0) {
+            continue;
+        }
+        set_error(
+            error,
+            error_capacity,
+            "ambiguous API declaration '%s': defined in '%s' and in '%s'",
+            name,
+            entry->source_path != NULL ? entry->source_path : "<unknown>",
+            source_path != NULL ? source_path : "<unknown>");
+        free(lowercase);
+        return false;
+    }
+
+    adsl_global_api_entry_t *entries =
+        realloc(index->entries, (index->entry_count + 1u) * sizeof(*entries));
+
+    if (entries == NULL) {
+        free(lowercase);
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+    index->entries = entries;
+
+    adsl_global_api_entry_t *entry = &index->entries[index->entry_count];
+    memset(entry, 0, sizeof(*entry));
+
+    entry->source_path = copy_string(source_path);
+    entry->name = copy_string(name);
+    entry->lowercase_name = lowercase;
+    entry->declaration = declaration;
+
+    if ((source_path != NULL && entry->source_path == NULL) ||
+        entry->name == NULL) {
+        free(entry->source_path);
+        free(entry->name);
+        free(entry->lowercase_name);
+        memset(entry, 0, sizeof(*entry));
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    index->entry_count++;
+    return true;
+}
+
+static bool adsl_global_api_index_register_apis(
+    adsl_global_api_index_t *index,
+    const adsl_api_t *apis,
+    size_t api_count,
+    const char *fallback_source_path,
+    char *error,
+    size_t error_capacity) {
+
+    for (size_t i = 0u; i < api_count; ++i) {
+        const adsl_api_t *api = &apis[i];
+        const char *source_path =
+            api->source_path != NULL ? api->source_path : fallback_source_path;
+        if (!adsl_global_api_index_add(
+                index, source_path, api->name, api, error, error_capacity)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool adsl_global_api_index_build(
+    const adsl_project_t *project,
+    adsl_global_api_index_t *index,
+    char *error,
+    size_t error_capacity) {
+
+    if (project == NULL || index == NULL) {
+        set_error(error, error_capacity, "invalid project arguments");
+        return false;
+    }
+
+    adsl_global_api_index_init(index);
+
+    for (size_t d = 0u; d < project->document_count; ++d) {
+        const adsl_document_t *document = &project->documents[d];
+        if (!adsl_global_api_index_register_apis(
+                index, document->apis, document->api_count,
+                document->root_source_path, error, error_capacity)) {
+            adsl_global_api_index_free(index);
+            return false;
+        }
+        if (!adsl_global_api_index_register_apis(
+                index, document->resolved_apis, document->resolved_api_count,
+                document->root_source_path, error, error_capacity)) {
+            adsl_global_api_index_free(index);
+            return false;
+        }
+    }
+    return true;
+}
+
+static const adsl_api_t *adsl_project_find_api(
+    const adsl_global_api_index_t *index,
+    const char *name) {
+
+    if (index == NULL || name == NULL) {
+        return NULL;
+    }
+
+    bool collision = false;
+    const adsl_global_api_entry_t *entry =
+        adsl_global_api_index_find_lowercase(index, name, &collision, NULL);
+
+    if (entry == NULL || collision) {
+        return NULL;
+    }
+    return entry->declaration;
+}
+
+/*
+ * Project-scoped variant of effective method collection.
+ *
+ * The public adsl_collect_effective_methods() resolves parent APIs
+ * through document->resolved_apis[] only, which is the correct
+ * contract for standalone generation. Java ApiGenerator.getAllMethods()
+ * resolves parents through a project-global API table instead, so
+ * cross-file API inheritance without an include directive must be
+ * handled here.
+ */
+static bool effective_collect_recursive_proj(
+    const adsl_global_api_index_t *api_index,
+    const adsl_api_t *api,
+    size_t depth,
+    size_t depth_limit,
+    adsl_effective_method_t *methods,
+    size_t *count,
+    char *error,
+    size_t error_capacity) {
+
+    if (depth > depth_limit) {
+        set_error(
+            error,
+            error_capacity,
+            "API inheritance cycle near '%s'",
+            api->name);
+        return false;
+    }
+
+    for (size_t i = 0u; i < api->parent_count; ++i) {
+        const adsl_api_t *parent =
+            adsl_project_find_api(api_index, api->parents[i]);
+        if (parent == NULL) {
+            set_error(
+                error,
+                error_capacity,
+                "API '%s' has unknown parent '%s'",
+                api->name,
+                api->parents[i]);
+            return false;
+        }
+        if (!effective_collect_recursive_proj(
+                api_index,
+                parent,
+                depth + 1u,
+                depth_limit,
+                methods,
+                count,
+                error,
+                error_capacity)) {
+            return false;
+        }
+    }
+
+    for (size_t m = 0u; m < api->method_count; ++m) {
+        const adsl_method_t *method = &api->methods[m];
+        bool duplicate = false;
+        for (size_t e = 0u; e < *count; ++e) {
+            if (strcmp(methods[e].method->name, method->name) == 0) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (duplicate) {
+            continue;
+        }
+
+        size_t generated =
+            method->has_id ? (size_t)method->id : (*count + 3u);
+        if (generated > 255u) {
+            set_error(
+                error,
+                error_capacity,
+                "method id overflow in API '%s'",
+                api->name);
+            return false;
+        }
+        effective_append(methods, count, api, method, (uint8_t)generated);
+    }
+    return true;
+}
+
+static bool adsl_project_collect_effective_methods(
+    const adsl_global_api_index_t *api_index,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity) {
+
+    if (out_methods == NULL || out_count == NULL) {
+        set_error(error, error_capacity, "invalid effective method collector arguments");
+        return false;
+    }
+    *out_methods = NULL;
+    *out_count = 0u;
+
+    if (api_index == NULL || api == NULL) {
+        set_error(error, error_capacity, "selected API not found");
+        return false;
+    }
+
+    size_t capacity = 0u;
+    for (size_t i = 0u; i < api_index->entry_count; ++i) {
+        capacity += api_index->entries[i].declaration->method_count;
+    }
+    if (capacity == 0u) {
+        return true;
+    }
+
+    adsl_effective_method_t *methods =
+        (adsl_effective_method_t *)calloc(
+            capacity, sizeof(adsl_effective_method_t));
+    if (methods == NULL) {
+        set_error(error, error_capacity, "out of memory collecting effective methods");
+        return false;
+    }
+
+    size_t count = 0u;
+    if (!effective_collect_recursive_proj(
+            api_index,
+            api,
+            0u,
+            api_index->entry_count,
+            methods,
+            &count,
+            error,
+            error_capacity)) {
+        free(methods);
+        return false;
+    }
+
+    for (size_t i = 0u; i < count; ++i) {
+        for (size_t j = i + 1u; j < count; ++j) {
+            if (methods[i].id == methods[j].id) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "API '%s' has duplicate effective method id %u ('%s' vs '%s')",
+                    api->name,
+                    (unsigned int)methods[i].id,
+                    methods[i].method->name,
+                    methods[j].method->name);
+                free(methods);
+                return false;
+            }
+        }
+    }
+
+    *out_methods = methods;
+    *out_count = count;
+    return true;
+}
+
+
+
+static const adsl_global_type_entry_t *adsl_global_type_index_find_identity(
+    const adsl_global_type_index_t *index,
+    const char *source_path,
+    const char *name) {
+
+    if (index == NULL || name == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        const adsl_global_type_entry_t *entry = &index->entries[i];
+
+        if (!adsl_strings_equal_or_both_null(entry->source_path, source_path) ||
+            !adsl_strings_equal_or_both_null(entry->name, name)) {
+            continue;
+        }
+
+        return entry;
+    }
+
+    return NULL;
+}
+
+
+/*
+ * Lookup by ASCII-lowercased simple name.
+ *
+ * On success returns the unique matching entry. If more than one entry
+ * shares the same lowercase name (a global collision), returns NULL and
+ * sets *collision_out to true. *first_out receives the first colliding
+ * entry so callers can build a diagnostic that names both origins.
+ */
+static const adsl_global_type_entry_t *adsl_global_type_index_find_lowercase(
+    const adsl_global_type_index_t *index,
+    const char *name,
+    bool *collision_out,
+    const adsl_global_type_entry_t **first_out) {
+
+    if (collision_out != NULL) {
+        *collision_out = false;
+    }
+
+    if (first_out != NULL) {
+        *first_out = NULL;
+    }
+
+    if (index == NULL || name == NULL) {
+        return NULL;
+    }
+
+    char *lowercase = adsl_ascii_lowercase_copy(name);
+
+    if (lowercase == NULL) {
+        return NULL;
+    }
+
+    const adsl_global_type_entry_t *match = NULL;
+    size_t match_count = 0u;
+
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        const adsl_global_type_entry_t *entry = &index->entries[i];
+
+        if (strcmp(entry->lowercase_name, lowercase) != 0) {
+            continue;
+        }
+
+        if (match_count == 0u) {
+            match = entry;
+
+            if (first_out != NULL) {
+                *first_out = entry;
+            }
+        }
+
+        match_count++;
+    }
+
+    free(lowercase);
+
+    if (match_count > 1u) {
+        if (collision_out != NULL) {
+            *collision_out = true;
+        }
+
+        return NULL;
+    }
+
+    return match;
+}
+
+
+static bool adsl_global_type_index_add(
+    adsl_global_type_index_t *index,
+    const char *source_path,
+    const char *name,
+    const adsl_type_t *declaration,
+    char *error,
+    size_t error_capacity) {
+
+    if (index == NULL || name == NULL) {
+        set_error(error, error_capacity, "invalid global type index arguments");
+        return false;
+    }
+
+
+    const adsl_global_type_entry_t *existing =
+        adsl_global_type_index_find_identity(index, source_path, name);
+
+    if (existing != NULL) {
+
+        /*
+         * Physical identity invariant: a given (source_path, name) pair
+         * must always correspond to one and only one declaration. If a
+         * copy of the same declaration differs in structure, the merge
+         * or deep-copy path has been broken and the project context can
+         * no longer be trusted.
+         */
+        if (!adsl_same_type_definition(existing->declaration, declaration)) {
+            set_error(
+                error,
+                error_capacity,
+                "inconsistent declaration of type '%s' from '%s'",
+                name,
+                source_path != NULL ? source_path : "<unknown>");
+            return false;
+        }
+
+        return true;
+    }
+
+
+    char *lowercase = adsl_ascii_lowercase_copy(name);
+
+    if (lowercase == NULL) {
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    for (size_t i = 0u; i < index->entry_count; ++i) {
+        const adsl_global_type_entry_t *existing = &index->entries[i];
+
+        if (strcmp(existing->lowercase_name, lowercase) != 0) {
+            continue;
+        }
+
+        set_error(
+            error,
+            error_capacity,
+            "ambiguous type declaration '%s': defined in '%s' and in '%s'",
+            name,
+            existing->source_path != NULL ? existing->source_path : "<unknown>",
+            source_path != NULL ? source_path : "<unknown>");
+
+        free(lowercase);
+        return false;
+    }
+
+    adsl_global_type_entry_t *entries =
+        realloc(
+            index->entries,
+            (index->entry_count + 1u) * sizeof(*entries));
+
+    if (entries == NULL) {
+        free(lowercase);
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    index->entries = entries;
+
+    adsl_global_type_entry_t *entry = &index->entries[index->entry_count];
+
+    memset(entry, 0, sizeof(*entry));
+
+    entry->source_path = copy_string(source_path);
+    entry->name = copy_string(name);
+    entry->lowercase_name = lowercase;
+    entry->declaration = declaration;
+
+    if ((source_path != NULL && entry->source_path == NULL) ||
+        entry->name == NULL) {
+
+        free(entry->source_path);
+        free(entry->name);
+        free(entry->lowercase_name);
+
+        memset(entry, 0, sizeof(*entry));
+
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    index->entry_count++;
+
+    return true;
+}
+
+
+static bool adsl_global_type_index_register_types(
+    adsl_global_type_index_t *index,
+    const adsl_type_t *types,
+    size_t type_count,
+    const char *fallback_source_path,
+    char *error,
+    size_t error_capacity) {
+
+    for (size_t i = 0u; i < type_count; ++i) {
+        const adsl_type_t *type = &types[i];
+
+        const char *source_path =
+            type->source_path != NULL
+                ? type->source_path
+                : fallback_source_path;
+
+        if (!adsl_global_type_index_add(
+                index,
+                source_path,
+                type->name,
+                type,
+                error,
+                error_capacity)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+/*
+ * Build a project-wide global type index.
+ *
+ * Sources of declarations, in this order:
+ *
+ *   1. Every document's own types[] (the root file's own declarations).
+ *   2. Every document's resolved_types[] (include-closure plus root).
+ *
+ * The same physical declaration is deduplicated by (source_path, name),
+ * so repeated include chains and the root/closure overlap do not create
+ * false collisions. Include-only files that never appear as project
+ * documents are still registered through resolved_types[].
+ */
+static bool adsl_global_type_index_build(
+    const adsl_project_t *project,
+    adsl_global_type_index_t *index,
+    char *error,
+    size_t error_capacity) {
+
+    if (project == NULL || index == NULL) {
+        set_error(error, error_capacity, "invalid project arguments");
+        return false;
+    }
+
+    adsl_global_type_index_init(index);
+
+    for (size_t d = 0u; d < project->document_count; ++d) {
+        const adsl_document_t *document = &project->documents[d];
+
+        if (!adsl_global_type_index_register_types(
+                index,
+                document->types,
+                document->type_count,
+                document->root_source_path,
+                error,
+                error_capacity)) {
+
+            adsl_global_type_index_free(index);
+            return false;
+        }
+
+        if (!adsl_global_type_index_register_types(
+                index,
+                document->resolved_types,
+                document->resolved_type_count,
+                document->root_source_path,
+                error,
+                error_capacity)) {
+
+            adsl_global_type_index_free(index);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+/*
+ * Project-aware variant of validate_type_reference().
+ *
+ * Resolution order:
+ *   1. primitives (primitive_type())
+ *   2. the project's global type index (ASCII case-insensitive)
+ *
+ * No per-document closure, no include scope, no shadowing.
+ */
+
+/*
+ * Bounded canonicalization of a type reference for project validation.
+ *
+ * Unlike the internal base_type(), which silently truncates on overflow,
+ * this wrapper rejects any reference whose raw length would be truncated
+ * by the destination buffer and rejects references that reduce to an
+ * empty canonical name after modifier stripping. This keeps malformed or
+ * over-long references from silently resolving to an unrelated type.
+ */
+static bool adsl_project_canonicalize_reference(
+    const char *reference,
+    char *canonical,
+    size_t canonical_capacity,
+    char *error,
+    size_t error_capacity) {
+
+    if (reference == NULL || *reference == '\0') {
+        canonical[0] = '\0';
+        return true;
+    }
+
+    if (strlen(reference) >= canonical_capacity) {
+        set_error(
+            error,
+            error_capacity,
+            "type reference is too long: '%.32s...'",
+            reference);
+        return false;
+    }
+
+    base_type(reference, canonical, canonical_capacity);
+
+    if (canonical[0] == '\0') {
+        set_error(
+            error,
+            error_capacity,
+            "malformed type reference '%s'",
+            reference);
+        return false;
+    }
+
+    return true;
+}
+
+
+static bool adsl_project_validate_type_reference(
+    const adsl_global_type_index_t *index,
+    const char *reference,
+    char *error,
+    size_t error_capacity) {
+
+    if (reference == NULL || *reference == '\0') {
+        return true;
+    }
+
+
+    char canonical[256];
+
+    if (!adsl_project_canonicalize_reference(
+            reference,
+            canonical,
+            sizeof(canonical),
+            error,
+            error_capacity)) {
+        return false;
+    }
+
+    if (primitive_type(canonical)) {
+        return true;
+    }
+
+
+    bool collision = false;
+    const adsl_global_type_entry_t *first = NULL;
+
+    const adsl_global_type_entry_t *found =
+        adsl_global_type_index_find_lowercase(
+            index, canonical, &collision, &first);
+
+    if (found != NULL) {
+        return true;
+    }
+
+    if (collision && first != NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "ambiguous type reference '%s' (first declared in '%s')",
+            reference,
+            first->source_path != NULL ? first->source_path : "<unknown>");
+
+        return false;
+    }
+
+    set_error(
+        error,
+        error_capacity,
+        "unknown type reference '%s'",
+        reference);
+
+    return false;
+}
+
+
+/*
+ * Project-aware variant of find_type(). Returns the unique declaration
+ * for a simple type name, or NULL when it is unknown or ambiguous.
+ */
+static const adsl_type_t *adsl_project_find_type(
+    const adsl_global_type_index_t *index,
+    const char *name) {
+
+    if (index == NULL || name == NULL) {
+        return NULL;
+    }
+
+    char canonical[256];
+
+    base_type(name, canonical, sizeof(canonical));
+
+    bool collision = false;
+
+    const adsl_global_type_entry_t *entry =
+        adsl_global_type_index_find_lowercase(index, canonical, &collision, NULL);
+
+    if (entry == NULL || collision) {
+        return NULL;
+    }
+
+    return entry->declaration;
+}
+
+
+
+/*
+ * Adapter that exposes the project global type index through the lookup
+ * hook used by validate_collapsible_key_parameter(). Keeps the
+ * standalone collapsible validator unchanged while allowing project
+ * validation to resolve key types across documents.
+ */
+static const adsl_type_t *adsl_project_type_lookup(
+    void *context,
+    const char *canonical) {
+
+    const adsl_global_type_index_t *index =
+        (const adsl_global_type_index_t *)context;
+
+    if (index == NULL || canonical == NULL) {
+        return NULL;
+    }
+
+    bool collision = false;
+
+    const adsl_global_type_entry_t *entry =
+        adsl_global_type_index_find_lowercase(
+            index, canonical, &collision, NULL);
+
+    if (entry == NULL || collision) {
+        return NULL;
+    }
+
+    return entry->declaration;
+}
+
+
+
+bool adsl_project_validate(
+    const adsl_project_t *project,
+    char *error,
+    size_t error_capacity) {
+
+    if (project == NULL) {
+        set_error(error, error_capacity, "invalid project argument");
+        return false;
+    }
+
+    adsl_global_type_index_t index;
+
+    if (!adsl_global_type_index_build(project, &index, error, error_capacity)) {
+        return false;
+    }
+
+    adsl_global_api_index_t api_index;
+
+    if (!adsl_global_api_index_build(project, &api_index, error, error_capacity)) {
+        adsl_global_type_index_free(&index);
+        return false;
+    }
+
+    bool ok = true;
+
+    for (size_t e = 0u; ok && e < index.entry_count; ++e) {
+        const adsl_type_t *type = index.entries[e].declaration;
+
+        if (type == NULL) {
+            continue;
+        }
+
+        if (type->has_tiered_int) {
+            if (!validate_tiered_int(type, error, error_capacity)) {
+                ok = false;
+                break;
+            }
+            continue;
+        }
+
+        if (type->parent != NULL) {
+            const adsl_type_t *parent =
+                adsl_project_find_type(&index, type->parent);
+
+            if (parent == NULL) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "type '%s' has unknown parent '%s'",
+                    type->name,
+                    type->parent);
+
+                ok = false;
+                break;
+            }
+
+            if (parent->has_tiered_int) {
+                set_error(
+                    error,
+                    error_capacity,
+                    "type '%s' cannot inherit from scalar tieredInt type '%s'",
+                    type->name,
+                    type->parent);
+
+                ok = false;
+                break;
+            }
+        }
+
+        size_t nullable_count = 0u;
+
+        for (size_t f = 0u; f < type->field_count; ++f) {
+            if (!adsl_project_validate_type_reference(
+                    &index,
+                    type->fields[f].type,
+                    error,
+                    error_capacity)) {
+
+                ok = false;
+                break;
+            }
+
+            if (type->fields[f].type != NULL &&
+                strchr(type->fields[f].type, '?') != NULL) {
+                nullable_count++;
+            }
+        }
+        if (!ok) {
+            break;
+        }
+
+        if (nullable_count > 64u) {
+            set_error(
+                error,
+                error_capacity,
+                "type '%s' has more than 64 nullable fields",
+                type->name);
+
+            ok = false;
+            break;
+        }
+
+        if (type->stream != NULL) {
+            for (size_t k = 0u; k < type->stream->key_count; ++k) {
+                if (!adsl_project_validate_type_reference(
+                        &index,
+                        type->stream->keys[k].type,
+                        error,
+                        error_capacity)) {
+
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok) {
+                break;
+            }
+        }
+    }
+
+    for (size_t d = 0u; ok && d < project->document_count; ++d) {
+        const adsl_document_t *document = &project->documents[d];
+
+        for (size_t a = 0u; ok && a < document->resolved_api_count; ++a) {
+            const adsl_api_t *api = &document->resolved_apis[a];
+
+            for (size_t m = 0u; ok && m < api->method_count; ++m) {
+                const adsl_method_t *method = &api->methods[m];
+
+                size_t collapsible_param_count = 0u;
+
+                for (size_t p = 0u; p < method->param_count; ++p) {
+                    const adsl_param_t *param = &method->params[p];
+
+                    if (param->type != NULL) {
+                        size_t type_length = strlen(param->type);
+
+                        if (type_length > 0u &&
+                            param->type[type_length - 1u] == '~') {
+                            collapsible_param_count++;
+                        }
+                    }
+
+                    if (param->stream != NULL) {
+                        continue;
+                    }
+
+                    if (!adsl_project_validate_type_reference(
+                            &index,
+                            param->type,
+                            error,
+                            error_capacity)) {
+
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) {
+                    break;
+                }
+
+                if (collapsible_param_count > 0u) {
+                    if (method->returns_type != NULL ||
+                        method->return_field_count > 0u ||
+                        method->throws_type != NULL) {
+
+                        set_error(
+                            error,
+                            error_capacity,
+                            "collapsible API method '%s' cannot declare returns or throws",
+                            method->name);
+
+                        ok = false;
+                        break;
+                    }
+
+                    if (collapsible_param_count == method->param_count) {
+                        set_error(
+                            error,
+                            error_capacity,
+                            "collapsible API method '%s' requires at least one non-collapsible key parameter",
+                            method->name);
+
+                        ok = false;
+                        break;
+                    }
+
+                    for (size_t p = 0u; p < method->param_count; ++p) {
+                        const adsl_param_t *param = &method->params[p];
+
+                        if (param->type != NULL) {
+                            size_t type_length = strlen(param->type);
+
+                            if (type_length > 0u &&
+                                param->type[type_length - 1u] == '~') {
+                                continue;
+                            }
+                        }
+
+                        if (!validate_collapsible_key_parameter(
+                                document,
+                                adsl_project_type_lookup,
+                                (void *)&index,
+                                param,
+                                method->name,
+                                error,
+                                error_capacity)) {
+
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if (!ok) {
+                        break;
+                    }
+                }
+
+                if (!adsl_project_validate_type_reference(
+                        &index,
+                        method->returns_type,
+                        error,
+                        error_capacity) ||
+                    !adsl_project_validate_type_reference(
+                        &index,
+                        method->throws_type,
+                        error,
+                        error_capacity)) {
+
+                    ok = false;
+                    break;
+                }
+
+                for (size_t f = 0u; f < method->return_field_count; ++f) {
+                    if (!adsl_project_validate_type_reference(
+                            &index,
+                            method->return_fields[f].type,
+                            error,
+                            error_capacity)) {
+
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) {
+                    break;
+                }
+            }
+            if (!ok) {
+                break;
+            }
+
+            adsl_effective_method_t *effective = NULL;
+            size_t effective_count = 0u;
+
+            if (!adsl_project_collect_effective_methods(
+                    &api_index,
+                    api,
+                    &effective,
+                    &effective_count,
+                    error,
+                    error_capacity)) {
+
+                ok = false;
+                break;
+            }
+
+            for (size_t m = 0u; m < effective_count; ++m) {
+                if (effective[m].id < 3u) {
+                    set_error(
+                        error,
+                        error_capacity,
+                        "API '%s' method '%s' uses reserved id %u",
+                        api->name,
+                        effective[m].method->name,
+                        (unsigned int)effective[m].id);
+
+                    free(effective);
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok) {
+                break;
+            }
+
+            free(effective);
+        }
+    }
+
+    adsl_global_api_index_free(&api_index);
+    adsl_global_type_index_free(&index);
+
+    return ok;
+}
+
+
 
 
 

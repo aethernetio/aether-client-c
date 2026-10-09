@@ -1,0 +1,9 @@
+
+api:
+  ChildApi:
+    parents:
+      - BaseApi
+    methods:
+      childPing:
+        id: 4
+        returns: int

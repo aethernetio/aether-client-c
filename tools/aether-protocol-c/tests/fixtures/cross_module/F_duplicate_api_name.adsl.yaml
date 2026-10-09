@@ -1,0 +1,6 @@
+
+api:
+  ChildApi:
+    methods:
+      childPing:
+        id: 4

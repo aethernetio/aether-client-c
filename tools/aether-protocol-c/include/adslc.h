@@ -522,4 +522,37 @@ const adsl_registry_entry_t *adsl_type_registry_find(
 
 
 
+
+/*
+ * Validate every document of a project as one global type space.
+ *
+ * Unlike adsl_validate(), which resolves type references against a single
+ * document's include closure, this function treats the union of all
+ * declarations reachable from the project as one namespace:
+ *
+ *   - All declared types from documents[].types[] and from include-only
+ *     files reachable through documents[].resolved_types[] form a single
+ *     global namespace of simple names.
+ *   - Name comparison is ASCII case-insensitive.
+ *   - Two different physical declarations with the same lowercased simple
+ *     name are rejected as a global collision, even when they come from
+ *     different documents or different include paths.
+ *   - The same physical declaration reached through multiple include
+ *     chains is deduplicated by (source_path, name).
+ *   - Document-local declarations do not shadow globals; no include-scope
+ *     fallback is performed.
+ *   - All type references in fields, method parameters, returns, throws,
+ *     structured return fields, parent chains and stream keys are checked
+ *     against the global namespace.
+ *
+ * The project is not modified. On success returns true and leaves error
+ * untouched. On failure returns false and writes a human-readable
+ * diagnostic into error.
+ */
+bool adsl_project_validate(
+    const adsl_project_t *project,
+    char *error,
+    size_t error_capacity);
+
+
 #endif

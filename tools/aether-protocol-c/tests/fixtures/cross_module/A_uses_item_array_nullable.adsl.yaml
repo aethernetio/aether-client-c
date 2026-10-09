@@ -1,0 +1,12 @@
+
+api:
+  ApiA:
+    methods:
+      useItemNullable:
+        id: 3
+        params:
+          item: Item?
+      useItemArray:
+        id: 4
+        params:
+          items: Item[]
