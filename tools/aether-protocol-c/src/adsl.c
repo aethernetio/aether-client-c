@@ -7709,11 +7709,19 @@ const char *adsl_project_resolver_type_source(
     for (size_t i = 0u; i < resolver->types.entry_count; ++i) {
         const adsl_global_type_entry_t *entry =
             &resolver->types.entries[i];
+
         if (entry->declaration == type) {
 
-            return entry->owner_root_path != NULL
-                ? entry->owner_root_path
-                : entry->source_path;
+            /*
+             * A project resolver is built fresh for every validation or
+             * emission pass, so owner_root_path is always populated for
+             * physical declarations. Returning the physical source_path
+             * here would silently mask a resolver invariant violation
+             * and would hand the emitter a path that is not in the
+             * emission plan. Fail closed instead.
+             */
+            return entry->owner_root_path;
+
 
         }
     }
