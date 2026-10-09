@@ -7570,124 +7570,109 @@ static bool type_is_descendant_or_self(
 }
 
 
-static bool emit_hierarchy_ref(
+
+static bool emit_hierarchy_ref_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     char *error,
     size_t error_capacity) {
 
-    if (!type_is_polymorphic_reference(
-            document,
-            type)) {
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid hierarchy reference context");
+        return false;
+    }
 
+    if (!type_is_polymorphic_reference_ctx(ctx, type)) {
         return true;
+    }
+
+    const adsl_type_t *list;
+    size_t count;
+
+    if (ctx->resolver != NULL) {
+        list = ctx->document->types;
+        count = ctx->document->type_count;
+    } else {
+        list = ctx->document->resolved_types;
+        count = ctx->document->resolved_type_count;
     }
 
     char static_name[256];
 
-
-declared_c_name(
+    declared_c_name(
         type->name,
         static_name,
         sizeof(static_name));
 
+    size_t concrete_count = 0u;
 
-    size_t concrete_count =
-        0u;
+    for (size_t i = 0u; i < count; ++i) {
 
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *candidate =
-            &document->resolved_types[i];
+        const adsl_type_t *candidate = &list[i];
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
-            !type_is_descendant_or_self(
-                document,
-                candidate,
-                type)) {
+            !type_is_descendant_or_self_ctx(ctx, candidate, type)) {
 
             continue;
         }
 
         concrete_count++;
 
-        if (!candidate->has_id ||
-            candidate->id == 0u) {
+        if (!candidate->has_id || candidate->id == 0u) {
 
             char message[512];
 
-            int written =
-                snprintf(
-                    message,
-                    sizeof(message),
-                    "concrete hierarchy type '%s' must have a non-zero one-byte id",
-                    candidate->name);
+            int written = snprintf(
+                message,
+                sizeof(message),
+                "concrete hierarchy type '%s' must have a non-zero one-byte id",
+                candidate->name);
 
-            if (written < 0 ||
-                (size_t)written >= sizeof(message)) {
-
+            if (written < 0 || (size_t)written >= sizeof(message)) {
                 set_error(
                     error,
                     error_capacity,
                     "concrete hierarchy type must have a non-zero one-byte id");
             } else {
-                set_error(
-                    error,
-                    error_capacity,
-                    message);
+                set_error(error, error_capacity, message);
             }
 
             return false;
         }
 
-        for (size_t j = i + 1u;
-             j < document->resolved_type_count;
-             ++j) {
+        for (size_t j = i + 1u; j < count; ++j) {
 
-            const adsl_type_t *other =
-                &document->resolved_types[j];
+            const adsl_type_t *other = &list[j];
 
             if (other->enum_count > 0u ||
                 other->is_abstract ||
-                !type_is_descendant_or_self(
-                    document,
-                    other,
-                    type)) {
+                !type_is_descendant_or_self_ctx(ctx, other, type)) {
 
                 continue;
             }
 
-            if (other->has_id &&
-                other->id == candidate->id) {
+            if (other->has_id && other->id == candidate->id) {
 
                 char message[768];
 
-                int written =
-                    snprintf(
-                        message,
-                        sizeof(message),
-                        "hierarchy '%s' has duplicate concrete type id %u for '%s' and '%s'",
-                        type->name,
-                        (unsigned int)candidate->id,
-                        candidate->name,
-                        other->name);
+                int written = snprintf(
+                    message,
+                    sizeof(message),
+                    "hierarchy '%s' has duplicate concrete type id %u for '%s' and '%s'",
+                    type->name,
+                    (unsigned int)candidate->id,
+                    candidate->name,
+                    other->name);
 
-                if (written < 0 ||
-                    (size_t)written >= sizeof(message)) {
-
+                if (written < 0 || (size_t)written >= sizeof(message)) {
                     set_error(
                         error,
                         error_capacity,
                         "hierarchy has duplicate concrete type ids");
                 } else {
-                    set_error(
-                        error,
-                        error_capacity,
-                        message);
+                    set_error(error, error_capacity, message);
                 }
 
                 return false;
@@ -7695,25 +7680,18 @@ declared_c_name(
         }
     }
 
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
+    for (size_t i = 0u; i < count; ++i) {
 
-        const adsl_type_t *candidate =
-            &document->resolved_types[i];
+        const adsl_type_t *candidate = &list[i];
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
-            !type_is_descendant_or_self(
-                document,
-                candidate,
-                type)) {
+            !type_is_descendant_or_self_ctx(ctx, candidate, type)) {
 
             continue;
         }
 
-
-char static_upper[256];
+        char static_upper[256];
         char candidate_upper[256];
         char static_c_name[256];
         char candidate_c_name[256];
@@ -7737,7 +7715,6 @@ char static_upper[256];
             candidate_c_name,
             candidate_upper,
             sizeof(candidate_upper));
-
 
         fprintf(
             output,
@@ -7767,31 +7744,23 @@ char static_upper[256];
             "    union {\n",
             output);
 
-        for (size_t i = 0u;
-             i < document->resolved_type_count;
-             ++i) {
+        for (size_t i = 0u; i < count; ++i) {
 
-            const adsl_type_t *candidate =
-                &document->resolved_types[i];
+            const adsl_type_t *candidate = &list[i];
 
             if (candidate->enum_count > 0u ||
                 candidate->is_abstract ||
-                !type_is_descendant_or_self(
-                    document,
-                    candidate,
-                    type)) {
+                !type_is_descendant_or_self_ctx(ctx, candidate, type)) {
 
                 continue;
             }
 
             char candidate_name[256];
 
-
-declared_c_name(
+            declared_c_name(
                 candidate->name,
                 candidate_name,
                 sizeof(candidate_name));
-
 
             fprintf(
                 output,
@@ -7814,28 +7783,43 @@ declared_c_name(
 }
 
 
-static bool emit_hierarchy_expression(
+static bool emit_hierarchy_ref(
     FILE *output,
     const adsl_document_t *document,
+    const adsl_type_t *type,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_hierarchy_ref_ctx(output, &ctx, type, error, error_capacity);
+}
+
+
+
+
+static bool emit_hierarchy_expression_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const adsl_type_t *static_type,
     const char *expression,
     const char *prefix,
     bool reference_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid hierarchy expression context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "hierarchy serialization depth exceeds 64");
-
         return false;
     }
 
@@ -7865,36 +7849,37 @@ static bool emit_hierarchy_expression(
             error,
             error_capacity,
             "generated hierarchy expression is too long");
-
         return false;
     }
 
     fprintf(
         output,
-
         "    if (pos + 1u > tx_capacity) return AETHER_ERR_OVERFLOW;\n"
         "    tx[pos++] = (uint8_t)%s.type_id;\n"
-
         "    switch (%s.type_id) {\n",
         value_expression,
         value_expression);
 
-    size_t concrete_count =
-        0u;
+    const adsl_type_t *list;
+    size_t count;
 
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
+    if (ctx->resolver != NULL) {
+        list = ctx->document->types;
+        count = ctx->document->type_count;
+    } else {
+        list = ctx->document->resolved_types;
+        count = ctx->document->resolved_type_count;
+    }
 
-        const adsl_type_t *candidate =
-            &document->resolved_types[i];
+    size_t concrete_count = 0u;
+
+    for (size_t i = 0u; i < count; ++i) {
+
+        const adsl_type_t *candidate = &list[i];
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
-            !type_is_descendant_or_self(
-                document,
-                candidate,
-                static_type)) {
+            !type_is_descendant_or_self_ctx(ctx, candidate, static_type)) {
 
             continue;
         }
@@ -7903,12 +7888,10 @@ static bool emit_hierarchy_expression(
 
         char candidate_name[256];
 
-
-declared_c_name(
+        declared_c_name(
             candidate->name,
             candidate_name,
             sizeof(candidate_name));
-
 
         char child_prefix[768];
 
@@ -7928,7 +7911,6 @@ declared_c_name(
                 error,
                 error_capacity,
                 "generated hierarchy child prefix is too long");
-
             return false;
         }
 
@@ -7950,7 +7932,6 @@ declared_c_name(
                 error,
                 error_capacity,
                 "generated hierarchy child expression is too long");
-
             return false;
         }
 
@@ -7963,18 +7944,14 @@ declared_c_name(
 
         if (!emit_struct_value_expression(
                 output,
-                document,
-
+                ctx->document,
                 base_snake,
-
                 candidate,
                 child_expression,
                 child_prefix,
                 true,
                 depth + 1u,
-
                 runtime_depth,
-
                 error,
                 error_capacity)) {
 
@@ -8004,6 +7981,36 @@ declared_c_name(
 
     return true;
 }
+
+
+static bool emit_hierarchy_expression(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *base_snake,
+    const adsl_type_t *static_type,
+    const char *expression,
+    const char *prefix,
+    bool reference_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_hierarchy_expression_ctx(
+        output,
+        &ctx,
+        base_snake,
+        static_type,
+        expression,
+        prefix,
+        reference_pointer,
+        depth,
+        runtime_depth,
+        error,
+        error_capacity);
+}
+
 
 static bool emit_all_struct_dependencies(
 
