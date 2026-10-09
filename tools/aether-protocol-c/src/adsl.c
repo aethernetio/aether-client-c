@@ -6016,12 +6016,38 @@ const adsl_registry_entry_t *adsl_type_registry_find(
  *     simple name of two entries with different (source_path, name).
  */
 
+
 typedef struct {
+    /*
+     * Physical identity of the declaration (path of the file that
+     * literally contains it, plus the type name). Used for
+     * deduplication across include chains, for the double registration
+     * of types[]/resolved_types[] from the same root, and for
+     * diagnostics.
+     */
     char *source_path;
     char *name;
     char *lowercase_name;
     const adsl_type_t *declaration;
+
+    /*
+     * Root document whose closure contains this declaration and whose
+     * generated C module owns the module-prefixed symbols
+     * ("<owner>_serialize_<type>", "<owner>_deserialize_<type>",
+     * "<owner>_tiered_int_limits", ...).
+     *
+     * For a type declared directly in a root document this equals the
+     * root's own path. For a type reached through an include it equals
+     * the path of the single root document that pulled the file in.
+     *
+     * If two roots include the same physical file, both would claim
+     * ownership of the same declaration; that is rejected at build
+     * time as ambiguous C module ownership, so at most one owner root
+     * is ever recorded per (source_path, name).
+     */
+    char *owner_root_path;
 } adsl_global_type_entry_t;
+
 
 typedef struct {
     adsl_global_type_entry_t *entries;
@@ -6046,9 +6072,12 @@ static void adsl_global_type_index_free(
     }
 
     for (size_t i = 0u; i < index->entry_count; ++i) {
+
         free(index->entries[i].source_path);
+        free(index->entries[i].owner_root_path);
         free(index->entries[i].name);
         free(index->entries[i].lowercase_name);
+
     }
 
     free(index->entries);
@@ -6607,9 +6636,11 @@ static const adsl_global_type_entry_t *adsl_global_type_index_find_lowercase(
 }
 
 
+
 static bool adsl_global_type_index_add(
     adsl_global_type_index_t *index,
     const char *source_path,
+    const char *owner_root_path,
     const char *name,
     const adsl_type_t *declaration,
     char *error,
@@ -6620,19 +6651,25 @@ static bool adsl_global_type_index_add(
         return false;
     }
 
-
+    /*
+     * A physical declaration is identified by (source_path, name): the
+     * file that literally contains it and the declared name. Two
+     * registrations with that pair refer to the same declaration -- for
+     * example the same root document contributing through both
+     * types[] and resolved_types[], or an include chain reached twice.
+     *
+     * Such duplicates are fine, but only when both registrations agree
+     * on the owner root. A type reached through closures of two
+     * different roots cannot be assigned to one generated C module: the
+     * ownership of its module-prefixed symbols would be ambiguous. That
+     * is a hard error here, so callers never silently pick the first
+     * document.
+     */
     const adsl_global_type_entry_t *existing =
         adsl_global_type_index_find_identity(index, source_path, name);
 
     if (existing != NULL) {
 
-        /*
-         * Physical identity invariant: a given (source_path, name) pair
-         * must always correspond to one and only one declaration. If a
-         * copy of the same declaration differs in structure, the merge
-         * or deep-copy path has been broken and the project context can
-         * no longer be trusted.
-         */
         if (!adsl_same_type_definition(existing->declaration, declaration)) {
             set_error(
                 error,
@@ -6643,8 +6680,37 @@ static bool adsl_global_type_index_add(
             return false;
         }
 
+        if (!adsl_strings_equal_or_both_null(
+                existing->owner_root_path, owner_root_path)) {
+
+            char message[768];
+            (void)snprintf(
+                message,
+                sizeof(message),
+
+                "ambiguous C module ownership for type '%s': "
+                "owned by root '%s' (source '%s') and root '%s' (source '%s')",
+                name,
+                existing->owner_root_path != NULL
+                    ? existing->owner_root_path
+                    : "<unknown>",
+                existing->source_path != NULL
+                    ? existing->source_path
+                    : "<unknown>",
+                owner_root_path != NULL
+                    ? owner_root_path
+                    : "<unknown>",
+                source_path != NULL
+                    ? source_path
+                    : "<unknown>");
+
+            set_error(error, error_capacity, message);
+            return false;
+        }
+
         return true;
     }
+
 
 
     char *lowercase = adsl_ascii_lowercase_copy(name);
@@ -6690,16 +6756,22 @@ static bool adsl_global_type_index_add(
 
     memset(entry, 0, sizeof(*entry));
 
+
     entry->source_path = copy_string(source_path);
+    entry->owner_root_path = copy_string(owner_root_path);
     entry->name = copy_string(name);
     entry->lowercase_name = lowercase;
     entry->declaration = declaration;
 
     if ((source_path != NULL && entry->source_path == NULL) ||
+        (owner_root_path != NULL && entry->owner_root_path == NULL) ||
         entry->name == NULL) {
 
         free(entry->source_path);
+        free(entry->owner_root_path);
         free(entry->name);
+        free(entry->lowercase_name);
+
         free(entry->lowercase_name);
 
         memset(entry, 0, sizeof(*entry));
@@ -6725,6 +6797,17 @@ static bool adsl_global_type_index_register_types(
     for (size_t i = 0u; i < type_count; ++i) {
         const adsl_type_t *type = &types[i];
 
+
+        /*
+         * Physical origin (for identity and diagnostics): the file
+         * that literally contains the declaration, or the fallback
+         * when the declaration was materialized inline (for example a
+         * synthesized entry).
+         *
+         * Owner root (for C symbol naming): always the root document
+         * whose closure we are currently walking. See the field
+         * comment on adsl_global_type_entry_t.owner_root_path.
+         */
         const char *source_path =
             type->source_path != NULL
                 ? type->source_path
@@ -6733,12 +6816,14 @@ static bool adsl_global_type_index_register_types(
         if (!adsl_global_type_index_add(
                 index,
                 source_path,
+                fallback_source_path,
                 type->name,
                 type,
                 error,
                 error_capacity)) {
             return false;
         }
+
     }
 
     return true;
@@ -7625,7 +7710,11 @@ const char *adsl_project_resolver_type_source(
         const adsl_global_type_entry_t *entry =
             &resolver->types.entries[i];
         if (entry->declaration == type) {
-            return entry->source_path;
+
+            return entry->owner_root_path != NULL
+                ? entry->owner_root_path
+                : entry->source_path;
+
         }
     }
 

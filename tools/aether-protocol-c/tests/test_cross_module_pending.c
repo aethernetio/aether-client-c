@@ -99,8 +99,12 @@ static void pending_res_001_cross_file_without_include(void) {
         paths, 2u, include_paths, 1u,
         &project, error, sizeof(error)));
 
-    /* Project-level validation must accept this project. */
+
+
+/* Project-level validation must accept this project. */
     assert(adsl_project_validate(&project, error, sizeof(error)));
+
+
 
 
 
@@ -229,44 +233,43 @@ static void pending_res_003_resolution_order_independent(void) {
 }
 
 
-/* PENDING_API: include-only declarations must enter the global namespace. */
+
+/*
+ * PENDING_API: include-only declarations must enter the global
+ * namespace of the single root that pulled them in.
+ *
+ * The project has exactly one root (ClientServerApi.adsl.yaml). Its
+ * include chain reaches common.adsl.yaml, which declares Key. Key is
+ * used by ClientHello without a local declaration, so validation must
+ * resolve it through the root's closure. Under policy B ownership of
+ * Key belongs to that single root.
+ */
 static void pending_include_only_declaration_resolves(void) {
     char dir[1024];
+    char root_path[1024];
+
     fixture_path("registry_project_include", dir, sizeof(dir));
+    fixture_path(
+        "registry_project_include/ClientServerApi.adsl.yaml",
+        root_path, sizeof(root_path));
 
     const char *include_paths[] = { dir };
-
-    char **files = NULL;
-    size_t file_count = 0u;
-
-    char error[512] = {0};
-
-    assert(adsl_find_files(
-        include_paths, 1u, &files, &file_count, error, sizeof(error)));
-    assert(file_count == 2u);
+    const char *paths[] = { root_path };
 
     adsl_project_t project;
     adsl_project_init(&project);
 
-    assert(adsl_project_load_files(
-        (const char *const *)files, file_count,
-        include_paths, 1u, &project, error, sizeof(error)));
+    char error[512] = {0};
 
-    /*
-     * Key is declared only in common.adsl.yaml, which is loaded through
-     * ClientServerApi.adsl.yaml's include. ClientHello references it
-     * cross-file. Validation must resolve this through the global
-     * namespace and not through ClientServerApi's own include scope.
-     */
+    assert(adsl_project_load_files(
+        paths, 1u, include_paths, 1u,
+        &project, error, sizeof(error)));
+
     assert(adsl_project_validate(&project, error, sizeof(error)));
 
     adsl_project_free(&project);
-
-    for (size_t i = 0u; i < file_count; ++i) {
-        free(files[i]);
-    }
-    free(files);
 }
+
 
 /* PENDING_API: arrays and nullable with cross-file types. */
 static void pending_cross_file_array_and_nullable(void) {
@@ -1058,7 +1061,50 @@ static void pending_type_owner_lookup(void) {
 }
 
 
+
+/*
+ * B2.4.1: two roots whose closures both contain the same physical
+ * declaration must be rejected. The owner of the module-prefixed C
+ * symbols would be ambiguous: both roots would want to emit
+ * "<owner>_serialize_Key" and friends.
+ */
+static void pending_two_roots_common_include_rejected(void) {
+    char dir[1024];
+    char a_path[1024];
+    char b_path[1024];
+
+    fixture_path("registry_project_include", dir, sizeof(dir));
+    fixture_path(
+        "registry_project_include/ClientServerApi.adsl.yaml",
+        a_path, sizeof(a_path));
+    fixture_path(
+        "registry_project_include/common.adsl.yaml",
+        b_path, sizeof(b_path));
+
+    const char *include_paths[] = { dir };
+    const char *paths[] = { a_path, b_path };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    char error[512] = {0};
+
+    assert(adsl_project_load_files(
+        paths, 2u, include_paths, 1u,
+        &project, error, sizeof(error)));
+
+    error[0] = '\0';
+    assert(!adsl_project_validate(&project, error, sizeof(error)));
+    assert(error[0] != '\0');
+    assert(strstr(error, "ambiguous C module ownership") != NULL);
+    assert(strstr(error, "Key") != NULL);
+
+    adsl_project_free(&project);
+}
+
+
 int main(void) {
+
 
 
     pending_res_001_cross_file_without_include();
@@ -1066,7 +1112,10 @@ int main(void) {
     pending_res_004_project_validate_rejects_collision();
     pending_res_005_project_validate_rejects_case_collision();
 
+
     pending_include_only_declaration_resolves();
+    pending_two_roots_common_include_rejected();
+
     pending_cross_file_array_and_nullable();
     pending_cross_file_stream_key();
     pending_project_validate_is_const();
