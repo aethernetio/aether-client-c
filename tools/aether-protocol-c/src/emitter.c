@@ -178,6 +178,44 @@ static void snake_name(
 }
 
 
+
+/*
+ * Emitter context.
+ *
+ * Threads the two pieces of state an emitter call needs when it must
+ * resolve a user type or API:
+ *
+ *   - document: the document being emitted. Enumeration of what to
+ *     generate always uses this document (its own types[]/apis[] in
+ *     project mode, or its resolved_types[]/resolved_apis[] in
+ *     standalone mode).
+ *
+ *   - resolver: NULL in standalone mode, in which case every lookup
+ *     falls back to the document's include closure (the historical
+ *     behaviour). Non-NULL in project mode, in which case every
+ *     lookup goes through the project-global resolver shared with
+ *     adsl_project_validate().
+ *
+ * There is no global mutable state. A context is created on the stack
+ * and passed by pointer (or by value where convenient).
+ */
+typedef struct {
+    const adsl_document_t *document;
+    const adsl_project_resolver_t *resolver;
+} emitter_ctx_t;
+
+
+static emitter_ctx_t emitter_ctx_standalone(
+    const adsl_document_t *document) {
+
+    emitter_ctx_t ctx;
+    ctx.document = document;
+    ctx.resolver = NULL;
+    return ctx;
+}
+
+
+
 /*
  * Generated C identifiers must not collide with C keywords. ADSL method
  * names are protocol names and must not be renamed, so the C target only
@@ -1646,7 +1684,7 @@ declared_c_name(
 }
 
 
-static const adsl_type_t *find_declared_type(
+static const adsl_type_t *find_declared_type_doc(
     const adsl_document_t *document,
     const char *name) {
 
@@ -1701,6 +1739,48 @@ static const adsl_type_t *find_declared_type(
 
     return NULL;
 }
+
+
+
+/*
+ * Context-aware variant of find_declared_type_doc().
+ *
+ * Project mode (resolver != NULL) resolves the name through the shared
+ * project resolver so that cross-document references match what
+ * adsl_project_validate() accepted. Standalone mode preserves the
+ * historical case-insensitive scan of the document's include closure.
+ */
+static const adsl_type_t *find_declared_type_ctx(
+    const emitter_ctx_t *ctx,
+    const char *name) {
+
+    if (ctx == NULL || ctx->document == NULL || name == NULL) {
+        return NULL;
+    }
+
+    if (ctx->resolver != NULL) {
+        return adsl_project_resolver_type(ctx->resolver, name);
+    }
+
+    return find_declared_type_doc(ctx->document, name);
+}
+
+
+/*
+ * Public-in-file wrapper preserved for standalone callers.
+ *
+ * Behaves exactly like the historical find_declared_type(): a
+ * case-insensitive lookup in the document's include closure. Project
+ * callers use find_declared_type_ctx() with a resolver instead.
+ */
+static const adsl_type_t *find_declared_type(
+    const adsl_document_t *document,
+    const char *name) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return find_declared_type_ctx(&ctx, name);
+}
+
 
 static bool emit_fixed_expression(
     FILE *output,
@@ -3345,7 +3425,8 @@ static bool emit_types_source(
 
 
 
-static const adsl_api_t *find_api_definition(
+
+static const adsl_api_t *find_api_definition_doc(
     const adsl_document_t *document,
     const char *name) {
 
@@ -3372,6 +3453,43 @@ static const adsl_api_t *find_api_definition(
 
 
 /*
+ * Context-aware variant of find_api_definition_doc().
+ *
+ * Project mode (resolver != NULL) resolves the API through the shared
+ * project resolver so that cross-document API inheritance matches what
+ * adsl_project_validate() accepted. Standalone mode preserves the
+ * historical include-closure lookup.
+ */
+static const adsl_api_t *find_api_definition_ctx(
+    const emitter_ctx_t *ctx,
+    const char *name) {
+
+    if (ctx == NULL || ctx->document == NULL || name == NULL) {
+        return NULL;
+    }
+
+    if (ctx->resolver != NULL) {
+        return adsl_project_resolver_api(ctx->resolver, name);
+    }
+
+    return find_api_definition_doc(ctx->document, name);
+}
+
+
+/*
+ * Public-in-file wrapper preserved for standalone callers.
+ */
+static const adsl_api_t *find_api_definition(
+    const adsl_document_t *document,
+    const char *name) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return find_api_definition_ctx(&ctx, name);
+}
+
+
+
+/*
  * Emitter-side wrapper around adsl_collect_effective_methods.
  *
  * All API iteration sites use this so a child API flattens its parents'
@@ -3383,7 +3501,8 @@ static const adsl_api_t *find_api_definition(
  * abort generation. On success *out_methods is heap-allocated and must be
  * released with free(); a zero count returns *out_methods == NULL.
  */
-static bool emitter_collect_effective(
+
+static bool emitter_collect_effective_doc(
     const adsl_document_t *document,
     const adsl_api_t *api,
     adsl_effective_method_t **out_methods,
@@ -3399,6 +3518,70 @@ static bool emitter_collect_effective(
         error,
         error_capacity);
 }
+
+
+/*
+ * Context-aware variant of emitter_collect_effective_doc().
+ *
+ * Project mode uses the project-scoped effective method collector so
+ * that parent API lookup is global and the resulting method order and
+ * wire ids match adsl_project_validate(). Standalone mode preserves the
+ * per-document collector.
+ */
+static bool emitter_collect_effective_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "selected API not found");
+        return false;
+    }
+
+    if (ctx->resolver != NULL) {
+        return adsl_project_resolver_collect_effective(
+            ctx->resolver,
+            api,
+            out_methods,
+            out_count,
+            error,
+            error_capacity);
+    }
+
+    return emitter_collect_effective_doc(
+        ctx->document,
+        api,
+        out_methods,
+        out_count,
+        error,
+        error_capacity);
+}
+
+
+/*
+ * Public-in-file wrapper preserved for standalone callers.
+ */
+static bool emitter_collect_effective(
+    const adsl_document_t *document,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emitter_collect_effective_ctx(
+        &ctx,
+        api,
+        out_methods,
+        out_count,
+        error,
+        error_capacity);
+}
+
 
 
 /*
