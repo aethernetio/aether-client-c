@@ -483,6 +483,7 @@ static void pending_global_api_collision_rejected(void) {
 
 
 
+
 /* PENDING_API: emission plan validation. */
 static void pending_emission_plan_validation(void) {
     char a_path[1024];
@@ -519,36 +520,102 @@ static void pending_emission_plan_validation(void) {
     plan.modules = modules;
     plan.module_count = 2u;
 
+    /* Empty plan is rejected as empty. */
     adsl_emission_plan_t empty_plan = {0};
     error[0] = '\0';
     assert(!adsl_emit_c_project(
         &project, &empty_plan, 0u,
         ADSL_TEST_OUTPUT_DIR, "A_uses_item",
         error, sizeof(error)));
-    assert(error[0] != '\0');
+    assert(strstr(error, "empty") != NULL);
 
+    /* base_name mismatch for the current document is rejected. */
     error[0] = '\0';
     assert(!adsl_emit_c_project(
         &project, &plan, 0u,
         ADSL_TEST_OUTPUT_DIR, "wrong_name",
         error, sizeof(error)));
-    assert(error[0] != '\0');
+    assert(strstr(error, "does not match emission plan") != NULL);
 
+    /* Document index out of range is rejected. */
     error[0] = '\0';
     assert(!adsl_emit_c_project(
         &project, &plan, 99u,
         ADSL_TEST_OUTPUT_DIR, "A_uses_item",
         error, sizeof(error)));
-    assert(error[0] != '\0');
+    assert(strstr(error, "out of range") != NULL);
 
+    /* Empty base_name argument is rejected. */
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "",
+        error, sizeof(error)));
+    assert(strstr(error, "invalid project emitter arguments") != NULL);
+
+    /*
+     * A valid plan must pass every structural check and reach the
+     * temporary "not yet wired" step. Asserting the specific diagnostic
+     * prevents false positives from unrelated structural failures.
+     */
     error[0] = '\0';
     bool emitted = adsl_emit_c_project(
         &project, &plan, 0u,
         ADSL_TEST_OUTPUT_DIR, "A_uses_item",
         error, sizeof(error));
     assert(!emitted);
-    assert(error[0] != '\0');
+    assert(strstr(error, "not yet wired") != NULL);
 
+    /* Plan with a missing entry for one document is rejected. */
+    adsl_emission_module_t incomplete[1];
+    incomplete[0].source_path = project.documents[0].root_source_path;
+    incomplete[0].base_name = "A_uses_item";
+    adsl_emission_plan_t incomplete_plan;
+    incomplete_plan.modules = incomplete;
+    incomplete_plan.module_count = 1u;
+
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &incomplete_plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
+        error, sizeof(error)));
+    assert(strstr(error, "entries") != NULL);
+
+    /* Plan with an unknown source_path is rejected. */
+    adsl_emission_module_t unknown[2];
+    unknown[0].source_path = project.documents[0].root_source_path;
+    unknown[0].base_name = "A_uses_item";
+    unknown[1].source_path = "/nonexistent/path.adsl.yaml";
+    unknown[1].base_name = "B_defines_item";
+    adsl_emission_plan_t unknown_plan;
+    unknown_plan.modules = unknown;
+    unknown_plan.module_count = 2u;
+
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &unknown_plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
+        error, sizeof(error)));
+    assert(strstr(error, "does not match any project document") != NULL);
+
+    /* Plan entry with empty source_path is rejected. */
+    adsl_emission_module_t blank[2];
+    blank[0].source_path = project.documents[0].root_source_path;
+    blank[0].base_name = "A_uses_item";
+    blank[1].source_path = "";
+    blank[1].base_name = "B_defines_item";
+    adsl_emission_plan_t blank_plan;
+    blank_plan.modules = blank;
+    blank_plan.module_count = 2u;
+
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &blank_plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
+        error, sizeof(error)));
+    assert(strstr(error, "empty source_path or base_name") != NULL);
+
+    /* Colliding module names after snake_name are rejected. */
     adsl_emission_module_t colliding[2];
     colliding[0].source_path = project.documents[0].root_source_path;
     colliding[0].base_name = "SameName";
@@ -563,10 +630,37 @@ static void pending_emission_plan_validation(void) {
         &project, &colliding_plan, 0u,
         ADSL_TEST_OUTPUT_DIR, "SameName",
         error, sizeof(error)));
-    assert(error[0] != '\0');
+    assert(strstr(error, "colliding module names") != NULL);
+
+    /*
+     * Two base_names long enough to overflow the snake_name buffer are
+     * rejected before any collision check, so a truncated filename
+     * cannot silently pass validation.
+     */
+    adsl_emission_module_t too_long[2];
+    too_long[0].source_path = project.documents[0].root_source_path;
+    too_long[0].base_name =
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    too_long[1].source_path = project.documents[1].root_source_path;
+    too_long[1].base_name = "B_defines_item";
+    adsl_emission_plan_t too_long_plan;
+    too_long_plan.modules = too_long;
+    too_long_plan.module_count = 2u;
+
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &too_long_plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, too_long[0].base_name,
+        error, sizeof(error)));
+    assert(strstr(error, "cannot be normalized") != NULL);
 
     adsl_project_free(&project);
 }
+
 
 
 int main(void) {

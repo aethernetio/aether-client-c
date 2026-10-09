@@ -6040,6 +6040,51 @@ bool adsl_emit_c(
 
 
 
+
+/*
+ * Project-mode safe variant of snake_name().
+ *
+ * snake_name() is a void function that silently truncates on overflow,
+ * so a truncated name is indistinguishable from a legitimate short one.
+ * For the project emitter we require that the source name can be
+ * normalized without truncation and that the result is non-empty;
+ * otherwise two distinct base_names could collide or a generated
+ * filename could be silently wrong. The maximum expansion is two bytes
+ * per source byte (an uppercase letter emits '_' plus its lowercase),
+ * plus the terminating NUL.
+ */
+static bool safe_snake_name(
+    const char *source,
+    char *target,
+    size_t capacity) {
+
+    if (source == NULL || target == NULL || capacity == 0u) {
+        return false;
+    }
+
+    if (source[0] == '\0') {
+        target[0] = '\0';
+        return false;
+    }
+
+    size_t source_length = strlen(source);
+
+    if (source_length == 0u ||
+        source_length > (capacity - 1u) / 2u) {
+        return false;
+    }
+
+    snake_name(source, target, capacity);
+
+    if (target[0] == '\0') {
+        return false;
+    }
+
+    return true;
+}
+
+
+
 /*
  * Project emitter (ТЗ №4-Б2.2).
  *
@@ -6061,10 +6106,14 @@ bool adsl_emit_c_project(
     char *error,
     size_t error_capacity) {
 
+
     if (project == NULL ||
         plan == NULL ||
         output_directory == NULL ||
-        base_name == NULL) {
+        base_name == NULL ||
+        output_directory[0] == '\0' ||
+        base_name[0] == '\0') {
+
 
         set_error(error, error_capacity, "invalid project emitter arguments");
         return false;
@@ -6082,35 +6131,53 @@ bool adsl_emit_c_project(
         return false;
     }
 
+
     if (plan->modules == NULL || plan->module_count == 0u) {
         set_error(error, error_capacity, "emission plan is empty");
         return false;
     }
 
+    if (plan->module_count != project->document_count) {
+        char message[256];
+        (void)snprintf(
+            message,
+            sizeof(message),
+            "emission plan has %zu entries but project has %zu documents",
+            plan->module_count,
+            project->document_count);
+        set_error(error, error_capacity, message);
+        return false;
+    }
+
+
+
     for (size_t m = 0u; m < plan->module_count; ++m) {
         if (plan->modules[m].source_path == NULL ||
-            plan->modules[m].base_name == NULL) {
+            plan->modules[m].source_path[0] == '\0' ||
+            plan->modules[m].base_name == NULL ||
+            plan->modules[m].base_name[0] == '\0') {
             char message[256];
             (void)snprintf(
                 message,
                 sizeof(message),
-                "emission plan entry %zu is missing source_path or base_name",
+                "emission plan entry %zu has empty source_path or base_name",
                 m);
             set_error(error, error_capacity, message);
             return false;
         }
 
-        bool matched = false;
+
+
+        size_t matches = 0u;
         for (size_t d = 0u; d < project->document_count; ++d) {
             const char *sp = project->documents[d].root_source_path;
             if (sp != NULL &&
                 strcmp(plan->modules[m].source_path, sp) == 0) {
-                matched = true;
-                break;
+                matches++;
             }
         }
 
-        if (!matched) {
+        if (matches == 0u) {
             char message[256];
             (void)snprintf(
                 message,
@@ -6120,12 +6187,25 @@ bool adsl_emit_c_project(
             set_error(error, error_capacity, message);
             return false;
         }
+
+        if (matches > 1u) {
+            char message[256];
+            (void)snprintf(
+                message,
+                sizeof(message),
+                "emission plan entry '%s' matches multiple project documents",
+                plan->modules[m].source_path);
+            set_error(error, error_capacity, message);
+            return false;
+        }
+
     }
 
     for (size_t d = 0u; d < project->document_count; ++d) {
         const char *sp = project->documents[d].root_source_path;
 
-        if (sp == NULL) {
+
+        if (sp == NULL || sp[0] == '\0') {
             char message[256];
             (void)snprintf(
                 message,
@@ -6136,6 +6216,21 @@ bool adsl_emit_c_project(
             return false;
         }
 
+        for (size_t other = d + 1u; other < project->document_count; ++other) {
+            const char *other_sp = project->documents[other].root_source_path;
+            if (other_sp != NULL && strcmp(sp, other_sp) == 0) {
+                char message[256];
+                (void)snprintf(
+                    message,
+                    sizeof(message),
+                    "project documents %zu and %zu share root_source_path '%s'",
+                    d, other, sp);
+                set_error(error, error_capacity, message);
+                return false;
+            }
+        }
+
+
         size_t found = 0u;
         for (size_t m = 0u; m < plan->module_count; ++m) {
             if (strcmp(plan->modules[m].source_path, sp) == 0) {
@@ -6143,27 +6238,18 @@ bool adsl_emit_c_project(
             }
         }
 
-        if (found == 0u) {
+
+        if (found != 1u) {
             char message[256];
             (void)snprintf(
                 message,
                 sizeof(message),
-                "emission plan has no entry for document '%s'",
-                sp);
+                "emission plan has %zu entries for document '%s' (expected 1)",
+                found, sp);
             set_error(error, error_capacity, message);
             return false;
         }
 
-        if (found > 1u) {
-            char message[256];
-            (void)snprintf(
-                message,
-                sizeof(message),
-                "emission plan has duplicate entries for document '%s'",
-                sp);
-            set_error(error, error_capacity, message);
-            return false;
-        }
     }
 
     const char *expected_base_name = NULL;
@@ -6190,39 +6276,56 @@ bool adsl_emit_c_project(
         return false;
     }
 
-    enum { MAX_PLAN_MODULES = 64 };
-    char names[MAX_PLAN_MODULES][256];
-    size_t names_count = 0u;
 
-    for (size_t m = 0u; m < plan->module_count; ++m) {
-        if (names_count >= MAX_PLAN_MODULES) {
-            set_error(
-                error,
-                error_capacity,
-                "too many modules in emission plan");
+    for (size_t i = 0u; i < plan->module_count; ++i) {
+        char snake_i[256];
+
+        if (!safe_snake_name(
+                plan->modules[i].base_name,
+                snake_i,
+                sizeof(snake_i))) {
+
+            char message[512];
+            (void)snprintf(
+                message,
+                sizeof(message),
+                "emission plan base_name '%s' cannot be normalized to a unique generated filename",
+                plan->modules[i].base_name);
+            set_error(error, error_capacity, message);
             return false;
         }
 
-        char snake[256];
-        snake_name(plan->modules[m].base_name, snake, sizeof(snake));
+        for (size_t j = i + 1u; j < plan->module_count; ++j) {
+            char snake_j[256];
 
-        for (size_t i = 0u; i < names_count; ++i) {
-            if (strcmp(names[i], snake) == 0) {
+            if (!safe_snake_name(
+                    plan->modules[j].base_name,
+                    snake_j,
+                    sizeof(snake_j))) {
+
+                char message[512];
+                (void)snprintf(
+                    message,
+                    sizeof(message),
+                    "emission plan base_name '%s' cannot be normalized to a unique generated filename",
+                    plan->modules[j].base_name);
+                set_error(error, error_capacity, message);
+                return false;
+            }
+
+            if (strcmp(snake_i, snake_j) == 0) {
                 char message[512];
                 (void)snprintf(
                     message,
                     sizeof(message),
                     "emission plan has colliding module names after normalization: '%s'",
-                    snake);
+                    snake_i);
                 set_error(error, error_capacity, message);
                 return false;
             }
         }
-
-        (void)snprintf(names[names_count], sizeof(names[names_count]),
-                       "%s", snake);
-        names_count++;
     }
+
 
     adsl_project_resolver_t *resolver = NULL;
 
