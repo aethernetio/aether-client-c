@@ -619,10 +619,8 @@ static bool type_is_polymorphic_reference(
     const adsl_document_t *document,
     const adsl_type_t *type);
 
-static bool type_is_descendant_or_self(
-    const adsl_document_t *document,
-    const adsl_type_t *candidate,
-    const adsl_type_t *ancestor);
+
+
 
 
 static bool type_has_children_ctx(
@@ -1385,57 +1383,75 @@ static bool emit_struct_value_expression(
 
 
 
-static bool emit_decode_value_expression(
+
+static bool emit_decode_value_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
 
-static bool emit_decode_struct_fields(
+
+
+
+static bool emit_decode_struct_fields_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
 
-static bool emit_decode_hierarchy_expression(
+
+
+
+static bool emit_decode_hierarchy_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *static_type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
 
-static bool emit_decode_array_expression(
+
+
+
+static bool emit_decode_array_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
+
+
+
+
+static bool emit_decode_struct_fields_recursive_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type,
+    const char *target,
+    const char *base_snake,
+    size_t *bit_index,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity);
+
 
 
 
@@ -3448,11 +3464,12 @@ static bool emit_types_source_ctx(
 
         bool decoded;
 
+
         if (hierarchy) {
             decoded =
-                emit_decode_hierarchy_expression(
+                emit_decode_hierarchy_expression_ctx(
                     output,
-                    ctx->document,
+                    ctx,
                     type,
                     "(*value)",
                     base_snake,
@@ -3460,11 +3477,13 @@ static bool emit_types_source_ctx(
                     "recursion_depth",
                     error,
                     error_capacity);
+
         } else {
+
             decoded =
-                emit_decode_struct_fields(
+                emit_decode_struct_fields_ctx(
                     output,
-                    ctx->document,
+                    ctx,
                     type,
                     "value",
                     base_snake,
@@ -3472,6 +3491,7 @@ static bool emit_types_source_ctx(
                     "recursion_depth",
                     error,
                     error_capacity);
+
         }
 
         if (!decoded) {
@@ -7593,14 +7613,8 @@ static bool type_is_descendant_or_self_ctx(
 }
 
 
-static bool type_is_descendant_or_self(
-    const adsl_document_t *document,
-    const adsl_type_t *candidate,
-    const adsl_type_t *ancestor) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return type_is_descendant_or_self_ctx(&ctx, candidate, ancestor);
-}
+
 
 
 
@@ -8510,18 +8524,8 @@ static bool count_all_nullable_fields_ctx(
 }
 
 
-static bool count_all_nullable_fields(
-    const adsl_document_t *document,
-    const adsl_type_t *type,
-    unsigned int depth,
-    size_t *count,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return count_all_nullable_fields_ctx(
-        &ctx, type, depth, count, error, error_capacity);
-}
+
 
 
 
@@ -9286,11 +9290,13 @@ static bool emit_local_param_decode(
             return false;
         }
 
-        if (!emit_decode_value_expression(
+
+        if (!emit_decode_value_expression_ctx(
                 output,
-                document,
+                &(emitter_ctx_t){ .document = document, .resolver = NULL },
                 cleaned,
                 target,
+
                 base_snake,
                 0u,
 
@@ -9381,9 +9387,11 @@ static bool emit_local_param_decode(
         if (array_dynamic) {
             fprintf(output, "        %s %s = {0};\n", alias, param->name);
 
-            if (!emit_decode_value_expression(
+
+            if (!emit_decode_value_expression_ctx(
                     output,
-                    document,
+                    &(emitter_ctx_t){ .document = document, .resolver = NULL },
+
                     type,
                     param->name,
                     base_snake,
@@ -9435,9 +9443,11 @@ static bool emit_local_param_decode(
             return false;
         }
 
-        if (!emit_decode_value_expression(
+
+        if (!emit_decode_value_expression_ctx(
                 output,
-                document,
+                &(emitter_ctx_t){ .document = document, .resolver = NULL },
+
                 type,
                 array_target,
                 base_snake,
@@ -9470,9 +9480,11 @@ static bool emit_local_param_decode(
             primitive,
             param->name);
 
-        if (!emit_decode_value_expression(
+
+        if (!emit_decode_value_expression_ctx(
                 output,
-                document,
+                &(emitter_ctx_t){ .document = document, .resolver = NULL },
+
                 type,
                 param->name,
                 base_snake,
@@ -9589,9 +9601,11 @@ static bool emit_local_param_decode(
             return false;
         }
 
-        if (!emit_decode_value_expression(
+
+        if (!emit_decode_value_expression_ctx(
                 output,
-                document,
+                &(emitter_ctx_t){ .document = document, .resolver = NULL },
+
                 type,
                 struct_target,
                 base_snake,
@@ -9608,9 +9622,11 @@ static bool emit_local_param_decode(
     }
 
 
-    if (!emit_decode_value_expression(
+
+    if (!emit_decode_value_expression_ctx(
             output,
-            document,
+            &(emitter_ctx_t){ .document = document, .resolver = NULL },
+
             type,
             param->name,
             base_snake,
@@ -10580,9 +10596,11 @@ static bool emit_response_method_source(
 
     if (method->throws_type != NULL) {
         ok =
-            emit_decode_value_expression(
+
+            emit_decode_value_expression_ctx(
                 output,
-                document,
+                &(emitter_ctx_t){ .document = document, .resolver = NULL },
+
                 method->throws_type,
                 "frame->error.value",
                 base_snake,
@@ -10625,19 +10643,18 @@ static bool emit_response_method_source(
         ok = true;
 
     } else if (method->returns_type != NULL) {
-        ok = emit_decode_value_expression(
-            output,
-            document,
-            method->returns_type,
 
+        ok = emit_decode_value_expression_ctx(
+            output,
+            &(emitter_ctx_t){ .document = document, .resolver = NULL },
+            method->returns_type,
             "frame->result.value",
             base_snake,
             0u,
-
             NULL,
-
             error,
             error_capacity);
+
     } else {
 
         adsl_type_t synthetic = {
@@ -10646,16 +10663,18 @@ static bool emit_response_method_source(
         };
 
 
-        ok = emit_decode_struct_fields(
+
+        ok = emit_decode_struct_fields_ctx(
             output,
-            document,
+            &(emitter_ctx_t){ .document = document, .resolver = NULL },
             &synthetic,
             "(&frame->result)",
             base_snake,
             0u,
-NULL,
+            NULL,
             error,
             error_capacity);
+
     }
 
     if (ok) {
@@ -10799,17 +10818,23 @@ bool adsl_emit_c_response_method(
  * parallel type-support matrix.
  */
 
-static bool emit_decode_struct_fields_recursive(
+
+static bool emit_decode_struct_fields_recursive_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     const char *target,
     const char *base_snake,
     size_t *bit_index,
     unsigned int depth,
-const char *runtime_depth,
+    const char *runtime_depth,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid decode struct fields context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
@@ -10821,7 +10846,7 @@ const char *runtime_depth,
 
     if (type->parent != NULL) {
         const adsl_type_t *parent =
-            find_declared_type(document, type->parent);
+            find_declared_type_ctx(ctx, type->parent);
 
         if (parent == NULL) {
             set_error(
@@ -10831,15 +10856,15 @@ const char *runtime_depth,
             return false;
         }
 
-        if (!emit_decode_struct_fields_recursive(
+        if (!emit_decode_struct_fields_recursive_ctx(
                 output,
-                document,
+                ctx,
                 parent,
                 target,
                 base_snake,
                 bit_index,
                 depth + 1u,
-runtime_depth,
+                runtime_depth,
                 error,
                 error_capacity)) {
             return false;
@@ -10848,7 +10873,6 @@ runtime_depth,
 
     for (size_t f = 0u; f < type->field_count; ++f) {
         const adsl_field_t *field = &type->fields[f];
-
 
         bool nullable =
             strchr(field->type, '?') != NULL;
@@ -10873,14 +10897,14 @@ runtime_depth,
         }
 
         if (!nullable) {
-            if (!emit_decode_value_expression(
+            if (!emit_decode_value_expression_ctx(
                     output,
-                    document,
+                    ctx,
                     field->type,
                     field_target,
                     base_snake,
                     depth + 1u,
-runtime_depth,
+                    runtime_depth,
                     error,
                     error_capacity)) {
                 return false;
@@ -10927,8 +10951,8 @@ runtime_depth,
         char ctype_buf[272];
 
         if (field_is_array) {
-            if (!array_alias_name(
-                    document,
+            if (!array_alias_name_ctx(
+                    ctx,
                     underlying,
                     ctype_buf,
                     sizeof(ctype_buf))) {
@@ -10958,7 +10982,7 @@ runtime_depth,
 
             if (ctype == NULL) {
                 const adsl_type_t *declared =
-                    find_declared_type(document, base);
+                    find_declared_type_ctx(ctx, base);
 
                 if (declared == NULL) {
                     set_error(
@@ -10981,9 +11005,7 @@ runtime_depth,
                         "%s_t",
                         declared_name);
                     ctype = ctype_buf;
-                } else if (type_is_polymorphic_reference(
-                               document,
-                               declared)) {
+                } else if (type_is_polymorphic_reference_ctx(ctx, declared)) {
                     snprintf(
                         ctype_buf,
                         sizeof(ctype_buf),
@@ -11009,7 +11031,6 @@ runtime_depth,
 
         fprintf(
             output,
-
             "        %s *_meta_tmp_%u = (%s *)aether_meta_scratch_alloc(ctx, sizeof(%s), _Alignof(%s));\n"
             "        if (_meta_tmp_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
             "        memset(_meta_tmp_%u, 0, sizeof(*_meta_tmp_%u));\n",
@@ -11021,8 +11042,6 @@ runtime_depth,
             depth,
             depth,
             depth);
-
-
 
         char nullable_target[768];
 
@@ -11042,23 +11061,21 @@ runtime_depth,
             return false;
         }
 
-        if (!emit_decode_value_expression(
+        if (!emit_decode_value_expression_ctx(
                 output,
-                document,
+                ctx,
                 underlying,
                 nullable_target,
                 base_snake,
                 depth + 1u,
-runtime_depth,
+                runtime_depth,
                 error,
                 error_capacity)) {
             return false;
         }
 
-
         fprintf(
             output,
-
             "        %s = _meta_tmp_%u;\n"
             "    } else {\n"
             "        %s = NULL;\n"
@@ -11067,7 +11084,6 @@ runtime_depth,
             depth,
             field_target);
 
-
         (*bit_index)++;
     }
 
@@ -11075,16 +11091,23 @@ runtime_depth,
 }
 
 
-static bool emit_decode_struct_fields(
+
+
+static bool emit_decode_struct_fields_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-const char *runtime_depth,
+    const char *runtime_depth,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid decode struct fields context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
@@ -11096,8 +11119,8 @@ const char *runtime_depth,
 
     size_t nullable_count = 0u;
 
-    if (!count_all_nullable_fields(
-            document,
+    if (!count_all_nullable_fields_ctx(
+            ctx,
             type,
             0u,
             &nullable_count,
@@ -11114,14 +11137,6 @@ const char *runtime_depth,
         return false;
     }
 
-
-    /*
-     * Wrap the whole BODY decode in its own lexical block so that a
-     * nested struct field decoded inside this body cannot shadow
-     * _meta_nullable_mask. Parent and child fields of one inheritance
-     * body still share a single aggregate mask because the recursion
-     * for parent fields stays inside this block.
-     */
     fprintf(output, "    {\n");
 
     if (nullable_count > 0u) {
@@ -11148,21 +11163,20 @@ const char *runtime_depth,
                 "    }\n",
                 b * 8u);
         }
-
     }
 
     size_t bit_index = 0u;
 
     bool fields_ok =
-        emit_decode_struct_fields_recursive(
+        emit_decode_struct_fields_recursive_ctx(
             output,
-            document,
+            ctx,
             type,
             target,
             base_snake,
             &bit_index,
             depth,
-runtime_depth,
+            runtime_depth,
             error,
             error_capacity);
 
@@ -11177,16 +11191,23 @@ runtime_depth,
 
 
 
-static bool emit_decode_array_expression(
+
+
+static bool emit_decode_array_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-const char *runtime_depth,
+    const char *runtime_depth,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid decode array context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
@@ -11241,16 +11262,13 @@ const char *runtime_depth,
     if (!dynamic) {
         fprintf(
             output,
-
             "    for (size_t _meta_i_%u = 0u; _meta_i_%u < %zuu; ++_meta_i_%u) {\n",
             depth,
             depth,
             static_size,
             depth);
 
-
         char elem_target[1024];
-
 
         int elem_size =
             snprintf(
@@ -11259,7 +11277,6 @@ const char *runtime_depth,
                 "%s.data[_meta_i_%u]",
                 target,
                 depth);
-
 
         if (elem_size < 0 ||
             (size_t)elem_size >= sizeof(elem_target)) {
@@ -11270,14 +11287,14 @@ const char *runtime_depth,
             return false;
         }
 
-        if (!emit_decode_value_expression(
+        if (!emit_decode_value_expression_ctx(
                 output,
-                document,
+                ctx,
                 element,
                 elem_target,
                 base_snake,
                 depth + 1u,
-runtime_depth,
+                runtime_depth,
                 error,
                 error_capacity)) {
             return false;
@@ -11299,7 +11316,7 @@ runtime_depth,
 
     if (ctype == NULL) {
         const adsl_type_t *declared =
-            find_declared_type(document, element);
+            find_declared_type_ctx(ctx, element);
 
         if (declared == NULL) {
             set_error(
@@ -11322,9 +11339,7 @@ runtime_depth,
                 "%s_t",
                 declared_name);
             ctype = ctype_buf;
-        } else if (type_is_polymorphic_reference(
-                       document,
-                       declared)) {
+        } else if (type_is_polymorphic_reference_ctx(ctx, declared)) {
             snprintf(
                 ctype_buf,
                 sizeof(ctype_buf),
@@ -11349,7 +11364,6 @@ runtime_depth,
 
     fprintf(
         output,
-
         "    {\n"
         "        uint64_t _meta_len64_%u = 0u;\n"
         "        if (!aether_meta_read_pack(&ctx->reader, &_meta_len64_%u)) return AETHER_ERR_PROTOCOL;\n"
@@ -11372,8 +11386,6 @@ runtime_depth,
         depth, depth, ctype,
         depth, depth, depth, depth);
 
-
-
     char array_target[768];
 
     int array_target_size =
@@ -11393,24 +11405,21 @@ runtime_depth,
         return false;
     }
 
-    if (!emit_decode_value_expression(
+    if (!emit_decode_value_expression_ctx(
             output,
-            document,
+            ctx,
             element,
             array_target,
             base_snake,
             depth + 1u,
-runtime_depth,
+            runtime_depth,
             error,
             error_capacity)) {
         return false;
     }
 
-
     fprintf(
         output,
-
-
         "        }\n"
         "        (%s).data = _meta_buf_%u;\n"
         "        (%s).length = _meta_len_%u;\n"
@@ -11420,21 +11429,27 @@ runtime_depth,
         target,
         depth);
 
-
     return true;
 }
 
 
-static bool emit_decode_hierarchy_expression(
+
+
+static bool emit_decode_hierarchy_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *static_type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-const char *runtime_depth,
+    const char *runtime_depth,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid decode hierarchy context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
@@ -11446,7 +11461,6 @@ const char *runtime_depth,
 
     fprintf(
         output,
-
         "    {\n"
         "        uint8_t _meta_type_id_%u = 0u;\n"
         "        if (!aether_meta_read_u8(&ctx->reader, &_meta_type_id_%u)) return AETHER_ERR_PROTOCOL;\n"
@@ -11455,23 +11469,20 @@ const char *runtime_depth,
         depth,
         depth);
 
+    size_t hierarchy_count = ctx_hierarchy_type_count(ctx);
 
     size_t concrete_count = 0u;
 
-    for (size_t i = 0u; i < document->resolved_type_count; ++i) {
-        const adsl_type_t *candidate = &document->resolved_types[i];
+    for (size_t i = 0u; i < hierarchy_count; ++i) {
+        const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
-            !type_is_descendant_or_self(
-                document,
-                candidate,
-                static_type)) {
+            !type_is_descendant_or_self_ctx(ctx, candidate, static_type)) {
             continue;
         }
 
-        if (!candidate->has_id ||
-            candidate->id == 0u) {
+        if (!candidate->has_id || candidate->id == 0u) {
             continue;
         }
 
@@ -11483,7 +11494,6 @@ const char *runtime_depth,
 
         fprintf(
             output,
-
             "        case %uu: {\n"
             "            %s_t *_meta_child_%u = (%s_t *)aether_meta_scratch_alloc(ctx, sizeof(%s_t), _Alignof(%s_t));\n"
             "            if (_meta_child_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
@@ -11493,8 +11503,6 @@ const char *runtime_depth,
             candidate_name, candidate_name, candidate_name,
             depth,
             depth, depth);
-
-
 
         char child_target[256];
 
@@ -11514,30 +11522,27 @@ const char *runtime_depth,
             return false;
         }
 
-        if (!emit_decode_struct_fields(
+        if (!emit_decode_struct_fields_ctx(
                 output,
-                document,
+                ctx,
                 candidate,
                 child_target,
                 base_snake,
                 depth + 1u,
-runtime_depth,
+                runtime_depth,
                 error,
                 error_capacity)) {
             return false;
         }
 
-
         fprintf(
             output,
-
             "            (%s).as.%s = _meta_child_%u;\n"
             "            break;\n"
             "        }\n",
             target,
             candidate_name,
             depth);
-
 
         concrete_count++;
     }
@@ -11546,7 +11551,6 @@ runtime_depth,
 
     fprintf(
         output,
-
         "        default:\n"
         "            return AETHER_ERR_PROTOCOL;\n"
         "        }\n"
@@ -11555,21 +11559,27 @@ runtime_depth,
         target,
         depth);
 
-
     return true;
 }
 
 
-static bool emit_decode_value_expression(
+
+
+static bool emit_decode_value_expression_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *type,
     const char *target,
     const char *base_snake,
     unsigned int depth,
-const char *runtime_depth,
+    const char *runtime_depth,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid decode value context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
@@ -11578,7 +11588,6 @@ const char *runtime_depth,
             "generated decode depth exceeds 64");
         return false;
     }
-
 
     if (strchr(type, '?') != NULL) {
         set_error(
@@ -11598,14 +11607,14 @@ const char *runtime_depth,
             sizeof(array_element),
             &array_dynamic,
             &array_static_size)) {
-        return emit_decode_array_expression(
+        return emit_decode_array_expression_ctx(
             output,
-            document,
+            ctx,
             type,
             target,
             base_snake,
             depth,
-runtime_depth,
+            runtime_depth,
             error,
             error_capacity);
     }
@@ -11728,7 +11737,7 @@ runtime_depth,
     }
 
     const adsl_type_t *declared_type =
-        find_declared_type(document, base);
+        find_declared_type_ctx(ctx, base);
 
     if (declared_type == NULL) {
         set_error(
@@ -11737,8 +11746,6 @@ runtime_depth,
             "unknown generated decode type");
         return false;
     }
-
-
 
     if (declared_type->has_tiered_int) {
         char tiered_name[256];
@@ -11771,7 +11778,6 @@ runtime_depth,
         return true;
     }
 
-
     if (declared_type->stream != NULL) {
         /*
          * Incoming stream borrows the immutable RX frame. The historical
@@ -11789,7 +11795,6 @@ runtime_depth,
             target);
         return true;
     }
-
 
     if (declared_type->enum_count > 0u) {
         char enum_name[256];
@@ -11812,17 +11817,15 @@ runtime_depth,
         return true;
     }
 
-    if (type_is_polymorphic_reference(
-            document,
-            declared_type)) {
-        return emit_decode_hierarchy_expression(
+    if (type_is_polymorphic_reference_ctx(ctx, declared_type)) {
+        return emit_decode_hierarchy_expression_ctx(
             output,
-            document,
+            ctx,
             declared_type,
             target,
             base_snake,
             depth,
-runtime_depth,
+            runtime_depth,
             error,
             error_capacity);
     }
@@ -11835,15 +11838,13 @@ runtime_depth,
         return false;
     }
 
-
     char nested_name[256];
     declared_c_name(
         declared_type->name,
         nested_name,
         sizeof(nested_name));
 
-
-if (runtime_depth != NULL) {
+    if (runtime_depth != NULL) {
         fprintf(
             output,
             "    {\n"
@@ -11871,8 +11872,5 @@ if (runtime_depth != NULL) {
             target);
     }
 
-
     return true;
-
-
 }
