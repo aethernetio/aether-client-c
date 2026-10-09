@@ -5424,8 +5424,9 @@ fprintf(
 
 
 
-static bool emit_api_header(
-    const adsl_document_t *document,
+
+static bool emit_api_header_ctx(
+    const emitter_ctx_t *ctx,
     const char *path,
     const char *base_name,
     const char *selected_api_name,
@@ -5433,15 +5434,18 @@ static bool emit_api_header(
     char *error,
     size_t error_capacity) {
 
-    FILE *output =
-        fopen(path, "wb");
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid API header context");
+        return false;
+    }
+
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
         set_error(
             error,
             error_capacity,
             "cannot create generated API header");
-
         return false;
     }
 
@@ -5457,8 +5461,6 @@ static bool emit_api_header(
         base_name,
         base_snake,
         sizeof(base_snake));
-
-
 
     fprintf(
         output,
@@ -5480,19 +5482,15 @@ static bool emit_api_header(
         base_snake,
         base_snake);
 
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
+    for (size_t a = 0u; a < api_count; ++a) {
 
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
-
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
+        const adsl_api_t *api = &apis[a];
 
         if (selected_api_name != NULL &&
-            strcmp(
-                api->name,
-                selected_api_name) != 0) {
+            strcmp(api->name, selected_api_name) != 0) {
 
             continue;
         }
@@ -5503,8 +5501,6 @@ static bool emit_api_header(
             api->name,
             api_name,
             sizeof(api_name));
-
-
 
         fprintf(
             output,
@@ -5517,14 +5513,11 @@ static bool emit_api_header(
             base_snake,
             api_name);
 
-
-
-
         adsl_effective_method_t *effective = NULL;
         size_t effective_count = 0u;
 
-        if (!emitter_collect_effective(
-                document,
+        if (!emitter_collect_effective_ctx(
+                ctx,
                 api,
                 &effective,
                 &effective_count,
@@ -5535,18 +5528,12 @@ static bool emit_api_header(
             return false;
         }
 
-        for (size_t m = 0u;
-             m < effective_count;
-             ++m) {
+        for (size_t m = 0u; m < effective_count; ++m) {
 
-            const adsl_method_t *method =
-                effective[m].method;
-
+            const adsl_method_t *method = effective[m].method;
 
             if (selected_method_name != NULL &&
-                strcmp(
-                    method->name,
-                    selected_method_name) != 0) {
+                strcmp(method->name, selected_method_name) != 0) {
 
                 continue;
             }
@@ -5563,18 +5550,24 @@ static bool emit_api_header(
                 method_name,
                 sizeof(method_name));
 
-
-
             emit_method_origin(
                 output,
                 effective[m].owner,
                 method);
 
-
+            /*
+             * NOTE (D6): emit_collapsible_method_declarations() and
+             * emit_parameter_type() still use the standalone context.
+             * They are scheduled to be converted to _ctx variants in
+             * D6 together with their own call graphs. Because they are
+             * only reached through this function once the project
+             * emitter is fully wired, this is a temporary partial
+             * conversion and does not alter standalone output.
+             */
             if (method_has_collapsible_params(method)) {
                 if (!emit_collapsible_method_declarations(
                         output,
-                        document,
+                        ctx->document,
                         api_name,
                         method_name,
                         method,
@@ -5589,13 +5582,10 @@ static bool emit_api_header(
                 continue;
             }
 
-
-
             emit_method_origin(
                 output,
                 effective[m].owner,
                 method);
-
 
             fprintf(
                 output,
@@ -5611,9 +5601,7 @@ static bool emit_api_header(
                     output);
             }
 
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
+            for (size_t p = 0u; p < method->param_count; ++p) {
 
                 fputs(
                     ",\n    ",
@@ -5621,16 +5609,14 @@ static bool emit_api_header(
 
                 if (!emit_parameter_type(
                         output,
-                        document,
+                        ctx->document,
                         &method->params[p],
                         error,
                         error_capacity)) {
 
-
                     free(effective);
                     fclose(output);
                     return false;
-
                 }
 
                 fprintf(
@@ -5645,14 +5631,13 @@ static bool emit_api_header(
         }
 
         free(effective);
-
     }
 
     if (selected_api_name == NULL &&
         selected_method_name == NULL &&
         !emit_all_stream_builder_declarations(
             output,
-            document,
+            ctx->document,
             error,
             error_capacity)) {
 
@@ -5682,8 +5667,14 @@ static bool emit_api_header(
     return true;
 }
 
-static bool emit_api_source(
-    const adsl_document_t *document,
+
+
+
+
+
+
+static bool emit_api_source_ctx(
+    const emitter_ctx_t *ctx,
     const char *path,
     const char *base_name,
     const char *selected_api_name,
@@ -5691,15 +5682,18 @@ static bool emit_api_source(
     char *error,
     size_t error_capacity) {
 
-    FILE *output =
-        fopen(path, "wb");
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid API source context");
+        return false;
+    }
+
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
         set_error(
             error,
             error_capacity,
             "cannot create generated API source");
-
         return false;
     }
 
@@ -5712,17 +5706,14 @@ static bool emit_api_source(
 
     fprintf(
         output,
-
         "#include \"%s_api.h\"\n"
         "#include \"aether_meta_runtime.h\"\n\n"
         "#include <string.h>\n\n",
-
         base_snake);
 
     if (selected_api_name == NULL &&
         selected_method_name == NULL &&
-        document_has_stream_builders(
-            document)) {
+        document_has_stream_builders(ctx->document)) {
 
         fprintf(
             output,
@@ -5752,17 +5743,15 @@ static bool emit_api_source(
             base_snake);
     }
 
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
+    for (size_t a = 0u; a < api_count; ++a) {
+
+        const adsl_api_t *api = &apis[a];
 
         if (selected_api_name != NULL &&
-            strcmp(
-                api->name,
-                selected_api_name) != 0) {
+            strcmp(api->name, selected_api_name) != 0) {
 
             continue;
         }
@@ -5774,12 +5763,11 @@ static bool emit_api_source(
             api_name,
             sizeof(api_name));
 
-
         adsl_effective_method_t *effective = NULL;
         size_t effective_count = 0u;
 
-        if (!emitter_collect_effective(
-                document,
+        if (!emitter_collect_effective_ctx(
+                ctx,
                 api,
                 &effective,
                 &effective_count,
@@ -5790,18 +5778,12 @@ static bool emit_api_source(
             return false;
         }
 
-        for (size_t m = 0u;
-             m < effective_count;
-             ++m) {
+        for (size_t m = 0u; m < effective_count; ++m) {
 
-            const adsl_method_t *method =
-                effective[m].method;
-
+            const adsl_method_t *method = effective[m].method;
 
             if (selected_method_name != NULL &&
-                strcmp(
-                    method->name,
-                    selected_method_name) != 0) {
+                strcmp(method->name, selected_method_name) != 0) {
 
                 continue;
             }
@@ -5818,18 +5800,22 @@ static bool emit_api_source(
                 method_name,
                 sizeof(method_name));
 
-
-
             emit_method_origin(
                 output,
                 effective[m].owner,
                 method);
 
-
+            /*
+             * NOTE (D6): emit_collapsible_method_source() and
+             * emit_parameter_type() / emit_serialize_param() still use
+             * the standalone context. They will be converted to _ctx
+             * variants in D6; until then this function cannot yet be
+             * called with a project resolver from adsl_emit_c_project.
+             */
             if (method_has_collapsible_params(method)) {
                 if (!emit_collapsible_method_source(
                         output,
-                        document,
+                        ctx->document,
                         base_snake,
                         api_name,
                         method_name,
@@ -5846,13 +5832,10 @@ static bool emit_api_source(
                 continue;
             }
 
-
-
             emit_method_origin(
                 output,
                 effective[m].owner,
                 method);
-
 
             fprintf(
                 output,
@@ -5868,9 +5851,7 @@ static bool emit_api_source(
                     output);
             }
 
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
+            for (size_t p = 0u; p < method->param_count; ++p) {
 
                 fputs(
                     ",\n    ",
@@ -5878,16 +5859,14 @@ static bool emit_api_source(
 
                 if (!emit_parameter_type(
                         output,
-                        document,
+                        ctx->document,
                         &method->params[p],
                         error,
                         error_capacity)) {
 
-
                     free(effective);
                     fclose(output);
                     return false;
-
                 }
 
                 fprintf(
@@ -5898,17 +5877,12 @@ static bool emit_api_source(
 
             fprintf(
                 output,
-
-
                 ") {\n\n"
                 "    if (api == NULL ||\n"
                 "        api->send == NULL ||\n"
                 "        api->tx == NULL) {\n"
                 "        return AETHER_ERR_ARGUMENT;\n"
                 "    }\n\n"
-
-
-
                 "%s"
                 "%s"
                 "    if (api->tx_capacity < %uu) {\n"
@@ -5916,7 +5890,6 @@ static bool emit_api_source(
                 "    }\n\n"
                 "    size_t pos = 0u;\n"
                 "    api->tx[pos++] = %uu;\n",
-
                 method->param_count != 0u
                     ? "    uint8_t *tx = api->tx;\n"
                     : "",
@@ -5927,8 +5900,6 @@ static bool emit_api_source(
                     ? 5u
                     : 1u,
                 (unsigned int)effective[m].id);
-
-
 
             if (has_response) {
                 fputs(
@@ -5943,8 +5914,6 @@ static bool emit_api_source(
                     output);
             }
 
-
-
             if (!emit_remote_nullable_param_mask(
                     output,
                     method,
@@ -5952,36 +5921,26 @@ static bool emit_api_source(
                     error,
                     error_capacity)) {
 
-
-
                 free(effective);
                 fclose(output);
                 return false;
-
             }
 
-
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
+            for (size_t p = 0u; p < method->param_count; ++p) {
 
                 if (!emit_serialize_param(
                         output,
-                        document,
+                        ctx->document,
                         base_snake,
                         &method->params[p],
                         error,
                         error_capacity)) {
 
-
                     free(effective);
                     fclose(output);
                     return false;
-
                 }
             }
-
-
 
             fprintf(
                 output,
@@ -5991,19 +5950,16 @@ static bool emit_api_source(
                 "        api->tx,\n"
                 "        pos);\n"
                 "}\n\n");
-
-
         }
 
         free(effective);
-
     }
 
     if (selected_api_name == NULL &&
         selected_method_name == NULL &&
         !emit_all_stream_builder_definitions(
             output,
-            document,
+            ctx->document,
             base_snake,
             error,
             error_capacity)) {
@@ -6028,6 +5984,12 @@ static bool emit_api_source(
 }
 
 
+
+
+
+
+
+
 bool adsl_emit_c_method(
     const adsl_document_t *document,
     const char *output_directory,
@@ -6047,32 +6009,29 @@ bool adsl_emit_c_method(
             error,
             error_capacity,
             "invalid emitter arguments");
-
         return false;
     }
 
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+
     if (selected_api_name != NULL) {
         const adsl_api_t *selected_api =
-            find_api_definition(
-                document,
-                selected_api_name);
+            find_api_definition_ctx(&ctx, selected_api_name);
 
         if (selected_api == NULL) {
             set_error(
                 error,
                 error_capacity,
                 "selected API not found");
-
             return false;
         }
-
 
         if (selected_method_name != NULL) {
             adsl_effective_method_t *effective = NULL;
             size_t effective_count = 0u;
 
-            if (!emitter_collect_effective(
-                    document,
+            if (!emitter_collect_effective_ctx(
+                    &ctx,
                     selected_api,
                     &effective,
                     &effective_count,
@@ -6082,12 +6041,6 @@ bool adsl_emit_c_method(
                 return false;
             }
 
-
-            /*
-             * The lookup result points into the effective array, which is
-             * freed before the found/not-found check. Reduce it to a boolean
-             * before free() so no pointer into freed storage is retained.
-             */
             bool method_found =
                 emitter_find_effective_method(
                     effective,
@@ -6101,12 +6054,9 @@ bool adsl_emit_c_method(
                     error,
                     error_capacity,
                     "selected API method not found");
-
                 return false;
             }
-
         }
-
     }
 
     char base_snake[256];
@@ -6121,7 +6071,6 @@ bool adsl_emit_c_method(
     char api_h[1024];
     char api_c[1024];
 
-
     if (!build_output_path(types_h, sizeof(types_h), output_directory, base_snake, "_types.h") ||
         !build_output_path(types_c, sizeof(types_c), output_directory, base_snake, "_types.c") ||
         !build_output_path(api_h, sizeof(api_h), output_directory, base_snake, "_api.h") ||
@@ -6131,13 +6080,11 @@ bool adsl_emit_c_method(
             error,
             error_capacity,
             "generated output path is too long");
-
         return false;
     }
 
-
-    if (!emit_types_header(
-            document,
+    if (!emit_types_header_ctx(
+            &ctx,
             types_h,
             base_name,
             error,
@@ -6146,9 +6093,8 @@ bool adsl_emit_c_method(
         return false;
     }
 
-
-    if (!emit_types_source(
-            document,
+    if (!emit_types_source_ctx(
+            &ctx,
             types_c,
             base_name,
             error,
@@ -6157,9 +6103,8 @@ bool adsl_emit_c_method(
         return false;
     }
 
-
-    if (!emit_api_header(
-            document,
+    if (!emit_api_header_ctx(
+            &ctx,
             api_h,
             base_name,
             selected_api_name,
@@ -6170,8 +6115,8 @@ bool adsl_emit_c_method(
         return false;
     }
 
-    return emit_api_source(
-        document,
+    return emit_api_source_ctx(
+        &ctx,
         api_c,
         base_name,
         selected_api_name,
@@ -6179,6 +6124,7 @@ bool adsl_emit_c_method(
         error,
         error_capacity);
 }
+
 
 bool adsl_emit_c(
 
