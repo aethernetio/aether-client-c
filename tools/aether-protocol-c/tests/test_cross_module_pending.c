@@ -936,17 +936,25 @@ static void pending_cross_file_hierarchy_resolves(void) {
 
     char path[1024];
 
-    /*
+
+/*
      * G emits the Base hierarchy union. Child lives in H, so Base's
-     * types header must include H's generated types header; the union
-     * member itself is `const child_t *child;`, an incomplete C type
-     * that only becomes usable once H's header has been included.
+     * header forward-declares child_t and does not include H's full
+     * types header (that would create a header cycle: G.h → H.h → G.h).
+     * The complete definition is instead pulled into G's generated .c,
+     * where the impl of serialize_base_impl reads child->source and
+     * child->value.
      */
     (void)snprintf(path, sizeof(path),
         "%s/g_defines_base_types.h", ADSL_TEST_OUTPUT_DIR);
-    assert(file_contains(path, "#include \"h_extends_base_types.h\""));
+    assert(file_contains(path, "typedef struct child_t child_t;"));
     assert(file_contains(path, "base_ref_t"));
     assert(file_contains(path, "const child_t *child;"));
+    assert(!file_contains(path, "#include \"h_extends_base_types.h\""));
+
+    (void)snprintf(path, sizeof(path),
+        "%s/g_defines_base_types.c", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "#include \"h_extends_base_types.h\""));
 
     /*
      * H declares Child, whose parent Base lives in G. H's header must
@@ -958,6 +966,7 @@ static void pending_cross_file_hierarchy_resolves(void) {
     (void)snprintf(path, sizeof(path),
         "%s/h_extends_base_types.h", ADSL_TEST_OUTPUT_DIR);
     assert(file_contains(path, "#include \"g_defines_base_types.h\""));
+
 
 }
 

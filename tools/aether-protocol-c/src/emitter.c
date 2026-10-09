@@ -2452,7 +2452,22 @@ static bool collect_external_modules_api(
     const emitter_ctx_t *ctx,
     external_modules_t *state,
     char *error,
+
     size_t error_capacity);
+
+/*
+ * Source-level collector: header deps plus hierarchy descendants whose
+ * fields the impl of a local polymorphic type serializes. Kept separate
+ * because the header only needs a forward typedef for hierarchy union
+ * members, while the source needs the full struct definition.
+ */
+
+static bool collect_external_modules_types_source(
+    const emitter_ctx_t *ctx,
+    external_modules_t *state,
+    char *error,
+    size_t error_capacity);
+
 
 
 static bool emit_external_includes(
@@ -3033,12 +3048,48 @@ static bool emit_types_source_ctx(
         base_snake,
         sizeof(base_snake));
 
+
     fprintf(
         output,
         "#include \"%s_types.h\"\n"
         "#include \"aether_meta_runtime.h\"\n\n"
         "#include <string.h>\n\n",
         base_snake);
+
+    /*
+     * Project mode: the .c accesses fields, sizeof and serializers of
+     * every external type touched by its impl bodies. The header only
+     * pulls in by-value and array-element dependencies; hierarchy
+     * descendants are forward-declared there and must be given their
+     * complete definition here.
+     */
+    if (ctx->resolver != NULL) {
+
+        external_modules_t source_external = {0};
+
+
+        if (!collect_external_modules_types_source(
+                ctx, &source_external, error, error_capacity)) {
+
+
+
+            external_modules_free(&source_external);
+            fclose(output);
+            return false;
+        }
+
+        if (!emit_external_includes(output, &source_external)) {
+            external_modules_free(&source_external);
+            fclose(output);
+            return false;
+        }
+
+        if (source_external.count > 0u) {
+            fputc('\n', output);
+        }
+
+        external_modules_free(&source_external);
+    }
 
     size_t type_count = 0u;
     const adsl_type_t *types = ctx_types(ctx, &type_count);
@@ -6035,38 +6086,19 @@ static bool collect_external_modules_types(
             }
         }
 
+
         /*
-         * Hierarchy unions are emitted for every concrete descendant
-         * declared anywhere in the project, not only in this module.
-         * A descendant declared in another module therefore contributes
-         * a full struct pointer member to this module's `<type>_ref_t`,
-         * which requires the descendant's complete definition. Pull in
-         * the owning module's types header for each such descendant.
+         * Hierarchy descendants are deliberately NOT recorded here.
+         * An external concrete descendant of a hierarchy union is only
+         * referenced through a pointer in the union member, so a
+         * forward typedef suffices. Including the owner's complete
+         * types header for that purpose would create a header cycle
+         * between two modules that are hierarchically related; the
+         * forward typedefs are emitted by
+         * emit_external_hierarchy_forward_typedefs.
          */
-        if (!type_is_polymorphic_reference_ctx(ctx, type)) {
-            continue;
-        }
-
-        size_t hierarchy_count = ctx_hierarchy_type_count(ctx);
-
-        for (size_t h = 0u; h < hierarchy_count; ++h) {
-
-            const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, h);
-
-            if (candidate->enum_count > 0u ||
-                candidate->is_abstract ||
-                candidate == type ||
-                !type_is_descendant_or_self_ctx(ctx, candidate, type)) {
-                continue;
-            }
-
-            if (!external_modules_record(
-                    ctx, candidate->name, state,
-                    error, error_capacity)) {
-                return false;
-            }
-        }
     }
+
 
     /*
      * Array aliases for API param/return/throws types are emitted into
@@ -6210,8 +6242,80 @@ static bool collect_external_modules_api(
         }
     }
 
+
     return true;
 }
+
+
+
+/*
+ * Source-level collector for the types module.
+ *
+ * Includes everything the types header already needs (by-value fields,
+ * parents, array element types from API signatures) plus the external
+ * hierarchy descendants whose fields the impl of a local polymorphic
+ * type serializes via the type_id switch.
+ *
+ * The types header deliberately does not pull in those external
+ * headers (a forward typedef suffices for the union pointer member),
+ * so the .c file adds them on its own. Without this the impl would
+ * fail to compile: it accesses `value.as.child->field` and evaluates
+ * `sizeof(child_t)`.
+ *
+ * API-only dependencies are collected separately for the api module.
+ * They are not relevant to the types source.
+ */
+static bool collect_external_modules_types_source(
+    const emitter_ctx_t *ctx,
+    external_modules_t *state,
+    char *error,
+    size_t error_capacity) {
+
+    if (ctx == NULL || ctx->resolver == NULL) {
+        return true;
+    }
+
+    if (!collect_external_modules_types(
+            ctx, state, error, error_capacity)) {
+        return false;
+    }
+
+
+    size_t type_count = 0u;
+    const adsl_type_t *types = ctx_types(ctx, &type_count);
+
+    for (size_t i = 0u; i < type_count; ++i) {
+
+        const adsl_type_t *type = &types[i];
+
+        if (!type_is_polymorphic_reference_ctx(ctx, type)) {
+            continue;
+        }
+
+        size_t hierarchy_count = ctx_hierarchy_type_count(ctx);
+
+        for (size_t h = 0u; h < hierarchy_count; ++h) {
+
+            const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, h);
+
+            if (candidate->enum_count > 0u ||
+                candidate->is_abstract ||
+                candidate == type ||
+                !type_is_descendant_or_self_ctx(ctx, candidate, type)) {
+                continue;
+            }
+
+            if (!external_modules_record(
+                    ctx, candidate->name, state,
+                    error, error_capacity)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 
 
 static bool emit_external_includes(
@@ -7720,6 +7824,57 @@ static bool emit_hierarchy_ref_ctx(
             (unsigned int)candidate->id);
     }
 
+
+    /*
+     * Forward typedefs for external concrete descendants.
+     *
+     * The hierarchy union below holds only pointers to concrete
+     * descendants, so a forward declaration is enough. Including the
+     * owner's full types header here would create a header cycle when
+     * two modules are hierarchically related (G.h → H.h → G.h). The
+     * complete definition is only needed by this module's .c file,
+     * which includes the owner's types header on its own.
+     */
+
+    if (ctx->resolver != NULL) {
+        for (size_t i = 0u; i < count; ++i) {
+
+            const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
+
+            if (candidate->enum_count > 0u ||
+                candidate->is_abstract ||
+                !type_is_descendant_or_self_ctx(ctx, candidate, type)) {
+                continue;
+            }
+
+            char owner[256];
+
+            if (!type_owner_base_snake(
+                    ctx, candidate, owner, sizeof(owner),
+                    error, error_capacity)) {
+                return false;
+            }
+
+            if (strcmp(owner, ctx->base_snake) == 0) {
+                continue;
+            }
+
+            char candidate_name[256];
+
+            declared_c_name(
+                candidate->name,
+                candidate_name,
+                sizeof(candidate_name));
+
+            fprintf(
+                output,
+                "typedef struct %s_t %s_t;\n",
+                candidate_name,
+                candidate_name);
+        }
+    }
+
+
     if (concrete_count > 0u) {
         fputc(
             '\n',
@@ -7727,6 +7882,7 @@ static bool emit_hierarchy_ref_ctx(
     }
 
     fprintf(
+
         output,
         "typedef struct {\n"
         "    uint8_t type_id;\n");
