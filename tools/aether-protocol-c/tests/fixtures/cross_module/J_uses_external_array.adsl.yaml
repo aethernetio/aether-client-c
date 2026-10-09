@@ -1,0 +1,8 @@
+
+api:
+  ExternalArrayApi:
+    methods:
+      sendItems:
+        id: 3
+        params:
+          items: Item[]

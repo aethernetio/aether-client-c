@@ -369,6 +369,8 @@ add_test(
 # wrote it. This checks that the generated headers form a syntactically
 # valid translation unit for the supported A -> B and Holder -> Item
 # scenarios. Full link and ABI checks belong to a later step.
+
+
 add_test(
     NAME aether_adslc_cross_module_smoke_compile_test
     COMMAND ${CMAKE_C_COMPILER}
@@ -379,12 +381,24 @@ add_test(
         ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/a_uses_item_api.c
         ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/b_defines_item_types.c
         ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/i_holds_external_types.c
+        ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/j_uses_external_array_types.c
+        ${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output/j_uses_external_array_api.c
 )
+
+# G/H cross-module hierarchy is intentionally excluded from this smoke
+# compile. G's hierarchy union references child_t, but child_t is only
+# declared in H, and H includes G first. The include guard on G prevents
+# H from declaring child_t in time, so the generated headers form a
+# cycle that guards cannot resolve. Correct handling requires forward
+# typedefs or restructuring the hierarchy union emission, tracked under
+# B2.4.3A.1. The G/H fixture is still exercised for content assertions
+# by aether_adslc_cross_module_pending_test.
 set_tests_properties(
     aether_adslc_cross_module_smoke_compile_test
     PROPERTIES
         DEPENDS aether_adslc_cross_module_pending_test
 )
+
 
 
 

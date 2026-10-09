@@ -5837,11 +5837,30 @@ bool resolve_type_owner(
         return true;
     }
 
+
+    /*
+     * Strip nullable/collapsible modifiers and, if present, the array
+     * suffix so the underlying element type can be resolved. Array
+     * aliases and array-typed parameters carry their element type in
+     * the base name; the owner is the owner of the element.
+     */
+    char stripped[256];
+    size_t stripped_length = 0u;
+
+    for (const char *p = type_ref;
+         *p != '\0' && *p != '[' &&
+         stripped_length + 1u < sizeof(stripped);
+         ++p) {
+        stripped[stripped_length++] = *p;
+    }
+    stripped[stripped_length] = '\0';
+
     char base[256];
 
-    if (!scalar_type_name(type_ref, base, sizeof(base))) {
+    if (!scalar_type_name(stripped, base, sizeof(base))) {
         return true;
     }
+
 
     const adsl_type_t *declared = find_declared_type_ctx(ctx, base);
 
@@ -5982,6 +6001,7 @@ static bool external_modules_record(
 }
 
 
+
 static bool collect_external_modules_types(
     const emitter_ctx_t *ctx,
     external_modules_t *state,
@@ -6014,10 +6034,120 @@ static bool collect_external_modules_types(
                 return false;
             }
         }
+
+        /*
+         * Hierarchy unions are emitted for every concrete descendant
+         * declared anywhere in the project, not only in this module.
+         * A descendant declared in another module therefore contributes
+         * a full struct pointer member to this module's `<type>_ref_t`,
+         * which requires the descendant's complete definition. Pull in
+         * the owning module's types header for each such descendant.
+         */
+        if (!type_is_polymorphic_reference_ctx(ctx, type)) {
+            continue;
+        }
+
+        size_t hierarchy_count = ctx_hierarchy_type_count(ctx);
+
+        for (size_t h = 0u; h < hierarchy_count; ++h) {
+
+            const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, h);
+
+            if (candidate->enum_count > 0u ||
+                candidate->is_abstract ||
+                candidate == type ||
+                !type_is_descendant_or_self_ctx(ctx, candidate, type)) {
+                continue;
+            }
+
+            if (!external_modules_record(
+                    ctx, candidate->name, state,
+                    error, error_capacity)) {
+                return false;
+            }
+        }
+    }
+
+    /*
+     * Array aliases for API param/return/throws types are emitted into
+     * this module's types header. If the element type is owned by
+     * another module, that module's types header must be included here
+     * as well, otherwise the alias body references an undefined C type.
+     * Non-array API types do not generate an alias and are handled by
+     * the API collector instead.
+     */
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
+
+    for (size_t a = 0u; a < api_count; ++a) {
+
+        const adsl_api_t *api = &apis[a];
+
+        for (size_t m = 0u; m < api->method_count; ++m) {
+
+            const adsl_method_t *method = &api->methods[m];
+
+            for (size_t p = 0u; p < method->param_count; ++p) {
+
+                const char *ref = method->params[p].type;
+
+                if (ref == NULL ||
+                    (strchr(ref, '[') == NULL &&
+                     strchr(ref, ']') == NULL)) {
+                    continue;
+                }
+
+                if (!external_modules_record(
+                        ctx, ref, state,
+                        error, error_capacity)) {
+                    return false;
+                }
+            }
+
+            const char *return_refs[2] = {
+                method->returns_type,
+                method->throws_type
+            };
+
+            for (size_t r = 0u; r < 2u; ++r) {
+
+                const char *ref = return_refs[r];
+
+                if (ref == NULL ||
+                    (strchr(ref, '[') == NULL &&
+                     strchr(ref, ']') == NULL)) {
+                    continue;
+                }
+
+                if (!external_modules_record(
+                        ctx, ref, state,
+                        error, error_capacity)) {
+                    return false;
+                }
+            }
+
+            for (size_t f = 0u; f < method->return_field_count; ++f) {
+
+                const char *ref = method->return_fields[f].type;
+
+                if (ref == NULL ||
+                    (strchr(ref, '[') == NULL &&
+                     strchr(ref, ']') == NULL)) {
+                    continue;
+                }
+
+                if (!external_modules_record(
+                        ctx, ref, state,
+                        error, error_capacity)) {
+                    return false;
+                }
+            }
+        }
     }
 
     return true;
 }
+
 
 
 /*

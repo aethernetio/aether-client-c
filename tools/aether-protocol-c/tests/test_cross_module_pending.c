@@ -894,11 +894,71 @@ static void pending_cross_file_hierarchy_resolves(void) {
         }
     }
 
+
     assert(saw_base);
     assert(saw_child);
 
     adsl_project_resolver_release(resolver);
-    adsl_project_free(&project);
+
+    /*
+     * B2.4.3A: project emission must produce a Base module whose
+     * hierarchy union references the Child type declared in another
+     * document, and a Child module that inherits from Base across
+     * module boundaries. Since Base's `<type>_ref_t` union contains a
+     * `const child_t *child;` member, Base's types header must include
+     * H's generated types header. Conversely, Child's serializer must
+     * emit its own fields plus inherited Base fields and must reference
+     * Base's exported symbols rather than private static impls.
+     */
+    adsl_emission_module_t modules[2];
+    modules[0].source_path = project.documents[0].root_source_path;
+    modules[0].base_name = "G_defines_base";
+    modules[1].source_path = project.documents[1].root_source_path;
+    modules[1].base_name = "H_extends_base";
+
+    adsl_emission_plan_t plan;
+    plan.modules = modules;
+    plan.module_count = 2u;
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "G_defines_base",
+        error, sizeof(error)));
+    assert(error[0] == '\0');
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 1u,
+        ADSL_TEST_OUTPUT_DIR, "H_extends_base",
+        error, sizeof(error)));
+    assert(error[0] == '\0');
+
+    char path[1024];
+
+    /*
+     * G emits the Base hierarchy union. Child lives in H, so Base's
+     * types header must include H's generated types header; the union
+     * member itself is `const child_t *child;`, an incomplete C type
+     * that only becomes usable once H's header has been included.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/g_defines_base_types.h", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "#include \"h_extends_base_types.h\""));
+    assert(file_contains(path, "base_ref_t"));
+    assert(file_contains(path, "const child_t *child;"));
+
+    /*
+     * H declares Child, whose parent Base lives in G. H's header must
+     * include G's types header so the inherited Base struct fields can
+     * be embedded; its serializer must call G's exported Base
+     * serializer for the parent portion rather than reach into G's
+     * private static impl.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/h_extends_base_types.h", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "#include \"g_defines_base_types.h\""));
+
 }
 
 /* PENDING_API: by-value field of a type declared in another document. */
@@ -1248,10 +1308,96 @@ static void pending_two_roots_common_include_rejected(void) {
     assert(strstr(error, "Key") != NULL);
 
     adsl_project_free(&project);
+
 }
 
+/*
+ * B2.4.3A: array alias whose element type is owned by another module.
+ *
+ * API signature `items: Item[]` where Item lives in B produces an
+ * array alias in the A module's types header. The alias body
+ * references `const item_t *data`, so A's types header must include
+ * B's generated types header even though A owns no type definitions
+ * that use Item. Additionally, A's API source must be able to call
+ * B's serializer for Item[], which it does via the same include chain.
+ */
+static void pending_cross_file_external_array(void) {
+    char array_path[1024];
+    char item_path[1024];
+
+    fixture_path(
+        "cross_module/J_uses_external_array.adsl.yaml",
+        array_path, sizeof(array_path));
+    fixture_path(
+        "cross_module/B_defines_item.adsl.yaml",
+        item_path, sizeof(item_path));
+
+    const char *paths[] = { array_path, item_path };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    char error[512] = {0};
+
+    assert(adsl_project_load_files(
+        paths, 2u, NULL, 0u,
+        &project, error, sizeof(error)));
+
+    assert(adsl_project_validate(&project, error, sizeof(error)));
+
+    adsl_emission_module_t modules[2];
+    modules[0].source_path = project.documents[0].root_source_path;
+    modules[0].base_name = "J_uses_external_array";
+    modules[1].source_path = project.documents[1].root_source_path;
+    modules[1].base_name = "B_defines_item";
+
+    adsl_emission_plan_t plan;
+    plan.modules = modules;
+    plan.module_count = 2u;
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "J_uses_external_array",
+        error, sizeof(error)));
+    assert(error[0] == '\0');
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 1u,
+        ADSL_TEST_OUTPUT_DIR, "B_defines_item",
+        error, sizeof(error)));
+    assert(error[0] == '\0');
+
+    char path[1024];
+
+    /*
+     * The array alias for Item[] lands in the types header. Its element
+     * C type is item_t, whose full definition is only available in
+     * B's generated header. The consumer's types header must therefore
+     * include it, without ever duplicating B's type definitions.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/j_uses_external_array_types.h", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "#include \"b_defines_item_types.h\""));
+    assert(file_contains(path, "item_array_view_t"));
+
+    /*
+     * The API header carries the same dependency because the API
+     * signature itself references Item[]; the include must appear
+     * exactly once even though the array alias is emitted into the
+     * types header of the same module.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/j_uses_external_array_api.h", ADSL_TEST_OUTPUT_DIR);
+    assert(file_count_occurrences(
+        path, "#include \"b_defines_item_types.h\"") == 1u);
+
+    adsl_project_free(&project);
+}
 
 int main(void) {
+
 
 
 
@@ -1279,7 +1425,10 @@ int main(void) {
     pending_cross_file_by_value_field();
 
     pending_cross_file_inheritance_emission();
+
     pending_type_owner_lookup();
+    pending_cross_file_external_array();
+
 
 
 
