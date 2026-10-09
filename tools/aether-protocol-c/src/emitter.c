@@ -253,6 +253,83 @@ static const adsl_api_t *ctx_apis(
 
 
 
+/*
+ * Hierarchy enumeration helpers.
+ *
+ * Polymorphism detection and hierarchy ref / switch-table generation
+ * must see every descendant declared anywhere in the project, not only
+ * in the current document. Standalone mode uses the include closure;
+ * project mode uses the resolver's global type view (deduplicated by
+ * source_path+name) so that a Base declared in one document sees a
+ * Child declared in another.
+ *
+ * This is deliberately distinct from ctx_types(), which enumerates only
+ * what the current module must generate.
+ */
+static size_t ctx_hierarchy_type_count(
+    const emitter_ctx_t *ctx) {
+
+    if (ctx->resolver != NULL) {
+        return adsl_project_resolver_type_count(ctx->resolver);
+    }
+
+    return ctx->document->resolved_type_count;
+}
+
+
+static const adsl_type_t *ctx_hierarchy_type_at(
+    const emitter_ctx_t *ctx,
+    size_t index) {
+
+    if (ctx->resolver != NULL) {
+        return adsl_project_resolver_type_at(ctx->resolver, index);
+    }
+
+    return &ctx->document->resolved_types[index];
+}
+
+
+
+/*
+ * Index of a type in the current module's emission array, or SIZE_MAX
+ * if the type does not belong to the current module.
+ *
+ * The emission array is resolved_types[] in standalone mode (the
+ * include closure merged into one document) and types[] in project mode
+ * (only the current document's own declarations). Callers use this to
+ * decide whether a referenced type must be emitted locally or handled
+ * as a cross-module dependency by the project emitter.
+ *
+ * This deliberately does not compute indices across arrays: subtracting
+ * pointers that belong to different arrays is undefined behaviour, and
+ * a project can reference a type declared in another document.
+ */
+static size_t ctx_local_type_index(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type) {
+
+    const adsl_type_t *base;
+    size_t count;
+
+    if (ctx->resolver != NULL) {
+        base = ctx->document->types;
+        count = ctx->document->type_count;
+    } else {
+        base = ctx->document->resolved_types;
+        count = ctx->document->resolved_type_count;
+    }
+
+    if (type < base || type >= base + count) {
+        return SIZE_MAX;
+    }
+
+    return (size_t)(type - base);
+}
+
+
+
+
+
 
 /*
  * Generated C identifiers must not collide with C keywords. ADSL method
@@ -2049,14 +2126,16 @@ static bool emit_value_expression(
 
 
 
-static bool emit_struct_definition(
+
+static bool emit_struct_definition_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     size_t type_index,
     uint8_t *states,
     array_alias_state_t *alias_state,
     char *error,
     size_t error_capacity);
+
 
 
 
@@ -6969,19 +7048,8 @@ static bool emit_struct_definition_ctx(
 }
 
 
-static bool emit_struct_definition(
-    FILE *output,
-    const adsl_document_t *document,
-    size_t type_index,
-    uint8_t *states,
-    array_alias_state_t *alias_state,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_struct_definition_ctx(
-        output, &ctx, type_index, states, alias_state, error, error_capacity);
-}
+
 
 
 
@@ -7379,20 +7447,23 @@ static bool type_has_children_ctx(
         return false;
     }
 
-    const adsl_type_t *list;
-    size_t count;
 
-    if (ctx->resolver != NULL) {
-        list = ctx->document->types;
-        count = ctx->document->type_count;
-    } else {
-        list = ctx->document->resolved_types;
-        count = ctx->document->resolved_type_count;
-    }
+    /*
+     * Hierarchy analysis must see every descendant declared anywhere in
+     * the project, not only in the current document. ctx_hierarchy_*
+     * exposes the resolver's global type view in project mode and the
+     * include closure in standalone mode; this is deliberately distinct
+     * from ctx_types(), which enumerates only the current module's own
+     * declarations for generation.
+     */
+    size_t count = ctx_hierarchy_type_count(ctx);
+
+
 
     for (size_t i = 0u; i < count; ++i) {
 
-        const adsl_type_t *candidate = &list[i];
+        const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
+
 
         if (candidate->parent == NULL) {
             continue;
@@ -7500,16 +7571,9 @@ static bool emit_hierarchy_ref_ctx(
         return true;
     }
 
-    const adsl_type_t *list;
-    size_t count;
 
-    if (ctx->resolver != NULL) {
-        list = ctx->document->types;
-        count = ctx->document->type_count;
-    } else {
-        list = ctx->document->resolved_types;
-        count = ctx->document->resolved_type_count;
-    }
+    size_t count = ctx_hierarchy_type_count(ctx);
+
 
     char static_name[256];
 
@@ -7520,9 +7584,11 @@ static bool emit_hierarchy_ref_ctx(
 
     size_t concrete_count = 0u;
 
+
     for (size_t i = 0u; i < count; ++i) {
 
-        const adsl_type_t *candidate = &list[i];
+        const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
+
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
@@ -7555,9 +7621,11 @@ static bool emit_hierarchy_ref_ctx(
             return false;
         }
 
+
         for (size_t j = i + 1u; j < count; ++j) {
 
-            const adsl_type_t *other = &list[j];
+            const adsl_type_t *other = ctx_hierarchy_type_at(ctx, j);
+
 
             if (other->enum_count > 0u ||
                 other->is_abstract ||
@@ -7595,7 +7663,9 @@ static bool emit_hierarchy_ref_ctx(
 
     for (size_t i = 0u; i < count; ++i) {
 
-        const adsl_type_t *candidate = &list[i];
+
+        const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
+
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
@@ -7659,7 +7729,9 @@ static bool emit_hierarchy_ref_ctx(
 
         for (size_t i = 0u; i < count; ++i) {
 
-            const adsl_type_t *candidate = &list[i];
+
+            const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
+
 
             if (candidate->enum_count > 0u ||
                 candidate->is_abstract ||
@@ -7765,22 +7837,17 @@ static bool emit_hierarchy_expression_ctx(
         value_expression,
         value_expression);
 
-    const adsl_type_t *list;
-    size_t count;
 
-    if (ctx->resolver != NULL) {
-        list = ctx->document->types;
-        count = ctx->document->type_count;
-    } else {
-        list = ctx->document->resolved_types;
-        count = ctx->document->resolved_type_count;
-    }
+    size_t count = ctx_hierarchy_type_count(ctx);
+
 
     size_t concrete_count = 0u;
 
+
     for (size_t i = 0u; i < count; ++i) {
 
-        const adsl_type_t *candidate = &list[i];
+        const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
+
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
@@ -7993,23 +8060,23 @@ static bool emit_all_struct_dependencies_ctx(
                 element_type->stream == NULL &&
                 !type_is_polymorphic_reference_ctx(ctx, element_type)) {
 
+
                 /*
-                 * Inline T[N] needs sizeof(T), so finish T first. Once
-                 * its body is complete the array alias can safely be
-                 * emitted immediately before the owning struct
-                 * definition.
-                 *
-                 * NOTE: the index computation still assumes the
-                 * standalone enumeration array (resolved_types).
-                 * Project enumeration will be introduced in a later
-                 * step together with emit_struct_definition_ctx.
+                 * Inline T[N] needs sizeof(T), so finish T first.
+                 * If T belongs to another project module, its complete
+                 * body is the owner's responsibility and this module
+                 * only records the dependency (handled by the project
+                 * dependency generation step). Otherwise finish the
+                 * local body and emit the alias immediately before the
+                 * owning struct definition.
                  */
                 size_t nested_index =
-                    (size_t)(element_type - ctx->document->resolved_types);
+                    ctx_local_type_index(ctx, element_type);
 
-                if (!emit_struct_definition(
+                if (nested_index != SIZE_MAX &&
+                    (!emit_struct_definition_ctx(
                         output,
-                        ctx->document,
+                        ctx,
                         nested_index,
                         states,
                         alias_state,
@@ -8021,10 +8088,11 @@ static bool emit_all_struct_dependencies_ctx(
                         alias_state,
                         field->type,
                         error,
-                        error_capacity)) {
+                        error_capacity))) {
 
                     return false;
                 }
+
             }
 
             continue;
@@ -8078,12 +8146,14 @@ static bool emit_all_struct_dependencies_ctx(
             return false;
         }
 
-        size_t nested_index =
-            (size_t)(field_type - ctx->document->resolved_types);
 
-        if (!emit_struct_definition(
+        size_t nested_index =
+            ctx_local_type_index(ctx, field_type);
+
+        if (nested_index != SIZE_MAX &&
+            !emit_struct_definition_ctx(
                 output,
-                ctx->document,
+                ctx,
                 nested_index,
                 states,
                 alias_state,
@@ -8092,6 +8162,7 @@ static bool emit_all_struct_dependencies_ctx(
 
             return false;
         }
+
     }
 
     return true;

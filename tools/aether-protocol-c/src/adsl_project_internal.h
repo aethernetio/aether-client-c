@@ -50,6 +50,28 @@ bool adsl_project_resolver_collect_effective(
     adsl_effective_method_t **out_methods,
     size_t *out_count,
     char *error,
+
     size_t error_capacity);
+
+/*
+ * Enumerate every distinct physical user type known to the project,
+ * deduplicated by (source_path, name).
+ *
+ * This is the enumeration that hierarchy walks must use in project
+ * mode: unlike ctx_types()/ctx_apis() in emitter.c, which return the
+ * current document's own declarations for generation, this view exposes
+ * the global type space so that descendants declared in other documents
+ * are visible when computing polymorphism, hierarchy refs and
+ * serialization switch tables.
+ *
+ * Entries are stable for the resolver's lifetime. The caller must not
+ * mutate or free the returned pointers.
+ */
+size_t adsl_project_resolver_type_count(
+    const adsl_project_resolver_t *resolver);
+
+const adsl_type_t *adsl_project_resolver_type_at(
+    const adsl_project_resolver_t *resolver,
+    size_t index);
 
 #endif

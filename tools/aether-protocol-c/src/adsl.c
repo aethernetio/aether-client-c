@@ -7577,3 +7577,37 @@ bool adsl_project_resolver_collect_effective(
         error,
         error_capacity);
 }
+
+
+
+/*
+ * Project-wide enumeration of distinct physical user types.
+ *
+ * The resolver's global type index already stores one entry per
+ * (source_path, name) pair, deduplicated across include chains and
+ * documents. Hierarchy analysis (polymorphism detection, hierarchy ref
+ * unions, serialization switch tables) must therefore walk this view
+ * rather than the current document's own types[], so descendants
+ * declared in other documents remain visible.
+ */
+size_t adsl_project_resolver_type_count(
+    const adsl_project_resolver_t *resolver) {
+
+    if (resolver == NULL) {
+        return 0u;
+    }
+
+    return resolver->types.entry_count;
+}
+
+
+const adsl_type_t *adsl_project_resolver_type_at(
+    const adsl_project_resolver_t *resolver,
+    size_t index) {
+
+    if (resolver == NULL || index >= resolver->types.entry_count) {
+        return NULL;
+    }
+
+    return resolver->types.entries[index].declaration;
+}
