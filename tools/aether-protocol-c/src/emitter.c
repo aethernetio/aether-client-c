@@ -179,30 +179,14 @@ static void snake_name(
 
 
 
+
 /*
- * Emitter context.
- *
- * Threads the two pieces of state an emitter call needs when it must
- * resolve a user type or API:
- *
- *   - document: the document being emitted. Enumeration of what to
- *     generate always uses this document (its own types[]/apis[] in
- *     project mode, or its resolved_types[]/resolved_apis[] in
- *     standalone mode).
- *
- *   - resolver: NULL in standalone mode, in which case every lookup
- *     falls back to the document's include closure (the historical
- *     behaviour). Non-NULL in project mode, in which case every
- *     lookup goes through the project-global resolver shared with
- *     adsl_project_validate().
- *
- * There is no global mutable state. A context is created on the stack
- * and passed by pointer (or by value where convenient).
+ * The emitter context is defined in src/adsl_project_internal.h so
+ * that adsl.c and tests can construct one without duplicating the
+ * layout. See that header for the ownership contract of each field.
  */
-typedef struct {
-    const adsl_document_t *document;
-    const adsl_project_resolver_t *resolver;
-} emitter_ctx_t;
+
+
 
 
 static emitter_ctx_t emitter_ctx_standalone(
@@ -211,8 +195,12 @@ static emitter_ctx_t emitter_ctx_standalone(
     emitter_ctx_t ctx;
     ctx.document = document;
     ctx.resolver = NULL;
+    ctx.project = NULL;
+    ctx.plan = NULL;
+    ctx.base_snake[0] = '\0';
     return ctx;
 }
+
 
 
 
@@ -5264,7 +5252,10 @@ bool adsl_emit_c_method(
         return false;
     }
 
+
     emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    snake_name(base_name, ctx.base_snake, sizeof(ctx.base_snake));
+
 
     if (selected_api_name != NULL) {
         const adsl_api_t *selected_api =
@@ -5439,7 +5430,123 @@ static bool safe_snake_name(
     }
 
     return true;
+
 }
+
+/*
+ * Resolve the module prefix (base_snake) that owns the generated C
+ * symbols of the given ADSL type declaration.
+ *
+ * Standalone: every declaration in the include closure is emitted by
+ * the single generated module, so the owner prefix is the current
+ * base_snake.
+ *
+ * Project mode: the resolver records the root document whose closure
+ * contains the declaration; the emission plan maps that root document
+ * to a module base_name. Failure to determine the owner is a hard
+ * error: two modules that reference the same ADSL type must agree on
+ * who owns "<owner>_serialize_<type>" and friends.
+ *
+ * The C type name itself (for example "item_t") is not module-prefixed
+ * and is deliberately not affected by this helper.
+ */
+bool type_owner_base_snake(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type,
+    char *out,
+    size_t capacity,
+    char *error,
+    size_t error_capacity) {
+
+    if (ctx == NULL || type == NULL || out == NULL || capacity == 0u) {
+        set_error(
+            error,
+            error_capacity,
+            "invalid type owner lookup arguments");
+        return false;
+    }
+
+    if (ctx->resolver == NULL) {
+        if (ctx->base_snake[0] == '\0') {
+            set_error(
+                error,
+                error_capacity,
+                "standalone emitter context has no base_snake");
+            return false;
+        }
+
+        size_t length = strlen(ctx->base_snake);
+
+        if (length + 1u > capacity) {
+            set_error(
+                error,
+                error_capacity,
+                "standalone emitter base_snake does not fit");
+            return false;
+        }
+
+        memcpy(out, ctx->base_snake, length + 1u);
+        return true;
+    }
+
+    if (ctx->plan == NULL) {
+        set_error(
+            error,
+            error_capacity,
+            "project emitter context has no emission plan");
+        return false;
+    }
+
+    const char *owner_source =
+        adsl_project_resolver_type_source(ctx->resolver, type);
+
+    if (owner_source == NULL) {
+        char message[512];
+        (void)snprintf(
+            message,
+            sizeof(message),
+            "type '%s' has no owner in the project resolver",
+            type->name != NULL ? type->name : "<unnamed>");
+        set_error(error, error_capacity, message);
+        return false;
+    }
+
+    const char *owner_base_name = NULL;
+
+    for (size_t m = 0u; m < ctx->plan->module_count; ++m) {
+        const char *sp = ctx->plan->modules[m].source_path;
+        if (sp != NULL && strcmp(sp, owner_source) == 0) {
+            owner_base_name = ctx->plan->modules[m].base_name;
+            break;
+        }
+    }
+
+    if (owner_base_name == NULL) {
+        char message[512];
+        (void)snprintf(
+            message,
+            sizeof(message),
+            "type '%s' is owned by '%s' which is not in the emission plan",
+            type->name != NULL ? type->name : "<unnamed>",
+            owner_source);
+        set_error(error, error_capacity, message);
+        return false;
+    }
+
+    if (!safe_snake_name(owner_base_name, out, capacity)) {
+        char message[512];
+        (void)snprintf(
+            message,
+            sizeof(message),
+            "owner module base_name '%s' cannot be normalized",
+            owner_base_name);
+        set_error(error, error_capacity, message);
+        return false;
+    }
+
+    return true;
+}
+
 
 
 
@@ -5692,7 +5799,12 @@ bool adsl_emit_c_project(
 
     emitter_ctx_t ctx;
     ctx.document = document;
+
     ctx.resolver = resolver;
+    ctx.project = project;
+    ctx.plan = plan;
+    ctx.base_snake[0] = '\0';
+
 
     char base_snake[256];
 

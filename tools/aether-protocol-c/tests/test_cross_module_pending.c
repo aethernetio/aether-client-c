@@ -944,10 +944,122 @@ static void pending_cross_file_inheritance_emission(void) {
     assert(file_contains(path, "child_api_child_ping("));
 
     adsl_project_free(&project);
+
+}
+
+
+/*
+ * B2.4.1: type_owner_base_snake must map a cross-document type to the
+ * owning module, and must fail loudly when the owner cannot be
+ * determined. Standalone mode keeps the current module as owner.
+ */
+static void pending_type_owner_lookup(void) {
+    char a_path[1024];
+    char b_path[1024];
+
+    fixture_path(
+        "cross_module/A_uses_item.adsl.yaml",
+        a_path, sizeof(a_path));
+    fixture_path(
+        "cross_module/B_defines_item.adsl.yaml",
+        b_path, sizeof(b_path));
+
+    const char *paths[] = { a_path, b_path };
+    const char *include_paths[] = {
+        ADSL_FIXTURE_DIR "/cross_module"
+    };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    char error[512] = {0};
+
+    assert(adsl_project_load_files(
+        paths, 2u, include_paths, 1u,
+        &project, error, sizeof(error)));
+
+    assert(adsl_project_validate(&project, error, sizeof(error)));
+
+    adsl_project_resolver_t *resolver = NULL;
+    assert(adsl_project_resolver_build(
+        &project, &resolver, error, sizeof(error)));
+
+    adsl_emission_module_t modules[2];
+    modules[0].source_path = project.documents[0].root_source_path;
+    modules[0].base_name = "A_uses_item";
+    modules[1].source_path = project.documents[1].root_source_path;
+    modules[1].base_name = "B_defines_item";
+
+    adsl_emission_plan_t plan;
+    plan.modules = modules;
+    plan.module_count = 2u;
+
+    const adsl_type_t *item =
+        adsl_project_resolver_type(resolver, "Item");
+    assert(item != NULL);
+
+    char owner[256];
+
+    /* Project mode: Item is owned by module B. */
+    emitter_ctx_t project_ctx;
+    memset(&project_ctx, 0, sizeof(project_ctx));
+    project_ctx.document = &project.documents[0];
+    project_ctx.resolver = resolver;
+    project_ctx.project = &project;
+    project_ctx.plan = &plan;
+    (void)snprintf(project_ctx.base_snake,
+        sizeof(project_ctx.base_snake), "a_uses_item");
+
+    error[0] = '\0';
+    assert(type_owner_base_snake(
+        &project_ctx, item, owner, sizeof(owner),
+        error, sizeof(error)));
+    assert(strcmp(owner, "b_defines_item") == 0);
+
+    /* Standalone mode: always the current module. */
+    emitter_ctx_t standalone_ctx;
+    memset(&standalone_ctx, 0, sizeof(standalone_ctx));
+    standalone_ctx.document = &project.documents[0];
+    (void)snprintf(standalone_ctx.base_snake,
+        sizeof(standalone_ctx.base_snake), "a_uses_item");
+
+    error[0] = '\0';
+    assert(type_owner_base_snake(
+        &standalone_ctx, item, owner, sizeof(owner),
+        error, sizeof(error)));
+    assert(strcmp(owner, "a_uses_item") == 0);
+
+    /* Project mode without an owner entry in the plan must fail. */
+    adsl_emission_module_t broken[1];
+    broken[0].source_path = project.documents[0].root_source_path;
+    broken[0].base_name = "A_uses_item";
+
+    adsl_emission_plan_t broken_plan;
+    broken_plan.modules = broken;
+    broken_plan.module_count = 1u;
+
+    emitter_ctx_t broken_ctx;
+    memset(&broken_ctx, 0, sizeof(broken_ctx));
+    broken_ctx.document = &project.documents[0];
+    broken_ctx.resolver = resolver;
+    broken_ctx.project = &project;
+    broken_ctx.plan = &broken_plan;
+    (void)snprintf(broken_ctx.base_snake,
+        sizeof(broken_ctx.base_snake), "a_uses_item");
+
+    error[0] = '\0';
+    assert(!type_owner_base_snake(
+        &broken_ctx, item, owner, sizeof(owner),
+        error, sizeof(error)));
+    assert(error[0] != '\0');
+
+    adsl_project_resolver_release(resolver);
+    adsl_project_free(&project);
 }
 
 
 int main(void) {
+
 
     pending_res_001_cross_file_without_include();
     pending_res_003_resolution_order_independent();
@@ -968,7 +1080,10 @@ int main(void) {
     pending_cross_file_hierarchy_resolves();
 
     pending_cross_file_by_value_field();
+
     pending_cross_file_inheritance_emission();
+    pending_type_owner_lookup();
+
 
 
 

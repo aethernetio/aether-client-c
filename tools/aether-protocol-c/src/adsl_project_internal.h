@@ -72,6 +72,75 @@ size_t adsl_project_resolver_type_count(
 
 const adsl_type_t *adsl_project_resolver_type_at(
     const adsl_project_resolver_t *resolver,
+
     size_t index);
+
+/*
+ * Root source path of the document that owns the given type declaration
+ * for symbol naming purposes.
+ *
+ * The project resolver registers each declaration together with the
+ * root_source_path of the root document whose closure contains it. In
+ * project mode this is the module that will own "<owner>_serialize_X",
+ * "<owner>_deserialize_X", "<owner>_tiered_int_limits" and similar
+ * module-prefixed symbols.
+ *
+ * Returns NULL if the declaration is not registered in the resolver.
+ */
+const char *adsl_project_resolver_type_source(
+    const adsl_project_resolver_t *resolver,
+    const adsl_type_t *type);
+
+
+
+/*
+ * Emitter context shared between adsl.c and emitter.c.
+ *
+ * Fields:
+ *   - document: the document currently being emitted. Enumeration of
+ *     what to generate uses this document's own types[]/apis[]
+ *     (project mode) or resolved_types[]/resolved_apis[] (standalone).
+ *   - resolver: NULL in standalone mode; in project mode, the
+ *     project-global resolver shared with adsl_project_validate().
+ *   - project / plan: NULL in standalone mode; in project mode, the
+ *     project and its emission plan. These allow the emitter to
+ *     identify the owner module of a declaration for cross-module C
+ *     symbol naming.
+ *   - base_snake: normalized base_name of the module currently being
+ *     emitted ("a_uses_item"). Filled by the top-level entrypoints.
+ *
+ * No global mutable state: contexts are created on the stack and
+ * passed by pointer.
+ */
+typedef struct {
+    const adsl_document_t *document;
+    const adsl_project_resolver_t *resolver;
+    const adsl_project_t *project;
+    const adsl_emission_plan_t *plan;
+    char base_snake[256];
+} emitter_ctx_t;
+
+/*
+ * Resolve the module prefix (base_snake) of the module that owns the
+ * generated C symbols for the given type declaration.
+ *
+ * Standalone mode: every type in the include closure belongs to the
+ * single generated module; returns ctx->base_snake.
+ *
+ * Project mode: finds the root document whose closure contains the
+ * declaration and maps it to the emission plan's base_name. Returns
+ * an error if the owner cannot be determined unambiguously. Never
+ * falls back to the current module: two modules referencing the same
+ * ADSL type must agree on who owns "<owner>_serialize_<type>" and
+ * friends. The C type name itself (e.g. "item_t") is not
+ * module-prefixed and is not affected.
+ */
+bool type_owner_base_snake(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type,
+    char *out,
+    size_t capacity,
+    char *error,
+    size_t error_capacity);
 
 #endif

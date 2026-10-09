@@ -7610,4 +7610,24 @@ const adsl_type_t *adsl_project_resolver_type_at(
     }
 
     return resolver->types.entries[index].declaration;
+
+}
+
+const char *adsl_project_resolver_type_source(
+    const adsl_project_resolver_t *resolver,
+    const adsl_type_t *type) {
+
+    if (resolver == NULL || type == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0u; i < resolver->types.entry_count; ++i) {
+        const adsl_global_type_entry_t *entry =
+            &resolver->types.entries[i];
+        if (entry->declaration == type) {
+            return entry->source_path;
+        }
+    }
+
+    return NULL;
 }
