@@ -8708,60 +8708,55 @@ static bool emit_all_nullable_mask_bits(
 
 
 
-static bool emit_all_struct_payload(
+
+static bool emit_all_struct_payload_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const adsl_type_t *type,
     const char *expression,
     const char *prefix,
     bool struct_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid struct payload context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "struct inheritance depth exceeds 64");
-
         return false;
     }
 
     if (type->parent != NULL) {
         const adsl_type_t *parent =
-            find_declared_type(
-                document,
-                type->parent);
+            find_declared_type_ctx(ctx, type->parent);
 
         if (parent == NULL) {
             set_error(
                 error,
                 error_capacity,
                 "generated struct has unknown parent");
-
             return false;
         }
 
-        if (!emit_all_struct_payload(
+        if (!emit_all_struct_payload_ctx(
                 output,
-                document,
-
+                ctx,
                 base_snake,
-
                 parent,
                 expression,
                 prefix,
                 struct_pointer,
                 depth + 1u,
-
                 runtime_depth,
-
                 error,
                 error_capacity)) {
 
@@ -8769,13 +8764,9 @@ static bool emit_all_struct_payload(
         }
     }
 
-    for (size_t f = 0u;
-         f < type->field_count;
-         ++f) {
+    for (size_t f = 0u; f < type->field_count; ++f) {
 
-        const adsl_field_t *field =
-            &type->fields[f];
-
+        const adsl_field_t *field = &type->fields[f];
 
         bool nullable =
             strchr(
@@ -8803,7 +8794,6 @@ static bool emit_all_struct_payload(
                 error,
                 error_capacity,
                 "generated inherited field expression is too long");
-
             return false;
         }
 
@@ -8825,25 +8815,20 @@ static bool emit_all_struct_payload(
                 error,
                 error_capacity,
                 "generated inherited field prefix is too long");
-
             return false;
         }
 
         if (!nullable) {
             if (!emit_value_expression(
                     output,
-                    document,
-
+                    ctx->document,
                     base_snake,
-
                     field->type,
                     field_expression,
                     field_prefix,
                     false,
                     depth + 1u,
-
                     runtime_depth,
-
                     error,
                     error_capacity)) {
 
@@ -8864,7 +8849,6 @@ static bool emit_all_struct_payload(
                 error,
                 error_capacity,
                 "generated nullable inherited field type is too long");
-
             return false;
         }
 
@@ -8904,14 +8888,11 @@ static bool emit_all_struct_payload(
                     error,
                     error_capacity,
                     "milestone-2 nullable inherited field has unsupported type");
-
                 return false;
             }
 
             const adsl_type_t *field_declared_type =
-                find_declared_type(
-                    document,
-                    base);
+                find_declared_type_ctx(ctx, base);
 
             pointer_value =
                 field_declared_type != NULL &&
@@ -8937,24 +8918,19 @@ static bool emit_all_struct_payload(
                 error,
                 error_capacity,
                 "generated nullable inherited value expression is too long");
-
             return false;
         }
 
         if (!emit_value_expression(
                 output,
-                document,
-
+                ctx->document,
                 base_snake,
-
                 underlying_type,
                 nullable_expression,
                 field_prefix,
                 pointer_value,
                 depth + 1u,
-
                 runtime_depth,
-
                 error,
                 error_capacity)) {
 
@@ -8968,6 +8944,27 @@ static bool emit_all_struct_payload(
 
     return true;
 }
+
+
+static bool emit_all_struct_payload(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *base_snake,
+    const adsl_type_t *type,
+    const char *expression,
+    const char *prefix,
+    bool struct_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_all_struct_payload_ctx(
+        output, &ctx, base_snake, type, expression, prefix,
+        struct_pointer, depth, runtime_depth, error, error_capacity);
+}
+
 
 
 
