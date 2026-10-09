@@ -1136,13 +1136,12 @@ static bool emit_array_alias(
  * while enums, hierarchy refs, streams and primitives are already complete at
  * the early alias-emission stage.
  */
-static bool array_alias_requires_complete_element(
-    const adsl_document_t *document,
+
+static bool array_alias_requires_complete_element_ctx(
+    const emitter_ctx_t *ctx,
     const char *type) {
 
-    if (document == NULL ||
-        type == NULL) {
-
+    if (ctx == NULL || ctx->document == NULL || type == NULL) {
         return false;
     }
 
@@ -1164,21 +1163,25 @@ static bool array_alias_requires_complete_element(
     (void)static_size;
 
     const adsl_type_t *declared =
-        find_declared_type(
-            document,
-            element);
-
+        find_declared_type_ctx(ctx, element);
 
     return declared != NULL &&
            !declared->has_tiered_int &&
            declared->enum_count == 0u &&
            !declared->is_abstract &&
            declared->stream == NULL &&
-           !type_is_polymorphic_reference(
-               document,
-               declared);
-
+           !type_is_polymorphic_reference_ctx(ctx, declared);
 }
+
+
+static bool array_alias_requires_complete_element(
+    const adsl_document_t *document,
+    const char *type) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return array_alias_requires_complete_element_ctx(&ctx, type);
+}
+
 
 
 
