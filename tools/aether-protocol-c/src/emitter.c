@@ -480,9 +480,14 @@ static const adsl_type_t *find_declared_type(
     const adsl_document_t *document,
     const char *name);
 
-static bool type_has_children(
-    const adsl_document_t *document,
-    const adsl_type_t *type);
+
+static const adsl_type_t *find_declared_type_ctx(
+    const emitter_ctx_t *ctx,
+    const char *name);
+
+
+
+
 
 static bool type_is_polymorphic_reference(
     const adsl_document_t *document,
@@ -492,6 +497,15 @@ static bool type_is_descendant_or_self(
     const adsl_document_t *document,
     const adsl_type_t *candidate,
     const adsl_type_t *ancestor);
+
+
+static bool type_has_children_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type);
+
+
+
+
 
 
 typedef struct {
@@ -7443,25 +7457,36 @@ static bool emit_struct_value_expression(
 }
 
 
-static bool type_has_children(
-    const adsl_document_t *document,
+
+static bool type_has_children_ctx(
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type) {
 
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
+    if (ctx == NULL || ctx->document == NULL) {
+        return false;
+    }
 
-        const adsl_type_t *candidate =
-            &document->resolved_types[i];
+    const adsl_type_t *list;
+    size_t count;
+
+    if (ctx->resolver != NULL) {
+        list = ctx->document->types;
+        count = ctx->document->type_count;
+    } else {
+        list = ctx->document->resolved_types;
+        count = ctx->document->resolved_type_count;
+    }
+
+    for (size_t i = 0u; i < count; ++i) {
+
+        const adsl_type_t *candidate = &list[i];
 
         if (candidate->parent == NULL) {
             continue;
         }
 
         const adsl_type_t *parent =
-            find_declared_type(
-                document,
-                candidate->parent);
+            find_declared_type_ctx(ctx, candidate->parent);
 
         if (parent == type) {
             return true;
@@ -7471,28 +7496,48 @@ static bool type_has_children(
     return false;
 }
 
-static bool type_is_polymorphic_reference(
-    const adsl_document_t *document,
+
+
+
+
+
+
+static bool type_is_polymorphic_reference_ctx(
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type) {
 
+    if (ctx == NULL) {
+        return false;
+    }
 
     return type != NULL &&
            !type->has_tiered_int &&
            type->enum_count == 0u &&
            (type->is_abstract ||
-            type_has_children(
-                document,
-                type));
-
+            type_has_children_ctx(ctx, type));
 }
 
-static bool type_is_descendant_or_self(
+
+static bool type_is_polymorphic_reference(
     const adsl_document_t *document,
+    const adsl_type_t *type) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return type_is_polymorphic_reference_ctx(&ctx, type);
+}
+
+
+
+static bool type_is_descendant_or_self_ctx(
+    const emitter_ctx_t *ctx,
     const adsl_type_t *candidate,
     const adsl_type_t *ancestor) {
 
-    const adsl_type_t *current =
-        candidate;
+    if (ctx == NULL) {
+        return false;
+    }
+
+    const adsl_type_t *current = candidate;
 
     for (unsigned int depth = 0u;
          current != NULL &&
@@ -7508,13 +7553,22 @@ static bool type_is_descendant_or_self(
         }
 
         current =
-            find_declared_type(
-                document,
-                current->parent);
+            find_declared_type_ctx(ctx, current->parent);
     }
 
     return false;
 }
+
+
+static bool type_is_descendant_or_self(
+    const adsl_document_t *document,
+    const adsl_type_t *candidate,
+    const adsl_type_t *ancestor) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return type_is_descendant_or_self_ctx(&ctx, candidate, ancestor);
+}
+
 
 static bool emit_hierarchy_ref(
     FILE *output,
