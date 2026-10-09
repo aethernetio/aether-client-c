@@ -8346,6 +8346,15 @@ static bool format_c_type(
 
 
 
+
+static bool emit_field_declaration_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    const char *type,
+    const char *name,
+    char *error,
+    size_t error_capacity);
+
 static bool emit_field_declaration(
     FILE *output,
     const adsl_document_t *document,
@@ -8353,6 +8362,7 @@ static bool emit_field_declaration(
     const char *name,
     char *error,
     size_t error_capacity);
+
 
 
 
@@ -8406,9 +8416,11 @@ static bool emit_all_struct_field_declarations_ctx(
 
         const adsl_field_t *field = &type->fields[f];
 
-        if (!emit_field_declaration(
+
+        if (!emit_field_declaration_ctx(
                 output,
-                ctx->document,
+                ctx,
+
                 field->type,
                 field->name,
                 error,
@@ -10101,13 +10113,19 @@ static const adsl_method_t *response_find_method(
 
 
 
-static bool emit_field_declaration(
+
+static bool emit_field_declaration_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *type,
     const char *name,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid field declaration context");
+        return false;
+    }
 
     if (name == NULL) {
         set_error(error, error_capacity, "result field has no name");
@@ -10117,8 +10135,8 @@ static bool emit_field_declaration(
     char base[256];
     bool pointer;
 
-    if (!format_c_type(
-            document,
+    if (!format_c_type_ctx(
+            ctx,
             type,
             base,
             sizeof(base),
@@ -10136,6 +10154,21 @@ static bool emit_field_declaration(
 
     return true;
 }
+
+
+static bool emit_field_declaration(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *type,
+    const char *name,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_field_declaration_ctx(
+        output, &ctx, type, name, error, error_capacity);
+}
+
 
 
 
