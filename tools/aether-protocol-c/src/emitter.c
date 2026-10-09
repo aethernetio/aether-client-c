@@ -573,6 +573,21 @@ static bool emit_hierarchy_ref_ctx(
 
 
 
+
+
+static bool emit_hierarchy_expression_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    const char *base_snake,
+    const adsl_type_t *static_type,
+    const char *expression,
+    const char *prefix,
+    bool reference_pointer,
+    unsigned int depth,
+    const char *runtime_depth,
+    char *error,
+    size_t error_capacity);
+
 static bool emit_hierarchy_expression(
     FILE *output,
     const adsl_document_t *document,
@@ -582,11 +597,11 @@ static bool emit_hierarchy_expression(
     const char *prefix,
     bool reference_pointer,
     unsigned int depth,
-
     const char *runtime_depth,
-
     char *error,
     size_t error_capacity);
+
+
 
 
 
@@ -2977,22 +2992,26 @@ static bool emit_types_header(
 
 
 
-static bool emit_types_source(
-    const adsl_document_t *document,
+
+static bool emit_types_source_ctx(
+    const emitter_ctx_t *ctx,
     const char *path,
     const char *base_name,
     char *error,
     size_t error_capacity) {
 
-    FILE *output =
-        fopen(path, "wb");
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid types source context");
+        return false;
+    }
+
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
         set_error(
             error,
             error_capacity,
             "cannot create generated types source");
-
         return false;
     }
 
@@ -3010,14 +3029,12 @@ static bool emit_types_source(
         "#include <string.h>\n\n",
         base_snake);
 
+    size_t type_count = 0u;
+    const adsl_type_t *types = ctx_types(ctx, &type_count);
 
+    for (size_t i = 0u; i < type_count; ++i) {
 
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+        const adsl_type_t *type = &types[i];
 
         if (!type->has_tiered_int) {
             continue;
@@ -3035,9 +3052,7 @@ static bool emit_types_source(
             type_name,
             type->tiered_int_limit_count);
 
-        for (size_t l = 0u;
-             l < type->tiered_int_limit_count;
-             ++l) {
+        for (size_t l = 0u; l < type->tiered_int_limit_count; ++l) {
 
             fprintf(
                 output,
@@ -3051,23 +3066,12 @@ static bool emit_types_source(
         fputs("};\n\n", output);
     }
 
+    for (size_t i = 0u; i < type_count; ++i) {
 
-    /*
-     * Private codec helpers are forward-declared as one group because named
-     * structs may be mutually recursive. They stay out of the generated header:
-     * callers enter through the stable public codec ABI at recursion depth zero.
-     */
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+        const adsl_type_t *type = &types[i];
 
         bool hierarchy =
-            type_is_polymorphic_reference(
-                document,
-                type);
+            type_is_polymorphic_reference_ctx(ctx, type);
 
         bool concrete_struct =
             type->enum_count == 0u &&
@@ -3076,9 +3080,7 @@ static bool emit_types_source(
             !type->has_tiered_int &&
             !hierarchy;
 
-        if (!hierarchy &&
-            !concrete_struct) {
-
+        if (!hierarchy && !concrete_struct) {
             continue;
         }
 
@@ -3130,20 +3132,12 @@ static bool emit_types_source(
         }
     }
 
+    for (size_t i = 0u; i < type_count; ++i) {
 
-
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+        const adsl_type_t *type = &types[i];
 
         bool hierarchy =
-            type_is_polymorphic_reference(
-                document,
-                type);
-
+            type_is_polymorphic_reference_ctx(ctx, type);
 
         bool concrete_struct =
             type->enum_count == 0u &&
@@ -3152,10 +3146,7 @@ static bool emit_types_source(
             !type->has_tiered_int &&
             !hierarchy;
 
-
-        if (!hierarchy &&
-            !concrete_struct) {
-
+        if (!hierarchy && !concrete_struct) {
             continue;
         }
 
@@ -3165,7 +3156,6 @@ static bool emit_types_source(
             type->name,
             type_name,
             sizeof(type_name));
-
 
         if (hierarchy) {
             fprintf(
@@ -3245,34 +3235,30 @@ static bool emit_types_source(
 
         if (hierarchy) {
             emitted =
-                emit_hierarchy_expression(
+                emit_hierarchy_expression_ctx(
                     output,
-                    document,
+                    ctx,
                     base_snake,
                     type,
                     "value",
                     "value",
                     true,
                     0u,
-
                     "recursion_depth",
-
                     error,
                     error_capacity);
         } else {
             emitted =
                 emit_struct_value_expression(
                     output,
-                    document,
+                    ctx->document,
                     base_snake,
                     type,
                     "value",
                     "value",
                     true,
                     0u,
-
                     "recursion_depth",
-
                     error,
                     error_capacity);
         }
@@ -3353,28 +3339,24 @@ static bool emit_types_source(
             decoded =
                 emit_decode_hierarchy_expression(
                     output,
-                    document,
+                    ctx->document,
                     type,
                     "(*value)",
                     base_snake,
                     0u,
-
                     "recursion_depth",
-
                     error,
                     error_capacity);
         } else {
             decoded =
                 emit_decode_struct_fields(
                     output,
-                    document,
+                    ctx->document,
                     type,
                     "value",
                     base_snake,
                     0u,
-
                     "recursion_depth",
-
                     error,
                     error_capacity);
         }
@@ -3389,10 +3371,7 @@ static bool emit_types_source(
             "    return AETHER_OK;\n"
             "}\n\n",
             output);
-
-
     }
-
 
     if (ferror(output)) {
         set_error(
@@ -3407,6 +3386,19 @@ static bool emit_types_source(
     fclose(output);
     return true;
 }
+
+
+static bool emit_types_source(
+    const adsl_document_t *document,
+    const char *path,
+    const char *base_name,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_types_source_ctx(&ctx, path, base_name, error, error_capacity);
+}
+
 
 
 
