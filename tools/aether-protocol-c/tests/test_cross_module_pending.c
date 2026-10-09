@@ -625,11 +625,21 @@ static void pending_emission_plan_validation(void) {
         assert(file_contains(path, "api_a_use_item("));
         assert(file_contains(path, "item_t"));
 
+
         (void)snprintf(path, sizeof(path),
             "%s/a_uses_item_api.c", ADSL_TEST_OUTPUT_DIR);
         assert(file_contains(path, "api_a_use_item("));
         assert(file_contains(path, "= 3u;"));
-        assert(file_contains(path, "a_uses_item_serialize_item("));
+
+        /*
+         * The parameter type Item is owned by module B. Its serializer
+         * symbol must carry B's module prefix, not A's. This is the
+         * whole point of B2.4.2 step 2A: no phantom <current>_serialize_*
+         * symbols for foreign types.
+         */
+        assert(file_contains(path, "b_defines_item_serialize_item("));
+        assert(!file_contains(path, "a_uses_item_serialize_item("));
+
 
         /*
          * A owns only its own ApiA declaration. Types declared in B

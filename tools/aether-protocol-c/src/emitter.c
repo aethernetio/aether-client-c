@@ -5597,14 +5597,15 @@ bool type_owner_base_snake(
     }
 
     if (ctx->resolver == NULL) {
-        if (ctx->base_snake[0] == '\0') {
-            set_error(
-                error,
-                error_capacity,
-                "standalone emitter context has no base_snake");
-            return false;
-        }
 
+        /*
+         * Standalone: every declaration lives in one translation unit,
+         * so a type is always local by construction. Some standalone
+         * wrappers call this helper with an unset base_snake; returning
+         * the empty string makes the caller's strcmp decide "local",
+         * which is the standalone answer anyway. The only real failure
+         * mode is buffer overflow, checked below.
+         */
         size_t length = strlen(ctx->base_snake);
 
         if (length + 1u > capacity) {
@@ -5618,6 +5619,7 @@ bool type_owner_base_snake(
         memcpy(out, ctx->base_snake, length + 1u);
         return true;
     }
+
 
     if (ctx->plan == NULL) {
         set_error(
@@ -6323,23 +6325,85 @@ static bool emit_value_expression_ctx(
         return false;
     }
 
+
+    char nested_owner[256];
+
+    if (!type_owner_base_snake(
+            ctx, declared_type, nested_owner, sizeof(nested_owner),
+            error, error_capacity)) {
+        return false;
+
+}
+
+    /*
+     * Some standalone wrappers call this path with an unset
+     * ctx->base_snake; fall back to the caller-provided prefix so the
+     * generated symbol names stay <base_snake>_serialize_<type>_impl.
+     */
+    if (nested_owner[0] == '\0' && base_snake != NULL) {
+        (void)snprintf(
+            nested_owner, sizeof(nested_owner), "%s", base_snake);
+    }
+
+
+
+    bool nested_local =
+        strcmp(nested_owner, base_snake) == 0;
+
+
     if (runtime_depth != NULL) {
-        fprintf(
-            output,
-            "    {\n"
-            "        aether_status_t meta_status = %s_serialize_%s_impl(\n"
-            "            tx,\n"
-            "            tx_capacity,\n"
-            "            &pos,\n"
-            "            %s,\n"
-            "            %s + 1u);\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
-            base_snake,
-            nested_name,
-            nested_value,
-            runtime_depth);
+        /*
+         * Nested call inside another generated impl.
+         *
+         * Local type: call the static impl directly (cheapest path,
+         * unchanged from standalone).
+         *
+         * External type: the impl is private to the owner's
+         * translation unit, so the call must go through the owner's
+         * exported *_with_depth entry point. The caller still adds
+         * one to the recursion depth because the callee is entered
+         * at the impl-equivalent level.
+         */
+        if (nested_local) {
+            fprintf(
+                output,
+                "    {\n"
+                "        aether_status_t meta_status = %s_serialize_%s_impl(\n"
+                "            tx,\n"
+                "            tx_capacity,\n"
+                "            &pos,\n"
+                "            %s,\n"
+                "            %s + 1u);\n"
+                "        if (meta_status != AETHER_OK) return meta_status;\n"
+                "    }\n",
+                base_snake,
+                nested_name,
+                nested_value,
+                runtime_depth);
+        } else {
+            fprintf(
+                output,
+                "    {\n"
+                "        aether_status_t meta_status = %s_serialize_%s_with_depth(\n"
+                "            tx,\n"
+                "            tx_capacity,\n"
+                "            &pos,\n"
+                "            %s,\n"
+                "            %s + 1u);\n"
+                "        if (meta_status != AETHER_OK) return meta_status;\n"
+                "    }\n",
+                nested_owner,
+                nested_name,
+                nested_value,
+                runtime_depth);
+        }
     } else {
+        /*
+         * No enclosing impl: this call starts a fresh top-level
+         * serialization, so depth is zero. Call the public wrapper of
+         * whichever module owns the type (in standalone the owner is
+         * always the current module).
+         */
         fprintf(
             output,
             "    {\n"
@@ -6350,10 +6414,11 @@ static bool emit_value_expression_ctx(
             "            %s);\n"
             "        if (meta_status != AETHER_OK) return meta_status;\n"
             "    }\n",
-            base_snake,
+            nested_owner,
             nested_name,
             nested_value);
     }
+
 
     return true;
 }
@@ -11206,20 +11271,68 @@ static bool emit_decode_value_expression_ctx(
         nested_name,
         sizeof(nested_name));
 
+
+    char nested_owner[256];
+
+    if (!type_owner_base_snake(
+            ctx, declared_type, nested_owner, sizeof(nested_owner),
+            error, error_capacity)) {
+        return false;
+
+}
+
+    /*
+     * Some standalone wrappers call this path with an unset
+     * ctx->base_snake; fall back to the caller-provided prefix so the
+     * generated symbol names stay <base_snake>_deserialize_<type>_impl.
+     */
+    if (nested_owner[0] == '\0' && base_snake != NULL) {
+        (void)snprintf(
+            nested_owner, sizeof(nested_owner), "%s", base_snake);
+    }
+
+
+
+    bool nested_local =
+        strcmp(nested_owner, base_snake) == 0;
+
+
     if (runtime_depth != NULL) {
-        fprintf(
-            output,
-            "    {\n"
-            "        aether_status_t meta_status = %s_deserialize_%s_impl(\n"
-            "            ctx,\n"
-            "            &(%s),\n"
-            "            %s + 1u);\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
-            base_snake,
-            nested_name,
-            target,
-            runtime_depth);
+        /*
+         * See emit_value_expression_ctx for the rationale: local types
+         * keep calling the static impl, external types go through the
+         * owner's *_with_depth entry point, and the caller adds one to
+         * the recursion depth in both cases.
+         */
+        if (nested_local) {
+            fprintf(
+                output,
+                "    {\n"
+                "        aether_status_t meta_status = %s_deserialize_%s_impl(\n"
+                "            ctx,\n"
+                "            &(%s),\n"
+                "            %s + 1u);\n"
+                "        if (meta_status != AETHER_OK) return meta_status;\n"
+                "    }\n",
+                base_snake,
+                nested_name,
+                target,
+                runtime_depth);
+        } else {
+            fprintf(
+                output,
+                "    {\n"
+                "        aether_status_t meta_status = %s_deserialize_%s_with_depth(\n"
+                "            ctx,\n"
+                "            &(%s),\n"
+                "            %s + 1u);\n"
+                "        if (meta_status != AETHER_OK) return meta_status;\n"
+                "    }\n",
+                nested_owner,
+                nested_name,
+                target,
+                runtime_depth);
+        }
     } else {
         fprintf(
             output,
@@ -11229,10 +11342,11 @@ static bool emit_decode_value_expression_ctx(
             "            &(%s));\n"
             "        if (meta_status != AETHER_OK) return meta_status;\n"
             "    }\n",
-            base_snake,
+            nested_owner,
             nested_name,
             target);
     }
+
 
     return true;
 }

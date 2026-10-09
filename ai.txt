@@ -5337,3 +5337,23 @@ cross-type вызовах внутри одного модуля).
 
 Не начинать cross-module #include, recursion и tiered-int
 ownership до завершения фазы 1.
+=== 2026-10-10 B2.4.2 step 2A kickoff ===
+Коммит 81ed532 'upgare' исследован: изменён только ai.txt,
+содержимое совпадает с моим предыдущим log() вызовом.
+Постороннее авто-коммит-событие, ничего не ломает.
+Оставляем как есть.
+
+План step 2A:
+  - emit_value_expression_ctx: для вложенного declared type в
+    project mode вычислять owner через type_owner_base_snake;
+    для external использовать <owner>_serialize_<T>_with_depth
+    (runtime_depth != NULL) либо <owner>_serialize_<T>
+    (runtime_depth == NULL, public wrapper владельца).
+    Для local и standalone поведение не меняется.
+  - emit_decode_value_expression_ctx: аналогично для deserialize.
+  - Тест: проверить что в A-модуле при вызове сериализатора
+    внешнего Item генерируется b_defines_item_serialize_item_*
+    (не a_uses_item_serialize_item).
+
+Ограничение: без #include шаг 2A не гарантирует компиляцию
+A-модуля, только правильные имена символов.
