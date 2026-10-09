@@ -556,18 +556,43 @@ static void pending_emission_plan_validation(void) {
         error, sizeof(error)));
     assert(strstr(error, "invalid project emitter arguments") != NULL);
 
-    /*
-     * A valid plan must pass every structural check and reach the
-     * temporary "not yet wired" step. Asserting the specific diagnostic
-     * prevents false positives from unrelated structural failures.
+
+/*
+     * A valid plan must pass every structural check and actually emit
+     * the four generated files for the selected module. Document index 0
+     * is A_uses_item, whose base_name matches the plan entry, and only
+     * that document's own declarations must land in the generated
+     * module (cross-module references are resolved by the resolver but
+     * never duplicated into another module's output).
      */
     error[0] = '\0';
     bool emitted = adsl_emit_c_project(
         &project, &plan, 0u,
         ADSL_TEST_OUTPUT_DIR, "A_uses_item",
         error, sizeof(error));
-    assert(!emitted);
-    assert(strstr(error, "not yet wired") != NULL);
+    assert(emitted);
+    assert(error[0] == '\0');
+
+    {
+        static const char *const suffixes[] = {
+            "a_uses_item_types.h",
+            "a_uses_item_types.c",
+            "a_uses_item_api.h",
+            "a_uses_item_api.c"
+        };
+
+        for (size_t i = 0u; i < sizeof(suffixes) / sizeof(suffixes[0]); ++i) {
+            char path[1024];
+            (void)snprintf(path, sizeof(path), "%s/%s",
+                ADSL_TEST_OUTPUT_DIR, suffixes[i]);
+            FILE *generated = fopen(path, "rb");
+            assert(generated != NULL);
+            if (generated != NULL) {
+                fclose(generated);
+            }
+        }
+    }
+
 
     /* Plan with a missing entry for one document is rejected. */
     adsl_emission_module_t incomplete[1];

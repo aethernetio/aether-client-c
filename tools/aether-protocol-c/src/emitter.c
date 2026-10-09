@@ -1337,18 +1337,7 @@ static bool emit_array_expression_ctx(
     char *error,
     size_t error_capacity);
 
-static bool emit_array_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const char *type,
-    const char *expression,
-    const char *prefix,
-    bool array_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity);
+
 
 
 
@@ -1480,14 +1469,15 @@ typedef enum {
     C_PARAM_KIND_ROOT_STATIC_ARRAY
 } c_param_kind_t;
 
-static c_param_kind_t classify_param_kind(
-    const adsl_document_t *document,
+static c_param_kind_t classify_param_kind_ctx(
+    const emitter_ctx_t *ctx,
     const adsl_param_t *param,
     bool *valid) {
 
     *valid = false;
 
-    if (document == NULL || param == NULL || param->type == NULL) {
+    if (ctx == NULL || ctx->document == NULL ||
+        param == NULL || param->type == NULL) {
         return C_PARAM_KIND_SCALAR;
     }
 
@@ -1530,19 +1520,16 @@ static c_param_kind_t classify_param_kind(
     }
 
     const adsl_type_t *declared =
-        find_declared_type(document, base);
+        find_declared_type_ctx(ctx, base);
 
     if (declared == NULL) {
         return C_PARAM_KIND_SCALAR;
     }
 
-
-
     if (declared->has_tiered_int) {
         *valid = true;
         return C_PARAM_KIND_SCALAR;
     }
-
 
     if (declared->stream != NULL) {
         /*
@@ -1559,8 +1546,7 @@ static c_param_kind_t classify_param_kind(
         return C_PARAM_KIND_SCALAR;
     }
 
-
-    if (type_is_polymorphic_reference(document, declared)) {
+    if (type_is_polymorphic_reference_ctx(ctx, declared)) {
         *valid = true;
         return C_PARAM_KIND_REF_PTR;
     }
@@ -1572,6 +1558,16 @@ static c_param_kind_t classify_param_kind(
     *valid = true;
     return C_PARAM_KIND_ROOT_STRUCT;
 }
+
+static c_param_kind_t classify_param_kind(
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    bool *valid) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return classify_param_kind_ctx(&ctx, param, valid);
+}
+
 
 
 
@@ -1630,116 +1626,61 @@ static size_t nullable_mask_width(
 
 
 
-static bool emit_parameter_type(
+
+static bool emit_parameter_type_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_param_t *param,
     char *error,
     size_t error_capacity) {
 
-    if (param == NULL ||
-        param->type == NULL) {
-
-        set_error(
-            error,
-            error_capacity,
-            "invalid C parameter metadata");
-
+    if (param == NULL || param->type == NULL) {
+        set_error(error, error_capacity, "invalid C parameter metadata");
         return false;
     }
 
-    const char *type =
-        param->type;
+    const char *type = param->type;
 
     if (param->stream != NULL) {
         if (*type == '\0') {
-            set_error(
-                error,
-                error_capacity,
+            set_error(error, error_capacity,
                 "stream parameter is missing a generated name");
-
             return false;
         }
 
         char stream_name[256];
+        declared_c_name(type, stream_name, sizeof(stream_name));
 
-
-declared_c_name(
-            type,
-            stream_name,
-            sizeof(stream_name));
-
-
-        fprintf(
-            output,
-            "const %s_t *",
-            stream_name);
-
+        fprintf(output, "const %s_t *", stream_name);
         return true;
     }
 
-
-
     if (strchr(type, '?') != NULL) {
-        /*
-         * Nullable method arguments are pointer-shaped in C. NULL represents
-         * an absent value; the shared method mask carries that fact on wire.
-         * Types that are already pointer-shaped keep their normal ABI.
-         */
         char cleaned[256];
 
-        if (!strip_nullable_suffix(
-                type,
-                cleaned,
-                sizeof(cleaned))) {
-
-            set_error(
-                error,
-                error_capacity,
+        if (!strip_nullable_suffix(type, cleaned, sizeof(cleaned))) {
+            set_error(error, error_capacity,
                 "nullable API parameter type is too long");
-
             return false;
         }
 
-
-        /*
-         * Guard against recursion without progress: if the '?' was not a
-         * trailing modifier, strip_nullable_suffix() leaves the string
-         * unchanged and the recursive call below would re-enter this
-         * branch with the same input. Reject such malformed types instead
-         * of looping forever.
-         */
         if (strchr(cleaned, '?') != NULL ||
             strchr(cleaned, '~') != NULL) {
-
-            set_error(
-                error,
-                error_capacity,
+            set_error(error, error_capacity,
                 "malformed nullable API parameter type");
-
             return false;
         }
 
-
-        adsl_param_t underlying =
-            *param;
-
-        underlying.type =
-            cleaned;
+        adsl_param_t underlying = *param;
+        underlying.type = cleaned;
 
         bool valid = false;
         c_param_kind_t kind =
-            classify_param_kind(
-                document,
-                &underlying,
-                &valid);
+            classify_param_kind_ctx(ctx, &underlying, &valid);
 
         if (!valid) {
-            set_error(
-                error,
-                error_capacity,
+            set_error(error, error_capacity,
                 "unsupported nullable API parameter type");
-
             return false;
         }
 
@@ -1748,187 +1689,123 @@ declared_c_name(
             kind == C_PARAM_KIND_DYNAMIC_VIEW;
 
         if (add_pointer) {
-            fputs(
-                "const ",
-                output);
+            fputs("const ", output);
         }
 
-        if (!emit_parameter_type(
-                output,
-                document,
-                &underlying,
-                error,
-                error_capacity)) {
-
+        if (!emit_parameter_type_ctx(
+                output, ctx, &underlying,
+                error, error_capacity)) {
             return false;
         }
 
         if (add_pointer) {
-            fputs(
-                " *",
-                output);
+            fputs(" *", output);
         }
 
         return true;
     }
-
-
 
     char array_element[128];
     bool array_dynamic;
     size_t array_static_size;
 
     if (parse_array_type(
-            type,
-            array_element,
-            sizeof(array_element),
-            &array_dynamic,
-            &array_static_size)) {
+            type, array_element, sizeof(array_element),
+            &array_dynamic, &array_static_size)) {
 
         (void)array_element;
         (void)array_static_size;
 
         char alias[256];
 
-        if (!array_alias_name(
-                document,
-                type,
-                alias,
-                sizeof(alias))) {
-
-            set_error(
-                error,
-                error_capacity,
+        if (!array_alias_name_ctx(
+                ctx, type, alias, sizeof(alias))) {
+            set_error(error, error_capacity,
                 "generated array parameter type name is too long");
-
             return false;
         }
 
         if (!array_dynamic) {
-            fputs(
-                "const ",
-                output);
+            fputs("const ", output);
         }
 
-        fputs(
-            alias,
-            output);
+        fputs(alias, output);
 
         if (!array_dynamic) {
-            fputs(
-                " *",
-                output);
+            fputs(" *", output);
         }
-
         return true;
     }
 
     char base[128];
 
-    if (!scalar_type_name(
-            type,
-            base,
-            sizeof(base))) {
-
-        set_error(
-            error,
-            error_capacity,
+    if (!scalar_type_name(type, base, sizeof(base))) {
+        set_error(error, error_capacity,
             "milestone-2 emitter supports scalar or one-dimensional array parameters only");
-
         return false;
     }
 
-    const char *c_type =
-        primitive_c_type(base);
+    const char *c_type = primitive_c_type(base);
 
     if (c_type != NULL) {
-        fputs(
-            c_type,
-            output);
-
+        fputs(c_type, output);
         return true;
     }
 
     const adsl_type_t *declared_type =
-        find_declared_type(
-            document,
-            base);
+        find_declared_type_ctx(ctx, base);
 
     if (declared_type == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "unknown C parameter type");
-
+        set_error(error, error_capacity, "unknown C parameter type");
         return false;
     }
 
     char generated_name[256];
-
-
-declared_c_name(
-        declared_type->name,
-        generated_name,
-        sizeof(generated_name));
-
-
+    declared_c_name(
+        declared_type->name, generated_name, sizeof(generated_name));
 
     if (declared_type->has_tiered_int) {
-        fprintf(
-            output,
-            "%s_t",
-            generated_name);
-
+        fprintf(output, "%s_t", generated_name);
         return true;
     }
 
-
     if (declared_type->stream != NULL) {
-        fprintf(
-            output,
-            "const %s_t *",
-            generated_name);
-
+        fprintf(output, "const %s_t *", generated_name);
         return true;
     }
 
     if (declared_type->enum_count > 0u) {
-        fprintf(
-            output,
-            "%s_t",
-            generated_name);
-
+        fprintf(output, "%s_t", generated_name);
         return true;
     }
 
-    if (type_is_polymorphic_reference(
-            document,
-            declared_type)) {
-
-        fprintf(
-            output,
-            "const %s_ref_t *",
-            generated_name);
-
+    if (type_is_polymorphic_reference_ctx(ctx, declared_type)) {
+        fprintf(output, "const %s_ref_t *", generated_name);
         return true;
     }
 
     if (declared_type->is_abstract) {
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "abstract parameter type has no concrete hierarchy descendants");
-
         return false;
     }
 
-    fprintf(
-        output,
-        "const %s_t *",
-        generated_name);
-
+    fprintf(output, "const %s_t *", generated_name);
     return true;
 }
+
+static bool emit_parameter_type(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_param_t *param,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_parameter_type_ctx(
+        output, &ctx, param, error, error_capacity);
+}
+
 
 
 static const adsl_type_t *find_declared_type_doc(
@@ -2189,24 +2066,19 @@ static bool emit_struct_definition_ctx(
 
 
 
-static bool emit_serialize_param(
+
+static bool emit_serialize_param_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const adsl_param_t *param,
     char *error,
     size_t error_capacity) {
 
-
     if (param->stream != NULL) {
-        if (param->type == NULL ||
-            *param->type == '\0') {
-
-            set_error(
-                error,
-                error_capacity,
+        if (param->type == NULL || *param->type == '\0') {
+            set_error(error, error_capacity,
                 "stream parameter is missing a generated name");
-
             return false;
         }
 
@@ -2214,89 +2086,54 @@ static bool emit_serialize_param(
             output,
             "    if (%s == NULL) return AETHER_ERR_ARGUMENT;\n"
             "    if (%s->length > %s->capacity) return AETHER_ERR_ARGUMENT;\n",
-            param->name,
-            param->name,
-            param->name);
+            param->name, param->name, param->name);
 
         char stream_expression[512];
 
-        int stream_expression_size =
-            snprintf(
-                stream_expression,
-                sizeof(stream_expression),
-                "(*%s)",
-                param->name);
+        int stream_expression_size = snprintf(
+            stream_expression, sizeof(stream_expression),
+            "(*%s)", param->name);
 
         if (stream_expression_size < 0 ||
-            (size_t)stream_expression_size >=
-                sizeof(stream_expression)) {
-
-            set_error(
-                error,
-                error_capacity,
+            (size_t)stream_expression_size >= sizeof(stream_expression)) {
+            set_error(error, error_capacity,
                 "generated stream parameter expression is too long");
-
             return false;
         }
 
         emit_bytes_view_expression(
-            output,
-            stream_expression,
-            param->name);
-
+            output, stream_expression, param->name);
         return true;
     }
-
-
 
     if (strchr(param->type, '?') != NULL) {
         char cleaned[256];
 
         if (!strip_nullable_suffix(
-                param->type,
-                cleaned,
-                sizeof(cleaned))) {
-
-            set_error(
-                error,
-                error_capacity,
+                param->type, cleaned, sizeof(cleaned))) {
+            set_error(error, error_capacity,
                 "nullable API parameter type is too long");
-
             return false;
         }
 
-        adsl_param_t underlying =
-            *param;
-
+        adsl_param_t underlying = *param;
 
         if (strchr(cleaned, '?') != NULL ||
             strchr(cleaned, '~') != NULL) {
-
-            set_error(
-                error,
-                error_capacity,
+            set_error(error, error_capacity,
                 "malformed nullable API parameter type");
-
             return false;
         }
 
-
-        underlying.type =
-            cleaned;
+        underlying.type = cleaned;
 
         bool valid = false;
         c_param_kind_t kind =
-            classify_param_kind(
-                document,
-                &underlying,
-                &valid);
+            classify_param_kind_ctx(ctx, &underlying, &valid);
 
         if (!valid) {
-            set_error(
-                error,
-                error_capacity,
+            set_error(error, error_capacity,
                 "unsupported nullable API parameter type");
-
             return false;
         }
 
@@ -2305,122 +2142,68 @@ static bool emit_serialize_param(
         if (kind == C_PARAM_KIND_SCALAR ||
             kind == C_PARAM_KIND_DYNAMIC_VIEW) {
 
-            int written =
-                snprintf(
-                    dereferenced_name,
-                    sizeof(dereferenced_name),
-                    "(*%s)",
-                    param->name);
+            int written = snprintf(
+                dereferenced_name, sizeof(dereferenced_name),
+                "(*%s)", param->name);
 
             if (written < 0 ||
-                (size_t)written >=
-                    sizeof(dereferenced_name)) {
-
-                set_error(
-                    error,
-                    error_capacity,
+                (size_t)written >= sizeof(dereferenced_name)) {
+                set_error(error, error_capacity,
                     "generated nullable parameter expression is too long");
-
                 return false;
             }
 
-            underlying.name =
-                dereferenced_name;
+            underlying.name = dereferenced_name;
         }
 
-        fprintf(
-            output,
-            "    if (%s != NULL) {\n",
-            param->name);
+        fprintf(output, "    if (%s != NULL) {\n", param->name);
 
-        if (!emit_serialize_param(
-                output,
-                document,
-                base_snake,
-                &underlying,
-                error,
-                error_capacity)) {
-
+        if (!emit_serialize_param_ctx(
+                output, ctx, base_snake, &underlying,
+                error, error_capacity)) {
             return false;
         }
 
-        fputs(
-            "    }\n",
-            output);
-
+        fputs("    }\n", output);
         return true;
     }
-
-
 
     char array_element[128];
     bool array_dynamic;
     size_t array_static_size;
 
     if (parse_array_type(
-            param->type,
-            array_element,
-            sizeof(array_element),
-            &array_dynamic,
-            &array_static_size)) {
-
+            param->type, array_element, sizeof(array_element),
+            &array_dynamic, &array_static_size)) {
         (void)array_element;
         (void)array_static_size;
 
-        return emit_array_expression(
-            output,
-            document,
-
-            base_snake,
-
-            param->type,
-            param->name,
-            param->name,
-            !array_dynamic,
-            0u,
-
-            NULL,
-
-            error,
-            error_capacity);
+        return emit_array_expression_ctx(
+            output, ctx, base_snake,
+            param->type, param->name, param->name,
+            !array_dynamic, 0u, NULL,
+            error, error_capacity);
     }
 
     char base[128];
 
     if (!scalar_type_name(
-            param->type,
-            base,
-            sizeof(base))) {
-
-        set_error(
-            error,
-            error_capacity,
+            param->type, base, sizeof(base))) {
+        set_error(error, error_capacity,
             "milestone-2 emitter supports scalar or one-dimensional array parameters only");
-
         return false;
     }
 
     const adsl_type_t *declared_type =
-        find_declared_type(
-            document,
-            base);
-
-
-
+        find_declared_type_ctx(ctx, base);
 
     if (declared_type != NULL &&
-        type_is_polymorphic_reference(
-            document,
-            declared_type)) {
-
-
+        type_is_polymorphic_reference_ctx(ctx, declared_type)) {
 
         char type_name[256];
 
         declared_c_name(
-            declared_type->name,
-            type_name,
-            sizeof(type_name));
+            declared_type->name, type_name, sizeof(type_name));
 
         fprintf(
             output,
@@ -2432,38 +2215,24 @@ static bool emit_serialize_param(
             "            %s);\n"
             "        if (meta_status != AETHER_OK) return meta_status;\n"
             "    }\n",
-            base_snake,
-            type_name,
-            param->name);
-
+            base_snake, type_name, param->name);
         return true;
     }
-
-
 
     bool struct_pointer =
         declared_type != NULL &&
         declared_type->enum_count == 0u &&
         !declared_type->has_tiered_int;
 
-
-    return emit_value_expression(
-        output,
-        document,
-
-        base_snake,
-
-        param->type,
-        param->name,
-        param->name,
-        struct_pointer,
-        0u,
-
-        NULL,
-
-        error,
-        error_capacity);
+    return emit_value_expression_ctx(
+        output, ctx, base_snake,
+        param->type, param->name, param->name,
+        struct_pointer, 0u, NULL,
+        error, error_capacity);
 }
+
+
+
 
 
 
@@ -3799,63 +3568,42 @@ static bool method_has_collapsible_params(
 
 
 
-static bool emit_stream_builder_declarations_for_api(
+
+static bool emit_stream_builder_declarations_for_api_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *stream_name,
     const char *api_reference,
     char *error,
     size_t error_capacity) {
 
     const adsl_api_t *api =
-        find_api_definition(
-            document,
-            api_reference);
+        find_api_definition_ctx(ctx, api_reference);
 
     if (api == NULL) {
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "stream api does not resolve to a declared API");
-
         return false;
     }
 
     char stream_c_name[256];
     char api_name[256];
 
-    declared_c_name(
-        stream_name,
-        stream_c_name,
-        sizeof(stream_c_name));
-
-    snake_name(
-        api->name,
-        api_name,
-        sizeof(api_name));
-
+    declared_c_name(stream_name, stream_c_name, sizeof(stream_c_name));
+    snake_name(api->name, api_name, sizeof(api_name));
 
     adsl_effective_method_t *effective = NULL;
     size_t effective_count = 0u;
 
-    if (!emitter_collect_effective(
-            document,
-            api,
-            &effective,
-            &effective_count,
-            error,
-            error_capacity)) {
-
+    if (!emitter_collect_effective_ctx(
+            ctx, api, &effective, &effective_count,
+            error, error_capacity)) {
         return false;
     }
 
-    for (size_t m = 0u;
-         m < effective_count;
-         ++m) {
+    for (size_t m = 0u; m < effective_count; ++m) {
 
-        const adsl_method_t *method =
-            effective[m].method;
-
+        const adsl_method_t *method = effective[m].method;
 
         bool has_response =
             method->returns_type != NULL ||
@@ -3863,116 +3611,66 @@ static bool emit_stream_builder_declarations_for_api(
             method->throws_type != NULL;
 
         char method_name[256];
-
-        snake_name(
-            method->name,
-            method_name,
-            sizeof(method_name));
+        snake_name(method->name, method_name, sizeof(method_name));
 
         bool collapsible =
-            method_has_collapsible_params(
-                method);
+            method_has_collapsible_params(method);
 
-
-
-        emit_method_origin(
-            output,
-            effective[m].owner,
-            method);
-
+        emit_method_origin(output, effective[m].owner, method);
 
         fprintf(
             output,
-
             "aether_status_t %s_%s_%s(\n"
             "    %s_t *builder_stream",
-            stream_c_name,
-            api_name,
-            method_name,
-            stream_c_name);
-
-
+            stream_c_name, api_name, method_name, stream_c_name);
 
         if (collapsible) {
-            fprintf(
-                output,
-                ",\n    %s_%s_context_t *collapse",
-                api_name,
-                method_name);
+            fprintf(output, ",\n    %s_%s_context_t *collapse",
+                api_name, method_name);
         }
-
 
         if (has_response) {
-            fputs(
-                ",\n    uint32_t request_id",
-                output);
+            fputs(",\n    uint32_t request_id", output);
         }
 
-        for (size_t p = 0u;
-             p < method->param_count;
-             ++p) {
+        for (size_t p = 0u; p < method->param_count; ++p) {
 
-            fputs(
-                ",\n    ",
-                output);
+            fputs(",\n    ", output);
 
-            if (!emit_parameter_type(
-                    output,
-                    document,
-                    &method->params[p],
-                    error,
-                    error_capacity)) {
-
-
+            if (!emit_parameter_type_ctx(
+                    output, ctx, &method->params[p],
+                    error, error_capacity)) {
                 free(effective);
                 return false;
-
             }
 
-            fprintf(
-                output,
-                " %s",
-                method->params[p].name);
+            fprintf(output, " %s", method->params[p].name);
         }
 
-        fputs(
-            ");\n\n",
-            output);
+        fputs(");\n\n", output);
 
         if (collapsible) {
-
-            emit_method_origin(
-                output,
-                effective[m].owner,
-                method);
-
+            emit_method_origin(output, effective[m].owner, method);
 
             fprintf(
                 output,
                 "aether_status_t %s_%s_%s_flush(\n"
                 "    %s_t *builder_stream,\n"
                 "    %s_%s_context_t *collapse);\n\n",
-                stream_c_name,
-                api_name,
-                method_name,
-                stream_c_name,
-                api_name,
-                method_name);
+                stream_c_name, api_name, method_name,
+                stream_c_name, api_name, method_name);
         }
-
-
     }
 
     free(effective);
-
-
-
     return !ferror(output);
 }
 
-static bool emit_stream_builder_declarations(
+
+
+static bool emit_stream_builder_declarations_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *stream_name,
     const adsl_stream_t *stream,
     char *error,
@@ -3984,35 +3682,22 @@ static bool emit_stream_builder_declarations(
 
     if (stream->api != NULL &&
         *stream->api != '\0' &&
-        !emit_stream_builder_declarations_for_api(
-            output,
-            document,
-            stream_name,
-            stream->api,
-            error,
-            error_capacity)) {
-
+        !emit_stream_builder_declarations_for_api_ctx(
+            output, ctx, stream_name, stream->api,
+            error, error_capacity)) {
         return false;
     }
 
-    for (size_t i = 0u;
-         i < stream->api_count;
-         ++i) {
+    for (size_t i = 0u; i < stream->api_count; ++i) {
 
         if (stream->apis[i].api == NULL ||
             *stream->apis[i].api == '\0') {
-
             continue;
         }
 
-        if (!emit_stream_builder_declarations_for_api(
-                output,
-                document,
-                stream_name,
-                stream->apis[i].api,
-                error,
-                error_capacity)) {
-
+        if (!emit_stream_builder_declarations_for_api_ctx(
+                output, ctx, stream_name, stream->apis[i].api,
+                error, error_capacity)) {
             return false;
         }
     }
@@ -4020,64 +3705,50 @@ static bool emit_stream_builder_declarations(
     return true;
 }
 
-static bool emit_all_stream_builder_declarations(
+
+
+static bool emit_all_stream_builder_declarations_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     char *error,
     size_t error_capacity) {
 
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
+    size_t type_count = 0u;
+    const adsl_type_t *types = ctx_types(ctx, &type_count);
 
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+    for (size_t i = 0u; i < type_count; ++i) {
 
-        if (!emit_stream_builder_declarations(
-                output,
-                document,
-                type->name,
-                type->stream,
-                error,
-                error_capacity)) {
+        const adsl_type_t *type = &types[i];
 
+        if (!emit_stream_builder_declarations_ctx(
+                output, ctx, type->name, type->stream,
+                error, error_capacity)) {
             return false;
         }
     }
 
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
+    for (size_t a = 0u; a < api_count; ++a) {
 
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
+        const adsl_api_t *api = &apis[a];
 
-            const adsl_method_t *method =
-                &api->methods[m];
+        for (size_t m = 0u; m < api->method_count; ++m) {
 
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
+            const adsl_method_t *method = &api->methods[m];
 
-                const adsl_param_t *param =
-                    &method->params[p];
+            for (size_t p = 0u; p < method->param_count; ++p) {
+
+                const adsl_param_t *param = &method->params[p];
 
                 if (param->stream == NULL) {
                     continue;
                 }
 
-                if (!emit_stream_builder_declarations(
-                        output,
-                        document,
-                        param->type,
-                        param->stream,
-                        error,
-                        error_capacity)) {
-
+                if (!emit_stream_builder_declarations_ctx(
+                        output, ctx, param->type, param->stream,
+                        error, error_capacity)) {
                     return false;
                 }
             }
@@ -4087,9 +3758,11 @@ static bool emit_all_stream_builder_declarations(
     return true;
 }
 
-static bool emit_stream_builder_definitions_for_api(
+
+
+static bool emit_stream_builder_definitions_for_api_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const char *stream_name,
     const char *api_reference,
@@ -4097,54 +3770,32 @@ static bool emit_stream_builder_definitions_for_api(
     size_t error_capacity) {
 
     const adsl_api_t *api =
-        find_api_definition(
-            document,
-            api_reference);
+        find_api_definition_ctx(ctx, api_reference);
 
     if (api == NULL) {
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "stream api does not resolve to a declared API");
-
         return false;
     }
 
     char stream_c_name[256];
     char api_name[256];
 
-    declared_c_name(
-        stream_name,
-        stream_c_name,
-        sizeof(stream_c_name));
-
-    snake_name(
-        api->name,
-        api_name,
-        sizeof(api_name));
-
+    declared_c_name(stream_name, stream_c_name, sizeof(stream_c_name));
+    snake_name(api->name, api_name, sizeof(api_name));
 
     adsl_effective_method_t *effective = NULL;
     size_t effective_count = 0u;
 
-    if (!emitter_collect_effective(
-            document,
-            api,
-            &effective,
-            &effective_count,
-            error,
-            error_capacity)) {
-
+    if (!emitter_collect_effective_ctx(
+            ctx, api, &effective, &effective_count,
+            error, error_capacity)) {
         return false;
     }
 
-    for (size_t m = 0u;
-         m < effective_count;
-         ++m) {
+    for (size_t m = 0u; m < effective_count; ++m) {
 
-        const adsl_method_t *method =
-            effective[m].method;
-
+        const adsl_method_t *method = effective[m].method;
 
         bool has_response =
             method->returns_type != NULL ||
@@ -4152,22 +3803,12 @@ static bool emit_stream_builder_definitions_for_api(
             method->throws_type != NULL;
 
         char method_name[256];
-
-        snake_name(
-            method->name,
-            method_name,
-            sizeof(method_name));
+        snake_name(method->name, method_name, sizeof(method_name));
 
         bool collapsible =
-            method_has_collapsible_params(
-                method);
+            method_has_collapsible_params(method);
 
-
-        emit_method_origin(
-            output,
-            effective[m].owner,
-            method);
-
+        emit_method_origin(output, effective[m].owner, method);
 
         if (collapsible) {
             fprintf(
@@ -4175,36 +3816,21 @@ static bool emit_stream_builder_definitions_for_api(
                 "aether_status_t %s_%s_%s(\n"
                 "    %s_t *builder_stream,\n"
                 "    %s_%s_context_t *collapse",
-                stream_c_name,
-                api_name,
-                method_name,
-                stream_c_name,
-                api_name,
-                method_name);
+                stream_c_name, api_name, method_name,
+                stream_c_name, api_name, method_name);
 
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
+            for (size_t p = 0u; p < method->param_count; ++p) {
 
-                fputs(
-                    ",\n    ",
-                    output);
+                fputs(",\n    ", output);
 
-                if (!emit_parameter_type(
-                        output,
-                        document,
-                        &method->params[p],
-                        error,
-                        error_capacity)) {
-
+                if (!emit_parameter_type_ctx(
+                        output, ctx, &method->params[p],
+                        error, error_capacity)) {
                     free(effective);
                     return false;
                 }
 
-                fprintf(
-                    output,
-                    " %s",
-                    method->params[p].name);
+                fprintf(output, " %s", method->params[p].name);
             }
 
             fprintf(
@@ -4221,31 +3847,16 @@ static bool emit_stream_builder_definitions_for_api(
                 "    return %s_%s(\n"
                 "        &remote,\n"
                 "        collapse",
-                api_name,
-                api_name,
-                method_name);
+                api_name, api_name, method_name);
 
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
-                fprintf(
-                    output,
-                    ",\n        %s",
+            for (size_t p = 0u; p < method->param_count; ++p) {
+                fprintf(output, ",\n        %s",
                     method->params[p].name);
             }
 
-            fputs(
-                ");\n"
-                "}\n\n",
-                output);
+            fputs(");\n}\n\n", output);
 
-
-            emit_method_origin(
-                output,
-                effective[m].owner,
-                method);
-
+            emit_method_origin(output, effective[m].owner, method);
 
             fprintf(
                 output,
@@ -4259,10 +3870,8 @@ static bool emit_stream_builder_definitions_for_api(
                 "builder_stream->data == NULL)) {\n"
                 "        return AETHER_ERR_ARGUMENT;\n"
                 "    }\n\n"
-
                 "    if (collapse->count == 0u &&\n"
                 "        (collapse->queue == NULL || collapse->queue->count == 0u)) {\n"
-
                 "        return AETHER_OK;\n"
                 "    }\n\n"
                 "    size_t remaining =\n"
@@ -4284,64 +3893,36 @@ static bool emit_stream_builder_definitions_for_api(
                 "        &remote,\n"
                 "        collapse);\n"
                 "}\n\n",
-                stream_c_name,
-                api_name,
-                method_name,
-                stream_c_name,
-                api_name,
-                method_name,
-                base_snake,
-                api_name,
-                base_snake,
-                api_name,
-                method_name);
+                stream_c_name, api_name, method_name,
+                stream_c_name, api_name, method_name,
+                base_snake, api_name, base_snake,
+                api_name, method_name);
 
             continue;
         }
 
-
-
         fprintf(
             output,
-
             "aether_status_t %s_%s_%s(\n"
             "    %s_t *builder_stream",
-            stream_c_name,
-            api_name,
-            method_name,
-            stream_c_name);
+            stream_c_name, api_name, method_name, stream_c_name);
 
         if (has_response) {
-            fputs(
-                ",\n    uint32_t request_id",
-                output);
+            fputs(",\n    uint32_t request_id", output);
         }
 
-        for (size_t p = 0u;
-             p < method->param_count;
-             ++p) {
+        for (size_t p = 0u; p < method->param_count; ++p) {
 
-            fputs(
-                ",\n    ",
-                output);
+            fputs(",\n    ", output);
 
-            if (!emit_parameter_type(
-                    output,
-                    document,
-                    &method->params[p],
-                    error,
-                    error_capacity)) {
-
-
+            if (!emit_parameter_type_ctx(
+                    output, ctx, &method->params[p],
+                    error, error_capacity)) {
                 free(effective);
                 return false;
-
             }
 
-            fprintf(
-                output,
-                " %s",
-                method->params[p].name);
+            fprintf(output, " %s", method->params[p].name);
         }
 
         fprintf(
@@ -4372,46 +3953,28 @@ static bool emit_stream_builder_definitions_for_api(
             "    };\n\n"
             "    return %s_%s(\n"
             "        &remote",
-            base_snake,
-            api_name,
-            base_snake,
-            api_name,
-            method_name);
-
-
+            base_snake, api_name, base_snake, api_name, method_name);
 
         if (has_response) {
-            fputs(
-                ",\n        request_id",
-                output);
+            fputs(",\n        request_id", output);
         }
 
-        for (size_t p = 0u;
-             p < method->param_count;
-             ++p) {
-
-            fprintf(
-                output,
-                ",\n        %s",
-                method->params[p].name);
+        for (size_t p = 0u; p < method->param_count; ++p) {
+            fprintf(output, ",\n        %s", method->params[p].name);
         }
 
-        fputs(
-            ");\n"
-            "}\n\n",
-            output);
-
+        fputs(");\n}\n\n", output);
     }
 
     free(effective);
-
     return !ferror(output);
-
 }
 
-static bool emit_stream_builder_definitions(
+
+
+static bool emit_stream_builder_definitions_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const char *stream_name,
     const adsl_stream_t *stream,
@@ -4424,37 +3987,23 @@ static bool emit_stream_builder_definitions(
 
     if (stream->api != NULL &&
         *stream->api != '\0' &&
-        !emit_stream_builder_definitions_for_api(
-            output,
-            document,
-            base_snake,
-            stream_name,
-            stream->api,
-            error,
-            error_capacity)) {
-
+        !emit_stream_builder_definitions_for_api_ctx(
+            output, ctx, base_snake, stream_name, stream->api,
+            error, error_capacity)) {
         return false;
     }
 
-    for (size_t i = 0u;
-         i < stream->api_count;
-         ++i) {
+    for (size_t i = 0u; i < stream->api_count; ++i) {
 
         if (stream->apis[i].api == NULL ||
             *stream->apis[i].api == '\0') {
-
             continue;
         }
 
-        if (!emit_stream_builder_definitions_for_api(
-                output,
-                document,
-                base_snake,
-                stream_name,
+        if (!emit_stream_builder_definitions_for_api_ctx(
+                output, ctx, base_snake, stream_name,
                 stream->apis[i].api,
-                error,
-                error_capacity)) {
-
+                error, error_capacity)) {
             return false;
         }
     }
@@ -4462,82 +4011,61 @@ static bool emit_stream_builder_definitions(
     return true;
 }
 
-static bool emit_all_stream_builder_definitions(
+
+
+static bool emit_all_stream_builder_definitions_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     char *error,
     size_t error_capacity) {
 
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
+    size_t type_count = 0u;
+    const adsl_type_t *types = ctx_types(ctx, &type_count);
 
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+    for (size_t i = 0u; i < type_count; ++i) {
 
-        if (!emit_stream_builder_definitions(
-                output,
-                document,
-                base_snake,
-                type->name,
-                type->stream,
-                error,
-                error_capacity)) {
+        const adsl_type_t *type = &types[i];
 
+        if (!emit_stream_builder_definitions_ctx(
+                output, ctx, base_snake,
+                type->name, type->stream,
+                error, error_capacity)) {
             return false;
         }
     }
 
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
+    for (size_t a = 0u; a < api_count; ++a) {
 
+        const adsl_api_t *api = &apis[a];
 
+        for (size_t m = 0u; m < api->method_count; ++m) {
 
+            const adsl_method_t *method = &api->methods[m];
 
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
+            for (size_t p = 0u; p < method->param_count; ++p) {
 
-            const adsl_method_t *method =
-                &api->methods[m];
-
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
-                const adsl_param_t *param =
-                    &method->params[p];
+                const adsl_param_t *param = &method->params[p];
 
                 if (param->stream == NULL) {
                     continue;
                 }
-                if (!emit_stream_builder_definitions(
-                        output,
-                        document,
-                        base_snake,
-                        param->type,
-                        param->stream,
-                        error,
-                        error_capacity)) {
-
+                if (!emit_stream_builder_definitions_ctx(
+                        output, ctx, base_snake,
+                        param->type, param->stream,
+                        error, error_capacity)) {
                     return false;
                 }
-
-
-
-
-
             }
         }
     }
 
     return true;
 }
+
 
 
 static bool param_is_collapsible(
@@ -4588,9 +4116,10 @@ static bool method_has_collapsible_params(
  * directly. More complex key shapes are rejected until their Java equality
  * semantics can be reproduced exactly.
  */
-static bool emit_collapsible_key_match(
+
+static bool emit_collapsible_key_match_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_param_t *param,
     char *error,
     size_t error_capacity) {
@@ -4598,34 +4127,23 @@ static bool emit_collapsible_key_match(
     if (param == NULL ||
         param->type == NULL ||
         param_is_collapsible(param)) {
-
         return true;
     }
 
     if (param->stream != NULL) {
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "collapsible METHOD stream key parameters are not supported");
-
         return false;
     }
 
-    bool nullable =
-        strchr(param->type, '?') != NULL;
+    bool nullable = strchr(param->type, '?') != NULL;
 
     char cleaned[256];
 
     if (!strip_nullable_suffix(
-            param->type,
-            cleaned,
-            sizeof(cleaned))) {
-
-        set_error(
-            error,
-            error_capacity,
+            param->type, cleaned, sizeof(cleaned))) {
+        set_error(error, error_capacity,
             "collapsible METHOD key type is too long");
-
         return false;
     }
 
@@ -4634,66 +4152,36 @@ static bool emit_collapsible_key_match(
     size_t array_static_size = 0u;
 
     if (parse_array_type(
-            cleaned,
-            array_element,
-            sizeof(array_element),
-            &array_dynamic,
-            &array_static_size)) {
-
+            cleaned, array_element, sizeof(array_element),
+            &array_dynamic, &array_static_size)) {
         (void)array_dynamic;
         (void)array_static_size;
-
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "collapsible METHOD array key parameters are not supported");
-
         return false;
     }
 
     char base[128];
 
-    if (!scalar_type_name(
-            cleaned,
-            base,
-            sizeof(base))) {
-
-        set_error(
-            error,
-            error_capacity,
+    if (!scalar_type_name(cleaned, base, sizeof(base))) {
+        set_error(error, error_capacity,
             "unsupported collapsible METHOD key type");
-
         return false;
     }
 
     const adsl_type_t *declared =
-        find_declared_type(
-            document,
-            base);
+        find_declared_type_ctx(ctx, base);
 
-bool is_bytes =
-        strcmp(base, "string") == 0;
-
-    bool is_uuid =
-        strcmp(base, "uuid") == 0;
-
-    bool is_float =
-        strcmp(base, "float") == 0;
-
-    bool is_double =
-        strcmp(base, "double") == 0;
-
+    bool is_bytes = strcmp(base, "string") == 0;
+    bool is_uuid = strcmp(base, "uuid") == 0;
+    bool is_float = strcmp(base, "float") == 0;
+    bool is_double = strcmp(base, "double") == 0;
     bool is_scalar =
         primitive_c_type(base) != NULL &&
-        !is_bytes &&
-        !is_uuid &&
-        !is_float &&
-        !is_double;
+        !is_bytes && !is_uuid && !is_float && !is_double;
 
     if (declared != NULL &&
-        (declared->enum_count > 0u ||
-         declared->has_tiered_int)) {
-
+        (declared->enum_count > 0u || declared->has_tiered_int)) {
         is_scalar = true;
     }
 
@@ -4712,37 +4200,22 @@ bool is_bytes =
                 "                   %s(*_entry->%s) != %s(*%s)) {\n"
                 "            _match = false;\n"
                 "        }\n",
-                param->name,
-                param->name,
-                param->name,
-                bits_fn,
-                param->name,
-                bits_fn,
-                param->name);
+                param->name, param->name, param->name,
+                bits_fn, param->name, bits_fn, param->name);
         } else {
             fprintf(
                 output,
                 "        if (_match && %s(_entry->%s) != %s(%s)) {\n"
                 "            _match = false;\n"
                 "        }\n",
-                bits_fn,
-                param->name,
-                bits_fn,
-                param->name);
+                bits_fn, param->name, bits_fn, param->name);
         }
-
         return !ferror(output);
     }
 
-    if (!is_scalar &&
-        !is_bytes &&
-        !is_uuid) {
-
-        set_error(
-            error,
-            error_capacity,
+    if (!is_scalar && !is_bytes && !is_uuid) {
+        set_error(error, error_capacity,
             "collapsible METHOD key type has no exact Java Objects.equals mapping");
-
         return false;
     }
 
@@ -4757,21 +4230,16 @@ bool is_bytes =
                 "*_entry->%s != *%s) {\n"
                 "            _match = false;\n"
                 "        }\n",
-                param->name,
-                param->name,
-                param->name,
-                param->name,
-                param->name);
+                param->name, param->name, param->name,
+                param->name, param->name);
         } else {
             fprintf(
                 output,
                 "        if (_match && _entry->%s != %s) {\n"
                 "            _match = false;\n"
                 "        }\n",
-                param->name,
-                param->name);
+                param->name, param->name);
         }
-
         return true;
     }
 
@@ -4787,13 +4255,9 @@ bool is_bytes =
                 "                    _entry->%s->lsb != %s->lsb)) {\n"
                 "            _match = false;\n"
                 "        }\n",
-                param->name,
-                param->name,
-                param->name,
-                param->name,
-                param->name,
-                param->name,
-                param->name);
+                param->name, param->name, param->name,
+                param->name, param->name,
+                param->name, param->name);
         } else {
             fprintf(
                 output,
@@ -4802,12 +4266,9 @@ bool is_bytes =
                 "             _entry->%s.lsb != %s.lsb)) {\n"
                 "            _match = false;\n"
                 "        }\n",
-                param->name,
-                param->name,
-                param->name,
-                param->name);
+                param->name, param->name,
+                param->name, param->name);
         }
-
         return true;
     }
 
@@ -4827,17 +4288,10 @@ bool is_bytes =
             "                             %s->length) != 0)))) {\n"
             "            _match = false;\n"
             "        }\n",
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name);
+            param->name, param->name, param->name,
+            param->name, param->name, param->name,
+            param->name, param->name, param->name,
+            param->name, param->name);
     } else {
         fprintf(
             output,
@@ -4851,14 +4305,9 @@ bool is_bytes =
             "                      %s.length) != 0)))) {\n"
             "            _match = false;\n"
             "        }\n",
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name,
-            param->name);
+            param->name, param->name, param->name,
+            param->name, param->name, param->name,
+            param->name, param->name);
     }
 
     return true;
@@ -4866,19 +4315,18 @@ bool is_bytes =
 
 
 
-static bool collapsible_param_snapshots_nullable_value(
-    const adsl_document_t *document,
+
+
+static bool collapsible_param_snapshots_nullable_value_ctx(
+    const emitter_ctx_t *ctx,
     const adsl_param_t *param,
     bool *snapshot,
     char *error,
     size_t error_capacity) {
 
     if (snapshot == NULL) {
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "invalid collapsible METHOD snapshot metadata");
-
         return false;
     }
 
@@ -4887,45 +4335,28 @@ static bool collapsible_param_snapshots_nullable_value(
     if (param == NULL ||
         param->type == NULL ||
         strchr(param->type, '?') == NULL) {
-
         return true;
     }
 
     char cleaned[256];
 
     if (!strip_nullable_suffix(
-            param->type,
-            cleaned,
-            sizeof(cleaned))) {
-
-        set_error(
-            error,
-            error_capacity,
+            param->type, cleaned, sizeof(cleaned))) {
+        set_error(error, error_capacity,
             "collapsible METHOD nullable parameter type is too long");
-
         return false;
     }
 
-    adsl_param_t underlying =
-        *param;
-
-    underlying.type =
-        cleaned;
+    adsl_param_t underlying = *param;
+    underlying.type = cleaned;
 
     bool valid = false;
-
     c_param_kind_t kind =
-        classify_param_kind(
-            document,
-            &underlying,
-            &valid);
+        classify_param_kind_ctx(ctx, &underlying, &valid);
 
     if (!valid) {
-        set_error(
-            error,
-            error_capacity,
+        set_error(error, error_capacity,
             "unsupported collapsible METHOD nullable parameter type");
-
         return false;
     }
 
@@ -4947,22 +4378,19 @@ static bool collapsible_param_snapshots_nullable_value(
 }
 
 
-static bool emit_collapsible_entry_field(
+
+
+static bool emit_collapsible_entry_field_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_param_t *param,
     char *error,
     size_t error_capacity) {
 
     bool snapshot = false;
 
-    if (!collapsible_param_snapshots_nullable_value(
-            document,
-            param,
-            &snapshot,
-            error,
-            error_capacity)) {
-
+    if (!collapsible_param_snapshots_nullable_value_ctx(
+            ctx, param, &snapshot, error, error_capacity)) {
         return false;
     }
 
@@ -4970,93 +4398,58 @@ static bool emit_collapsible_entry_field(
         char cleaned[256];
 
         if (!strip_nullable_suffix(
-                param->type,
-                cleaned,
-                sizeof(cleaned))) {
-
-            set_error(
-                error,
-                error_capacity,
+                param->type, cleaned, sizeof(cleaned))) {
+            set_error(error, error_capacity,
                 "collapsible METHOD nullable parameter type is too long");
-
             return false;
         }
 
-        adsl_param_t underlying =
-            *param;
+        adsl_param_t underlying = *param;
+        underlying.type = cleaned;
 
-        underlying.type =
-            cleaned;
+        fputs("    ", output);
 
-        fputs(
-            "    ",
-            output);
-
-        if (!emit_parameter_type(
-                output,
-                document,
-                &underlying,
-                error,
-                error_capacity)) {
-
+        if (!emit_parameter_type_ctx(
+                output, ctx, &underlying, error, error_capacity)) {
             return false;
         }
 
-        fprintf(
-            output,
-            " %s_value;\n",
-            param->name);
+        fprintf(output, " %s_value;\n", param->name);
     }
 
-    fputs(
-        "    ",
-        output);
+    fputs("    ", output);
 
-    if (!emit_parameter_type(
-            output,
-            document,
-            param,
-            error,
-            error_capacity)) {
-
+    if (!emit_parameter_type_ctx(
+            output, ctx, param, error, error_capacity)) {
         return false;
     }
 
-    fprintf(
-        output,
-        " %s;\n",
-        param->name);
+    fprintf(output, " %s;\n", param->name);
 
     return !ferror(output);
 }
 
 
-static bool emit_collapsible_entry_store(
+
+
+static bool emit_collapsible_entry_store_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_param_t *param,
     char *error,
     size_t error_capacity) {
 
     bool snapshot = false;
 
-    if (!collapsible_param_snapshots_nullable_value(
-            document,
-            param,
-            &snapshot,
-            error,
-            error_capacity)) {
-
+    if (!collapsible_param_snapshots_nullable_value_ctx(
+            ctx, param, &snapshot, error, error_capacity)) {
         return false;
     }
 
     if (!snapshot) {
-        fprintf(
-            output,
+        fprintf(output,
             "        _entry->%s = %s;\n",
-            param->name,
-            param->name);
-
+            param->name, param->name);
         return !ferror(output);
     }
 
@@ -5069,10 +4462,8 @@ static bool emit_collapsible_entry_store(
         "            _entry->%s = NULL;\n"
         "        }\n",
         param->name,
-        param->name,
-        param->name,
-        param->name,
-        param->name,
+        param->name, param->name,
+        param->name, param->name,
         param->name);
 
     return !ferror(output);
@@ -5080,86 +4471,57 @@ static bool emit_collapsible_entry_store(
 
 
 
-static bool emit_collapsible_method_declarations(
+
+
+static bool emit_collapsible_method_declarations_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *api_name,
     const char *method_name,
     const adsl_method_t *method,
     char *error,
     size_t error_capacity) {
 
-    fprintf(
-        output,
-        "typedef struct {\n");
+    fprintf(output, "typedef struct {\n");
 
-
-for (size_t p = 0u;
-         p < method->param_count;
-         ++p) {
-
-        if (!emit_collapsible_entry_field(
-                output,
-                document,
-                &method->params[p],
-                error,
-                error_capacity)) {
-
+    for (size_t p = 0u; p < method->param_count; ++p) {
+        if (!emit_collapsible_entry_field_ctx(
+                output, ctx, &method->params[p],
+                error, error_capacity)) {
             return false;
         }
     }
 
-
     fprintf(
         output,
         "} %s_%s_entry_t;\n\n"
-
         "typedef struct {\n"
         "    %s_%s_entry_t *entries;\n"
         "    size_t capacity;\n"
         "    size_t count;\n"
         "    aether_meta_collapse_queue_t *queue;\n"
         "} %s_%s_context_t;\n\n"
-
         "aether_status_t %s_%s(\n"
         "    %s_remote_t *api,\n"
         "    %s_%s_context_t *collapse",
-
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
         api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        api_name,
-        method_name);
+        api_name, method_name);
 
+    for (size_t p = 0u; p < method->param_count; ++p) {
 
-    for (size_t p = 0u;
-         p < method->param_count;
-         ++p) {
+        fputs(",\n    ", output);
 
-        fputs(
-            ",\n    ",
-            output);
-
-        if (!emit_parameter_type(
-                output,
-                document,
-                &method->params[p],
-                error,
-                error_capacity)) {
-
+        if (!emit_parameter_type_ctx(
+                output, ctx, &method->params[p],
+                error, error_capacity)) {
             return false;
         }
 
-        fprintf(
-            output,
-            " %s",
-            method->params[p].name);
+        fprintf(output, " %s", method->params[p].name);
     }
 
     fprintf(
@@ -5170,23 +4532,21 @@ for (size_t p = 0u;
         "    %s_%s_context_t *collapse);\n\n"
         "void %s_%s_reset(\n"
         "    %s_%s_context_t *collapse);\n\n",
+        api_name, method_name,
         api_name,
-        method_name,
-        api_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name);
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name);
 
     return !ferror(output);
 }
 
 
-static bool emit_collapsible_method_source(
+
+
+static bool emit_collapsible_method_source_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const char *base_snake,
     const char *api_name,
     const char *method_name,
@@ -5195,8 +4555,7 @@ static bool emit_collapsible_method_source(
     char *error,
     size_t error_capacity) {
 
-
-fprintf(
+    fprintf(
         output,
         "static aether_status_t %s_%s_collapse_serialize(\n"
         "    void *ctx,\n"
@@ -5207,39 +4566,20 @@ fprintf(
         "aether_status_t %s_%s(\n"
         "    %s_remote_t *api,\n"
         "    %s_%s_context_t *collapse",
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        api_name,
-        method_name);
+        api_name, method_name, api_name, method_name,
+        api_name, method_name, api_name, api_name, method_name);
 
+    for (size_t p = 0u; p < method->param_count; ++p) {
 
-    for (size_t p = 0u;
-         p < method->param_count;
-         ++p) {
+        fputs(",\n    ", output);
 
-        fputs(
-            ",\n    ",
-            output);
-
-        if (!emit_parameter_type(
-                output,
-                document,
-                &method->params[p],
-                error,
-                error_capacity)) {
-
+        if (!emit_parameter_type_ctx(
+                output, ctx, &method->params[p],
+                error, error_capacity)) {
             return false;
         }
 
-        fprintf(
-            output,
-            " %s",
-            method->params[p].name);
+        fprintf(output, " %s", method->params[p].name);
     }
 
     fprintf(
@@ -5251,34 +4591,23 @@ fprintf(
         "        (collapse->capacity != 0u && collapse->entries == NULL)) {\n"
         "        return AETHER_ERR_ARGUMENT;\n"
         "    }\n\n"
-
         "    bool _was_empty = collapse->count == 0u;\n\n"
-
         "    size_t _index = collapse->count;\n\n"
         "    for (size_t i = 0u; i < collapse->count; ++i) {\n"
         "        %s_%s_entry_t *_entry = &collapse->entries[i];\n"
         "        bool _match = true;\n",
-        api_name,
-        method_name);
+        api_name, method_name);
 
-    for (size_t p = 0u;
-         p < method->param_count;
-         ++p) {
+    for (size_t p = 0u; p < method->param_count; ++p) {
 
-        const adsl_param_t *param =
-            &method->params[p];
+        const adsl_param_t *param = &method->params[p];
 
         if (param_is_collapsible(param)) {
             continue;
         }
 
-        if (!emit_collapsible_key_match(
-                output,
-                document,
-                param,
-                error,
-                error_capacity)) {
-
+        if (!emit_collapsible_key_match_ctx(
+                output, ctx, param, error, error_capacity)) {
             return false;
         }
     }
@@ -5301,32 +4630,21 @@ fprintf(
         "            return AETHER_ERR_OVERFLOW;\n"
         "        }\n\n"
         "        _entry = &collapse->entries[collapse->count];\n",
-        api_name,
-        method_name);
+        api_name, method_name);
 
+    for (size_t p = 0u; p < method->param_count; ++p) {
 
-for (size_t p = 0u;
-         p < method->param_count;
-         ++p) {
-
-        const adsl_param_t *param =
-            &method->params[p];
+        const adsl_param_t *param = &method->params[p];
 
         if (param_is_collapsible(param)) {
             continue;
         }
 
-        if (!emit_collapsible_entry_store(
-                output,
-                document,
-                param,
-                error,
-                error_capacity)) {
-
+        if (!emit_collapsible_entry_store_ctx(
+                output, ctx, param, error, error_capacity)) {
             return false;
         }
     }
-
 
     fputs(
         "        collapse->count++;\n"
@@ -5335,32 +4653,21 @@ for (size_t p = 0u;
         "    }\n\n",
         output);
 
+    for (size_t p = 0u; p < method->param_count; ++p) {
 
-for (size_t p = 0u;
-         p < method->param_count;
-         ++p) {
-
-        const adsl_param_t *param =
-            &method->params[p];
+        const adsl_param_t *param = &method->params[p];
 
         if (!param_is_collapsible(param)) {
             continue;
         }
 
-        if (!emit_collapsible_entry_store(
-                output,
-                document,
-                param,
-                error,
-                error_capacity)) {
-
+        if (!emit_collapsible_entry_store_ctx(
+                output, ctx, param, error, error_capacity)) {
             return false;
         }
     }
 
-
-
-fprintf(
+    fprintf(
         output,
         "\n"
         "    if (_was_empty && collapse->queue != NULL) {\n"
@@ -5402,73 +4709,43 @@ fprintf(
         "            return AETHER_ERR_OVERFLOW;\n"
         "        }\n\n"
         "        tx[pos++] = %uu;\n",
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
         (unsigned int)command_id);
 
-
     if (!emit_remote_nullable_param_mask(
-            output,
-            method,
-            "_entry->",
-            error,
-            error_capacity)) {
-
+            output, method, "_entry->", error, error_capacity)) {
         return false;
     }
 
-    for (size_t p = 0u;
-         p < method->param_count;
-         ++p) {
+    for (size_t p = 0u; p < method->param_count; ++p) {
 
         char expression[384];
 
-        int written =
-            snprintf(
-                expression,
-                sizeof(expression),
-                "_entry->%s",
-                method->params[p].name);
+        int written = snprintf(
+            expression, sizeof(expression), "_entry->%s",
+            method->params[p].name);
 
-        if (written < 0 ||
-            (size_t)written >= sizeof(expression)) {
-
-            set_error(
-                error,
-                error_capacity,
+        if (written < 0 || (size_t)written >= sizeof(expression)) {
+            set_error(error, error_capacity,
                 "collapsible METHOD parameter expression is too long");
-
             return false;
         }
 
-        adsl_param_t stored =
-            method->params[p];
+        adsl_param_t stored = method->params[p];
+        stored.name = expression;
 
-        stored.name =
-            expression;
-
-        if (!emit_serialize_param(
-                output,
-                document,
-                base_snake,
-                &stored,
-                error,
-                error_capacity)) {
-
+        if (!emit_serialize_param_ctx(
+                output, ctx, base_snake, &stored,
+                error, error_capacity)) {
             return false;
         }
     }
 
-
-fprintf(
+    fprintf(
         output,
         "    }\n\n"
         "    *position = pos;\n"
@@ -5533,27 +4810,22 @@ fprintf(
         "        collapse->count = 0u;\n"
         "    }\n"
         "}\n\n",
+
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
         api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name,
-        api_name,
-        method_name);
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name,
+        api_name, method_name);
 
 
     return !ferror(output);
 }
+
+
 
 
 
@@ -5575,34 +4847,22 @@ static bool emit_api_header_ctx(
     FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot create generated API header");
+        set_error(error, error_capacity, "cannot create generated API header");
         return false;
     }
 
     char guard[256];
     char base_snake[256];
 
-    upper_name(
-        base_name,
-        guard,
-        sizeof(guard));
-
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
+    upper_name(base_name, guard, sizeof(guard));
+    snake_name(base_name, base_snake, sizeof(base_snake));
 
     fprintf(
         output,
         "#ifndef %s_API_H\n"
         "#define %s_API_H\n\n"
-
         "#include \"%s_types.h\"\n"
         "#include \"aether_meta_runtime.h\"\n\n"
-
         "#ifdef __cplusplus\n"
         "extern \"C\" {\n"
         "#endif\n\n"
@@ -5610,10 +4870,7 @@ static bool emit_api_header_ctx(
         "    void *ctx,\n"
         "    const uint8_t *data,\n"
         "    size_t length);\n\n",
-        guard,
-        guard,
-        base_snake,
-        base_snake);
+        guard, guard, base_snake, base_snake);
 
     size_t api_count = 0u;
     const adsl_api_t *apis = ctx_apis(ctx, &api_count);
@@ -5624,16 +4881,11 @@ static bool emit_api_header_ctx(
 
         if (selected_api_name != NULL &&
             strcmp(api->name, selected_api_name) != 0) {
-
             continue;
         }
 
         char api_name[256];
-
-        snake_name(
-            api->name,
-            api_name,
-            sizeof(api_name));
+        snake_name(api->name, api_name, sizeof(api_name));
 
         fprintf(
             output,
@@ -5643,20 +4895,14 @@ static bool emit_api_header_ctx(
             "    uint8_t *tx;\n"
             "    size_t tx_capacity;\n"
             "} %s_remote_t;\n\n",
-            base_snake,
-            api_name);
+            base_snake, api_name);
 
         adsl_effective_method_t *effective = NULL;
         size_t effective_count = 0u;
 
         if (!emitter_collect_effective_ctx(
-                ctx,
-                api,
-                &effective,
-                &effective_count,
-                error,
-                error_capacity)) {
-
+                ctx, api, &effective, &effective_count,
+                error, error_capacity)) {
             fclose(output);
             return false;
         }
@@ -5667,7 +4913,6 @@ static bool emit_api_header_ctx(
 
             if (selected_method_name != NULL &&
                 strcmp(method->name, selected_method_name) != 0) {
-
                 continue;
             }
 
@@ -5677,90 +4922,49 @@ static bool emit_api_header_ctx(
                 method->throws_type != NULL;
 
             char method_name[256];
+            snake_name(method->name, method_name, sizeof(method_name));
 
-            snake_name(
-                method->name,
-                method_name,
-                sizeof(method_name));
+            emit_method_origin(output, effective[m].owner, method);
 
-            emit_method_origin(
-                output,
-                effective[m].owner,
-                method);
-
-            /*
-             * NOTE (D6): emit_collapsible_method_declarations() and
-             * emit_parameter_type() still use the standalone context.
-             * They are scheduled to be converted to _ctx variants in
-             * D6 together with their own call graphs. Because they are
-             * only reached through this function once the project
-             * emitter is fully wired, this is a temporary partial
-             * conversion and does not alter standalone output.
-             */
             if (method_has_collapsible_params(method)) {
-                if (!emit_collapsible_method_declarations(
-                        output,
-                        ctx->document,
-                        api_name,
-                        method_name,
-                        method,
-                        error,
-                        error_capacity)) {
-
+                if (!emit_collapsible_method_declarations_ctx(
+                        output, ctx, api_name, method_name, method,
+                        error, error_capacity)) {
                     free(effective);
                     fclose(output);
                     return false;
                 }
-
                 continue;
             }
 
-            emit_method_origin(
-                output,
-                effective[m].owner,
-                method);
+            emit_method_origin(output, effective[m].owner, method);
 
             fprintf(
                 output,
                 "aether_status_t %s_%s(\n"
                 "    %s_remote_t *api",
-                api_name,
-                method_name,
-                api_name);
+                api_name, method_name, api_name);
 
             if (has_response) {
-                fputs(
-                    ",\n    uint32_t request_id",
-                    output);
+                fputs(",\n    uint32_t request_id", output);
             }
 
             for (size_t p = 0u; p < method->param_count; ++p) {
 
-                fputs(
-                    ",\n    ",
-                    output);
+                fputs(",\n    ", output);
 
-                if (!emit_parameter_type(
-                        output,
-                        ctx->document,
-                        &method->params[p],
-                        error,
-                        error_capacity)) {
-
+                if (!emit_parameter_type_ctx(
+                        output, ctx, &method->params[p],
+                        error, error_capacity)) {
                     free(effective);
                     fclose(output);
                     return false;
                 }
 
-                fprintf(
-                    output,
-                    " %s",
-                    method->params[p].name);
+                fprintf(output, " %s", method->params[p].name);
             }
 
-            fputs(
-                ");\n\n",
-                output);
+            fputs(");\n\n", output);
         }
 
         free(effective);
@@ -5768,12 +4972,8 @@ static bool emit_api_header_ctx(
 
     if (selected_api_name == NULL &&
         selected_method_name == NULL &&
-        !emit_all_stream_builder_declarations(
-            output,
-            ctx->document,
-            error,
-            error_capacity)) {
-
+        !emit_all_stream_builder_declarations_ctx(
+            output, ctx, error, error_capacity)) {
         fclose(output);
         return false;
     }
@@ -5786,19 +4986,16 @@ static bool emit_api_header_ctx(
         "#endif\n");
 
     if (ferror(output)) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot write generated API header");
-
+        set_error(error, error_capacity, "cannot write generated API header");
         fclose(output);
         return false;
     }
 
     fclose(output);
-
     return true;
 }
+
+
 
 
 
@@ -5823,19 +5020,13 @@ static bool emit_api_source_ctx(
     FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot create generated API source");
+        set_error(error, error_capacity, "cannot create generated API source");
         return false;
     }
 
     char base_snake[256];
 
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
+    snake_name(base_name, base_snake, sizeof(base_snake));
 
     fprintf(
         output,
@@ -5885,28 +5076,18 @@ static bool emit_api_source_ctx(
 
         if (selected_api_name != NULL &&
             strcmp(api->name, selected_api_name) != 0) {
-
             continue;
         }
 
         char api_name[256];
-
-        snake_name(
-            api->name,
-            api_name,
-            sizeof(api_name));
+        snake_name(api->name, api_name, sizeof(api_name));
 
         adsl_effective_method_t *effective = NULL;
         size_t effective_count = 0u;
 
         if (!emitter_collect_effective_ctx(
-                ctx,
-                api,
-                &effective,
-                &effective_count,
-                error,
-                error_capacity)) {
-
+                ctx, api, &effective, &effective_count,
+                error, error_capacity)) {
             fclose(output);
             return false;
         }
@@ -5917,7 +5098,6 @@ static bool emit_api_source_ctx(
 
             if (selected_method_name != NULL &&
                 strcmp(method->name, selected_method_name) != 0) {
-
                 continue;
             }
 
@@ -5927,85 +5107,46 @@ static bool emit_api_source_ctx(
                 method->throws_type != NULL;
 
             char method_name[256];
+            snake_name(method->name, method_name, sizeof(method_name));
 
-            snake_name(
-                method->name,
-                method_name,
-                sizeof(method_name));
+            emit_method_origin(output, effective[m].owner, method);
 
-            emit_method_origin(
-                output,
-                effective[m].owner,
-                method);
-
-            /*
-             * NOTE (D6): emit_collapsible_method_source() and
-             * emit_parameter_type() / emit_serialize_param() still use
-             * the standalone context. They will be converted to _ctx
-             * variants in D6; until then this function cannot yet be
-             * called with a project resolver from adsl_emit_c_project.
-             */
             if (method_has_collapsible_params(method)) {
-                if (!emit_collapsible_method_source(
-                        output,
-                        ctx->document,
-                        base_snake,
-                        api_name,
-                        method_name,
-                        method,
-                        effective[m].id,
-                        error,
-                        error_capacity)) {
-
+                if (!emit_collapsible_method_source_ctx(
+                        output, ctx, base_snake, api_name, method_name,
+                        method, effective[m].id, error, error_capacity)) {
                     free(effective);
                     fclose(output);
                     return false;
                 }
-
                 continue;
             }
 
-            emit_method_origin(
-                output,
-                effective[m].owner,
-                method);
+            emit_method_origin(output, effective[m].owner, method);
 
             fprintf(
                 output,
                 "aether_status_t %s_%s(\n"
                 "    %s_remote_t *api",
-                api_name,
-                method_name,
-                api_name);
+                api_name, method_name, api_name);
 
             if (has_response) {
-                fputs(
-                    ",\n    uint32_t request_id",
-                    output);
+                fputs(",\n    uint32_t request_id", output);
             }
 
             for (size_t p = 0u; p < method->param_count; ++p) {
 
-                fputs(
-                    ",\n    ",
-                    output);
+                fputs(",\n    ", output);
 
-                if (!emit_parameter_type(
-                        output,
-                        ctx->document,
-                        &method->params[p],
-                        error,
-                        error_capacity)) {
-
+                if (!emit_parameter_type_ctx(
+                        output, ctx, &method->params[p],
+                        error, error_capacity)) {
                     free(effective);
                     fclose(output);
                     return false;
                 }
 
-                fprintf(
-                    output,
-                    " %s",
-                    method->params[p].name);
+                fprintf(output, " %s", method->params[p].name);
             }
 
             fprintf(
@@ -6029,9 +5170,7 @@ static bool emit_api_source_ctx(
                 method->param_count != 0u
                     ? "    size_t tx_capacity = api->tx_capacity;\n\n"
                     : "",
-                has_response
-                    ? 5u
-                    : 1u,
+                has_response ? 5u : 1u,
                 (unsigned int)effective[m].id);
 
             if (has_response) {
@@ -6048,27 +5187,16 @@ static bool emit_api_source_ctx(
             }
 
             if (!emit_remote_nullable_param_mask(
-                    output,
-                    method,
-                    "",
-                    error,
-                    error_capacity)) {
-
+                    output, method, "", error, error_capacity)) {
                 free(effective);
                 fclose(output);
                 return false;
             }
 
             for (size_t p = 0u; p < method->param_count; ++p) {
-
-                if (!emit_serialize_param(
-                        output,
-                        ctx->document,
-                        base_snake,
-                        &method->params[p],
-                        error,
-                        error_capacity)) {
-
+                if (!emit_serialize_param_ctx(
+                        output, ctx, base_snake, &method->params[p],
+                        error, error_capacity)) {
                     free(effective);
                     fclose(output);
                     return false;
@@ -6090,31 +5218,22 @@ static bool emit_api_source_ctx(
 
     if (selected_api_name == NULL &&
         selected_method_name == NULL &&
-        !emit_all_stream_builder_definitions(
-            output,
-            ctx->document,
-            base_snake,
-            error,
-            error_capacity)) {
-
+        !emit_all_stream_builder_definitions_ctx(
+            output, ctx, base_snake, error, error_capacity)) {
         fclose(output);
         return false;
     }
 
     if (ferror(output)) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot write generated API source");
-
+        set_error(error, error_capacity, "cannot write generated API source");
         fclose(output);
         return false;
     }
 
     fclose(output);
-
     return true;
 }
+
 
 
 
@@ -6324,17 +5443,26 @@ static bool safe_snake_name(
 
 
 
+
 /*
- * Project emitter (ТЗ №4-Б2.2).
+ * Project emitter (ТЗ №4-Б2).
  *
- * This step introduces the emission plan and validates its invariants.
- * It does not yet perform project-aware generation; the emitter still
- * uses the standalone pipeline. The plan validation is exercised here
- * so that invalid plans are rejected before any output file is opened.
+ * Emits one selected document from a validated project using the shared
+ * ctx-pipeline:
  *
- * The next step (ТЗ №4-Б2.3) will replace adsl_emit_c_method()'s
- * document view with a project emitter context that threads the shared
- * resolver through every type/API resolution site.
+ *   - emission plan is validated first so invalid plans are rejected
+ *     before any output file is opened;
+ *   - a project resolver is built once and threaded through every
+ *     type/API resolution site via emitter_ctx_t;
+ *   - only the selected document's own declarations are emitted
+ *     (ctx_types()/ctx_apis() return the local arrays in project mode);
+ *   - cross-document references are resolved through the resolver;
+ *   - the four top-level emitters (types header/source, API header/source)
+ *     are the only entry points; no parallel project pipeline exists.
+ *
+ * The caller owns output_directory and drives the order of module
+ * generation. The result of a single call does not depend on the order
+ * in which other modules were generated.
  */
 bool adsl_emit_c_project(
     const adsl_project_t *project,
@@ -6345,14 +5473,12 @@ bool adsl_emit_c_project(
     char *error,
     size_t error_capacity) {
 
-
     if (project == NULL ||
         plan == NULL ||
         output_directory == NULL ||
         base_name == NULL ||
         output_directory[0] == '\0' ||
         base_name[0] == '\0') {
-
 
         set_error(error, error_capacity, "invalid project emitter arguments");
         return false;
@@ -6369,7 +5495,6 @@ bool adsl_emit_c_project(
         set_error(error, error_capacity, message);
         return false;
     }
-
 
     if (plan->modules == NULL || plan->module_count == 0u) {
         set_error(error, error_capacity, "emission plan is empty");
@@ -6388,8 +5513,6 @@ bool adsl_emit_c_project(
         return false;
     }
 
-
-
     for (size_t m = 0u; m < plan->module_count; ++m) {
         if (plan->modules[m].source_path == NULL ||
             plan->modules[m].source_path[0] == '\0' ||
@@ -6404,8 +5527,6 @@ bool adsl_emit_c_project(
             set_error(error, error_capacity, message);
             return false;
         }
-
-
 
         size_t matches = 0u;
         for (size_t d = 0u; d < project->document_count; ++d) {
@@ -6437,12 +5558,10 @@ bool adsl_emit_c_project(
             set_error(error, error_capacity, message);
             return false;
         }
-
     }
 
     for (size_t d = 0u; d < project->document_count; ++d) {
         const char *sp = project->documents[d].root_source_path;
-
 
         if (sp == NULL || sp[0] == '\0') {
             char message[256];
@@ -6469,14 +5588,12 @@ bool adsl_emit_c_project(
             }
         }
 
-
         size_t found = 0u;
         for (size_t m = 0u; m < plan->module_count; ++m) {
             if (strcmp(plan->modules[m].source_path, sp) == 0) {
                 found++;
             }
         }
-
 
         if (found != 1u) {
             char message[256];
@@ -6488,7 +5605,6 @@ bool adsl_emit_c_project(
             set_error(error, error_capacity, message);
             return false;
         }
-
     }
 
     const char *expected_base_name = NULL;
@@ -6514,7 +5630,6 @@ bool adsl_emit_c_project(
         set_error(error, error_capacity, message);
         return false;
     }
-
 
     for (size_t i = 0u; i < plan->module_count; ++i) {
         char snake_i[256];
@@ -6565,7 +5680,6 @@ bool adsl_emit_c_project(
         }
     }
 
-
     adsl_project_resolver_t *resolver = NULL;
 
     if (!adsl_project_resolver_build(
@@ -6573,47 +5687,70 @@ bool adsl_emit_c_project(
         return false;
     }
 
-    adsl_project_resolver_release(resolver);
+    const adsl_document_t *document =
+        &project->documents[document_index];
 
-    set_error(
-        error,
-        error_capacity,
-        "project emitter is not yet wired to the generation pipeline (ТЗ №4-Б2.3+)");
-    return false;
+    emitter_ctx_t ctx;
+    ctx.document = document;
+    ctx.resolver = resolver;
+
+    char base_snake[256];
+
+    if (!safe_snake_name(base_name, base_snake, sizeof(base_snake))) {
+        adsl_project_resolver_release(resolver);
+        set_error(
+            error,
+            error_capacity,
+            "project emitter base_name cannot be normalized to a generated filename");
+        return false;
+    }
+
+    char types_h[1024];
+    char types_c[1024];
+    char api_h[1024];
+    char api_c[1024];
+
+    if (!build_output_path(types_h, sizeof(types_h), output_directory, base_snake, "_types.h") ||
+        !build_output_path(types_c, sizeof(types_c), output_directory, base_snake, "_types.c") ||
+        !build_output_path(api_h, sizeof(api_h), output_directory, base_snake, "_api.h") ||
+        !build_output_path(api_c, sizeof(api_c), output_directory, base_snake, "_api.c")) {
+
+        adsl_project_resolver_release(resolver);
+        set_error(
+            error,
+            error_capacity,
+            "project emitter output path is too long");
+        return false;
+    }
+
+    if (!emit_types_header_ctx(
+            &ctx, types_h, base_name, error, error_capacity)) {
+        adsl_project_resolver_release(resolver);
+        return false;
+    }
+
+    if (!emit_types_source_ctx(
+            &ctx, types_c, base_name, error, error_capacity)) {
+        adsl_project_resolver_release(resolver);
+        return false;
+    }
+
+    if (!emit_api_header_ctx(
+            &ctx, api_h, base_name, NULL, NULL, error, error_capacity)) {
+        adsl_project_resolver_release(resolver);
+        return false;
+    }
+
+    if (!emit_api_source_ctx(
+            &ctx, api_c, base_name, NULL, NULL, error, error_capacity)) {
+        adsl_project_resolver_release(resolver);
+        return false;
+    }
+
+    adsl_project_resolver_release(resolver);
+    return true;
 }
 
-
-
-
-
-/*
- * Project-mode emitter (ТЗ №4-Б2).
- *
- * Not implemented yet. A correct implementation must, for each emitted
- * document:
- *
- *   - emit only that document's own types[] and apis[], so no owner's
- *     declarations are duplicated by another document's generated files;
- *   - resolve every referenced user type through the project-global
- *     type index produced by adsl_project_validate();
- *   - insert an #include for the owning module's generated _types.h
- *     wherever a cross-document type reference appears in the generated
- *     header, source, local dispatcher or response envelope;
- *   - use adsl_project_collect_effective_methods() so that the emitted
- *     wire protocol matches the set adsl_project_validate() accepted.
- *
- * A shallow "view" of the document (with resolved_types[] aliased to
- * types[]) is not sufficient: it makes the emitter silently unaware of
- * cross-document references, so a document that uses a type owned by
- * another document would be emitted with unresolved C identifiers
- * instead of the owning module's #include.
- *
- * This function is therefore declared in adslc.h as the approved public
- * contract for ТЗ №4-Б2 but has no implementation yet. A follow-up step
- * will restructure the emitter around an explicit project emitter
- * context that threads the project type and API indices through every
- * type-resolution site.
- */
 
 
 
@@ -7347,24 +6484,7 @@ static bool emit_array_expression_ctx(
 }
 
 
-static bool emit_array_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const char *type,
-    const char *expression,
-    const char *prefix,
-    bool array_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_array_expression_ctx(
-        output, &ctx, base_snake, type, expression, prefix,
-        array_pointer, depth, runtime_depth, error, error_capacity);
-}
 
 
 
