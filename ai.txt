@@ -5357,3 +5357,66 @@ ownership до завершения фазы 1.
 
 Ограничение: без #include шаг 2A не гарантирует компиляцию
 A-модуля, только правильные имена символов.
+=== 2026-10-10 B2.4.3A — итог и блокирующая проблема hierarchy ===
+
+Коммит: текущий HEAD после коммита B2.4.3A.
+
+Что сделано и работает:
+  - cross-module array alias: element type Item объявлен в B,
+    API A имеет параметр Item[]. Сборщик external includes для
+    _types.h теперь ищет владельца элемента массива, а не только
+    by-value типов. Результат: j_uses_external_array_types.h
+    включает b_defines_item_types.h и объявляет item_array_view_t
+    с элементом const item_t *.
+  - resolve_type_owner теперь strips '[' suffix до scalar_type_name,
+    чтобы array типы находили owner элемента.
+  - smoke compile расширен: A→B, Holder→Item, J-array.
+  - content assertions для G/H: G.h содержит base_ref_t и
+    'const child_t *child;' и #include h_extends_base_types.h;
+    H.h содержит #include g_defines_base_types.h.
+
+БЛОКИРУЮЩАЯ ПРОБЛЕМА — cross-module hierarchy header cycle:
+  G_defines_base_types.h содержит:
+    typedef struct { uint8_t type_id; union { const child_t *child; }
+      as; } base_ref_t;
+    #include "h_extends_base_types.h"
+  H_extends_base_types.h содержит:
+    #include "g_defines_base_types.h"
+    typedef struct child_t child_t;
+    struct child_t { ... };
+  При компиляции h_extends_base_types.c:
+    1. H включается, guard H ставится.
+    2. H включает G, guard G ставится.
+    3. G ссылается на child_t (в union) ДО его объявления.
+    4. Include guards НЕ решают проблему — они только
+       предотвращают повторный вход, а не рекурсивное
+       завершение типов.
+  Это тот самый by-value cycle, зафиксированный в комментарии
+  resolve_type_owner в коммите 3ab271c.
+
+Почему это не решается простым #include:
+  - forward declaration 'typedef struct child_t child_t;' в G
+    ДО #include h_extends_base_types.h снял бы ошибку компиляции,
+    но это только половина решения: та же проблема возникнет
+    с десериализацией, с hierarchy expression switch-таблицей,
+    с future-массивами и т.д.
+  - Нужно архитектурное решение, как эмитить hierarchy ref
+    через forward typedefs и не терять связь с impl-функциями.
+
+Решения для B2.4.3A.1 (на согласование с ревьюером):
+  Вариант A: перед union в *_types.h эмитить forward typedefs
+    для всех внешних concrete descendants:
+      typedef struct child_t child_t;
+      #include "h_extends_base_types.h"
+    Это снимает C-ошибку, но цикл остаётся формальным — может
+    быть проблемой при будущем расширении.
+  Вариант B: разорвать цикл через отдельный hierarchy hub-заголовок
+    (например, g_base_hierarchy_fwd.h) — он объявляет forward
+    typedefs, включает только его один G, и H тоже — cycle уходит.
+  Вариант C: не поддерживать cross-module hierarchy refs в общем
+    виде; требовать явный include в ADSL или явный общий модуль
+    для иерархии.
+
+Следующий шаг: остановиться и запросить решение ревьюера по
+варианту. Пока smoke compile не включает G/H намеренно —
+см. комментарий в CMakeLists.txt рядом с add_test.
