@@ -44,9 +44,33 @@ static void fixture_path(
         "%s/%s",
         ADSL_FIXTURE_DIR,
         name);
+
+}
+
+/*
+ * Read a generated file and check for a substring.
+ *
+ * Generated-file assertions deliberately test textual presence rather
+ * than compiling the output: at D6.5 cross-module #include is not yet
+ * generated, so the inter-module output is not yet compilable. The
+ * check still catches the two D6 regressions we care about: a module
+ * silently emitting a foreign declaration, or dropping an inherited
+ * method from the effective set.
+ */
+static bool file_contains(const char *path, const char *needle) {
+    FILE *f = fopen(path, "rb");
+    if (f == NULL) {
+        return false;
+    }
+    char buffer[65536];
+    size_t n = fread(buffer, 1, sizeof(buffer) - 1u, f);
+    fclose(f);
+    buffer[n] = '\0';
+    return strstr(buffer, needle) != NULL;
 }
 
 /* PENDING_API RES-001: cross-file reference without include. */
+
 static void pending_res_001_cross_file_without_include(void) {
     char a_path[1024];
     char b_path[1024];
@@ -573,25 +597,41 @@ static void pending_emission_plan_validation(void) {
     assert(emitted);
     assert(error[0] == '\0');
 
-    {
-        static const char *const suffixes[] = {
-            "a_uses_item_types.h",
-            "a_uses_item_types.c",
-            "a_uses_item_api.h",
-            "a_uses_item_api.c"
-        };
 
-        for (size_t i = 0u; i < sizeof(suffixes) / sizeof(suffixes[0]); ++i) {
-            char path[1024];
-            (void)snprintf(path, sizeof(path), "%s/%s",
-                ADSL_TEST_OUTPUT_DIR, suffixes[i]);
-            FILE *generated = fopen(path, "rb");
-            assert(generated != NULL);
-            if (generated != NULL) {
-                fclose(generated);
-            }
-        }
+{
+        char path[1024];
+
+        /*
+         * The API header and source must reference the method name and
+         * the cross-document parameter type by name, and must use a
+         * contextual wire id of 3 for the single method.
+         */
+        (void)snprintf(path, sizeof(path),
+            "%s/a_uses_item_api.h", ADSL_TEST_OUTPUT_DIR);
+        assert(file_contains(path, "api_a_use_item("));
+        assert(file_contains(path, "item_t"));
+
+        (void)snprintf(path, sizeof(path),
+            "%s/a_uses_item_api.c", ADSL_TEST_OUTPUT_DIR);
+        assert(file_contains(path, "api_a_use_item("));
+        assert(file_contains(path, "= 3u;"));
+        assert(file_contains(path, "a_uses_item_serialize_item("));
+
+        /*
+         * A owns only its own ApiA declaration. Types declared in B
+         * (Item) must not be redefined here, and B's serializers must
+         * not be duplicated into A's module.
+         */
+        (void)snprintf(path, sizeof(path),
+            "%s/a_uses_item_types.h", ADSL_TEST_OUTPUT_DIR);
+        assert(!file_contains(path, "item_t"));
+        assert(!file_contains(path, "b_defines_item"));
+
+        (void)snprintf(path, sizeof(path),
+            "%s/a_uses_item_types.c", ADSL_TEST_OUTPUT_DIR);
+        assert(!file_contains(path, "b_defines_item"));
     }
+
 
 
     /* Plan with a missing entry for one document is rejected. */
@@ -809,10 +849,106 @@ static void pending_cross_file_by_value_field(void) {
     assert(adsl_project_validate(&project, error, sizeof(error)));
 
     adsl_project_free(&project);
+
+}
+
+
+/*
+ * Cross-document API inheritance must produce a child module whose
+ * effective method set flattens its parent API's methods.
+ *
+ * Both documents are top-level project roots; the child document does
+ * not include the parent document. The project resolver must therefore
+ * be the source of truth for parent lookup, and the effective method
+ * set must contain both the inherited and the own method.
+ */
+static void pending_cross_file_inheritance_emission(void) {
+    char base_path[1024];
+    char child_path[1024];
+
+    fixture_path(
+        "cross_module/D_defines_base_api.adsl.yaml",
+        base_path, sizeof(base_path));
+    fixture_path(
+        "cross_module/E_inherits_base_api.adsl.yaml",
+        child_path, sizeof(child_path));
+
+    const char *paths[] = { base_path, child_path };
+    const char *include_paths[] = {
+        ADSL_FIXTURE_DIR "/cross_module"
+    };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    char error[512] = {0};
+
+    assert(adsl_project_load_files(
+        paths, 2u, include_paths, 1u,
+        &project, error, sizeof(error)));
+
+    assert(adsl_project_validate(&project, error, sizeof(error)));
+
+    adsl_emission_module_t modules[2];
+    modules[0].source_path = project.documents[0].root_source_path;
+    modules[0].base_name = "D_defines_base_api";
+    modules[1].source_path = project.documents[1].root_source_path;
+    modules[1].base_name = "E_inherits_base_api";
+
+    adsl_emission_plan_t plan;
+    plan.modules = modules;
+    plan.module_count = 2u;
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "D_defines_base_api",
+        error, sizeof(error)));
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 1u,
+        ADSL_TEST_OUTPUT_DIR, "E_inherits_base_api",
+        error, sizeof(error)));
+
+    char path[1024];
+
+    /*
+     * D owns only its own API. It must emit basePing and must not emit
+     * any symbol from E's ChildApi.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/d_defines_base_api_api.h", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "base_api_base_ping("));
+    assert(!file_contains(path, "child_api_"));
+
+    (void)snprintf(path, sizeof(path),
+        "%s/d_defines_base_api_api.c", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "base_api_base_ping("));
+    assert(!file_contains(path, "child_api_"));
+
+    /*
+     * E flattens the inherited method set. Its effective API name is
+     * ChildApi, so both the inherited basePing and its own childPing
+     * appear under the child_api_ prefix; BaseApi's own module prefix
+     * must not leak into E's output.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/e_inherits_base_api_api.h", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "child_api_base_ping("));
+    assert(file_contains(path, "child_api_child_ping("));
+
+    (void)snprintf(path, sizeof(path),
+        "%s/e_inherits_base_api_api.c", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "child_api_base_ping("));
+    assert(file_contains(path, "child_api_child_ping("));
+
+    adsl_project_free(&project);
 }
 
 
 int main(void) {
+
     pending_res_001_cross_file_without_include();
     pending_res_003_resolution_order_independent();
     pending_res_004_project_validate_rejects_collision();
@@ -830,7 +966,10 @@ int main(void) {
     pending_emission_plan_validation();
 
     pending_cross_file_hierarchy_resolves();
+
     pending_cross_file_by_value_field();
+    pending_cross_file_inheritance_emission();
+
 
 
 
