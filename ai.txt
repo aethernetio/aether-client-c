@@ -5224,3 +5224,82 @@ adsl_emit_c_project + проверяет наличие четырёх сген�
 
 Начинать следует с B2.4.1, а не с механического добавления includes.
 aether_adslc_test остаётся отдельной известной проблемой.
+=== 2026-10-10 B2.4.1 принят, начинается B2.4.2 ===
+Reviewer принял B2.4.1 (коммит eb4b8f6).
+
+Ключевые решения для B2.4.2:
+  1. Межмодульный recursion depth: вводим ДВУХУРОВНЕВЫЙ API
+     - public:  owner_serialize_item(tx, cap, pos, value)
+                => вызывает _with_depth(..., 0u)
+     - internal: owner_serialize_item_with_depth(..., unsigned depth)
+                 объявлен в <owner>_types.h, вызывается
+                 cross-module, передаёт текущую глубину
+     Аналогично deserialize.
+  2. Существующие _impl остаются static.
+  3. Нельзя допустить второго инкремента depth — сначала точно
+     установить, где сейчас растёт depth.
+  4. Запрещено: thread_local, глобальные счётчики, heap-контексты,
+     изменение публичных сигнатур.
+
+Порядок B2.4.2:
+  (1) owner-aware префиксы внешних типов
+  (2) with_depth функции для cross-module вызовов
+  (3) передача глубины между модулями
+  (4) #include из emission plan
+  (5) внешние tiered_int_limits
+  (6) тесты на имена и сохранение глубины
+
+Открытый вопрос для проверки перед стартом:
+  Если два root-документа включают один ADSL-файл, кто владелец?
+  Проверяется через adsl_global_type_index_register_types.
+=== 2026-10-10 B2.4.1 follow-up: инвариант resolver + инкремент depth ===
+
+INCLUDE-OWNER-AMBIGUITY (вопрос ревьюера §1):
+  adsl_global_type_index_add дедуплицирует по (source_path, name),
+  где source_path = type->source_path (физический файл объявления),
+  fallback на root_source_path корневого документа.
+  => Тип, физически объявленный в include-файле common.adsl.yaml,
+     регистрируется один раз с source_path = путь к common.
+  => type_owner_base_snake НЕ найдёт этот path в emission plan
+     (plan содержит только root_source_path).
+  Поведение НЕ 'первый встретившийся root', а 'физический файл'.
+  Для проектов с общим include это ошибка 'owned by <common>'
+  или (если fallback сработает) неверный владелец.
+  Открытый вопрос для B2.4.2: как эмитить типы, физически лежащие
+  в файле-инклюде. Возможные политики: (a) ошибка,
+  (b) владелец = единственный root, чья closure содержит этот файл,
+  (c) эмитит детерминированный 'первый по документу' root.
+  Ни одна из политик пока не реализована.
+
+RECURSION-DEPTH CONTRACT (для §2):
+  Public:  <owner>_serialize_<type>(tx, cap, pos, value)
+           { return <owner>_serialize_<type>_impl(tx, cap, pos,
+                                                   value, 0u); }
+  Impl:    static ..._impl(..., unsigned int recursion_depth)
+           { if (recursion_depth >= AETHER_META_MAX_RECURSION_DEPTH)
+                 return AETHER_ERR_OVERFLOW; ... }
+  Вложенный вызов внутри impl:
+           <same_module>_serialize_<nested>_impl(...,
+                                                 recursion_depth + 1u)
+  Т.е. инкремент делает ТОЛЬКО impl при вложенном вызове.
+  Public не инкрементирует, всегда передаёт 0u.
+
+  Следствие для _with_depth:
+    <owner>_serialize_<type>_with_depth(..., depth)
+        { return <owner>_serialize_<type>_impl(..., depth); }
+    Public остаётся <owner>_serialize_<type>(...) {
+        return _with_depth(..., 0u);
+    }
+    Cross-module вызов (внешний тип): <owner>_..._with_depth(
+        ..., runtime_depth + 1u).
+    Same-module вызов: <same_module>_..._impl(
+        ..., runtime_depth + 1u) — как сейчас.
+    Двойного инкремента НЕТ: _impl растёт только на вложенном вызове,
+    _with_depth на своём уровне ничего не добавляет.
+
+  Deserialize — аналогично.
+
+FIXTURE-ПОКРЫТИЕ:
+  A_includes_b.adsl.yaml уже существует (include: B_defines_item).
+  Случая 'два root включают один файл' в фикстурах НЕТ —
+  его нужно добавить для теста политики (a/b/c).
