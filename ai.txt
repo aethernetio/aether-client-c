@@ -5420,3 +5420,43 @@ A-модуля, только правильные имена символов.
 Следующий шаг: остановиться и запросить решение ревьюера по
 варианту. Пока smoke compile не включает G/H намеренно —
 см. комментарий в CMakeLists.txt рядом с add_test.
+=== 2026-10-10 B2.4.3A.1 завершён ===
+Коммит 364a5d5.
+
+Ключевое исправление — цикл заголовков G↔H разорван.
+
+Политика зависимостей:
+  - Header (types.h) не включает внешний *_types.h только ради
+    указателя на внешний тип. Вместо этого эмитится forward
+    typedef 'typedef struct child_t child_t;' для внешних concrete
+    descendants hierarchy. Это ровно то, что нужно для union
+    member 'const child_t *child;'.
+  - Source (types.c) добавляет 'include "<owner>_types.h"' для
+    тех же descendants, потому что impl читает их поля
+    (value.as.child->field) и делает sizeof(child_t).
+
+Новые/изменённые helpers в emitter.c:
+  - emit_hierarchy_ref_ctx: в project mode перед union эмитит
+    forward typedefs для внешних concrete descendants; сама
+    проверяет owner через type_owner_base_snake и пропускает
+    локальные.
+  - collect_external_modules_types: больше НЕ включает hierarchy
+    descendants (это создавало цикл G.h → H.h).
+  - collect_external_modules_types_source (новый): types header
+    deps + hierarchy descendants. Используется в emit_types_
+    source_ctx.
+  - collect_external_modules_api без изменений.
+
+Тесты:
+  - pending_cross_file_hierarchy_resolves обновлён: G.h больше не
+    содержит 'include "h_extends_base_types.h"', но содержит
+    forward typedef; G.c содержит 'include "h_extends_base_types.h"'.
+  - smoke compile CTest включает G/H: g_defines_base_types.c и
+    h_extends_base_types.c.
+  - ctest -R aether_adslc_cross_module: 3/3 passed.
+  - ctest полный: 32/33 (aether_adslc_test pre-existing).
+
+Проверка tag-формы: child_t эмитится как 'typedef struct child_t
+child_t; struct child_t {...}' — forward declaration безопасна.
+
+Следующий шаг — B2.4.3B (by-value cycle detection).
