@@ -1,5 +1,8 @@
 
 
+#include "adsl_project_internal.h"
+
+
 /*
  * ADSL parser and recursive dependency loader.
  *
@@ -7449,4 +7452,128 @@ static bool adsl_same_api_definition(
     }
 
     return true;
+}
+
+
+
+/*
+ * Project resolver: opaque handle shared with emitter.c through
+ * src/adsl_project_internal.h.
+ *
+ * Wraps the two project-global indices (types and APIs) behind a single
+ * handle so that validator and emitter use exactly one semantic for
+ * cross-document resolution. The underlying indices are the same ones
+ * adsl_project_validate() uses internally; there is no second global
+ * lookup implementation.
+ */
+
+struct adsl_project_resolver {
+    adsl_global_type_index_t types;
+    adsl_global_api_index_t apis;
+};
+
+
+bool adsl_project_resolver_build(
+    const adsl_project_t *project,
+    adsl_project_resolver_t **out_resolver,
+    char *error,
+    size_t error_capacity) {
+
+    if (out_resolver == NULL) {
+        set_error(error, error_capacity, "invalid resolver output argument");
+        return false;
+    }
+
+    *out_resolver = NULL;
+
+    if (project == NULL) {
+        set_error(error, error_capacity, "invalid project argument");
+        return false;
+    }
+
+    adsl_project_resolver_t *resolver = calloc(1u, sizeof(*resolver));
+
+    if (resolver == NULL) {
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    if (!adsl_global_type_index_build(
+            project, &resolver->types, error, error_capacity)) {
+
+        free(resolver);
+        return false;
+    }
+
+    if (!adsl_global_api_index_build(
+            project, &resolver->apis, error, error_capacity)) {
+
+        adsl_global_type_index_free(&resolver->types);
+        free(resolver);
+        return false;
+    }
+
+    *out_resolver = resolver;
+    return true;
+}
+
+
+void adsl_project_resolver_release(
+    adsl_project_resolver_t *resolver) {
+
+    if (resolver == NULL) {
+        return;
+    }
+
+    adsl_global_api_index_free(&resolver->apis);
+    adsl_global_type_index_free(&resolver->types);
+
+    free(resolver);
+}
+
+
+const adsl_type_t *adsl_project_resolver_type(
+    const adsl_project_resolver_t *resolver,
+    const char *name) {
+
+    if (resolver == NULL || name == NULL) {
+        return NULL;
+    }
+
+    return adsl_project_find_type(&resolver->types, name);
+}
+
+
+const adsl_api_t *adsl_project_resolver_api(
+    const adsl_project_resolver_t *resolver,
+    const char *name) {
+
+    if (resolver == NULL || name == NULL) {
+        return NULL;
+    }
+
+    return adsl_project_find_api(&resolver->apis, name);
+}
+
+
+bool adsl_project_resolver_collect_effective(
+    const adsl_project_resolver_t *resolver,
+    const adsl_api_t *api,
+    adsl_effective_method_t **out_methods,
+    size_t *out_count,
+    char *error,
+    size_t error_capacity) {
+
+    if (resolver == NULL || api == NULL) {
+        set_error(error, error_capacity, "selected API not found");
+        return false;
+    }
+
+    return adsl_project_collect_effective_methods(
+        &resolver->apis,
+        api,
+        out_methods,
+        out_count,
+        error,
+        error_capacity);
 }

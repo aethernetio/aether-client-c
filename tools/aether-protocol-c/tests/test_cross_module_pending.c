@@ -482,6 +482,93 @@ static void pending_global_api_collision_rejected(void) {
 }
 
 
+
+/* PENDING_API: emission plan validation. */
+static void pending_emission_plan_validation(void) {
+    char a_path[1024];
+    char b_path[1024];
+
+    fixture_path(
+        "cross_module/A_uses_item.adsl.yaml",
+        a_path, sizeof(a_path));
+    fixture_path(
+        "cross_module/B_defines_item.adsl.yaml",
+        b_path, sizeof(b_path));
+
+    const char *paths[] = { a_path, b_path };
+    const char *include_paths[] = {
+        ADSL_FIXTURE_DIR "/cross_module"
+    };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    char error[512] = {0};
+
+    assert(adsl_project_load_files(
+        paths, 2u, include_paths, 1u,
+        &project, error, sizeof(error)));
+
+    adsl_emission_module_t modules[2];
+    modules[0].source_path = project.documents[0].root_source_path;
+    modules[0].base_name = "A_uses_item";
+    modules[1].source_path = project.documents[1].root_source_path;
+    modules[1].base_name = "B_defines_item";
+
+    adsl_emission_plan_t plan;
+    plan.modules = modules;
+    plan.module_count = 2u;
+
+    adsl_emission_plan_t empty_plan = {0};
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &empty_plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
+        error, sizeof(error)));
+    assert(error[0] != '\0');
+
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "wrong_name",
+        error, sizeof(error)));
+    assert(error[0] != '\0');
+
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &plan, 99u,
+        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
+        error, sizeof(error)));
+    assert(error[0] != '\0');
+
+    error[0] = '\0';
+    bool emitted = adsl_emit_c_project(
+        &project, &plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
+        error, sizeof(error));
+    assert(!emitted);
+    assert(error[0] != '\0');
+
+    adsl_emission_module_t colliding[2];
+    colliding[0].source_path = project.documents[0].root_source_path;
+    colliding[0].base_name = "SameName";
+    colliding[1].source_path = project.documents[1].root_source_path;
+    colliding[1].base_name = "same_name";
+    adsl_emission_plan_t colliding_plan;
+    colliding_plan.modules = colliding;
+    colliding_plan.module_count = 2u;
+
+    error[0] = '\0';
+    assert(!adsl_emit_c_project(
+        &project, &colliding_plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "SameName",
+        error, sizeof(error)));
+    assert(error[0] != '\0');
+
+    adsl_project_free(&project);
+}
+
+
 int main(void) {
     pending_res_001_cross_file_without_include();
     pending_res_003_resolution_order_independent();
@@ -496,6 +583,9 @@ int main(void) {
 
     pending_cross_file_api_inheritance();
     pending_global_api_collision_rejected();
+
+    pending_emission_plan_validation();
+
 
 
     return 0;

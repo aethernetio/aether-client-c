@@ -425,32 +425,52 @@ void adsl_document_free(
    char *error,
    size_t error_capacity);
 
+
+/*
+ * One entry in a project emission plan.
+ *
+ * Maps a project document, identified by its root_source_path (the same
+ * value stored in adsl_document_t.root_source_path), to the base_name
+ * that callers will use when they emit that document's generated C
+ * module. The generated filenames are derived from base_name through
+ * the same snake_name() rule used by the standalone emitter.
+ */
+typedef struct {
+    const char *source_path;
+    const char *base_name;
+} adsl_emission_module_t;
+
+typedef struct {
+    const adsl_emission_module_t *modules;
+    size_t module_count;
+} adsl_emission_plan_t;
+
 /*
  * Emit the C bindings for one document of a project.
  *
- * The document is emitted as a self-contained module: its own declared
- * types (documents[index].types[]) and APIs (documents[index].apis[])
- * become that module's generated files. Types and APIs declared in other
- * documents are not duplicated; they are expected to be provided by
- * their own generated module and referenced through a project-global
- * lookup.
+ * The document is emitted as a self-contained module. Cross-document
+ * type and API references are resolved through the shared project
+ * resolver; every referenced declaration must have an owner in the
+ * emission plan, otherwise the call fails with a diagnostic naming the
+ * type, its physical source file and the missing owner.
  *
- * The project is validated first via adsl_project_validate(). Emission is
- * never attempted on an invalid project. The standalone adsl_emit_c()
- * contract is unchanged.
+ * The emission plan must contain exactly one entry for each project
+ * document. base_name must match the plan entry for document_index, and
+ * after snake_name() normalization every module name in the plan must
+ * be unique. On any plan violation the call fails before opening any
+ * output file.
  *
- * On success returns true and writes <base_name>_types.h,
- * <base_name>_types.c, <base_name>_api.h and <base_name>_api.c into
- * output_directory. On failure returns false and writes a human-readable
- * diagnostic into error.
+ * The standalone adsl_emit_c() contract is unchanged.
  */
 bool adsl_emit_c_project(
     const adsl_project_t *project,
+    const adsl_emission_plan_t *plan,
     size_t document_index,
     const char *output_directory,
     const char *base_name,
     char *error,
     size_t error_capacity);
+
 
 
 

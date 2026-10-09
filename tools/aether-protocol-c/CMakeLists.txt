@@ -20,10 +20,14 @@ target_include_directories(aether_meta_runtime_test
 target_compile_features(aether_meta_runtime_test PUBLIC c_std_11)
 
 
+
 target_include_directories(aether_adslc_core
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
 
 target_compile_features(aether_adslc_core PUBLIC c_std_11)
 

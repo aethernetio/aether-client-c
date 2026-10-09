@@ -13,12 +13,15 @@
  * Fix generated client_server_* defects here and add focused regression
  * fixtures instead of manually patching generated bindings.
  */
+
 #include "adslc.h"
+#include "adsl_project_internal.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 
 
 static void set_error(
@@ -6034,6 +6037,209 @@ bool adsl_emit_c(
         error,
         error_capacity);
 }
+
+
+
+/*
+ * Project emitter (ТЗ №4-Б2.2).
+ *
+ * This step introduces the emission plan and validates its invariants.
+ * It does not yet perform project-aware generation; the emitter still
+ * uses the standalone pipeline. The plan validation is exercised here
+ * so that invalid plans are rejected before any output file is opened.
+ *
+ * The next step (ТЗ №4-Б2.3) will replace adsl_emit_c_method()'s
+ * document view with a project emitter context that threads the shared
+ * resolver through every type/API resolution site.
+ */
+bool adsl_emit_c_project(
+    const adsl_project_t *project,
+    const adsl_emission_plan_t *plan,
+    size_t document_index,
+    const char *output_directory,
+    const char *base_name,
+    char *error,
+    size_t error_capacity) {
+
+    if (project == NULL ||
+        plan == NULL ||
+        output_directory == NULL ||
+        base_name == NULL) {
+
+        set_error(error, error_capacity, "invalid project emitter arguments");
+        return false;
+    }
+
+    if (document_index >= project->document_count) {
+        char message[256];
+        (void)snprintf(
+            message,
+            sizeof(message),
+            "document index %zu is out of range (project has %zu documents)",
+            document_index,
+            project->document_count);
+        set_error(error, error_capacity, message);
+        return false;
+    }
+
+    if (plan->modules == NULL || plan->module_count == 0u) {
+        set_error(error, error_capacity, "emission plan is empty");
+        return false;
+    }
+
+    for (size_t m = 0u; m < plan->module_count; ++m) {
+        if (plan->modules[m].source_path == NULL ||
+            plan->modules[m].base_name == NULL) {
+            char message[256];
+            (void)snprintf(
+                message,
+                sizeof(message),
+                "emission plan entry %zu is missing source_path or base_name",
+                m);
+            set_error(error, error_capacity, message);
+            return false;
+        }
+
+        bool matched = false;
+        for (size_t d = 0u; d < project->document_count; ++d) {
+            const char *sp = project->documents[d].root_source_path;
+            if (sp != NULL &&
+                strcmp(plan->modules[m].source_path, sp) == 0) {
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            char message[256];
+            (void)snprintf(
+                message,
+                sizeof(message),
+                "emission plan entry '%s' does not match any project document",
+                plan->modules[m].source_path);
+            set_error(error, error_capacity, message);
+            return false;
+        }
+    }
+
+    for (size_t d = 0u; d < project->document_count; ++d) {
+        const char *sp = project->documents[d].root_source_path;
+
+        if (sp == NULL) {
+            char message[256];
+            (void)snprintf(
+                message,
+                sizeof(message),
+                "project document %zu has no root_source_path",
+                d);
+            set_error(error, error_capacity, message);
+            return false;
+        }
+
+        size_t found = 0u;
+        for (size_t m = 0u; m < plan->module_count; ++m) {
+            if (strcmp(plan->modules[m].source_path, sp) == 0) {
+                found++;
+            }
+        }
+
+        if (found == 0u) {
+            char message[256];
+            (void)snprintf(
+                message,
+                sizeof(message),
+                "emission plan has no entry for document '%s'",
+                sp);
+            set_error(error, error_capacity, message);
+            return false;
+        }
+
+        if (found > 1u) {
+            char message[256];
+            (void)snprintf(
+                message,
+                sizeof(message),
+                "emission plan has duplicate entries for document '%s'",
+                sp);
+            set_error(error, error_capacity, message);
+            return false;
+        }
+    }
+
+    const char *expected_base_name = NULL;
+    const char *current_source_path =
+        project->documents[document_index].root_source_path;
+
+    for (size_t m = 0u; m < plan->module_count; ++m) {
+        if (strcmp(plan->modules[m].source_path, current_source_path) == 0) {
+            expected_base_name = plan->modules[m].base_name;
+            break;
+        }
+    }
+
+    if (expected_base_name == NULL ||
+        strcmp(expected_base_name, base_name) != 0) {
+        char message[256];
+        (void)snprintf(
+            message,
+            sizeof(message),
+            "base_name '%s' does not match emission plan entry '%s'",
+            base_name,
+            expected_base_name != NULL ? expected_base_name : "<none>");
+        set_error(error, error_capacity, message);
+        return false;
+    }
+
+    enum { MAX_PLAN_MODULES = 64 };
+    char names[MAX_PLAN_MODULES][256];
+    size_t names_count = 0u;
+
+    for (size_t m = 0u; m < plan->module_count; ++m) {
+        if (names_count >= MAX_PLAN_MODULES) {
+            set_error(
+                error,
+                error_capacity,
+                "too many modules in emission plan");
+            return false;
+        }
+
+        char snake[256];
+        snake_name(plan->modules[m].base_name, snake, sizeof(snake));
+
+        for (size_t i = 0u; i < names_count; ++i) {
+            if (strcmp(names[i], snake) == 0) {
+                char message[512];
+                (void)snprintf(
+                    message,
+                    sizeof(message),
+                    "emission plan has colliding module names after normalization: '%s'",
+                    snake);
+                set_error(error, error_capacity, message);
+                return false;
+            }
+        }
+
+        (void)snprintf(names[names_count], sizeof(names[names_count]),
+                       "%s", snake);
+        names_count++;
+    }
+
+    adsl_project_resolver_t *resolver = NULL;
+
+    if (!adsl_project_resolver_build(
+            project, &resolver, error, error_capacity)) {
+        return false;
+    }
+
+    adsl_project_resolver_release(resolver);
+
+    set_error(
+        error,
+        error_capacity,
+        "project emitter is not yet wired to the generation pipeline (ТЗ №4-Б2.3+)");
+    return false;
+}
+
 
 
 
