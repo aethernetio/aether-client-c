@@ -879,18 +879,72 @@ static void pending_cross_file_by_value_field(void) {
         paths, 2u, NULL, 0u,
         &project, error, sizeof(error)));
 
-    /*
+
+/*
      * Holder.item references Item, declared in a separate project
      * document without an include directive. Global namespace
      * resolution must accept this at the project validation stage.
      *
-     * Generating the corresponding C code requires the owning module's
-     * full definition of Item to be visible before Holder is emitted;
-     * that is the subject of ТЗ №4-Б2.4 and is not exercised here yet.
+     * Beyond validation, we also exercise project emission and verify
+     * that the nested by-value serializer call inside Holder's own
+     * serializer goes through B's exported *_with_depth entry point
+     * with recursion_depth + 1u — this is the case that step 2A.1
+     * exists to protect. Otherwise the generated A module would emit
+     * a phantom <a_prefix>_serialize_item_impl call.
      */
     assert(adsl_project_validate(&project, error, sizeof(error)));
 
+    adsl_emission_module_t modules[2];
+    modules[0].source_path = project.documents[0].root_source_path;
+    modules[0].base_name = "I_holds_external";
+    modules[1].source_path = project.documents[1].root_source_path;
+    modules[1].base_name = "B_defines_item";
+
+    adsl_emission_plan_t plan;
+    plan.modules = modules;
+    plan.module_count = 2u;
+
+
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 0u,
+        ADSL_TEST_OUTPUT_DIR, "I_holds_external",
+        error, sizeof(error)));
+    assert(error[0] == '\0');
+
+
+
+
+    error[0] = '\0';
+    assert(adsl_emit_c_project(
+        &project, &plan, 1u,
+        ADSL_TEST_OUTPUT_DIR, "B_defines_item",
+        error, sizeof(error)));
+    assert(error[0] == '\0');
+
+    char path[1024];
+
+    /*
+     * Holder's serializer must call into B's Item serializer with the
+     * cross-module _with_depth entry point and pass recursion_depth + 1u.
+     * The phantom <i_holds_external>_serialize_item_impl must not appear.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/i_holds_external_types.c", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path,
+        "b_defines_item_serialize_item_with_depth("));
+    assert(file_contains(path, "recursion_depth + 1u"));
+    assert(!file_contains(path,
+        "i_holds_external_serialize_item_impl("));
+
+    assert(file_contains(path,
+        "b_defines_item_deserialize_item_with_depth("));
+    assert(!file_contains(path,
+        "i_holds_external_deserialize_item_impl("));
+
     adsl_project_free(&project);
+
 
 }
 

@@ -1344,18 +1344,7 @@ static bool emit_struct_value_expression_ctx(
     char *error,
     size_t error_capacity);
 
-static bool emit_struct_value_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const adsl_type_t *declared_type,
-    const char *expression,
-    const char *prefix,
-    bool struct_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity);
+
 
 
 
@@ -2025,18 +2014,7 @@ static bool emit_value_expression_ctx(
     char *error,
     size_t error_capacity);
 
-static bool emit_value_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const char *type,
-    const char *expression,
-    const char *prefix,
-    bool struct_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity);
+
 
 
 
@@ -3184,11 +3162,12 @@ static bool emit_types_source_ctx(
                     "recursion_depth",
                     error,
                     error_capacity);
+
         } else {
             emitted =
-                emit_struct_value_expression(
+                emit_struct_value_expression_ctx(
                     output,
-                    ctx->document,
+                    ctx,
                     base_snake,
                     type,
                     "value",
@@ -3199,6 +3178,7 @@ static bool emit_types_source_ctx(
                     error,
                     error_capacity);
         }
+
 
         if (!emitted) {
             fclose(output);
@@ -6164,6 +6144,8 @@ static bool emit_value_expression_ctx(
     const adsl_type_t *declared_type =
         find_declared_type_ctx(ctx, base);
 
+
+
     if (declared_type == NULL) {
         set_error(
             error,
@@ -6171,6 +6153,8 @@ static bool emit_value_expression_ctx(
             "unknown generated value type");
         return false;
     }
+
+
 
     if (declared_type->has_tiered_int) {
         char tiered_name[256];
@@ -6437,24 +6421,7 @@ static bool emit_value_expression_ctx(
 }
 
 
-static bool emit_value_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const char *type,
-    const char *expression,
-    const char *prefix,
-    bool struct_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_value_expression_ctx(
-        output, &ctx, base_snake, type, expression, prefix,
-        struct_pointer, depth, runtime_depth, error, error_capacity);
-}
 
 
 
@@ -6926,24 +6893,7 @@ static bool emit_struct_value_expression_ctx(
 }
 
 
-static bool emit_struct_value_expression(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *base_snake,
-    const adsl_type_t *declared_type,
-    const char *expression,
-    const char *prefix,
-    bool struct_pointer,
-    unsigned int depth,
-    const char *runtime_depth,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_struct_value_expression_ctx(
-        output, &ctx, base_snake, declared_type, expression, prefix,
-        struct_pointer, depth, runtime_depth, error, error_capacity);
-}
 
 
 
@@ -7417,9 +7367,10 @@ static bool emit_hierarchy_expression_ctx(
             (unsigned int)candidate->id,
             child_expression);
 
-        if (!emit_struct_value_expression(
+
+        if (!emit_struct_value_expression_ctx(
                 output,
-                ctx->document,
+                ctx,
                 base_snake,
                 candidate,
                 child_expression,
@@ -7432,6 +7383,7 @@ static bool emit_hierarchy_expression_ctx(
 
             return false;
         }
+
 
         fputs(
             "        break;\n",
@@ -8187,10 +8139,11 @@ static bool emit_all_struct_payload_ctx(
             return false;
         }
 
+
         if (!nullable) {
-            if (!emit_value_expression(
+            if (!emit_value_expression_ctx(
                     output,
-                    ctx->document,
+                    ctx,
                     base_snake,
                     field->type,
                     field_expression,
@@ -8203,6 +8156,7 @@ static bool emit_all_struct_payload_ctx(
 
                 return false;
             }
+
 
             continue;
         }
@@ -8290,9 +8244,10 @@ static bool emit_all_struct_payload_ctx(
             return false;
         }
 
-        if (!emit_value_expression(
+
+        if (!emit_value_expression_ctx(
                 output,
-                ctx->document,
+                ctx,
                 base_snake,
                 underlying_type,
                 nullable_expression,
@@ -8302,6 +8257,7 @@ static bool emit_all_struct_payload_ctx(
                 runtime_depth,
                 error,
                 error_capacity)) {
+
 
             return false;
         }
