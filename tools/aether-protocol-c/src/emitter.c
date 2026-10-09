@@ -8510,40 +8510,42 @@ static bool emit_all_struct_field_declarations(
     return true;
 }
 
-static bool count_all_nullable_fields(
-    const adsl_document_t *document,
+
+static bool count_all_nullable_fields_ctx(
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     unsigned int depth,
     size_t *count,
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid nullable field context");
+        return false;
+    }
+
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "struct inheritance depth exceeds 64");
-
         return false;
     }
 
     if (type->parent != NULL) {
         const adsl_type_t *parent =
-            find_declared_type(
-                document,
-                type->parent);
+            find_declared_type_ctx(ctx, type->parent);
 
         if (parent == NULL) {
             set_error(
                 error,
                 error_capacity,
                 "generated struct has unknown parent");
-
             return false;
         }
 
-        if (!count_all_nullable_fields(
-                document,
+        if (!count_all_nullable_fields_ctx(
+                ctx,
                 parent,
                 depth + 1u,
                 count,
@@ -8554,9 +8556,7 @@ static bool count_all_nullable_fields(
         }
     }
 
-    for (size_t f = 0u;
-         f < type->field_count;
-         ++f) {
+    for (size_t f = 0u; f < type->field_count; ++f) {
 
         if (strchr(
                 type->fields[f].type,
@@ -8569,9 +8569,25 @@ static bool count_all_nullable_fields(
     return true;
 }
 
-static bool emit_all_nullable_mask_bits(
-    FILE *output,
+
+static bool count_all_nullable_fields(
     const adsl_document_t *document,
+    const adsl_type_t *type,
+    unsigned int depth,
+    size_t *count,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return count_all_nullable_fields_ctx(
+        &ctx, type, depth, count, error, error_capacity);
+}
+
+
+
+static bool emit_all_nullable_mask_bits_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     const char *expression,
     const char *prefix,
@@ -8581,25 +8597,27 @@ static bool emit_all_nullable_mask_bits(
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid nullable mask context");
+        return false;
+    }
+
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "struct inheritance depth exceeds 64");
-
         return false;
     }
 
     if (type->parent != NULL) {
         const adsl_type_t *parent =
-            find_declared_type(
-                document,
-                type->parent);
+            find_declared_type_ctx(ctx, type->parent);
 
         if (parent == NULL ||
-            !emit_all_nullable_mask_bits(
+            !emit_all_nullable_mask_bits_ctx(
                 output,
-                document,
+                ctx,
                 parent,
                 expression,
                 prefix,
@@ -8620,12 +8638,9 @@ static bool emit_all_nullable_mask_bits(
         }
     }
 
-    for (size_t f = 0u;
-         f < type->field_count;
-         ++f) {
+    for (size_t f = 0u; f < type->field_count; ++f) {
 
-        const adsl_field_t *field =
-            &type->fields[f];
+        const adsl_field_t *field = &type->fields[f];
 
         if (strchr(
                 field->type,
@@ -8655,7 +8670,6 @@ static bool emit_all_nullable_mask_bits(
                 error,
                 error_capacity,
                 "generated nullable inherited field expression is too long");
-
             return false;
         }
 
@@ -8672,6 +8686,26 @@ static bool emit_all_nullable_mask_bits(
 
     return true;
 }
+
+
+static bool emit_all_nullable_mask_bits(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_type_t *type,
+    const char *expression,
+    const char *prefix,
+    bool struct_pointer,
+    unsigned int depth,
+    size_t *bit_index,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_all_nullable_mask_bits_ctx(
+        output, &ctx, type, expression, prefix, struct_pointer,
+        depth, bit_index, error, error_capacity);
+}
+
 
 
 static bool emit_all_struct_payload(
