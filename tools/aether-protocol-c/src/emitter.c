@@ -1342,7 +1342,26 @@ static bool emit_struct_value_expression_ctx(
     unsigned int depth,
     const char *runtime_depth,
     char *error,
+
     size_t error_capacity);
+
+/*
+ * Owner lookup for a field/parameter type reference.
+ *
+ * Strips nullable and array modifiers, ignores primitives and inline
+ * streams, and returns the module prefix that owns the resolved user
+ * type. external_out is set true only when the owner prefix differs
+ * from the current module.
+ */
+static bool resolve_type_owner(
+    const emitter_ctx_t *ctx,
+    const char *type_ref,
+    char *owner_out,
+    size_t owner_capacity,
+    bool *external_out,
+    char *error,
+    size_t error_capacity);
+
 
 
 
@@ -2394,8 +2413,38 @@ declared_c_name(
     return true;
 }
 
+typedef struct {
+    char names[32][256];
+    size_t count;
+} external_modules_t;
+
+
+static bool collect_external_modules_types(
+    const emitter_ctx_t *ctx,
+    external_modules_t *state,
+    char *error,
+    size_t error_capacity);
+
+/*
+ * API-only variant. The API header needs owners of parameter, return,
+ * throws and return-field types; the types header only needs owners of
+ * struct fields and parents. Keeping the two views apart avoids
+ * pulling a foreign *_types.h into a module that never references the
+ * foreign type in any of its own type definitions.
+ */
+static bool collect_external_modules_api(
+    const emitter_ctx_t *ctx,
+    external_modules_t *state,
+    char *error,
+    size_t error_capacity);
+
+
+static bool emit_external_includes(
+    FILE *output,
+    const external_modules_t *state);
 
 static bool emit_types_header_ctx(
+
     const emitter_ctx_t *ctx,
     const char *path,
     const char *base_name,
@@ -2437,7 +2486,35 @@ static bool emit_types_header_ctx(
         guard,
         guard);
 
+    /*
+     * Project mode: pull in the *_types.h of every module whose
+     * declarations are used by this module's own types or API
+     * signatures. Standalone output remains a single self-contained
+     * translation unit and does not reach this branch.
+     */
+    if (ctx->resolver != NULL) {
+        external_modules_t external = {0};
+
+
+        if (!collect_external_modules_types(
+                ctx, &external, error, error_capacity)) {
+
+
+
+            fclose(output);
+            return false;
+        }
+
+        if (!emit_external_includes(output, &external)) {
+            fclose(output);
+            return false;
+        }
+
+        fputc('\n', output);
+    }
+
     size_t type_count = 0u;
+
     const adsl_type_t *types = ctx_types(ctx, &type_count);
 
     size_t api_count = 0u;
@@ -4968,7 +5045,34 @@ static bool emit_api_header_ctx(
         "    void *ctx,\n"
         "    const uint8_t *data,\n"
         "    size_t length);\n\n",
+
         guard, guard, base_snake, base_snake);
+
+    /*
+     * Project mode: API signatures may reference types owned by other
+     * modules. Bring in only the owners of parameter, return, throws
+     * and return-field types — not the full set of the current
+     * module's own type dependencies. Standalone output remains one
+     * self-contained translation unit and skips this branch.
+     */
+    if (ctx->resolver != NULL) {
+        external_modules_t external_api = {0};
+
+        if (!collect_external_modules_api(
+                ctx, &external_api, error, error_capacity)) {
+            fclose(output);
+            return false;
+        }
+
+        if (!emit_external_includes(output, &external_api)) {
+            fclose(output);
+            return false;
+        }
+
+        if (external_api.count > 0u) {
+            fputc('\n', output);
+        }
+    }
 
     size_t api_count = 0u;
     const adsl_api_t *apis = ctx_apis(ctx, &api_count);
@@ -5667,7 +5771,252 @@ bool type_owner_base_snake(
     }
 
     return true;
+
 }
+
+bool resolve_type_owner(
+    const emitter_ctx_t *ctx,
+    const char *type_ref,
+    char *owner_out,
+    size_t owner_capacity,
+    bool *external_out,
+    char *error,
+    size_t error_capacity) {
+
+    if (owner_out != NULL && owner_capacity > 0u) {
+        owner_out[0] = '\0';
+    }
+    if (external_out != NULL) {
+        *external_out = false;
+    }
+
+    if (ctx == NULL || type_ref == NULL || type_ref[0] == '\0') {
+        return true;
+    }
+
+    char base[256];
+
+    if (!scalar_type_name(type_ref, base, sizeof(base))) {
+        return true;
+    }
+
+    const adsl_type_t *declared = find_declared_type_ctx(ctx, base);
+
+    if (declared == NULL) {
+        return true;
+    }
+
+    char owner[256];
+
+    if (!type_owner_base_snake(
+            ctx, declared, owner, sizeof(owner),
+            error, error_capacity)) {
+        return false;
+    }
+
+    if (owner_out != NULL && owner_capacity > 0u) {
+        if (strlen(owner) + 1u > owner_capacity) {
+            set_error(
+                error,
+                error_capacity,
+                "resolved owner name does not fit");
+            return false;
+        }
+        memcpy(owner_out, owner, strlen(owner) + 1u);
+    }
+
+    if (external_out != NULL) {
+        *external_out =
+            (ctx->base_snake[0] != '\0' &&
+             strcmp(owner, ctx->base_snake) != 0);
+    }
+
+    return true;
+}
+
+
+
+static bool external_modules_add(
+    external_modules_t *state,
+    const char *name) {
+
+    for (size_t i = 0u; i < state->count; ++i) {
+        if (strcmp(state->names[i], name) == 0) {
+            return true;
+        }
+    }
+
+    if (state->count >= 32u) {
+        return false;
+    }
+
+    size_t length = strlen(name);
+
+    if (length + 1u > sizeof(state->names[0])) {
+        return false;
+    }
+
+    memcpy(state->names[state->count], name, length + 1u);
+    state->count++;
+
+    return true;
+}
+
+static bool external_modules_record(
+    const emitter_ctx_t *ctx,
+    const char *type_ref,
+    external_modules_t *state,
+    char *error,
+    size_t error_capacity) {
+
+    if (type_ref == NULL || type_ref[0] == '\0') {
+        return true;
+    }
+
+    char owner[256];
+    bool external = false;
+
+    if (!resolve_type_owner(
+            ctx, type_ref, owner, sizeof(owner), &external,
+            error, error_capacity)) {
+        return false;
+    }
+
+    if (!external) {
+        return true;
+    }
+
+    if (!external_modules_add(state, owner)) {
+        char message[512];
+        (void)snprintf(
+            message,
+            sizeof(message),
+            "too many external module dependencies for type '%s'",
+            type_ref);
+        set_error(error, error_capacity, message);
+        return false;
+    }
+
+    return true;
+}
+
+
+static bool collect_external_modules_types(
+    const emitter_ctx_t *ctx,
+    external_modules_t *state,
+    char *error,
+    size_t error_capacity) {
+
+    if (ctx == NULL || ctx->resolver == NULL) {
+        return true;
+    }
+
+    size_t type_count = 0u;
+    const adsl_type_t *types = ctx_types(ctx, &type_count);
+
+    for (size_t i = 0u; i < type_count; ++i) {
+
+        const adsl_type_t *type = &types[i];
+
+        if (type->parent != NULL) {
+            if (!external_modules_record(
+                    ctx, type->parent, state,
+                    error, error_capacity)) {
+                return false;
+            }
+        }
+
+        for (size_t f = 0u; f < type->field_count; ++f) {
+            if (!external_modules_record(
+                    ctx, type->fields[f].type, state,
+                    error, error_capacity)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+
+/*
+ * Same as collect_external_modules_types, but walks API signatures.
+ * Keeping the two views apart avoids pulling a foreign *_types.h into
+ * a module whose own type definitions never reference the foreign
+ * type, and vice versa.
+ */
+static bool collect_external_modules_api(
+    const emitter_ctx_t *ctx,
+    external_modules_t *state,
+    char *error,
+    size_t error_capacity) {
+
+    if (ctx == NULL || ctx->resolver == NULL) {
+        return true;
+    }
+
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
+
+    for (size_t a = 0u; a < api_count; ++a) {
+
+        const adsl_api_t *api = &apis[a];
+
+        for (size_t m = 0u; m < api->method_count; ++m) {
+
+            const adsl_method_t *method = &api->methods[m];
+
+            for (size_t p = 0u; p < method->param_count; ++p) {
+                if (method->params[p].stream != NULL) {
+                    continue;
+                }
+                if (!external_modules_record(
+                        ctx, method->params[p].type, state,
+                        error, error_capacity)) {
+                    return false;
+                }
+            }
+
+            if (!external_modules_record(
+                    ctx, method->returns_type, state,
+                    error, error_capacity)) {
+                return false;
+            }
+
+            if (!external_modules_record(
+                    ctx, method->throws_type, state,
+                    error, error_capacity)) {
+                return false;
+            }
+
+            for (size_t f = 0u; f < method->return_field_count; ++f) {
+                if (!external_modules_record(
+                        ctx, method->return_fields[f].type, state,
+                        error, error_capacity)) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+
+static bool emit_external_includes(
+    FILE *output,
+    const external_modules_t *state) {
+
+    for (size_t i = 0u; i < state->count; ++i) {
+        fprintf(
+            output,
+            "#include \"%s_types.h\"\n",
+            state->names[i]);
+    }
+
+    return !ferror(output);
+}
+
 
 
 
@@ -5925,7 +6274,7 @@ bool adsl_emit_c_project(
     ctx.resolver = resolver;
     ctx.project = project;
     ctx.plan = plan;
-    ctx.base_snake[0] = '\0';
+    snake_name(base_name, ctx.base_snake, sizeof(ctx.base_snake));
 
 
     char base_snake[256];

@@ -620,10 +620,19 @@ static void pending_emission_plan_validation(void) {
          * the cross-document parameter type by name, and must use a
          * contextual wire id of 3 for the single method.
          */
+
         (void)snprintf(path, sizeof(path),
             "%s/a_uses_item_api.h", ADSL_TEST_OUTPUT_DIR);
         assert(file_contains(path, "api_a_use_item("));
         assert(file_contains(path, "item_t"));
+
+        /*
+         * A's API header references Item, which is owned by B. Project
+         * mode must pull in B's generated types header so item_t has a
+         * complete definition where A's API signature is declared.
+         */
+        assert(file_contains(path, "#include \"b_defines_item_types.h\""));
+
 
 
         (void)snprintf(path, sizeof(path),
@@ -923,7 +932,17 @@ static void pending_cross_file_by_value_field(void) {
         error, sizeof(error)));
     assert(error[0] == '\0');
 
+
     char path[1024];
+
+    /*
+     * Holder stores Item by value, so its types header must include
+     * B's generated types header to see the full definition of item_t.
+     */
+    (void)snprintf(path, sizeof(path),
+        "%s/i_holds_external_types.h", ADSL_TEST_OUTPUT_DIR);
+    assert(file_contains(path, "#include \"b_defines_item_types.h\""));
+
 
     /*
      * Holder's serializer must call into B's Item serializer with the
