@@ -504,6 +504,17 @@ static bool type_has_children_ctx(
     const adsl_type_t *type);
 
 
+static bool type_is_polymorphic_reference_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type);
+
+static bool type_is_descendant_or_self_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *candidate,
+    const adsl_type_t *ancestor);
+
+
+
 
 
 
@@ -773,11 +784,16 @@ static bool strip_nullable_suffix(
     return true;
 }
 
-static bool array_alias_name(
-    const adsl_document_t *document,
+
+static bool array_alias_name_ctx(
+    const emitter_ctx_t *ctx,
     const char *type,
     char *name,
     size_t capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        return false;
+    }
 
     char element[128];
     bool dynamic;
@@ -812,13 +828,11 @@ static bool array_alias_name(
     char stem[256];
 
     const adsl_type_t *declared =
-        find_declared_type(
-            document,
-            element);
+        find_declared_type_ctx(ctx, element);
 
     if (declared != NULL) {
 
-declared_c_name(
+        declared_c_name(
             declared->name,
             stem,
             sizeof(stem));
@@ -853,12 +867,30 @@ declared_c_name(
            (size_t)written < capacity;
 }
 
-static bool emit_array_element_c_type(
-    FILE *output,
+
+static bool array_alias_name(
     const adsl_document_t *document,
+    const char *type,
+    char *name,
+    size_t capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return array_alias_name_ctx(&ctx, type, name, capacity);
+}
+
+
+
+static bool emit_array_element_c_type_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
     const char *element,
     char *error,
     size_t error_capacity) {
+
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid array element context");
+        return false;
+    }
 
     const char *primitive =
         primitive_c_type(
@@ -873,9 +905,7 @@ static bool emit_array_element_c_type(
     }
 
     const adsl_type_t *declared =
-        find_declared_type(
-            document,
-            element);
+        find_declared_type_ctx(ctx, element);
 
     if (declared == NULL) {
         set_error(
@@ -885,6 +915,7 @@ static bool emit_array_element_c_type(
 
         return false;
     }
+
 
     char generated_name[256];
 
@@ -904,9 +935,11 @@ declared_c_name(
         return true;
     }
 
-    if (type_is_polymorphic_reference(
-            document,
+
+    if (type_is_polymorphic_reference_ctx(
+            ctx,
             declared)) {
+
 
         fprintf(
             output,
@@ -932,6 +965,21 @@ declared_c_name(
 
     return true;
 }
+
+
+
+static bool emit_array_element_c_type(
+    FILE *output,
+    const adsl_document_t *document,
+    const char *element,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_array_element_c_type_ctx(
+        output, &ctx, element, error, error_capacity);
+}
+
 
 
 
