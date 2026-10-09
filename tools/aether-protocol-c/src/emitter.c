@@ -5598,14 +5598,23 @@ bool type_owner_base_snake(
 
     if (ctx->resolver == NULL) {
 
+
         /*
          * Standalone: every declaration lives in one translation unit,
-         * so a type is always local by construction. Some standalone
-         * wrappers call this helper with an unset base_snake; returning
-         * the empty string makes the caller's strcmp decide "local",
-         * which is the standalone answer anyway. The only real failure
-         * mode is buffer overflow, checked below.
+         * so the owner is always the current module. Callers must have
+         * populated ctx->base_snake before invoking this helper; the
+         * emitter's standalone wrappers take care of that so the
+         * returned prefix is never empty. A missing base_snake here is
+         * an internal invariant violation, not a case to guess around.
          */
+        if (ctx->base_snake[0] == '\0') {
+            set_error(
+                error,
+                error_capacity,
+                "standalone emitter context has no base_snake");
+            return false;
+        }
+
         size_t length = strlen(ctx->base_snake);
 
         if (length + 1u > capacity) {
@@ -5619,6 +5628,7 @@ bool type_owner_base_snake(
         memcpy(out, ctx->base_snake, length + 1u);
         return true;
     }
+
 
 
     if (ctx->plan == NULL) {
@@ -6325,30 +6335,33 @@ static bool emit_value_expression_ctx(
         return false;
     }
 
+    /*
+     * Standalone wrappers sometimes construct a context without
+     * base_snake. Snapshot the context and fill it from the caller's
+     * authoritative prefix before calling the strict owner helper.
+     * In project mode base_snake is already set, so this is a no-op.
+     */
+    emitter_ctx_t effective_ctx = *ctx;
+
+    if (effective_ctx.base_snake[0] == '\0' && base_snake != NULL) {
+        (void)snprintf(
+            effective_ctx.base_snake,
+            sizeof(effective_ctx.base_snake),
+            "%s",
+            base_snake);
+    }
 
     char nested_owner[256];
 
     if (!type_owner_base_snake(
-            ctx, declared_type, nested_owner, sizeof(nested_owner),
-            error, error_capacity)) {
+            &effective_ctx, declared_type, nested_owner,
+            sizeof(nested_owner), error, error_capacity)) {
         return false;
-
-}
-
-    /*
-     * Some standalone wrappers call this path with an unset
-     * ctx->base_snake; fall back to the caller-provided prefix so the
-     * generated symbol names stay <base_snake>_serialize_<type>_impl.
-     */
-    if (nested_owner[0] == '\0' && base_snake != NULL) {
-        (void)snprintf(
-            nested_owner, sizeof(nested_owner), "%s", base_snake);
     }
 
-
-
     bool nested_local =
-        strcmp(nested_owner, base_snake) == 0;
+        strcmp(nested_owner, effective_ctx.base_snake) == 0;
+
 
 
     if (runtime_depth != NULL) {
@@ -11272,29 +11285,34 @@ static bool emit_decode_value_expression_ctx(
         sizeof(nested_name));
 
 
+
+    /*
+     * Standalone wrappers sometimes construct a context without
+     * base_snake. Snapshot the context and fill it from the caller's
+     * authoritative prefix before calling the strict owner helper.
+     * In project mode base_snake is already set, so this is a no-op.
+     */
+    emitter_ctx_t effective_ctx = *ctx;
+
+    if (effective_ctx.base_snake[0] == '\0' && base_snake != NULL) {
+        (void)snprintf(
+            effective_ctx.base_snake,
+            sizeof(effective_ctx.base_snake),
+            "%s",
+            base_snake);
+    }
+
     char nested_owner[256];
 
     if (!type_owner_base_snake(
-            ctx, declared_type, nested_owner, sizeof(nested_owner),
-            error, error_capacity)) {
+            &effective_ctx, declared_type, nested_owner,
+            sizeof(nested_owner), error, error_capacity)) {
         return false;
-
-}
-
-    /*
-     * Some standalone wrappers call this path with an unset
-     * ctx->base_snake; fall back to the caller-provided prefix so the
-     * generated symbol names stay <base_snake>_deserialize_<type>_impl.
-     */
-    if (nested_owner[0] == '\0' && base_snake != NULL) {
-        (void)snprintf(
-            nested_owner, sizeof(nested_owner), "%s", base_snake);
     }
 
-
-
     bool nested_local =
-        strcmp(nested_owner, base_snake) == 0;
+        strcmp(nested_owner, effective_ctx.base_snake) == 0;
+
 
 
     if (runtime_depth != NULL) {
