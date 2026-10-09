@@ -8075,10 +8075,10 @@ static bool emit_hierarchy_expression(
 }
 
 
-static bool emit_all_struct_dependencies(
 
+static bool emit_all_struct_dependencies_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     uint8_t *states,
     unsigned int depth,
@@ -8086,35 +8086,34 @@ static bool emit_all_struct_dependencies(
     char *error,
     size_t error_capacity) {
 
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid struct dependency context");
+        return false;
+    }
 
     if (depth > 64u) {
         set_error(
             error,
             error_capacity,
             "struct inheritance depth exceeds 64");
-
         return false;
     }
 
     if (type->parent != NULL) {
         const adsl_type_t *parent =
-            find_declared_type(
-                document,
-                type->parent);
+            find_declared_type_ctx(ctx, type->parent);
 
         if (parent == NULL) {
             set_error(
                 error,
                 error_capacity,
                 "generated struct has unknown parent");
-
             return false;
         }
 
-
-        if (!emit_all_struct_dependencies(
+        if (!emit_all_struct_dependencies_ctx(
                 output,
-                document,
+                ctx,
                 parent,
                 states,
                 depth + 1u,
@@ -8122,18 +8121,13 @@ static bool emit_all_struct_dependencies(
                 error,
                 error_capacity)) {
 
-
             return false;
         }
     }
 
-    for (size_t f = 0u;
-         f < type->field_count;
-         ++f) {
+    for (size_t f = 0u; f < type->field_count; ++f) {
 
-        const adsl_field_t *field =
-            &type->fields[f];
-
+        const adsl_field_t *field = &type->fields[f];
 
         char array_element[128];
         bool array_dynamic;
@@ -8147,75 +8141,56 @@ static bool emit_all_struct_dependencies(
                 &array_static_size)) {
 
             const adsl_type_t *element_type =
-                find_declared_type(
-                    document,
-                    array_element);
-
+                find_declared_type_ctx(ctx, array_element);
 
             if (!array_dynamic &&
                 element_type != NULL &&
-
                 !element_type->has_tiered_int &&
-
                 element_type->enum_count == 0u &&
                 !element_type->is_abstract &&
                 element_type->stream == NULL &&
-                !type_is_polymorphic_reference(
-                    document,
-                    element_type)) {
+                !type_is_polymorphic_reference_ctx(ctx, element_type)) {
 
                 /*
-                 * Inline T[N] needs sizeof(T), so finish T first. Once its
-                 * body is complete the array alias can safely be emitted
-                 * immediately before the owning struct definition.
+                 * Inline T[N] needs sizeof(T), so finish T first. Once
+                 * its body is complete the array alias can safely be
+                 * emitted immediately before the owning struct
+                 * definition.
+                 *
+                 * NOTE: the index computation still assumes the
+                 * standalone enumeration array (resolved_types).
+                 * Project enumeration will be introduced in a later
+                 * step together with emit_struct_definition_ctx.
                  */
                 size_t nested_index =
-                    (size_t)(
-                        element_type -
-                        document->resolved_types);
-
+                    (size_t)(element_type - ctx->document->resolved_types);
 
                 if (!emit_struct_definition(
                         output,
-                        document,
+                        ctx->document,
                         nested_index,
                         states,
                         alias_state,
                         error,
                         error_capacity) ||
-
-
-
-                    !emit_array_alias(
+                    !emit_array_alias_ctx(
                         output,
-                        document,
+                        ctx,
                         alias_state,
                         field->type,
                         error,
                         error_capacity)) {
-
-
 
                     return false;
                 }
             }
 
             continue;
-
         }
 
-
-        /*
-         * A nullable scalar field is represented as `const T *`. It therefore
-         * does not require T to be complete before the containing struct body
-         * is emitted. Skipping this dependency is what lets nullable edges
-         * terminate self- and mutual-recursive C layouts without changing the
-         * ordinary nullable ABI or wire format.
-         */
         if (strchr(field->type, '?') != NULL) {
             continue;
         }
-
 
         char base[128];
 
@@ -8228,7 +8203,6 @@ static bool emit_all_struct_dependencies(
                 error,
                 error_capacity,
                 "milestone-2 emitter supports scalar or one-dimensional array struct fields only");
-
             return false;
         }
 
@@ -8237,26 +8211,19 @@ static bool emit_all_struct_dependencies(
         }
 
         const adsl_type_t *field_type =
-            find_declared_type(
-                document,
-                base);
+            find_declared_type_ctx(ctx, base);
 
         if (field_type == NULL) {
             set_error(
                 error,
                 error_capacity,
                 "unknown generated struct field type");
-
             return false;
         }
 
-
         if (field_type->has_tiered_int ||
             field_type->enum_count > 0u ||
-            type_is_polymorphic_reference(
-                document,
-                field_type)) {
-
+            type_is_polymorphic_reference_ctx(ctx, field_type)) {
 
             continue;
         }
@@ -8266,25 +8233,20 @@ static bool emit_all_struct_dependencies(
                 error,
                 error_capacity,
                 "abstract struct field has no concrete hierarchy descendants");
-
             return false;
         }
 
         size_t nested_index =
-            (size_t)(
-                field_type -
-                document->resolved_types);
-
+            (size_t)(field_type - ctx->document->resolved_types);
 
         if (!emit_struct_definition(
                 output,
-                document,
+                ctx->document,
                 nested_index,
                 states,
                 alias_state,
                 error,
                 error_capacity)) {
-
 
             return false;
         }
@@ -8292,6 +8254,23 @@ static bool emit_all_struct_dependencies(
 
     return true;
 }
+
+
+static bool emit_all_struct_dependencies(
+    FILE *output,
+    const adsl_document_t *document,
+    const adsl_type_t *type,
+    uint8_t *states,
+    unsigned int depth,
+    array_alias_state_t *alias_state,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_all_struct_dependencies_ctx(
+        output, &ctx, type, states, depth, alias_state, error, error_capacity);
+}
+
 
 
 /*
