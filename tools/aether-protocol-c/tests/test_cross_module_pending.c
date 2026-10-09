@@ -76,10 +76,16 @@ static void pending_res_001_cross_file_without_include(void) {
     assert(adsl_project_validate(&project, error, sizeof(error)));
 
 
+
+
     /*
-     * Project-level generation (adsl_emit_c_project) belongs to
-     * ТЗ №4-Б2 and is not exercised here yet. Until then, validation
-     * alone is the contract of this test.
+     * Project-level generation (adsl_emit_c_project) is not exercised
+     * here yet: cross-file serializer references require the emitter to
+     * know the owning module of every referenced type and to add an
+     * #include for that module's generated _types.h. That is a
+     * generated-file layout change and is tracked under ТЗ №4-Б2 with
+     * its own architectural review. Until then, this test covers
+     * project validation only.
      */
 
 

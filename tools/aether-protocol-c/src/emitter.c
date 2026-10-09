@@ -6037,6 +6037,40 @@ bool adsl_emit_c(
 
 
 
+
+/*
+ * Project-mode emitter (ТЗ №4-Б2).
+ *
+ * Not implemented yet. A correct implementation must, for each emitted
+ * document:
+ *
+ *   - emit only that document's own types[] and apis[], so no owner's
+ *     declarations are duplicated by another document's generated files;
+ *   - resolve every referenced user type through the project-global
+ *     type index produced by adsl_project_validate();
+ *   - insert an #include for the owning module's generated _types.h
+ *     wherever a cross-document type reference appears in the generated
+ *     header, source, local dispatcher or response envelope;
+ *   - use adsl_project_collect_effective_methods() so that the emitted
+ *     wire protocol matches the set adsl_project_validate() accepted.
+ *
+ * A shallow "view" of the document (with resolved_types[] aliased to
+ * types[]) is not sufficient: it makes the emitter silently unaware of
+ * cross-document references, so a document that uses a type owned by
+ * another document would be emitted with unresolved C identifiers
+ * instead of the owning module's #include.
+ *
+ * This function is therefore declared in adslc.h as the approved public
+ * contract for ТЗ №4-Б2 but has no implementation yet. A follow-up step
+ * will restructure the emitter around an explicit project emitter
+ * context that threads the project type and API indices through every
+ * type-resolution site.
+ */
+
+
+
+
+
 static bool emit_value_expression(
     FILE *output,
     const adsl_document_t *document,

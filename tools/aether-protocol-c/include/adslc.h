@@ -425,6 +425,34 @@ void adsl_document_free(
    char *error,
    size_t error_capacity);
 
+/*
+ * Emit the C bindings for one document of a project.
+ *
+ * The document is emitted as a self-contained module: its own declared
+ * types (documents[index].types[]) and APIs (documents[index].apis[])
+ * become that module's generated files. Types and APIs declared in other
+ * documents are not duplicated; they are expected to be provided by
+ * their own generated module and referenced through a project-global
+ * lookup.
+ *
+ * The project is validated first via adsl_project_validate(). Emission is
+ * never attempted on an invalid project. The standalone adsl_emit_c()
+ * contract is unchanged.
+ *
+ * On success returns true and writes <base_name>_types.h,
+ * <base_name>_types.c, <base_name>_api.h and <base_name>_api.c into
+ * output_directory. On failure returns false and writes a human-readable
+ * diagnostic into error.
+ */
+bool adsl_emit_c_project(
+    const adsl_project_t *project,
+    size_t document_index,
+    const char *output_directory,
+    const char *base_name,
+    char *error,
+    size_t error_capacity);
+
+
 
 
 
