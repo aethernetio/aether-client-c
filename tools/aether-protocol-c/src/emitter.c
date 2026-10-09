@@ -8310,8 +8310,9 @@ static bool emit_all_struct_dependencies(
  * On success the caller receives the base C type name in base_out and a
  * flag telling whether the field should be declared as `const T *` or `T`.
  */
-static bool format_c_type(
-    const adsl_document_t *document,
+
+static bool format_c_type_ctx(
+    const emitter_ctx_t *ctx,
     const char *type,
     char *base_out,
     size_t base_capacity,
@@ -8319,7 +8320,8 @@ static bool format_c_type(
     char *error,
     size_t error_capacity) {
 
-    if (type == NULL ||
+    if (ctx == NULL || ctx->document == NULL ||
+        type == NULL ||
         base_out == NULL ||
         base_capacity == 0u ||
         out_pointer == NULL) {
@@ -8327,7 +8329,6 @@ static bool format_c_type(
         set_error(error, error_capacity, "invalid C type request");
         return false;
     }
-
 
     bool nullable =
         strchr(type, '?') != NULL;
@@ -8354,8 +8355,8 @@ static bool format_c_type(
         (void)array_dynamic;
         (void)array_static_size;
 
-        if (!array_alias_name(
-                document,
+        if (!array_alias_name_ctx(
+                ctx,
                 cleaned,
                 base_out,
                 base_capacity)) {
@@ -8386,7 +8387,7 @@ static bool format_c_type(
         return true;
     }
 
-    const adsl_type_t *declared = find_declared_type(document, base);
+    const adsl_type_t *declared = find_declared_type_ctx(ctx, base);
 
     if (declared == NULL) {
         set_error(error, error_capacity, "unknown field type");
@@ -8395,7 +8396,6 @@ static bool format_c_type(
 
     char name[256];
     declared_c_name(declared->name, name, sizeof(name));
-
 
     if (declared->stream != NULL ||
         declared->enum_count > 0u ||
@@ -8410,7 +8410,7 @@ static bool format_c_type(
         return true;
     }
 
-    if (type_is_polymorphic_reference(document, declared)) {
+    if (type_is_polymorphic_reference_ctx(ctx, declared)) {
         int written = snprintf(base_out, base_capacity, "%s_ref_t", name);
         if (written < 0 || (size_t)written >= base_capacity) {
             set_error(error, error_capacity, "field type is too long");
@@ -8435,6 +8435,22 @@ static bool format_c_type(
     *out_pointer = nullable;
     return true;
 }
+
+
+static bool format_c_type(
+    const adsl_document_t *document,
+    const char *type,
+    char *base_out,
+    size_t base_capacity,
+    bool *out_pointer,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return format_c_type_ctx(
+        &ctx, type, base_out, base_capacity, out_pointer, error, error_capacity);
+}
+
 
 
 
