@@ -5303,3 +5303,37 @@ FIXTURE-ПОКРЫТИЕ:
   A_includes_b.adsl.yaml уже существует (include: B_defines_item).
   Случая 'два root включают один файл' в фикстурах НЕТ —
   его нужно добавить для теста политики (a/b/c).
+=== 2026-10-10 B2.4.2 — промежуточный статус ===
+По ходу реализации B2.4.2 обнаружено, что одного изолированного
+шага 'добавить _with_depth' недостаточно: в emitter.c генерация
+типов организована как два независимых блока (header: public decl
+в emit_types_header_ctx; source: forward-decl + wrapper + impl в
+emit_types_source_ctx), и они должны быть согласованы попарно для
+всех 4 функций каждого типа (serialize, serialize_with_depth,
+static serialize_impl, и то же для deserialize). Плюс .c требует
+forward-declaration _with_depth до первого использования (при
+cross-type вызовах внутри одного модуля).
+
+Текущий статус:
+  - adsl.c: fix (owner_root_path must exist, no fallback) — committed (013f2a5)
+  - emitter.c: работа над B2.4.2 не завершена. Откачено до HEAD.
+  - tests: без изменений для B2.4.2.
+
+Стратегия для следующей итерации B2.4.2:
+  1. Переработать emit_types_header_ctx и emit_types_source_ctx
+     как единый четырёхфазный генератор для каждого типа:
+       1a) forward-declare public + with_depth
+       1b) forward-declare static impl
+       2a) define public (после static impl forward-decl)
+       2b) define with_depth
+       2c) define static impl
+     Это гарантирует, что все вызовы видят forward-decl до impl.
+  2. Внутри impl cross-type вызовы делать через _with_depth
+     владельца (type_owner_base_snake), а same-module через
+     _with_depth текущего модуля.
+  3. Только после этого — генерировать #include.
+  4. Прогонять ctest на всём наборе после каждого крупного шага,
+     а не после микро-правки.
+
+Не начинать cross-module #include, recursion и tiered-int
+ownership до завершения фазы 1.
