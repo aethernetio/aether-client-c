@@ -217,6 +217,44 @@ static emitter_ctx_t emitter_ctx_standalone(
 
 
 /*
+ * Enumeration helpers used by the top-level emitters.
+ *
+ * Standalone mode enumerates the document's include closure
+ * (resolved_types / resolved_apis). Project mode enumerates only the
+ * document's own declarations (types / apis); cross-document references
+ * are resolved through the ctx resolver, never through enumeration.
+ */
+static const adsl_type_t *ctx_types(
+    const emitter_ctx_t *ctx,
+    size_t *count) {
+
+    if (ctx->resolver != NULL) {
+        *count = ctx->document->type_count;
+        return ctx->document->types;
+    }
+
+    *count = ctx->document->resolved_type_count;
+    return ctx->document->resolved_types;
+}
+
+
+static const adsl_api_t *ctx_apis(
+    const emitter_ctx_t *ctx,
+    size_t *count) {
+
+    if (ctx->resolver != NULL) {
+        *count = ctx->document->api_count;
+        return ctx->document->apis;
+    }
+
+    *count = ctx->document->resolved_api_count;
+    return ctx->document->resolved_apis;
+}
+
+
+
+
+/*
  * Generated C identifiers must not collide with C keywords. ADSL method
  * names are protocol names and must not be renamed, so the C target only
  * adjusts the emitted identifier (for example `register` becomes
@@ -525,12 +563,14 @@ typedef struct {
 } array_alias_state_t;
 
 
-static bool emit_hierarchy_ref(
+
+static bool emit_hierarchy_ref_ctx(
     FILE *output,
-    const adsl_document_t *document,
+    const emitter_ctx_t *ctx,
     const adsl_type_t *type,
     char *error,
     size_t error_capacity);
+
 
 
 static bool emit_hierarchy_expression(
@@ -1142,18 +1182,8 @@ static bool emit_array_alias_ctx(
 }
 
 
-static bool emit_array_alias(
-    FILE *output,
-    const adsl_document_t *document,
-    array_alias_state_t *alias_state,
-    const char *type,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_array_alias_ctx(
-        output, &ctx, alias_state, type, error, error_capacity);
-}
+
 
 
 
@@ -1202,13 +1232,8 @@ static bool array_alias_requires_complete_element_ctx(
 }
 
 
-static bool array_alias_requires_complete_element(
-    const adsl_document_t *document,
-    const char *type) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return array_alias_requires_complete_element_ctx(&ctx, type);
-}
+
 
 
 
@@ -2490,31 +2515,30 @@ declared_c_name(
     return true;
 }
 
-static bool emit_types_header(
 
-    const adsl_document_t *document,
+static bool emit_types_header_ctx(
+    const emitter_ctx_t *ctx,
     const char *path,
     const char *base_name,
     char *error,
     size_t error_capacity) {
 
-    FILE *output =
-        fopen(path, "wb");
+    if (ctx == NULL || ctx->document == NULL) {
+        set_error(error, error_capacity, "invalid types header context");
+        return false;
+    }
+
+    FILE *output = fopen(path, "wb");
 
     if (output == NULL) {
         set_error(
             error,
             error_capacity,
             "cannot create generated types header");
-
         return false;
     }
 
-    
     array_alias_state_t alias_state = {0};
-
-    
-
 
     char guard[256];
 
@@ -2534,19 +2558,15 @@ static bool emit_types_header(
         guard,
         guard);
 
+    size_t type_count = 0u;
+    const adsl_type_t *types = ctx_types(ctx, &type_count);
 
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
-    /*
-     * Named TieredInt types are scalar ABI types. The limits array is declared
-     * once here and defined once in types.c; every generated call site reuses
-     * that same schema constant while the wire algorithm stays in runtime.
-     */
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
+    for (size_t i = 0u; i < type_count; ++i) {
 
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+        const adsl_type_t *type = &types[i];
 
         if (!type->has_tiered_int) {
             continue;
@@ -2567,20 +2587,13 @@ static bool emit_types_header(
             type->tiered_int_limit_count);
     }
 
+    for (size_t i = 0u; i < type_count; ++i) {
 
-for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+        const adsl_type_t *type = &types[i];
 
         if (type->stream == NULL) {
             continue;
         }
-
-
-
 
         if (!emit_stream_typedef(
                 output,
@@ -2593,29 +2606,17 @@ for (size_t i = 0u;
         }
     }
 
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
+    for (size_t a = 0u; a < api_count; ++a) {
 
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
+        const adsl_api_t *api = &apis[a];
 
+        for (size_t m = 0u; m < api->method_count; ++m) {
 
+            const adsl_method_t *method = &api->methods[m];
 
+            for (size_t p = 0u; p < method->param_count; ++p) {
 
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
-
-            const adsl_method_t *method =
-                &api->methods[m];
-
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
-                const adsl_param_t *param =
-                    &method->params[p];
+                const adsl_param_t *param = &method->params[p];
 
                 if (param->stream == NULL) {
                     continue;
@@ -2634,13 +2635,9 @@ for (size_t i = 0u;
         }
     }
 
-    for (size_t i = 0u;
+    for (size_t i = 0u; i < type_count; ++i) {
 
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+        const adsl_type_t *type = &types[i];
 
         if (type->enum_count == 0u) {
             continue;
@@ -2648,20 +2645,14 @@ for (size_t i = 0u;
 
         char type_name[256];
 
-
-declared_c_name(
+        declared_c_name(
             type->name,
             type_name,
             sizeof(type_name));
 
+        fprintf(output, "typedef enum {\n");
 
-        fprintf(
-            output,
-            "typedef enum {\n");
-
-        for (size_t e = 0u;
-             e < type->enum_count;
-             ++e) {
+        for (size_t e = 0u; e < type->enum_count; ++e) {
 
             char enum_name[256];
 
@@ -2687,335 +2678,14 @@ declared_c_name(
             type_name);
     }
 
-    /*
-     * Forward-declare every concrete payload. Hierarchy refs contain only
-     * typed pointers, so they can be defined before concrete bodies.
-     */
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
+    for (size_t i = 0u; i < type_count; ++i) {
 
-        const adsl_type_t *type =
-            &document->resolved_types[i];
+        const adsl_type_t *type = &types[i];
 
-
-
-
-
-
-if (type->enum_count > 0u ||
+        if (type->enum_count > 0u ||
             type->is_abstract ||
             type->stream != NULL ||
             type->has_tiered_int) {
-
-
-
-            continue;
-        }
-
-        char type_name[256];
-
-
-declared_c_name(
-            type->name,
-            type_name,
-            sizeof(type_name));
-
-
-        fprintf(
-            output,
-            "typedef struct %s_t %s_t;\n",
-            type_name,
-            type_name);
-    }
-
-    if (document->resolved_type_count > 0u) {
-        fputc(
-            '\n',
-            output);
-    }
-
-    /*
-     * A polymorphic static type is represented as an explicit discriminator
-     * plus a union of typed pointers to all concrete descendants.
-     */
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        if (!emit_hierarchy_ref(
-                output,
-                document,
-                &document->resolved_types[i],
-                error,
-                error_capacity)) {
-
-            fclose(output);
-            return false;
-        }
-    }
-
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
-
-        for (size_t f = 0u;
-             f < type->field_count;
-             ++f) {
-
-
-            /*
-             * Fixed arrays of concrete structs need a complete element body.
-             * Their alias is emitted by the struct dependency walker instead.
-             */
-            if (!array_alias_requires_complete_element(
-                    document,
-                    type->fields[f].type) &&
-
-                !emit_array_alias(
-                    output,
-                    document,
-                    &alias_state,
-                    type->fields[f].type,
-                    error,
-                    error_capacity)) {
-
-
-                fclose(output);
-                return false;
-            }
-
-        }
-    }
-
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
-
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
-
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
-
-            const adsl_method_t *method =
-                &api->methods[m];
-
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
-
-                if (!array_alias_requires_complete_element(
-                        document,
-                        method->params[p].type) &&
-
-                    !emit_array_alias(
-                        output,
-                        document,
-                        &alias_state,
-                        method->params[p].type,
-                        error,
-                        error_capacity)) {
-
-
-                    fclose(output);
-                    return false;
-                }
-
-            }
-
-
-            if ((!array_alias_requires_complete_element(
-                        document,
-                        method->returns_type) &&
-
-                  !emit_array_alias(
-                      output,
-                      document,
-                      &alias_state,
-                      method->returns_type,
-                      error,
-                      error_capacity)) ||
-
-                (!array_alias_requires_complete_element(
-                        document,
-                        method->throws_type) &&
-
-                  !emit_array_alias(
-                      output,
-                      document,
-                      &alias_state,
-                      method->throws_type,
-                      error,
-                      error_capacity))) {
-
-
-                fclose(output);
-                return false;
-            }
-
-        }
-    }
-
-    size_t state_count =
-        document->resolved_type_count == 0u
-            ? 1u
-            : document->resolved_type_count;
-
-    uint8_t states[state_count];
-
-    memset(
-        states,
-        0,
-        state_count);
-
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
-
-
-if (type->enum_count > 0u ||
-            type->is_abstract ||
-            type->stream != NULL) {
-
-
-            continue;
-        }
-
-
-        if (!emit_struct_definition(
-                output,
-                document,
-                i,
-                states,
-                &alias_state,
-                error,
-                error_capacity)) {
-
-
-            fclose(output);
-            return false;
-        }
-    }
-
-
-    /*
-     * API-only fixed arrays of concrete structs have no owning struct whose
-     * dependency walk could emit their typedef. At this point every concrete
-     * payload body is complete, so these aliases are now safe to emit.
-     */
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
-
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
-
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
-
-            const adsl_method_t *method =
-                &api->methods[m];
-
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
-                if (array_alias_requires_complete_element(
-                        document,
-                        method->params[p].type) &&
-
-                    !emit_array_alias(
-                        output,
-                        document,
-                        &alias_state,
-                        method->params[p].type,
-                        error,
-                        error_capacity)) {
-
-
-                    fclose(output);
-                    return false;
-                }
-            }
-
-            if ((array_alias_requires_complete_element(
-                        document,
-                        method->returns_type) &&
-
-                  !emit_array_alias(
-                      output,
-                      document,
-                      &alias_state,
-                      method->returns_type,
-                      error,
-                      error_capacity)) ||
-
-                (array_alias_requires_complete_element(
-                        document,
-                        method->throws_type) &&
-
-                  !emit_array_alias(
-                      output,
-                      document,
-                      &alias_state,
-                      method->throws_type,
-                      error,
-                      error_capacity))) {
-
-
-                fclose(output);
-                return false;
-            }
-        }
-    }
-
-
-
-    /*
-     * Reusable serializers are declared only after all concrete payload
-     * definitions are complete, so hierarchy ref and payload types are fully
-     * visible here.
-     */
-    char serializer_base[256];
-    snake_name(
-        base_name,
-        serializer_base,
-        sizeof(serializer_base));
-
-
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        const adsl_type_t *type =
-            &document->resolved_types[i];
-
-        bool hierarchy =
-            type_is_polymorphic_reference(
-                document,
-                type);
-
-
-        bool concrete_struct =
-            type->enum_count == 0u &&
-            !type->is_abstract &&
-            type->stream == NULL &&
-            !type->has_tiered_int &&
-            !hierarchy;
-
-
-        if (!hierarchy &&
-            !concrete_struct) {
 
             continue;
         }
@@ -3027,11 +2697,225 @@ if (type->enum_count > 0u ||
             type_name,
             sizeof(type_name));
 
+        fprintf(
+            output,
+            "typedef struct %s_t %s_t;\n",
+            type_name,
+            type_name);
+    }
+
+    if (type_count > 0u) {
+        fputc('\n', output);
+    }
+
+    for (size_t i = 0u; i < type_count; ++i) {
+
+        if (!emit_hierarchy_ref_ctx(
+                output,
+                ctx,
+                &types[i],
+                error,
+                error_capacity)) {
+
+            fclose(output);
+            return false;
+        }
+    }
+
+    for (size_t i = 0u; i < type_count; ++i) {
+
+        const adsl_type_t *type = &types[i];
+
+        for (size_t f = 0u; f < type->field_count; ++f) {
+
+            if (!array_alias_requires_complete_element_ctx(
+                    ctx,
+                    type->fields[f].type) &&
+                !emit_array_alias_ctx(
+                    output,
+                    ctx,
+                    &alias_state,
+                    type->fields[f].type,
+                    error,
+                    error_capacity)) {
+
+                fclose(output);
+                return false;
+            }
+        }
+    }
+
+    for (size_t a = 0u; a < api_count; ++a) {
+
+        const adsl_api_t *api = &apis[a];
+
+        for (size_t m = 0u; m < api->method_count; ++m) {
+
+            const adsl_method_t *method = &api->methods[m];
+
+            for (size_t p = 0u; p < method->param_count; ++p) {
+
+                if (!array_alias_requires_complete_element_ctx(
+                        ctx,
+                        method->params[p].type) &&
+                    !emit_array_alias_ctx(
+                        output,
+                        ctx,
+                        &alias_state,
+                        method->params[p].type,
+                        error,
+                        error_capacity)) {
+
+                    fclose(output);
+                    return false;
+                }
+            }
+
+            if ((!array_alias_requires_complete_element_ctx(
+                        ctx,
+                        method->returns_type) &&
+                  !emit_array_alias_ctx(
+                      output,
+                      ctx,
+                      &alias_state,
+                      method->returns_type,
+                      error,
+                      error_capacity)) ||
+                (!array_alias_requires_complete_element_ctx(
+                        ctx,
+                        method->throws_type) &&
+                  !emit_array_alias_ctx(
+                      output,
+                      ctx,
+                      &alias_state,
+                      method->throws_type,
+                      error,
+                      error_capacity))) {
+
+                fclose(output);
+                return false;
+            }
+        }
+    }
+
+    size_t state_count = type_count == 0u ? 1u : type_count;
+
+    uint8_t states[state_count];
+
+    memset(states, 0, state_count);
+
+    for (size_t i = 0u; i < type_count; ++i) {
+
+        const adsl_type_t *type = &types[i];
+
+        if (type->enum_count > 0u ||
+            type->is_abstract ||
+            type->stream != NULL) {
+
+            continue;
+        }
+
+        if (!emit_struct_definition_ctx(
+                output,
+                ctx,
+                i,
+                states,
+                &alias_state,
+                error,
+                error_capacity)) {
+
+            fclose(output);
+            return false;
+        }
+    }
+
+    for (size_t a = 0u; a < api_count; ++a) {
+
+        const adsl_api_t *api = &apis[a];
+
+        for (size_t m = 0u; m < api->method_count; ++m) {
+
+            const adsl_method_t *method = &api->methods[m];
+
+            for (size_t p = 0u; p < method->param_count; ++p) {
+
+                if (array_alias_requires_complete_element_ctx(
+                        ctx,
+                        method->params[p].type) &&
+                    !emit_array_alias_ctx(
+                        output,
+                        ctx,
+                        &alias_state,
+                        method->params[p].type,
+                        error,
+                        error_capacity)) {
+
+                    fclose(output);
+                    return false;
+                }
+            }
+
+            if ((array_alias_requires_complete_element_ctx(
+                        ctx,
+                        method->returns_type) &&
+                  !emit_array_alias_ctx(
+                      output,
+                      ctx,
+                      &alias_state,
+                      method->returns_type,
+                      error,
+                      error_capacity)) ||
+                (array_alias_requires_complete_element_ctx(
+                        ctx,
+                        method->throws_type) &&
+                  !emit_array_alias_ctx(
+                      output,
+                      ctx,
+                      &alias_state,
+                      method->throws_type,
+                      error,
+                      error_capacity))) {
+
+                fclose(output);
+                return false;
+            }
+        }
+    }
+
+    char serializer_base[256];
+    snake_name(
+        base_name,
+        serializer_base,
+        sizeof(serializer_base));
+
+    for (size_t i = 0u; i < type_count; ++i) {
+
+        const adsl_type_t *type = &types[i];
+
+        bool hierarchy =
+            type_is_polymorphic_reference_ctx(ctx, type);
+
+        bool concrete_struct =
+            type->enum_count == 0u &&
+            !type->is_abstract &&
+            type->stream == NULL &&
+            !type->has_tiered_int &&
+            !hierarchy;
+
+        if (!hierarchy && !concrete_struct) {
+            continue;
+        }
+
+        char type_name[256];
+
+        declared_c_name(
+            type->name,
+            type_name,
+            sizeof(type_name));
 
         emit_type_origin(
             output,
             type);
-
 
         if (hierarchy) {
 
@@ -3069,19 +2953,27 @@ if (type->enum_count > 0u ||
                 type_name,
                 type_name);
         }
-
     }
 
-
-
-    fprintf(
-        output,
-        "#endif\n");
+    fprintf(output, "#endif\n");
 
     fclose(output);
 
     return true;
 }
+
+
+static bool emit_types_header(
+    const adsl_document_t *document,
+    const char *path,
+    const char *base_name,
+    char *error,
+    size_t error_capacity) {
+
+    emitter_ctx_t ctx = emitter_ctx_standalone(document);
+    return emit_types_header_ctx(&ctx, path, base_name, error, error_capacity);
+}
+
 
 
 
@@ -7866,16 +7758,8 @@ static bool emit_hierarchy_ref_ctx(
 }
 
 
-static bool emit_hierarchy_ref(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_type_t *type,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_hierarchy_ref_ctx(output, &ctx, type, error, error_capacity);
-}
+
 
 
 
