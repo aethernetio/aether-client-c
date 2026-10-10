@@ -1,0 +1,10 @@
+include:
+  - Common
+
+api:
+  SecondApi:
+    methods:
+      useItemToo:
+        id: 4
+        params:
+          item: Item

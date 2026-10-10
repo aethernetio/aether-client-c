@@ -277,6 +277,45 @@ add_test(
 )
 
 
+add_executable(aether_adslc_unified_merge_test
+    tests/test_unified_merge.c
+)
+
+target_link_libraries(aether_adslc_unified_merge_test
+    PRIVATE
+        aether_adslc_core
+)
+
+target_compile_definitions(aether_adslc_unified_merge_test
+    PRIVATE
+        ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+)
+
+target_compile_features(
+    aether_adslc_unified_merge_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_adslc_unified_merge_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+add_test(
+    NAME aether_adslc_unified_merge_test
+    COMMAND aether_adslc_unified_merge_test
+)
+
+
+
 
 add_executable(aether_adslc_type_registry_test
     tests/test_type_registry.c

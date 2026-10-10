@@ -1,0 +1,10 @@
+include:
+  - Common
+
+api:
+  FirstApi:
+    methods:
+      useItem:
+        id: 3
+        params:
+          item: Item

@@ -6687,33 +6687,19 @@ static bool adsl_global_type_index_add(
             return false;
         }
 
-        if (!adsl_strings_equal_or_both_null(
-                existing->owner_root_path, owner_root_path)) {
+        /*
+         * A physical declaration is identified by (source_path, name) alone.
+         * The same declaration reached through the include closures of two
+         * different roots is the same declaration, not an ownership conflict:
+         * the unified generator emits one aether_api.h/.c and every input
+         * ADSL file is equal, so no document owns a declaration.
+         *
+         * owner_root_path is intentionally NOT consulted here. It is retained
+         * on the entry only for the legacy project emitter, which uses it via
+         * adsl_project_resolver_type_source(); it must never influence
+         * identity, deduplication, or ambiguity in the unified path.
+         */
 
-            char message[768];
-            (void)snprintf(
-                message,
-                sizeof(message),
-
-                "ambiguous C module ownership for type '%s': "
-                "owned by root '%s' (source '%s') and root '%s' (source '%s')",
-                name,
-                existing->owner_root_path != NULL
-                    ? existing->owner_root_path
-                    : "<unknown>",
-                existing->source_path != NULL
-                    ? existing->source_path
-                    : "<unknown>",
-                owner_root_path != NULL
-                    ? owner_root_path
-                    : "<unknown>",
-                source_path != NULL
-                    ? source_path
-                    : "<unknown>");
-
-            set_error(error, error_capacity, message);
-            return false;
-        }
 
         return true;
     }
