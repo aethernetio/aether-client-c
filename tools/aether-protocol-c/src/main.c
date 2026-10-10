@@ -347,37 +347,74 @@ int main(
         }
 
 
-        adsl_type_registry_t registry;
-        adsl_type_registry_init(&registry);
 
-        if (!adsl_type_registry_build(
-                &project,
-                &registry,
+        adsl_document_t merged;
+        adsl_document_init(&merged);
+
+        bool merged_ok = adsl_project_merge_into_document(
+            &project,
+            &merged,
+            project_error,
+            sizeof(project_error));
+
+
+        size_t merged_document_count = project.document_count;
+        adsl_project_free(&project);
+
+
+        if (!merged_ok) {
+            fprintf(
+                stderr,
+                "ADSL merge error: %s\n",
+                project_error);
+
+            adsl_document_free(&merged);
+            return 1;
+        }
+
+        if (!adsl_validate(
+                &merged,
                 project_error,
                 sizeof(project_error))) {
 
             fprintf(
                 stderr,
-                "ADSL type registry error: %s\n",
+                "ADSL validation error: %s\n",
                 project_error);
 
-            adsl_type_registry_free(&registry);
-            adsl_project_free(&project);
+            adsl_document_free(&merged);
+            return 1;
+        }
+
+        bool emitted = adsl_emit_c_method(
+            &merged,
+            project_output_directory,
+            "aether_api",
+            NULL,
+            NULL,
+            project_error,
+            sizeof(project_error));
+
+        adsl_document_free(&merged);
+
+        if (!emitted) {
+            fprintf(
+                stderr,
+                "ADSL generation error: %s\n",
+                project_error);
 
             return 1;
         }
 
         fprintf(
             stderr,
-            "ADSL project loaded: %zu documents, %zu types, output '%s'\n",
-            project.document_count,
-            registry.entry_count,
-            project_output_directory);
 
-        adsl_type_registry_free(&registry);
-        adsl_project_free(&project);
+            "generated aether_api.h/.c from %zu documents\n",
+            merged_document_count);
+
 
         return 0;
+
 
     }
 
@@ -489,7 +526,6 @@ int main(
         adsl_document_free(&document);
         return 1;
     }
-    fprintf(stderr, "MAIN DEBUG: document loaded types=%zu apis=%zu\n", document.type_count, document.api_count);
 
 
     if (!adsl_validate(

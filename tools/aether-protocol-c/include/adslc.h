@@ -597,10 +597,36 @@ const adsl_registry_entry_t *adsl_type_registry_find(
  * untouched. On failure returns false and writes a human-readable
  * diagnostic into error.
  */
+
 bool adsl_project_validate(
     const adsl_project_t *project,
     char *error,
     size_t error_capacity);
+
+/*
+ * Merge all documents of a project into a single standalone document.
+ *
+ * The result can be passed to adsl_validate() and adsl_emit_c_method()
+ * as if it were a standalone document. Types and APIs are deduplicated
+ * by (source_path, name); the same physical declaration reached through
+ * multiple include chains is stored once. Root source paths of the
+ * individual documents are preserved on each merged declaration so
+ * that the emitter can still derive the per-module abbreviation prefix
+ * from the original .adsl.yaml filename.
+ *
+ * The merged document's types[]/apis[] and resolved_types[]/resolved_apis[]
+ * point at the same storage; adsl_document_free() releases it once.
+ *
+ * Ownership: on success *out_document owns deep copies of all types and
+ * APIs; the caller must release it with adsl_document_free(). On failure
+ * *out_document is left empty.
+ */
+bool adsl_project_merge_into_document(
+    const adsl_project_t *project,
+    adsl_document_t *out_document,
+    char *error,
+    size_t error_capacity);
+
 
 
 #endif

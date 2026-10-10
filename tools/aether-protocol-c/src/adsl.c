@@ -2053,6 +2053,7 @@ void adsl_document_free(
 
     free(document->includes);
 
+
     free_type_array(
         document->types,
         document->type_count);
@@ -2061,20 +2062,26 @@ void adsl_document_free(
         document->apis,
         document->api_count);
 
-
     /*
      * resolved arrays are deep copies of the include closure plus the
      * root declarations, in that order. They own their contents and are
      * released with the same helpers used for the root arrays.
+     *
+     * A merged project document aliases resolved_types/resolved_apis to
+     * types/apis (same storage). Detect that aliasing to avoid a double
+     * free; the standalone path never aliases, so this check is free.
      */
-    free_type_array(
-        document->resolved_types,
-        document->resolved_type_count);
+    if (document->resolved_types != document->types) {
+        free_type_array(
+            document->resolved_types,
+            document->resolved_type_count);
+    }
 
-    free_api_array(
-        document->resolved_apis,
-        document->resolved_api_count);
-
+    if (document->resolved_apis != document->apis) {
+        free_api_array(
+            document->resolved_apis,
+            document->resolved_api_count);
+    }
 
     adsl_document_init(document);
 }
@@ -7062,6 +7069,149 @@ static const adsl_type_t *adsl_project_type_lookup(
     return entry->declaration;
 }
 
+
+
+
+/*
+ * Merge all documents of a project into a single standalone document.
+ *
+ * The global type/API indices already deduplicate physical declarations
+ * by (source_path, name) and reject ambiguous C module ownership, so the
+ * merge is a straight walk over those indices: each entry holds a
+ * non-owning pointer to a declaration inside one of the project's
+ * documents, and we deep-copy that declaration into the output document.
+ *
+ * The resulting document aliases types == resolved_types and
+ * apis == resolved_apis (same storage). adsl_document_free() detects the
+ * aliasing and releases each array exactly once. This aliasing is what
+ * makes the standalone emit path (which enumerates resolved_*) see the
+ * merged declarations without a second copy.
+ *
+ * Per-declaration source_path is preserved from the original physical
+ * file, so the emitter can still derive the per-module abbreviation
+ * prefix from the original .adsl.yaml basename.
+ */
+bool adsl_project_merge_into_document(
+    const adsl_project_t *project,
+    adsl_document_t *out_document,
+    char *error,
+    size_t error_capacity) {
+
+    if (project == NULL || out_document == NULL) {
+        set_error(error, error_capacity, "invalid merge arguments");
+        return false;
+    }
+
+    adsl_document_init(out_document);
+
+    adsl_global_type_index_t type_index;
+    adsl_global_api_index_t api_index;
+
+    adsl_global_type_index_init(&type_index);
+    adsl_global_api_index_init(&api_index);
+
+    if (!adsl_global_type_index_build(
+            project, &type_index, error, error_capacity)) {
+        adsl_global_type_index_free(&type_index);
+        adsl_global_api_index_free(&api_index);
+        return false;
+    }
+
+    if (!adsl_global_api_index_build(
+            project, &api_index, error, error_capacity)) {
+        adsl_global_type_index_free(&type_index);
+        adsl_global_api_index_free(&api_index);
+        return false;
+    }
+
+    adsl_type_t *merged_types = NULL;
+    adsl_api_t *merged_apis = NULL;
+
+    if (type_index.entry_count > 0u) {
+        merged_types =
+            calloc(type_index.entry_count, sizeof(*merged_types));
+
+        if (merged_types == NULL) {
+            set_error(error, error_capacity, "out of memory");
+            adsl_global_type_index_free(&type_index);
+            adsl_global_api_index_free(&api_index);
+            return false;
+        }
+    }
+
+    if (api_index.entry_count > 0u) {
+        merged_apis =
+            calloc(api_index.entry_count, sizeof(*merged_apis));
+
+        if (merged_apis == NULL) {
+            free(merged_types);
+            set_error(error, error_capacity, "out of memory");
+            adsl_global_type_index_free(&type_index);
+            adsl_global_api_index_free(&api_index);
+            return false;
+        }
+    }
+
+    /*
+     * Deep-copy every unique declaration. If a dup fails midway, release
+     * only the entries we have already populated (using the same
+     * free_type_array/free_api_array helpers that adsl_document_free
+     * uses) and leave the output empty.
+     */
+    for (size_t i = 0u; i < type_index.entry_count; ++i) {
+        if (!adsl_dup_type_fields(
+                type_index.entries[i].declaration,
+                &merged_types[i])) {
+
+            free_type_array(merged_types, i);
+            free(merged_apis);
+            set_error(error, error_capacity, "out of memory");
+            adsl_global_type_index_free(&type_index);
+            adsl_global_api_index_free(&api_index);
+            return false;
+        }
+    }
+
+    for (size_t i = 0u; i < api_index.entry_count; ++i) {
+        if (!adsl_dup_api_fields(
+                api_index.entries[i].declaration,
+                &merged_apis[i])) {
+
+            free_type_array(merged_types, type_index.entry_count);
+            free_api_array(merged_apis, i);
+            set_error(error, error_capacity, "out of memory");
+            adsl_global_type_index_free(&type_index);
+            adsl_global_api_index_free(&api_index);
+            return false;
+        }
+    }
+
+
+    size_t merged_type_count = type_index.entry_count;
+    size_t merged_api_count = api_index.entry_count;
+
+    adsl_global_type_index_free(&type_index);
+    adsl_global_api_index_free(&api_index);
+
+    /*
+     * types/apis and resolved_types/resolved_apis share the same storage.
+     * The standalone emitter's ctx_types()/ctx_apis() uses resolved_* when
+     * the resolver is NULL, and adsl_validate() walks resolved_*. Aliasing
+     * gives both views the merged declarations with a single allocation.
+     */
+    out_document->types = merged_types;
+    out_document->type_count = merged_type_count;
+    out_document->resolved_types = merged_types;
+    out_document->resolved_type_count = merged_type_count;
+
+    out_document->apis = merged_apis;
+    out_document->api_count = merged_api_count;
+    out_document->resolved_apis = merged_apis;
+    out_document->resolved_api_count = merged_api_count;
+
+
+    return true;
+}
 
 
 bool adsl_project_validate(
