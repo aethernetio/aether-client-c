@@ -3025,13 +3025,20 @@ static bool emit_types_header_ctx(
         }
 
         char type_name[256];
-
+        char type_suffix[256];
 
         declared_c_name(
             ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
+        declared_c_name(
+            "",
+            type->name,
+            type_suffix,
+            sizeof(type_suffix));
+
 
 
         emit_type_origin(
@@ -3052,11 +3059,12 @@ static bool emit_types_header_ctx(
                 "    aether_meta_read_context_t *ctx,\n"
                 "    %s_ref_t *value);\n\n",
                 serializer_base,
-                type_name,
+                type_suffix,
                 type_name,
                 serializer_base,
-                type_name,
+                type_suffix,
                 type_name);
+
 
             /*
              * Project mode adds a cross-module entry point that lets a
@@ -3079,11 +3087,12 @@ static bool emit_types_header_ctx(
                     "    %s_ref_t *value,\n"
                     "    unsigned int recursion_depth);\n\n",
                     serializer_base,
-                    type_name,
+                    type_suffix,
                     type_name,
                     serializer_base,
-                    type_name,
+                    type_suffix,
                     type_name);
+
             }
         } else {
             fprintf(
@@ -3097,11 +3106,12 @@ static bool emit_types_header_ctx(
                 "    aether_meta_read_context_t *ctx,\n"
                 "    %s_t *value);\n\n",
                 serializer_base,
-                type_name,
+                type_suffix,
                 type_name,
                 serializer_base,
-                type_name,
+                type_suffix,
                 type_name);
+
 
             if (ctx->resolver != NULL) {
                 fprintf(
@@ -3117,11 +3127,12 @@ static bool emit_types_header_ctx(
                     "    %s_t *value,\n"
                     "    unsigned int recursion_depth);\n\n",
                     serializer_base,
-                    type_name,
+                    type_suffix,
                     type_name,
                     serializer_base,
-                    type_name,
+                    type_suffix,
                     type_name);
+
             }
         }
 
@@ -3298,13 +3309,20 @@ static bool emit_types_source_ctx(
         }
 
         char type_name[256];
-
+        char type_suffix[256];
 
         declared_c_name(
             ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
+        declared_c_name(
+            "",
+            type->name,
+            type_suffix,
+            sizeof(type_suffix));
+
 
 
         if (hierarchy) {
@@ -3321,11 +3339,12 @@ static bool emit_types_source_ctx(
                 "    %s_ref_t *value,\n"
                 "    unsigned int recursion_depth);\n\n",
                 base_snake,
-                type_name,
+                type_suffix,
                 type_name,
                 base_snake,
-                type_name,
+                type_suffix,
                 type_name);
+
         } else {
             fprintf(
                 output,
@@ -3367,13 +3386,20 @@ static bool emit_types_source_ctx(
         }
 
         char type_name[256];
-
+        char type_suffix[256];
 
         declared_c_name(
             ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
+        declared_c_name(
+            "",
+            type->name,
+            type_suffix,
+            sizeof(type_suffix));
+
 
 
         if (hierarchy) {
@@ -3398,13 +3424,15 @@ static bool emit_types_source_ctx(
                 "    const %s_ref_t *value,\n"
                 "    unsigned int recursion_depth) {\n\n",
                 base_snake,
-                type_name,
-                type_name,
-                base_snake,
+                type_suffix,
                 type_name,
                 base_snake,
-                type_name,
+                type_suffix,
+                base_snake,
+                type_suffix,
                 type_name);
+
+
         } else {
             fprintf(
                 output,
@@ -3427,13 +3455,15 @@ static bool emit_types_source_ctx(
                 "    const %s_t *value,\n"
                 "    unsigned int recursion_depth) {\n\n",
                 base_snake,
-                type_name,
-                type_name,
-                base_snake,
+                type_suffix,
                 type_name,
                 base_snake,
-                type_name,
+                type_suffix,
+                base_snake,
+                type_suffix,
                 type_name);
+
+
         }
 
         fputs(
@@ -3532,8 +3562,9 @@ static bool emit_types_source_ctx(
                     "        tx, tx_capacity, position, value,\n"
                     "        recursion_depth);\n"
                     "}\n\n",
-                    base_snake, type_name, type_name,
-                    base_snake, type_name);
+                    base_snake, type_suffix, type_name,
+                    base_snake, type_suffix);
+
             }
         }
 
@@ -3554,13 +3585,15 @@ static bool emit_types_source_ctx(
                 "    %s_ref_t *value,\n"
                 "    unsigned int recursion_depth) {\n\n",
                 base_snake,
-                type_name,
-                type_name,
-                base_snake,
+                type_suffix,
                 type_name,
                 base_snake,
-                type_name,
+                type_suffix,
+                base_snake,
+                type_suffix,
                 type_name);
+
+
         } else {
             fprintf(
                 output,
@@ -3577,13 +3610,17 @@ static bool emit_types_source_ctx(
                 "    %s_t *value,\n"
                 "    unsigned int recursion_depth) {\n\n",
                 base_snake,
-                type_name,
-                type_name,
-                base_snake,
+                type_suffix,
                 type_name,
                 base_snake,
-                type_name,
+                type_suffix,
+                base_snake,
+                type_suffix,
                 type_name);
+
+
+
+
         }
 
         fputs(
@@ -3656,8 +3693,9 @@ static bool emit_types_source_ctx(
                     "    return %s_deserialize_%s_impl(\n"
                     "        ctx, value, recursion_depth);\n"
                     "}\n\n",
-                    base_snake, type_name, type_name,
-                    base_snake, type_name);
+                    base_snake, type_suffix, type_name,
+                    base_snake, type_suffix);
+
             } else {
                 fprintf(
                     output,
@@ -3668,8 +3706,9 @@ static bool emit_types_source_ctx(
                     "    return %s_deserialize_%s_impl(\n"
                     "        ctx, value, recursion_depth);\n"
                     "}\n\n",
-                    base_snake, type_name, type_name,
-                    base_snake, type_name);
+                    base_snake, type_suffix, type_name,
+                    base_snake, type_suffix);
+
             }
         }
 
@@ -4949,22 +4988,23 @@ static bool emit_collapsible_method_declarations_ctx(
 
     fprintf(
         output,
-        "} %s_%s_entry_t;\n\n"
+        "} %s_%s_%s_entry_t;\n\n"
         "typedef struct {\n"
-        "    %s_%s_entry_t *entries;\n"
+        "    %s_%s_%s_entry_t *entries;\n"
         "    size_t capacity;\n"
         "    size_t count;\n"
         "    aether_meta_collapse_queue_t *queue;\n"
-        "} %s_%s_context_t;\n\n"
-        "aether_status_t %s_%s(\n"
+        "} %s_%s_%s_context_t;\n\n"
+        "aether_status_t %s_%s_%s(\n"
         "    %s_%s_remote_t *api,\n"
-        "    %s_%s_context_t *collapse",
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
+        "    %s_%s_%s_context_t *collapse",
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
         ctx->module_abbr, api_name,
-        api_name, method_name);
+        ctx->module_abbr, api_name, method_name);
+
 
 
     for (size_t p = 0u; p < method->param_count; ++p) {
@@ -4984,16 +5024,17 @@ static bool emit_collapsible_method_declarations_ctx(
     fprintf(
         output,
         ");\n\n"
-        "aether_status_t %s_%s_flush(\n"
+        "aether_status_t %s_%s_%s_flush(\n"
         "    %s_%s_remote_t *api,\n"
-        "    %s_%s_context_t *collapse);\n\n"
-        "void %s_%s_reset(\n"
-        "    %s_%s_context_t *collapse);\n\n",
-        api_name, method_name,
+        "    %s_%s_%s_context_t *collapse);\n\n"
+        "void %s_%s_%s_reset(\n"
+        "    %s_%s_%s_context_t *collapse);\n\n",
+        ctx->module_abbr, api_name, method_name,
         ctx->module_abbr, api_name,
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name);
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name);
+
 
 
     return !ferror(output);
@@ -5059,9 +5100,10 @@ static bool emit_collapsible_method_source_ctx(
         "    bool _was_empty = collapse->count == 0u;\n\n"
         "    size_t _index = collapse->count;\n\n"
         "    for (size_t i = 0u; i < collapse->count; ++i) {\n"
-        "        %s_%s_entry_t *_entry = &collapse->entries[i];\n"
+        "        %s_%s_%s_entry_t *_entry = &collapse->entries[i];\n"
         "        bool _match = true;\n",
-        api_name, method_name);
+        ctx->module_abbr, api_name, method_name);
+
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -5089,13 +5131,14 @@ static bool emit_collapsible_method_source_ctx(
 
     fprintf(
         output,
-        "%s_%s_entry_t *_entry = NULL;\n\n"
+        "%s_%s_%s_entry_t *_entry = NULL;\n\n"
         "    if (_index == collapse->count) {\n"
         "        if (collapse->count >= collapse->capacity) {\n"
         "            return AETHER_ERR_OVERFLOW;\n"
         "        }\n\n"
         "        _entry = &collapse->entries[collapse->count];\n",
-        api_name, method_name);
+        ctx->module_abbr, api_name, method_name);
+
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -5140,8 +5183,8 @@ static bool emit_collapsible_method_source_ctx(
         "            aether_meta_collapse_queue_register(\n"
         "                collapse->queue,\n"
         "                collapse,\n"
-        "                %s_%s_collapse_serialize,\n"
-        "                %s_%s_collapse_commit);\n"
+        "                %s_%s_%s_collapse_serialize,\n"
+        "                %s_%s_%s_collapse_commit);\n"
         "        if (queue_status != AETHER_OK) {\n"
         "            collapse->count = 0u;\n"
         "            return queue_status;\n"
@@ -5149,12 +5192,12 @@ static bool emit_collapsible_method_source_ctx(
         "    }\n\n"
         "    return AETHER_OK;\n"
         "}\n\n"
-        "static aether_status_t %s_%s_collapse_serialize(\n"
+        "static aether_status_t %s_%s_%s_collapse_serialize(\n"
         "    void *ctx,\n"
         "    uint8_t *tx,\n"
         "    size_t tx_capacity,\n"
         "    size_t *position) {\n\n"
-        "    %s_%s_context_t *collapse = ctx;\n\n"
+        "    %s_%s_%s_context_t *collapse = ctx;\n\n"
         "    if (collapse == NULL ||\n"
         "        position == NULL ||\n"
         "        collapse->count > collapse->capacity ||\n"
@@ -5169,17 +5212,18 @@ static bool emit_collapsible_method_source_ctx(
         "    }\n\n"
         "    size_t pos = *position;\n\n"
         "    for (size_t i = 0u; i < collapse->count; ++i) {\n"
-        "        %s_%s_entry_t *_entry = &collapse->entries[i];\n\n"
+        "        %s_%s_%s_entry_t *_entry = &collapse->entries[i];\n\n"
         "        if (pos >= tx_capacity) {\n"
         "            return AETHER_ERR_OVERFLOW;\n"
         "        }\n\n"
         "        tx[pos++] = %uu;\n",
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
         (unsigned int)command_id);
+
 
     if (!emit_remote_nullable_param_mask(
             output, method, "_entry->", error, error_capacity)) {
@@ -5216,15 +5260,15 @@ static bool emit_collapsible_method_source_ctx(
         "    *position = pos;\n"
         "    return AETHER_OK;\n"
         "}\n\n"
-        "static void %s_%s_collapse_commit(void *ctx) {\n\n"
-        "    %s_%s_context_t *collapse = ctx;\n"
+        "static void %s_%s_%s_collapse_commit(void *ctx) {\n\n"
+        "    %s_%s_%s_context_t *collapse = ctx;\n"
         "    if (collapse != NULL) {\n"
         "        collapse->count = 0u;\n"
         "    }\n"
         "}\n\n"
-        "aether_status_t %s_%s_flush(\n"
+        "aether_status_t %s_%s_%s_flush(\n"
         "    %s_%s_remote_t *api,\n"
-        "    %s_%s_context_t *collapse) {\n\n"
+        "    %s_%s_%s_context_t *collapse) {\n\n"
         "    if (api == NULL ||\n"
         "        collapse == NULL ||\n"
         "        collapse->count > collapse->capacity ||\n"
@@ -5247,7 +5291,7 @@ static bool emit_collapsible_method_source_ctx(
         "    }\n\n"
         "    size_t pos = 0u;\n"
         "    aether_status_t status =\n"
-        "        %s_%s_collapse_serialize(\n"
+        "        %s_%s_%s_collapse_serialize(\n"
         "            collapse,\n"
         "            api->tx,\n"
         "            api->tx_capacity,\n"
@@ -5260,12 +5304,12 @@ static bool emit_collapsible_method_source_ctx(
         "        api->tx,\n"
         "        pos);\n\n"
         "    if (status == AETHER_OK) {\n"
-        "        %s_%s_collapse_commit(collapse);\n"
+        "        %s_%s_%s_collapse_commit(collapse);\n"
         "    }\n\n"
         "    return status;\n"
         "}\n\n"
-        "void %s_%s_reset(\n"
-        "    %s_%s_context_t *collapse) {\n\n"
+        "void %s_%s_%s_reset(\n"
+        "    %s_%s_%s_context_t *collapse) {\n\n"
         "    if (collapse != NULL) {\n"
         "        if (collapse->queue != NULL) {\n"
         "            aether_meta_collapse_queue_cancel(\n"
@@ -5275,17 +5319,16 @@ static bool emit_collapsible_method_source_ctx(
         "        collapse->count = 0u;\n"
         "    }\n"
         "}\n\n",
-
-
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
         ctx->module_abbr, api_name,
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name,
-        api_name, method_name);
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name);
+
 
 
 
@@ -7273,10 +7316,11 @@ static bool emit_value_expression_ctx(
     char nested_name[256];
 
     declared_c_name(
-        ctx->module_abbr,
+        "",
         declared_type->name,
         nested_name,
         sizeof(nested_name));
+
 
 
     char nested_value[1024];
@@ -12392,10 +12436,11 @@ static bool emit_decode_value_expression_ctx(
     char nested_name[256];
 
     declared_c_name(
-        ctx->module_abbr,
+        "",
         declared_type->name,
         nested_name,
         sizeof(nested_name));
+
 
 
 
