@@ -126,6 +126,129 @@ static void emit_method_origin(
 }
 
 
+
+/*
+ * Abbreviation of a module (source .adsl.yaml file) used to prefix every
+ * generated C identifier that belongs to that module. This guarantees
+ * that two files declaring the same short type name ("Key") generate
+ * distinct C symbols ("csa_Key_t", "pa_Key_t") when emitted into a
+ * single aether_api.h/aether_api.c.
+ *
+ * Rule:
+ *   - Split the basename (without ".adsl.yaml"/".adsl.yml") into
+ *     segments on lower->upper transitions and on any non-letter byte.
+ *   - If there is more than one segment: take the first letter of each
+ *     and lowercase it.
+ *   - If there is exactly one segment: take the whole segment,
+ *     lowercased.
+ *
+ * Examples: ClientServerApi -> "csa", PeerApi -> "pa",
+ *           clienttypes -> "clienttypes", aether_reflection -> "ar".
+ */
+static void abbreviate_from_path(
+    const char *path,
+    char *target,
+    size_t capacity) {
+
+    if (target == NULL || capacity == 0u) {
+        return;
+    }
+
+    target[0] = '\0';
+
+    if (path == NULL || path[0] == '\0') {
+        return;
+    }
+
+    const char *base = path;
+    for (const char *p = path; *p != '\0'; ++p) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+
+    char stem[256];
+    size_t stem_length = 0u;
+    for (const char *p = base;
+         *p != '\0' && stem_length + 1u < sizeof(stem);
+         ++p) {
+        stem[stem_length++] = *p;
+    }
+    stem[stem_length] = '\0';
+
+    const char *suffix_yaml = ".adsl.yaml";
+    const char *suffix_yml = ".adsl.yml";
+    size_t stem_sz = strlen(stem);
+    size_t yaml_sz = strlen(suffix_yaml);
+    size_t yml_sz = strlen(suffix_yml);
+
+    if (stem_sz > yaml_sz &&
+        strcmp(stem + stem_sz - yaml_sz, suffix_yaml) == 0) {
+        stem[stem_sz - yaml_sz] = '\0';
+    } else if (stem_sz > yml_sz &&
+               strcmp(stem + stem_sz - yml_sz, suffix_yml) == 0) {
+        stem[stem_sz - yml_sz] = '\0';
+    }
+
+    size_t segment_count = 0u;
+    char first_letters[64];
+    size_t first_letter_count = 0u;
+    bool segment_open = false;
+
+    for (size_t i = 0u; stem[i] != '\0'; ++i) {
+        unsigned char c = (unsigned char)stem[i];
+        bool is_alpha = isalpha(c) != 0;
+        bool starts_new =
+            !segment_open ||
+            (is_alpha && isupper(c) && segment_open &&
+             i > 0u && islower((unsigned char)stem[i - 1u]));
+
+        if (!is_alpha) {
+            if (segment_open) {
+                segment_open = false;
+            }
+            continue;
+        }
+
+        if (starts_new) {
+            segment_count++;
+            if (first_letter_count + 1u < sizeof(first_letters)) {
+                first_letters[first_letter_count++] =
+                    (char)tolower(c);
+            }
+        }
+
+        segment_open = true;
+    }
+
+    first_letters[first_letter_count] = '\0';
+
+    if (segment_count <= 1u) {
+        size_t length = strlen(stem);
+        size_t out = 0u;
+        for (size_t i = 0u;
+             i < length && out + 1u < capacity;
+             ++i) {
+            unsigned char c = (unsigned char)stem[i];
+            if (isalnum(c)) {
+                target[out++] = (char)tolower(c);
+            }
+        }
+        target[out] = '\0';
+        return;
+    }
+
+    size_t out = 0u;
+    for (size_t i = 0u;
+         i < first_letter_count && out + 1u < capacity;
+         ++i) {
+        target[out++] = first_letters[i];
+    }
+    target[out] = '\0';
+}
+
+
+
 static void snake_name(
     const char *source,
     char *target,
@@ -189,6 +312,7 @@ static void snake_name(
 
 
 
+
 static emitter_ctx_t emitter_ctx_standalone(
     const adsl_document_t *document) {
 
@@ -198,8 +322,18 @@ static emitter_ctx_t emitter_ctx_standalone(
     ctx.project = NULL;
     ctx.plan = NULL;
     ctx.base_snake[0] = '\0';
+    ctx.module_abbr[0] = '\0';
+
+    if (document != NULL && document->root_source_path != NULL) {
+        abbreviate_from_path(
+            document->root_source_path,
+            ctx.module_abbr,
+            sizeof(ctx.module_abbr));
+    }
+
     return ctx;
 }
+
 
 
 
@@ -399,7 +533,9 @@ static bool strip_nullable_suffix(
 
 
 
+
 static void declared_c_name(
+    const char *abbr,
     const char *source,
     char *target,
     size_t capacity) {
@@ -408,57 +544,39 @@ static void declared_c_name(
         return;
     }
 
+
     char stripped[256];
 
     if (!strip_nullable_suffix(source, stripped, sizeof(stripped))) {
         stripped[0] = '\0';
     }
 
-    char generated[256];
-
-    snake_name(
-        stripped,
-        generated,
-        sizeof(generated));
-
-
-
-    const char *prefix = "";
-    size_t prefix_length = 0u;
-
-
-    if (strncmp(
-            generated,
-            "aether_",
-            strlen("aether_")) == 0) {
-
-        prefix = "adsl_";
-        prefix_length =
-            strlen(prefix);
-    }
+    char snake[256];
+    snake_name(stripped, snake, sizeof(snake));
 
     size_t pos = 0u;
 
-    for (size_t i = 0u;
-         i < prefix_length &&
-         pos + 1u < capacity;
-         ++i) {
-
-        target[pos++] =
-            prefix[i];
+    if (abbr != NULL && abbr[0] != '\0') {
+        for (size_t i = 0u;
+             abbr[i] != '\0' && pos + 1u < capacity;
+             ++i) {
+            target[pos++] = abbr[i];
+        }
+        if (pos + 1u < capacity) {
+            target[pos++] = '_';
+        }
     }
 
     for (size_t i = 0u;
-         generated[i] != '\0' &&
-         pos + 1u < capacity;
+         snake[i] != '\0' && pos + 1u < capacity;
          ++i) {
-
-        target[pos++] =
-            generated[i];
+        target[pos++] = snake[i];
     }
 
     target[pos] = '\0';
+
 }
+
 
 
 static void upper_name(
@@ -961,10 +1079,13 @@ static bool array_alias_name_ctx(
 
     if (declared != NULL) {
 
+
         declared_c_name(
+            ctx->module_abbr,
             declared->name,
             stem,
             sizeof(stem));
+
 
     } else {
         snake_name(
@@ -1049,10 +1170,13 @@ static bool emit_array_element_c_type_ctx(
     char generated_name[256];
 
 
+
 declared_c_name(
+        ctx->module_abbr,
         declared->name,
         generated_name,
         sizeof(generated_name));
+
 
 
     if (declared->enum_count > 0u) {
@@ -1645,7 +1769,7 @@ static bool emit_parameter_type_ctx(
         }
 
         char stream_name[256];
-        declared_c_name(type, stream_name, sizeof(stream_name));
+        declared_c_name(ctx->module_abbr, type, stream_name, sizeof(stream_name));
 
         fprintf(output, "const %s_t *", stream_name);
         return true;
@@ -1757,8 +1881,11 @@ static bool emit_parameter_type_ctx(
     }
 
     char generated_name[256];
+
     declared_c_name(
+        ctx->module_abbr,
         declared_type->name, generated_name, sizeof(generated_name));
+
 
     if (declared_type->has_tiered_int) {
         fprintf(output, "%s_t", generated_name);
@@ -2187,8 +2314,11 @@ static bool emit_serialize_param_ctx(
 
         char type_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             declared_type->name, type_name, sizeof(type_name));
+
 
         fprintf(
             output,
@@ -2368,6 +2498,7 @@ static bool emit_local_nullable_param_mask(
 
 static bool emit_stream_typedef(
     FILE *output,
+    const char *abbr,
     const char *name,
     char *error,
     size_t error_capacity) {
@@ -2385,12 +2516,11 @@ static bool emit_stream_typedef(
 
     char generated_name[256];
 
-
-declared_c_name(
+    declared_c_name(
+        abbr,
         name,
         generated_name,
         sizeof(generated_name));
-
 
     fprintf(
         output,
@@ -2474,10 +2604,10 @@ static bool emit_external_includes(
     FILE *output,
     const external_modules_t *state);
 
-static bool emit_types_header_ctx(
 
+static bool emit_types_header_ctx(
+    FILE *output,
     const emitter_ctx_t *ctx,
-    const char *path,
     const char *base_name,
     char *error,
     size_t error_capacity) {
@@ -2487,35 +2617,33 @@ static bool emit_types_header_ctx(
         return false;
     }
 
-    FILE *output = fopen(path, "wb");
-
     if (output == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot create generated types header");
+        set_error(error, error_capacity, "no output stream for types header");
         return false;
     }
 
+
+
     array_alias_state_t alias_state = {0};
 
-    char guard[256];
+    (void)base_name;
 
-    upper_name(
-        base_name,
-        guard,
-        sizeof(guard));
+
+
 
     fprintf(
         output,
-        "#ifndef %s_TYPES_H\n"
-        "#define %s_TYPES_H\n\n"
+        "#ifndef AETHER_API_H\n"
+        "#define AETHER_API_H\n\n"
         "#include \"aether_meta_runtime.h\"\n"
         "#include <stdbool.h>\n"
         "#include <stddef.h>\n"
-        "#include <stdint.h>\n\n",
-        guard,
-        guard);
+        "#include <stdint.h>\n\n"
+        "#ifdef __cplusplus\n"
+        "extern \"C\" {\n"
+        "#endif\n\n");
+
+
 
     /*
      * Project mode: pull in the *_types.h of every module whose
@@ -2531,13 +2659,11 @@ static bool emit_types_header_ctx(
         if (!collect_external_modules_types(
                 ctx, &external, error, error_capacity)) {
             external_modules_free(&external);
-            fclose(output);
             return false;
         }
 
         if (!emit_external_includes(output, &external)) {
             external_modules_free(&external);
-            fclose(output);
             return false;
         }
 
@@ -2563,10 +2689,13 @@ static bool emit_types_header_ctx(
         }
 
         char type_name[256];
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
 
         fprintf(
             output,
@@ -2585,13 +2714,15 @@ static bool emit_types_header_ctx(
             continue;
         }
 
+
         if (!emit_stream_typedef(
                 output,
+                ctx->module_abbr,
                 type->name,
                 error,
                 error_capacity)) {
 
-            fclose(output);
+
             return false;
         }
     }
@@ -2612,13 +2743,15 @@ static bool emit_types_header_ctx(
                     continue;
                 }
 
+
                 if (!emit_stream_typedef(
                         output,
+                        ctx->module_abbr,
                         param->type,
                         error,
                         error_capacity)) {
 
-                    fclose(output);
+
                     return false;
                 }
             }
@@ -2635,10 +2768,13 @@ static bool emit_types_header_ctx(
 
         char type_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
 
         fprintf(output, "typedef enum {\n");
 
@@ -2682,10 +2818,13 @@ static bool emit_types_header_ctx(
 
         char type_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
 
         fprintf(
             output,
@@ -2707,7 +2846,6 @@ static bool emit_types_header_ctx(
                 error,
                 error_capacity)) {
 
-            fclose(output);
             return false;
         }
     }
@@ -2729,7 +2867,6 @@ static bool emit_types_header_ctx(
                     error,
                     error_capacity)) {
 
-                fclose(output);
                 return false;
             }
         }
@@ -2756,7 +2893,6 @@ static bool emit_types_header_ctx(
                         error,
                         error_capacity)) {
 
-                    fclose(output);
                     return false;
                 }
             }
@@ -2782,7 +2918,6 @@ static bool emit_types_header_ctx(
                       error,
                       error_capacity))) {
 
-                fclose(output);
                 return false;
             }
         }
@@ -2814,7 +2949,6 @@ static bool emit_types_header_ctx(
                 error,
                 error_capacity)) {
 
-            fclose(output);
             return false;
         }
     }
@@ -2840,7 +2974,6 @@ static bool emit_types_header_ctx(
                         error,
                         error_capacity)) {
 
-                    fclose(output);
                     return false;
                 }
             }
@@ -2866,17 +2999,12 @@ static bool emit_types_header_ctx(
                       error,
                       error_capacity))) {
 
-                fclose(output);
                 return false;
             }
         }
     }
 
-    char serializer_base[256];
-    snake_name(
-        base_name,
-        serializer_base,
-        sizeof(serializer_base));
+    const char *serializer_base = ctx->module_abbr;
 
     for (size_t i = 0u; i < type_count; ++i) {
 
@@ -2898,10 +3026,13 @@ static bool emit_types_header_ctx(
 
         char type_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
 
         emit_type_origin(
             output,
@@ -2996,12 +3127,12 @@ static bool emit_types_header_ctx(
 
     }
 
-    fprintf(output, "#endif\n");
-
-    fclose(output);
 
     return true;
 }
+
+
+
 
 
 static bool emit_types_header(
@@ -3011,17 +3142,48 @@ static bool emit_types_header(
     char *error,
     size_t error_capacity) {
 
+    FILE *output = fopen(path, "wb");
+
+    if (output == NULL) {
+        set_error(error, error_capacity, "cannot create generated types header");
+        return false;
+    }
+
     emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_types_header_ctx(&ctx, path, base_name, error, error_capacity);
+
+    if (!emit_types_header_ctx(
+            output, &ctx, base_name, error, error_capacity)) {
+        fclose(output);
+        return false;
+    }
+
+    fprintf(
+        output,
+        "\n#ifdef __cplusplus\n"
+        "}\n"
+        "#endif\n"
+        "#endif\n");
+
+    if (ferror(output)) {
+        set_error(error, error_capacity, "cannot write generated types header");
+        fclose(output);
+        return false;
+    }
+
+    fclose(output);
+    return true;
 }
 
 
 
 
 
+
+
+
 static bool emit_types_source_ctx(
+    FILE *output,
     const emitter_ctx_t *ctx,
-    const char *path,
     const char *base_name,
     char *error,
     size_t error_capacity) {
@@ -3031,30 +3193,18 @@ static bool emit_types_source_ctx(
         return false;
     }
 
-    FILE *output = fopen(path, "wb");
-
     if (output == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "cannot create generated types source");
+        set_error(error, error_capacity, "no output stream for types source");
         return false;
     }
 
-    char base_snake[256];
-
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
+    (void)base_name;
 
 
-    fprintf(
-        output,
-        "#include \"%s_types.h\"\n"
-        "#include \"aether_meta_runtime.h\"\n\n"
-        "#include <string.h>\n\n",
-        base_snake);
+
+    const char *base_snake = ctx->module_abbr;
+
+
 
     /*
      * Project mode: the .c accesses fields, sizeof and serializers of
@@ -3074,13 +3224,11 @@ static bool emit_types_source_ctx(
 
 
             external_modules_free(&source_external);
-            fclose(output);
             return false;
         }
 
         if (!emit_external_includes(output, &source_external)) {
             external_modules_free(&source_external);
-            fclose(output);
             return false;
         }
 
@@ -3103,10 +3251,13 @@ static bool emit_types_source_ctx(
         }
 
         char type_name[256];
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
 
         fprintf(
             output,
@@ -3148,10 +3299,13 @@ static bool emit_types_source_ctx(
 
         char type_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
 
         if (hierarchy) {
             fprintf(
@@ -3214,10 +3368,13 @@ static bool emit_types_source_ctx(
 
         char type_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             type_name,
             sizeof(type_name));
+
 
         if (hierarchy) {
             fprintf(
@@ -3328,7 +3485,6 @@ static bool emit_types_source_ctx(
 
 
         if (!emitted) {
-            fclose(output);
             return false;
         }
 
@@ -3473,7 +3629,6 @@ static bool emit_types_source_ctx(
         }
 
         if (!decoded) {
-            fclose(output);
             return false;
         }
 
@@ -3526,13 +3681,12 @@ static bool emit_types_source_ctx(
             error_capacity,
             "cannot write generated types source");
 
-        fclose(output);
         return false;
     }
 
-    fclose(output);
     return true;
 }
+
 
 
 static bool emit_types_source(
@@ -3542,9 +3696,36 @@ static bool emit_types_source(
     char *error,
     size_t error_capacity) {
 
+    FILE *output = fopen(path, "wb");
+
+    if (output == NULL) {
+        set_error(error, error_capacity, "cannot create generated types source");
+        return false;
+    }
+
+    char base_snake[256];
+
+    snake_name(base_name, base_snake, sizeof(base_snake));
+
+    fprintf(
+        output,
+        "#include \"%s_types.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
+        "#include <string.h>\n\n",
+        base_snake);
+
     emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_types_source_ctx(&ctx, path, base_name, error, error_capacity);
+
+    if (!emit_types_source_ctx(
+            output, &ctx, base_name, error, error_capacity)) {
+        fclose(output);
+        return false;
+    }
+
+    fclose(output);
+    return true;
 }
+
 
 
 
@@ -3834,7 +4015,7 @@ static bool emit_stream_builder_declarations_for_api_ctx(
     char stream_c_name[256];
     char api_name[256];
 
-    declared_c_name(stream_name, stream_c_name, sizeof(stream_c_name));
+    declared_c_name(ctx->module_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
     snake_name(api->name, api_name, sizeof(api_name));
 
     adsl_effective_method_t *effective = NULL;
@@ -3865,13 +4046,19 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
         fprintf(
             output,
+
+
             "aether_status_t %s_%s_%s(\n"
             "    %s_t *builder_stream",
-            stream_c_name, api_name, method_name, stream_c_name);
+            ctx->module_abbr, api_name, method_name, stream_c_name);
+
+
 
         if (collapsible) {
-            fprintf(output, ",\n    %s_%s_context_t *collapse",
-                api_name, method_name);
+
+            fprintf(output, ",\n    %s_%s_%s_context_t *collapse",
+                ctx->module_abbr, api_name, method_name);
+
         }
 
         if (has_response) {
@@ -3899,11 +4086,15 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
             fprintf(
                 output,
+
+
                 "aether_status_t %s_%s_%s_flush(\n"
                 "    %s_t *builder_stream,\n"
-                "    %s_%s_context_t *collapse);\n\n",
-                stream_c_name, api_name, method_name,
-                stream_c_name, api_name, method_name);
+                "    %s_%s_%s_context_t *collapse);\n\n",
+                ctx->module_abbr, api_name, method_name,
+                stream_c_name, ctx->module_abbr, api_name, method_name);
+
+
         }
     }
 
@@ -4008,7 +4199,6 @@ static bool emit_all_stream_builder_declarations_ctx(
 static bool emit_stream_builder_definitions_for_api_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
-    const char *base_snake,
     const char *stream_name,
     const char *api_reference,
     char *error,
@@ -4026,7 +4216,7 @@ static bool emit_stream_builder_definitions_for_api_ctx(
     char stream_c_name[256];
     char api_name[256];
 
-    declared_c_name(stream_name, stream_c_name, sizeof(stream_c_name));
+    declared_c_name(ctx->module_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
     snake_name(api->name, api_name, sizeof(api_name));
 
     adsl_effective_method_t *effective = NULL;
@@ -4058,11 +4248,14 @@ static bool emit_stream_builder_definitions_for_api_ctx(
         if (collapsible) {
             fprintf(
                 output,
+
                 "aether_status_t %s_%s_%s(\n"
                 "    %s_t *builder_stream,\n"
-                "    %s_%s_context_t *collapse",
-                stream_c_name, api_name, method_name,
-                stream_c_name, api_name, method_name);
+                "    %s_%s_%s_context_t *collapse",
+                ctx->module_abbr, api_name, method_name,
+                stream_c_name, ctx->module_abbr, api_name, method_name);
+
+
 
             for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -4088,11 +4281,13 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 "builder_stream->data == NULL)) {\n"
                 "        return AETHER_ERR_ARGUMENT;\n"
                 "    }\n\n"
-                "    %s_remote_t remote = {0};\n\n"
+
+                "    %s_%s_remote_t remote = {0};\n\n"
                 "    return %s_%s(\n"
                 "        &remote,\n"
                 "        collapse",
-                api_name, api_name, method_name);
+                ctx->module_abbr, api_name, api_name, method_name);
+
 
             for (size_t p = 0u; p < method->param_count; ++p) {
                 fprintf(output, ",\n        %s",
@@ -4107,7 +4302,8 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 output,
                 "aether_status_t %s_%s_%s_flush(\n"
                 "    %s_t *builder_stream,\n"
-                "    %s_%s_context_t *collapse) {\n\n"
+
+                "    %s_%s_%s_context_t *collapse) {\n\n"
                 "    if (builder_stream == NULL ||\n"
                 "        collapse == NULL ||\n"
                 "        builder_stream->length > builder_stream->capacity ||\n"
@@ -4128,29 +4324,42 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 "        &builder_stream->length,\n"
                 "        remaining\n"
                 "    };\n\n"
-                "    %s_remote_t remote = {\n"
+                "    %s_%s_remote_t remote = {\n"
                 "        &commit,\n"
                 "        %s_stream_commit,\n"
                 "        builder_stream->data + builder_stream->length,\n"
                 "        remaining\n"
                 "    };\n\n"
-                "    return %s_%s_flush(\n"
+                "    return %s_%s_%s_flush(\n"
                 "        &remote,\n"
                 "        collapse);\n"
                 "}\n\n",
-                stream_c_name, api_name, method_name,
-                stream_c_name, api_name, method_name,
-                base_snake, api_name, base_snake,
-                api_name, method_name);
+
+
+
+                ctx->module_abbr, api_name, method_name,
+                stream_c_name,
+                ctx->module_abbr, api_name, method_name,
+                ctx->module_abbr,
+                ctx->module_abbr, api_name,
+                ctx->module_abbr,
+                ctx->module_abbr, api_name, method_name);
+
+
+
 
             continue;
         }
 
         fprintf(
             output,
+
+
             "aether_status_t %s_%s_%s(\n"
             "    %s_t *builder_stream",
-            stream_c_name, api_name, method_name, stream_c_name);
+            ctx->module_abbr, api_name, method_name, stream_c_name);
+
+
 
         if (has_response) {
             fputs(",\n    uint32_t request_id", output);
@@ -4186,11 +4395,12 @@ static bool emit_stream_builder_definitions_for_api_ctx(
             "    if (remaining == 0u) {\n"
             "        return AETHER_ERR_OVERFLOW;\n"
             "    }\n\n"
+
             "    %s_stream_commit_t commit = {\n"
             "        &builder_stream->length,\n"
             "        remaining\n"
             "    };\n\n"
-            "    %s_remote_t remote = {\n"
+            "    %s_%s_remote_t remote = {\n"
             "        &commit,\n"
             "        %s_stream_commit,\n"
             "        builder_stream->data + builder_stream->length,\n"
@@ -4198,7 +4408,8 @@ static bool emit_stream_builder_definitions_for_api_ctx(
             "    };\n\n"
             "    return %s_%s(\n"
             "        &remote",
-            base_snake, api_name, base_snake, api_name, method_name);
+            ctx->module_abbr, ctx->module_abbr, api_name, ctx->module_abbr, api_name, method_name);
+
 
         if (has_response) {
             fputs(",\n        request_id", output);
@@ -4220,7 +4431,6 @@ static bool emit_stream_builder_definitions_for_api_ctx(
 static bool emit_stream_builder_definitions_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
-    const char *base_snake,
     const char *stream_name,
     const adsl_stream_t *stream,
     char *error,
@@ -4233,7 +4443,7 @@ static bool emit_stream_builder_definitions_ctx(
     if (stream->api != NULL &&
         *stream->api != '\0' &&
         !emit_stream_builder_definitions_for_api_ctx(
-            output, ctx, base_snake, stream_name, stream->api,
+            output, ctx, stream_name, stream->api,
             error, error_capacity)) {
         return false;
     }
@@ -4246,7 +4456,7 @@ static bool emit_stream_builder_definitions_ctx(
         }
 
         if (!emit_stream_builder_definitions_for_api_ctx(
-                output, ctx, base_snake, stream_name,
+                output, ctx, stream_name,
                 stream->apis[i].api,
                 error, error_capacity)) {
             return false;
@@ -4261,7 +4471,6 @@ static bool emit_stream_builder_definitions_ctx(
 static bool emit_all_stream_builder_definitions_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
-    const char *base_snake,
     char *error,
     size_t error_capacity) {
 
@@ -4273,7 +4482,7 @@ static bool emit_all_stream_builder_definitions_ctx(
         const adsl_type_t *type = &types[i];
 
         if (!emit_stream_builder_definitions_ctx(
-                output, ctx, base_snake,
+                output, ctx,
                 type->name, type->stream,
                 error, error_capacity)) {
             return false;
@@ -4299,7 +4508,7 @@ static bool emit_all_stream_builder_definitions_ctx(
                     continue;
                 }
                 if (!emit_stream_builder_definitions_ctx(
-                        output, ctx, base_snake,
+                        output, ctx,
                         param->type, param->stream,
                         error, error_capacity)) {
                     return false;
@@ -4737,6 +4946,7 @@ static bool emit_collapsible_method_declarations_ctx(
         }
     }
 
+
     fprintf(
         output,
         "} %s_%s_entry_t;\n\n"
@@ -4747,14 +4957,15 @@ static bool emit_collapsible_method_declarations_ctx(
         "    aether_meta_collapse_queue_t *queue;\n"
         "} %s_%s_context_t;\n\n"
         "aether_status_t %s_%s(\n"
-        "    %s_remote_t *api,\n"
+        "    %s_%s_remote_t *api,\n"
         "    %s_%s_context_t *collapse",
         api_name, method_name,
         api_name, method_name,
         api_name, method_name,
         api_name, method_name,
-        api_name,
+        ctx->module_abbr, api_name,
         api_name, method_name);
+
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -4769,19 +4980,21 @@ static bool emit_collapsible_method_declarations_ctx(
         fprintf(output, " %s", method->params[p].name);
     }
 
+
     fprintf(
         output,
         ");\n\n"
         "aether_status_t %s_%s_flush(\n"
-        "    %s_remote_t *api,\n"
+        "    %s_%s_remote_t *api,\n"
         "    %s_%s_context_t *collapse);\n\n"
         "void %s_%s_reset(\n"
         "    %s_%s_context_t *collapse);\n\n",
         api_name, method_name,
-        api_name,
+        ctx->module_abbr, api_name,
         api_name, method_name,
         api_name, method_name,
         api_name, method_name);
+
 
     return !ferror(output);
 }
@@ -4792,7 +5005,6 @@ static bool emit_collapsible_method_declarations_ctx(
 static bool emit_collapsible_method_source_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
-    const char *base_snake,
     const char *api_name,
     const char *method_name,
     const adsl_method_t *method,
@@ -4802,17 +5014,25 @@ static bool emit_collapsible_method_source_ctx(
 
     fprintf(
         output,
-        "static aether_status_t %s_%s_collapse_serialize(\n"
+
+        "static aether_status_t %s_%s_%s_collapse_serialize(\n"
         "    void *ctx,\n"
         "    uint8_t *tx,\n"
         "    size_t tx_capacity,\n"
         "    size_t *position);\n\n"
-        "static void %s_%s_collapse_commit(void *ctx);\n\n"
-        "aether_status_t %s_%s(\n"
-        "    %s_remote_t *api,\n"
-        "    %s_%s_context_t *collapse",
-        api_name, method_name, api_name, method_name,
-        api_name, method_name, api_name, api_name, method_name);
+        "static void %s_%s_%s_collapse_commit(void *ctx);\n\n"
+        "aether_status_t %s_%s_%s(\n"
+        "    %s_%s_remote_t *api,\n"
+        "    %s_%s_%s_context_t *collapse",
+
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name, method_name,
+        ctx->module_abbr, api_name,
+        ctx->module_abbr, api_name, method_name);
+
+
+
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -4984,7 +5204,7 @@ static bool emit_collapsible_method_source_ctx(
         stored.name = expression;
 
         if (!emit_serialize_param_ctx(
-                output, ctx, base_snake, &stored,
+                output, ctx, ctx->module_abbr, &stored,
                 error, error_capacity)) {
             return false;
         }
@@ -5003,7 +5223,7 @@ static bool emit_collapsible_method_source_ctx(
         "    }\n"
         "}\n\n"
         "aether_status_t %s_%s_flush(\n"
-        "    %s_remote_t *api,\n"
+        "    %s_%s_remote_t *api,\n"
         "    %s_%s_context_t *collapse) {\n\n"
         "    if (api == NULL ||\n"
         "        collapse == NULL ||\n"
@@ -5056,15 +5276,17 @@ static bool emit_collapsible_method_source_ctx(
         "    }\n"
         "}\n\n",
 
+
         api_name, method_name,
         api_name, method_name,
         api_name, method_name,
-        api_name,
+        ctx->module_abbr, api_name,
         api_name, method_name,
         api_name, method_name,
         api_name, method_name,
         api_name, method_name,
         api_name, method_name);
+
 
 
     return !ferror(output);
@@ -5075,9 +5297,10 @@ static bool emit_collapsible_method_source_ctx(
 
 
 
+
 static bool emit_api_header_ctx(
+    FILE *output,
     const emitter_ctx_t *ctx,
-    const char *path,
     const char *base_name,
     const char *selected_api_name,
     const char *selected_method_name,
@@ -5089,34 +5312,24 @@ static bool emit_api_header_ctx(
         return false;
     }
 
-    FILE *output = fopen(path, "wb");
-
     if (output == NULL) {
-        set_error(error, error_capacity, "cannot create generated API header");
+        set_error(error, error_capacity, "no output stream for API header");
         return false;
     }
 
-    char guard[256];
-    char base_snake[256];
+    (void)base_name;
 
-    upper_name(base_name, guard, sizeof(guard));
-    snake_name(base_name, base_snake, sizeof(base_snake));
+
+    const char *base_snake = ctx->module_abbr;
 
     fprintf(
         output,
-        "#ifndef %s_API_H\n"
-        "#define %s_API_H\n\n"
-        "#include \"%s_types.h\"\n"
-        "#include \"aether_meta_runtime.h\"\n\n"
-        "#ifdef __cplusplus\n"
-        "extern \"C\" {\n"
-        "#endif\n\n"
         "typedef aether_status_t (*%s_send_fn)(\n"
         "    void *ctx,\n"
         "    const uint8_t *data,\n"
         "    size_t length);\n\n",
+        base_snake);
 
-        guard, guard, base_snake, base_snake);
 
     /*
      * Project mode: API signatures may reference types owned by other
@@ -5133,13 +5346,11 @@ static bool emit_api_header_ctx(
         if (!collect_external_modules_api(
                 ctx, &external_api, error, error_capacity)) {
             external_modules_free(&external_api);
-            fclose(output);
             return false;
         }
 
         if (!emit_external_includes(output, &external_api)) {
             external_modules_free(&external_api);
-            fclose(output);
             return false;
         }
 
@@ -5173,8 +5384,10 @@ static bool emit_api_header_ctx(
             "    %s_send_fn send;\n"
             "    uint8_t *tx;\n"
             "    size_t tx_capacity;\n"
-            "} %s_remote_t;\n\n",
-            base_snake, api_name);
+
+            "} %s_%s_remote_t;\n\n",
+            base_snake, base_snake, api_name);
+
 
         adsl_effective_method_t *effective = NULL;
         size_t effective_count = 0u;
@@ -5182,7 +5395,6 @@ static bool emit_api_header_ctx(
         if (!emitter_collect_effective_ctx(
                 ctx, api, &effective, &effective_count,
                 error, error_capacity)) {
-            fclose(output);
             return false;
         }
 
@@ -5210,19 +5422,21 @@ static bool emit_api_header_ctx(
                         output, ctx, api_name, method_name, method,
                         error, error_capacity)) {
                     free(effective);
-                    fclose(output);
                     return false;
                 }
                 continue;
             }
 
-            emit_method_origin(output, effective[m].owner, method);
 
             fprintf(
                 output,
-                "aether_status_t %s_%s(\n"
-                "    %s_remote_t *api",
-                api_name, method_name, api_name);
+
+                "aether_status_t %s_%s_%s(\n"
+                "    %s_%s_remote_t *api",
+                ctx->module_abbr, api_name, method_name,
+                ctx->module_abbr, api_name);
+
+
 
             if (has_response) {
                 fputs(",\n    uint32_t request_id", output);
@@ -5236,7 +5450,6 @@ static bool emit_api_header_ctx(
                         output, ctx, &method->params[p],
                         error, error_capacity)) {
                     free(effective);
-                    fclose(output);
                     return false;
                 }
 
@@ -5253,24 +5466,15 @@ static bool emit_api_header_ctx(
         selected_method_name == NULL &&
         !emit_all_stream_builder_declarations_ctx(
             output, ctx, error, error_capacity)) {
-        fclose(output);
         return false;
     }
 
-    fprintf(
-        output,
-        "#ifdef __cplusplus\n"
-        "}\n"
-        "#endif\n\n"
-        "#endif\n");
 
     if (ferror(output)) {
         set_error(error, error_capacity, "cannot write generated API header");
-        fclose(output);
         return false;
     }
 
-    fclose(output);
     return true;
 }
 
@@ -5282,9 +5486,10 @@ static bool emit_api_header_ctx(
 
 
 
+
 static bool emit_api_source_ctx(
+    FILE *output,
     const emitter_ctx_t *ctx,
-    const char *path,
     const char *base_name,
     const char *selected_api_name,
     const char *selected_method_name,
@@ -5296,23 +5501,16 @@ static bool emit_api_source_ctx(
         return false;
     }
 
-    FILE *output = fopen(path, "wb");
-
     if (output == NULL) {
-        set_error(error, error_capacity, "cannot create generated API source");
+        set_error(error, error_capacity, "no output stream for API source");
         return false;
     }
 
-    char base_snake[256];
+    (void)base_name;
 
-    snake_name(base_name, base_snake, sizeof(base_snake));
 
-    fprintf(
-        output,
-        "#include \"%s_api.h\"\n"
-        "#include \"aether_meta_runtime.h\"\n\n"
-        "#include <string.h>\n\n",
-        base_snake);
+    const char *base_snake = ctx->module_abbr;
+
 
     if (selected_api_name == NULL &&
         selected_method_name == NULL &&
@@ -5367,7 +5565,6 @@ static bool emit_api_source_ctx(
         if (!emitter_collect_effective_ctx(
                 ctx, api, &effective, &effective_count,
                 error, error_capacity)) {
-            fclose(output);
             return false;
         }
 
@@ -5392,22 +5589,24 @@ static bool emit_api_source_ctx(
 
             if (method_has_collapsible_params(method)) {
                 if (!emit_collapsible_method_source_ctx(
-                        output, ctx, base_snake, api_name, method_name,
+                        output, ctx, api_name, method_name,
                         method, effective[m].id, error, error_capacity)) {
                     free(effective);
-                    fclose(output);
                     return false;
                 }
                 continue;
             }
 
-            emit_method_origin(output, effective[m].owner, method);
 
             fprintf(
                 output,
-                "aether_status_t %s_%s(\n"
-                "    %s_remote_t *api",
-                api_name, method_name, api_name);
+
+                "aether_status_t %s_%s_%s(\n"
+                "    %s_%s_remote_t *api",
+                ctx->module_abbr, api_name, method_name,
+                ctx->module_abbr, api_name);
+
+
 
             if (has_response) {
                 fputs(",\n    uint32_t request_id", output);
@@ -5421,7 +5620,6 @@ static bool emit_api_source_ctx(
                         output, ctx, &method->params[p],
                         error, error_capacity)) {
                     free(effective);
-                    fclose(output);
                     return false;
                 }
 
@@ -5468,7 +5666,6 @@ static bool emit_api_source_ctx(
             if (!emit_remote_nullable_param_mask(
                     output, method, "", error, error_capacity)) {
                 free(effective);
-                fclose(output);
                 return false;
             }
 
@@ -5477,7 +5674,6 @@ static bool emit_api_source_ctx(
                         output, ctx, base_snake, &method->params[p],
                         error, error_capacity)) {
                     free(effective);
-                    fclose(output);
                     return false;
                 }
             }
@@ -5498,18 +5694,15 @@ static bool emit_api_source_ctx(
     if (selected_api_name == NULL &&
         selected_method_name == NULL &&
         !emit_all_stream_builder_definitions_ctx(
-            output, ctx, base_snake, error, error_capacity)) {
-        fclose(output);
+            output, ctx, error, error_capacity)) {
         return false;
     }
 
     if (ferror(output)) {
         set_error(error, error_capacity, "cannot write generated API source");
-        fclose(output);
         return false;
     }
 
-    fclose(output);
     return true;
 }
 
@@ -5593,22 +5786,17 @@ bool adsl_emit_c_method(
         }
     }
 
-    char base_snake[256];
 
-    snake_name(
-        base_name,
-        base_snake,
-        sizeof(base_snake));
 
-    char types_h[1024];
-    char types_c[1024];
-    char api_h[1024];
-    char api_c[1024];
 
-    if (!build_output_path(types_h, sizeof(types_h), output_directory, base_snake, "_types.h") ||
-        !build_output_path(types_c, sizeof(types_c), output_directory, base_snake, "_types.c") ||
-        !build_output_path(api_h, sizeof(api_h), output_directory, base_snake, "_api.h") ||
-        !build_output_path(api_c, sizeof(api_c), output_directory, base_snake, "_api.c")) {
+    (void)base_name;
+
+
+    char header_path[1024];
+    char source_path[1024];
+
+    if (!build_output_path(header_path, sizeof(header_path), output_directory, "aether_api", ".h") ||
+        !build_output_path(source_path, sizeof(source_path), output_directory, "aether_api", ".c")) {
 
         set_error(
             error,
@@ -5617,47 +5805,90 @@ bool adsl_emit_c_method(
         return false;
     }
 
-    if (!emit_types_header_ctx(
-            &ctx,
-            types_h,
-            base_name,
-            error,
-            error_capacity)) {
 
+
+    FILE *header = fopen(header_path, "wb");
+
+    if (header == NULL) {
+        set_error(error, error_capacity, "cannot create generated header");
         return false;
     }
 
-    if (!emit_types_source_ctx(
+    if (!emit_types_header_ctx(
+            header,
             &ctx,
-            types_c,
             base_name,
             error,
             error_capacity)) {
 
+        fclose(header);
         return false;
     }
 
     if (!emit_api_header_ctx(
+            header,
             &ctx,
-            api_h,
             base_name,
             selected_api_name,
             selected_method_name,
             error,
             error_capacity)) {
 
+        fclose(header);
         return false;
     }
 
-    return emit_api_source_ctx(
-        &ctx,
-        api_c,
-        base_name,
-        selected_api_name,
-        selected_method_name,
-        error,
-        error_capacity);
+    fprintf(
+        header,
+        "\n#ifdef __cplusplus\n"
+        "}\n"
+        "#endif\n"
+        "#endif\n");
+    fclose(header);
+
+    FILE *source = fopen(source_path, "wb");
+
+    if (source == NULL) {
+        set_error(error, error_capacity, "cannot create generated source");
+        return false;
+    }
+
+
+    fprintf(
+        source,
+        "#include \"aether_api.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
+        "#include <string.h>\n\n");
+
+
+    if (!emit_types_source_ctx(
+            source,
+            &ctx,
+            base_name,
+            error,
+            error_capacity)) {
+
+        fclose(source);
+        return false;
+    }
+
+    if (!emit_api_source_ctx(
+            source,
+            &ctx,
+            base_name,
+            selected_api_name,
+            selected_method_name,
+            error,
+            error_capacity)) {
+
+        fclose(source);
+        return false;
+    }
+
+    fclose(source);
+    return true;
 }
+
 
 
 bool adsl_emit_c(
@@ -5763,31 +5994,35 @@ bool type_owner_base_snake(
         /*
          * Standalone: every declaration lives in one translation unit,
          * so the owner is always the current module. Callers must have
-         * populated ctx->base_snake before invoking this helper; the
-         * emitter's standalone wrappers take care of that so the
-         * returned prefix is never empty. A missing base_snake here is
+
+*          * populated ctx->module_abbr before invoking this helper; the
+*          * emitter's standalone wrappers take care of that so the
+*          * returned prefix is never empty. A missing module_abbr here is
+
          * an internal invariant violation, not a case to guess around.
          */
-        if (ctx->base_snake[0] == '\0') {
+
+        if (ctx->module_abbr[0] == '\0') {
             set_error(
                 error,
                 error_capacity,
-                "standalone emitter context has no base_snake");
+                "standalone emitter context has no module_abbr");
             return false;
         }
 
-        size_t length = strlen(ctx->base_snake);
+        size_t length = strlen(ctx->module_abbr);
 
         if (length + 1u > capacity) {
             set_error(
                 error,
                 error_capacity,
-                "standalone emitter base_snake does not fit");
+                "standalone emitter module_abbr does not fit");
             return false;
         }
 
-        memcpy(out, ctx->base_snake, length + 1u);
+        memcpy(out, ctx->module_abbr, length + 1u);
         return true;
+
     }
 
 
@@ -6603,6 +6838,7 @@ bool adsl_emit_c_project(
         return false;
     }
 
+
     char types_h[1024];
     char types_c[1024];
     char api_h[1024];
@@ -6621,29 +6857,101 @@ bool adsl_emit_c_project(
         return false;
     }
 
+    FILE *types_h_file = fopen(types_h, "wb");
+    if (types_h_file == NULL) {
+        adsl_project_resolver_release(resolver);
+        set_error(error, error_capacity, "cannot create generated types header");
+        return false;
+    }
+
     if (!emit_types_header_ctx(
-            &ctx, types_h, base_name, error, error_capacity)) {
+            types_h_file, &ctx, base_name, error, error_capacity)) {
+        fclose(types_h_file);
         adsl_project_resolver_release(resolver);
         return false;
     }
+
+    fprintf(
+        types_h_file,
+        "\n#ifdef __cplusplus\n}\n#endif\n#endif\n");
+    fclose(types_h_file);
+
+    FILE *types_c_file = fopen(types_c, "wb");
+    if (types_c_file == NULL) {
+        adsl_project_resolver_release(resolver);
+        set_error(error, error_capacity, "cannot create generated types source");
+        return false;
+    }
+
+    fprintf(
+        types_c_file,
+        "#include \"%s_types.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
+        "#include <string.h>\n\n",
+        base_snake);
 
     if (!emit_types_source_ctx(
-            &ctx, types_c, base_name, error, error_capacity)) {
+            types_c_file, &ctx, base_name, error, error_capacity)) {
+        fclose(types_c_file);
         adsl_project_resolver_release(resolver);
         return false;
     }
+
+    fclose(types_c_file);
+
+    FILE *api_h_file = fopen(api_h, "wb");
+    if (api_h_file == NULL) {
+        adsl_project_resolver_release(resolver);
+        set_error(error, error_capacity, "cannot create generated API header");
+        return false;
+    }
+
+    fprintf(
+        api_h_file,
+        "#ifndef %s_API_H\n"
+        "#define %s_API_H\n\n"
+        "#include \"%s_types.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
+        "#ifdef __cplusplus\n"
+        "extern \"C\" {\n"
+        "#endif\n\n",
+        base_snake, base_snake, base_snake);
 
     if (!emit_api_header_ctx(
-            &ctx, api_h, base_name, NULL, NULL, error, error_capacity)) {
+            api_h_file, &ctx, base_name, NULL, NULL, error, error_capacity)) {
+        fclose(api_h_file);
         adsl_project_resolver_release(resolver);
         return false;
     }
 
+    fprintf(
+        api_h_file,
+        "#ifdef __cplusplus\n}\n#endif\n#endif\n");
+    fclose(api_h_file);
+
+    FILE *api_c_file = fopen(api_c, "wb");
+    if (api_c_file == NULL) {
+        adsl_project_resolver_release(resolver);
+        set_error(error, error_capacity, "cannot create generated API source");
+        return false;
+    }
+
+    fprintf(
+        api_c_file,
+        "#include \"%s_api.h\"\n"
+        "#include \"aether_meta_runtime.h\"\n\n"
+        "#include <string.h>\n\n",
+        base_snake);
+
     if (!emit_api_source_ctx(
-            &ctx, api_c, base_name, NULL, NULL, error, error_capacity)) {
+            api_c_file, &ctx, base_name, NULL, NULL, error, error_capacity)) {
+        fclose(api_c_file);
         adsl_project_resolver_release(resolver);
         return false;
     }
+
+    fclose(api_c_file);
+
 
     adsl_project_resolver_release(resolver);
     return true;
@@ -6824,10 +7132,13 @@ static bool emit_value_expression_ctx(
         char tiered_name[256];
         char tiered_expression[768];
 
+
         declared_c_name(
+            ctx->module_abbr,
             declared_type->name,
             tiered_name,
             sizeof(tiered_name));
+
 
         int tiered_expression_size =
             struct_pointer
@@ -6960,10 +7271,13 @@ static bool emit_value_expression_ctx(
     }
 
     char nested_name[256];
+
     declared_c_name(
+        ctx->module_abbr,
         declared_type->name,
         nested_name,
         sizeof(nested_name));
+
 
     char nested_value[1024];
     int nested_value_size =
@@ -6983,14 +7297,22 @@ static bool emit_value_expression_ctx(
         return false;
     }
 
+
     /*
      * Standalone wrappers sometimes construct a context without
-     * base_snake. Snapshot the context and fill it from the caller's
+     * module_abbr. Snapshot the context and fill it from the caller's
      * authoritative prefix before calling the strict owner helper.
-     * In project mode base_snake is already set, so this is a no-op.
+     * In project mode module_abbr is already set, so this is a no-op.
      */
     emitter_ctx_t effective_ctx = *ctx;
 
+    if (effective_ctx.module_abbr[0] == '\0' && base_snake != NULL) {
+        (void)snprintf(
+            effective_ctx.module_abbr,
+            sizeof(effective_ctx.module_abbr),
+            "%s",
+            base_snake);
+    }
     if (effective_ctx.base_snake[0] == '\0' && base_snake != NULL) {
         (void)snprintf(
             effective_ctx.base_snake,
@@ -6998,6 +7320,7 @@ static bool emit_value_expression_ctx(
             "%s",
             base_snake);
     }
+
 
     char nested_owner[256];
 
@@ -7149,10 +7472,13 @@ static bool emit_struct_definition_ctx(
 
     char type_name[256];
 
+
     declared_c_name(
+        ctx->module_abbr,
         type->name,
         type_name,
         sizeof(type_name));
+
 
     fprintf(
         output,
@@ -7694,10 +8020,13 @@ static bool emit_hierarchy_ref_ctx(
 
     char static_name[256];
 
+
     declared_c_name(
+        ctx->module_abbr,
         type->name,
         static_name,
         sizeof(static_name));
+
 
     size_t concrete_count = 0u;
 
@@ -7796,15 +8125,21 @@ static bool emit_hierarchy_ref_ctx(
         char static_c_name[256];
         char candidate_c_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             type->name,
             static_c_name,
             sizeof(static_c_name));
 
+
+
         declared_c_name(
+            ctx->module_abbr,
             candidate->name,
             candidate_c_name,
             sizeof(candidate_c_name));
+
 
         upper_name(
             static_c_name,
@@ -7861,10 +8196,13 @@ static bool emit_hierarchy_ref_ctx(
 
             char candidate_name[256];
 
+
             declared_c_name(
+                ctx->module_abbr,
                 candidate->name,
                 candidate_name,
                 sizeof(candidate_name));
+
 
             fprintf(
                 output,
@@ -7911,10 +8249,13 @@ static bool emit_hierarchy_ref_ctx(
 
             char candidate_name[256];
 
+
             declared_c_name(
+                ctx->module_abbr,
                 candidate->name,
                 candidate_name,
                 sizeof(candidate_name));
+
 
             fprintf(
                 output,
@@ -8029,10 +8370,13 @@ static bool emit_hierarchy_expression_ctx(
 
         char candidate_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             candidate->name,
             candidate_name,
             sizeof(candidate_name));
+
 
         char child_prefix[768];
 
@@ -8421,7 +8765,7 @@ static bool format_c_type_ctx(
     }
 
     char name[256];
-    declared_c_name(declared->name, name, sizeof(name));
+    declared_c_name(ctx->module_abbr, declared->name, name, sizeof(name));
 
     if (declared->stream != NULL ||
         declared->enum_count > 0u ||
@@ -9089,18 +9433,25 @@ static bool emit_local_callback_declaration(
     char *error,
     size_t error_capacity) {
 
+
+    char abbr[32];
     char api_name[256];
     char method_name[256];
 
+    abbreviate_from_path(document->root_source_path, abbr, sizeof(abbr));
     snake_name(api->name, api_name, sizeof(api_name));
     c_identifier(method->name, method_name, sizeof(method_name));
 
+
     fprintf(
         output,
-        "typedef aether_status_t (*%s_%s_fn)(\n"
+
+        "typedef aether_status_t (*%s_%s_%s_fn)(\n"
         "    void *ctx",
+        abbr,
         api_name,
         method_name);
+
 
     if (method_is_response_bearing(method)) {
         fputs(",\n    uint32_t request_id", output);
@@ -9144,13 +9495,17 @@ static bool emit_local_api_header(
         return false;
     }
 
+
     char guard[256];
     char base_snake[256];
+    char abbr[32];
     char api_name[256];
 
     upper_name(base_name, guard, sizeof(guard));
     snake_name(base_name, base_snake, sizeof(base_snake));
+    abbreviate_from_path(document->root_source_path, abbr, sizeof(abbr));
     snake_name(api->name, api_name, sizeof(api_name));
+
 
     fprintf(
         output,
@@ -9220,10 +9575,13 @@ static bool emit_local_api_header(
 
         fprintf(
             output,
-            "    %s_%s_fn %s;\n",
+
+            "    %s_%s_%s_fn %s;\n",
+            abbr,
             api_name,
             method_name,
             method_name);
+
     }
 
     free(effective);
@@ -9231,17 +9589,22 @@ static bool emit_local_api_header(
 
     fprintf(
         output,
-        "} %s_local_t;\n\n"
-        "aether_status_t %s_dispatch(\n"
-        "    %s_local_t *api,\n"
+
+        "} %s_%s_local_t;\n\n"
+        "aether_status_t %s_%s_dispatch(\n"
+        "    %s_%s_local_t *api,\n"
         "    aether_meta_read_context_t *ctx);\n\n"
         "#ifdef __cplusplus\n"
         "}\n"
         "#endif\n\n"
         "#endif\n",
+        abbr,
         api_name,
+        abbr,
         api_name,
+        abbr,
         api_name);
+
 
     if (ferror(output)) {
         set_error(error, error_capacity, "cannot write generated local API header");
@@ -9261,14 +9624,17 @@ static bool emit_local_api_header(
  * decoder.
  */
 
+
 static bool emit_local_param_decode(
     FILE *output,
     const adsl_document_t *document,
+    const char *abbr,
     const adsl_param_t *param,
     const char *base_snake,
     size_t nullable_bit_index,
     char *error,
     size_t error_capacity) {
+
 
 
     const char *type = param->type;
@@ -9295,10 +9661,13 @@ static bool emit_local_param_decode(
         if (param->stream != NULL) {
             char stream_name[256];
 
+
             declared_c_name(
+                abbr,
                 cleaned,
                 stream_name,
                 sizeof(stream_name));
+
 
             fprintf(
                 output,
@@ -9439,10 +9808,13 @@ static bool emit_local_param_decode(
          */
         char stream_name[256];
 
+
         declared_c_name(
+            abbr,
             type,
             stream_name,
             sizeof(stream_name));
+
 
         fprintf(
             output,
@@ -9621,7 +9993,7 @@ static bool emit_local_param_decode(
     }
 
     char declared_name[256];
-    declared_c_name(declared->name, declared_name, sizeof(declared_name));
+    declared_c_name(abbr, declared->name, declared_name, sizeof(declared_name));
 
 
     if (declared->stream != NULL) {
@@ -9834,13 +10206,16 @@ static bool emit_local_callback_invocation(
 }
 
 
+
 static bool emit_local_api_source(
     const adsl_document_t *document,
     const adsl_api_t *api,
+    const char *abbr,
     const char *path,
     const char *base_name,
     char *error,
     size_t error_capacity) {
+
 
     FILE *output = fopen(path, "wb");
 
@@ -9861,9 +10236,9 @@ static bool emit_local_api_source(
         "#include \"aether_meta_runtime.h\"\n\n"
         "#include <string.h>\n\n"
 
-        "aether_status_t %s_dispatch(\n"
-        "    %s_local_t *api,\n"
 
+        "aether_status_t %s_%s_dispatch(\n"
+        "    %s_%s_local_t *api,\n"
         "    aether_meta_read_context_t *ctx) {\n\n"
         "    if (api == NULL || ctx == NULL) {\n"
         "        return AETHER_ERR_ARGUMENT;\n"
@@ -9883,10 +10258,13 @@ static bool emit_local_api_source(
         "    }\n\n"
         "    switch (command) {\n",
 
-
         base_snake,
+        abbr,
         api_name,
+        abbr,
         api_name);
+
+
 
 
     adsl_effective_method_t *effective = NULL;
@@ -9969,14 +10347,17 @@ static bool emit_local_api_source(
                 nullable_bit_index++;
             }
 
+
             if (!emit_local_param_decode(
                     output,
                     document,
+                    abbr,
                     param,
                     base_snake,
                     param_nullable_bit,
                     error,
                     error_capacity)) {
+
 
 
                 free(effective);
@@ -10058,6 +10439,10 @@ bool adsl_emit_c_local_api(
     char base_snake[256];
     snake_name(base_name, base_snake, sizeof(base_snake));
 
+    char abbr[32];
+    abbreviate_from_path(document->root_source_path, abbr, sizeof(abbr));
+
+
     char types_h[1024];
     char types_c[1024];
     char local_h[1024];
@@ -10105,13 +10490,16 @@ bool adsl_emit_c_local_api(
         return false;
     }
 
+
     return emit_local_api_source(
         document,
         api,
+        abbr,
         local_c,
         base_name,
         error,
         error_capacity);
+
 }
 
 
@@ -10313,11 +10701,11 @@ static bool response_emit_result_struct(
     FILE *output,
     const adsl_document_t *document,
     const adsl_method_t *method,
+    const char *abbr,
     const char *api_name,
     const char *method_name,
     char *error,
     size_t error_capacity) {
-
 
     /*
      * A throws-only method and `returns: void` both have a successful
@@ -10327,9 +10715,7 @@ static bool response_emit_result_struct(
         return true;
     }
 
-
     fprintf(output, "typedef struct {\n");
-
 
     if (method->returns_type != NULL) {
         if (!emit_field_declaration(
@@ -10355,10 +10741,10 @@ static bool response_emit_result_struct(
         }
     }
 
-
     fprintf(
         output,
-        "} %s_%s_result_t;\n\n",
+        "} %s_%s_%s_result_t;\n\n",
+        abbr,
         api_name,
         method_name);
 
@@ -10371,6 +10757,7 @@ static bool response_emit_error_struct(
     FILE *output,
     const adsl_document_t *document,
     const adsl_method_t *method,
+    const char *abbr,
     const char *api_name,
     const char *method_name,
     char *error,
@@ -10399,7 +10786,8 @@ static bool response_emit_error_struct(
 
     fprintf(
         output,
-        "} %s_%s_error_t;\n\n",
+        "} %s_%s_%s_error_t;\n\n",
+        abbr,
         api_name,
         method_name);
 
@@ -10476,8 +10864,10 @@ static bool response_method_supported(
 
 static void response_emit_frame_declaration(
     FILE *output,
+    const char *abbr,
     const char *api_name,
     const char *method_name,
+    const char *abbr_upper,
     const char *api_upper,
     const char *method_upper,
     bool has_result,
@@ -10486,18 +10876,19 @@ static void response_emit_frame_declaration(
     fprintf(
         output,
         "typedef enum {\n"
-        "    %s_%s_RESPONSE_RESULT = 0,\n"
-        "    %s_%s_RESPONSE_ERROR = 1\n"
-        "} %s_%s_response_kind_t;\n\n",
-        api_upper, method_upper,
-        api_upper, method_upper,
-        api_name, method_name);
+        "    %s_%s_%s_RESPONSE_RESULT = 0,\n"
+        "    %s_%s_%s_RESPONSE_ERROR = 1\n"
+        "} %s_%s_%s_response_kind_t;\n\n",
+        abbr_upper, api_upper, method_upper,
+        abbr_upper, api_upper, method_upper,
+        abbr, api_name, method_name);
 
     fprintf(
         output,
         "typedef struct {\n"
-        "    %s_%s_response_kind_t kind;\n"
+        "    %s_%s_%s_response_kind_t kind;\n"
         "    uint32_t request_id;\n",
+        abbr,
         api_name,
         method_name);
 
@@ -10512,37 +10903,44 @@ static void response_emit_frame_declaration(
         fprintf(
             output,
             "    union {\n"
-            "        %s_%s_result_t result;\n"
-            "        %s_%s_error_t error;\n"
+            "        %s_%s_%s_result_t result;\n"
+            "        %s_%s_%s_error_t error;\n"
             "    };\n",
+            abbr,
             api_name,
             method_name,
+            abbr,
             api_name,
             method_name);
     } else if (has_result) {
         fprintf(
             output,
-            "    %s_%s_result_t result;\n",
+            "    %s_%s_%s_result_t result;\n",
+            abbr,
             api_name,
             method_name);
     } else if (has_typed_error) {
         fprintf(
             output,
-            "    %s_%s_error_t error;\n",
+            "    %s_%s_%s_error_t error;\n",
+            abbr,
             api_name,
             method_name);
     }
 
     fprintf(
         output,
-        "} %s_%s_response_frame_t;\n\n"
-        "aether_status_t %s_%s_response_decode(\n"
+        "} %s_%s_%s_response_frame_t;\n\n"
+        "aether_status_t %s_%s_%s_response_decode(\n"
         "    aether_meta_read_context_t *ctx,\n"
-        "    %s_%s_response_frame_t *frame);\n\n",
+        "    %s_%s_%s_response_frame_t *frame);\n\n",
+        abbr,
         api_name,
         method_name,
+        abbr,
         api_name,
         method_name,
+        abbr,
         api_name,
         method_name);
 }
@@ -10565,19 +10963,25 @@ static bool emit_response_method_header(
         return false;
     }
 
+
     char guard[256];
     char base_snake[256];
+    char abbr[32];
     char api_name[256];
     char method_name[256];
+    char abbr_upper[32];
     char api_upper[256];
     char method_upper[256];
 
     upper_name(base_name, guard, sizeof(guard));
     snake_name(base_name, base_snake, sizeof(base_snake));
+    abbreviate_from_path(document->root_source_path, abbr, sizeof(abbr));
     snake_name(api->name, api_name, sizeof(api_name));
     c_identifier(method->name, method_name, sizeof(method_name));
+    upper_name(abbr, abbr_upper, sizeof(abbr_upper));
     upper_name(api_name, api_upper, sizeof(api_upper));
     upper_name(method_name, method_upper, sizeof(method_upper));
+
 
     fprintf(
         output,
@@ -10600,37 +11004,46 @@ static bool emit_response_method_header(
         method);
 
 
+
     bool ok =
         response_emit_result_struct(
             output,
             document,
             method,
+            abbr,
             api_name,
             method_name,
             error,
             error_capacity);
 
+
     if (ok) {
-        ok =
+
             response_emit_error_struct(
                 output,
                 document,
                 method,
+                abbr,
                 api_name,
                 method_name,
                 error,
                 error_capacity);
+
     }
 
     if (ok) {
+
         response_emit_frame_declaration(
             output,
+            abbr,
             api_name,
             method_name,
+            abbr_upper,
             api_upper,
             method_upper,
             method_has_result_payload(method),
             method->throws_type != NULL);
+
     }
 
 
@@ -10667,17 +11080,23 @@ static bool emit_response_method_source(
         return false;
     }
 
+
     char base_snake[256];
+    char abbr[32];
     char api_name[256];
     char method_name[256];
+    char abbr_upper[32];
     char api_upper[256];
     char method_upper[256];
 
     snake_name(base_name, base_snake, sizeof(base_snake));
+    abbreviate_from_path(document->root_source_path, abbr, sizeof(abbr));
     snake_name(api->name, api_name, sizeof(api_name));
     c_identifier(method->name, method_name, sizeof(method_name));
+    upper_name(abbr, abbr_upper, sizeof(abbr_upper));
     upper_name(api_name, api_upper, sizeof(api_upper));
     upper_name(method_name, method_upper, sizeof(method_upper));
+
 
 
     fprintf(
@@ -10685,9 +11104,10 @@ static bool emit_response_method_source(
         "#include \"%s_response.h\"\n"
         "#include \"aether_meta_runtime.h\"\n\n"
         "#include <string.h>\n\n"
-        "aether_status_t %s_%s_response_decode(\n"
+
+        "aether_status_t %s_%s_%s_response_decode(\n"
         "    aether_meta_read_context_t *ctx,\n"
-        "    %s_%s_response_frame_t *frame) {\n\n"
+        "    %s_%s_%s_response_frame_t *frame) {\n\n"
         "    if (ctx == NULL || frame == NULL) {\n"
         "        return AETHER_ERR_ARGUMENT;\n"
         "    }\n\n"
@@ -10698,11 +11118,12 @@ static bool emit_response_method_source(
         "    if (!aether_meta_read_u32le(&ctx->reader, &request_id)) return AETHER_ERR_PROTOCOL;\n"
         "    frame->request_id = request_id;\n\n"
         "    if (command == 1u) {\n"
-        "        frame->kind = %s_%s_RESPONSE_ERROR;\n",
+        "        frame->kind = %s_%s_%s_RESPONSE_ERROR;\n",
         base_snake,
-        api_name, method_name,
-        api_name, method_name,
-        api_upper, method_upper);
+        abbr, api_name, method_name,
+        abbr, api_name, method_name,
+        abbr_upper, api_upper, method_upper);
+
 
     bool ok = true;
 
@@ -10736,9 +11157,12 @@ static bool emit_response_method_source(
 
         fprintf(
             output,
-            "    frame->kind = %s_%s_RESPONSE_RESULT;\n\n",
+
+            "    frame->kind = %s_%s_%s_RESPONSE_RESULT;\n\n",
+            abbr_upper,
             api_upper,
             method_upper);
+
     }
 
     if (!ok) {
@@ -11105,10 +11529,13 @@ static bool emit_decode_struct_fields_recursive_ctx(
                 }
 
                 char declared_name[256];
+
                 declared_c_name(
+                    ctx->module_abbr,
                     declared->name,
                     declared_name,
                     sizeof(declared_name));
+
 
                 if (declared->enum_count > 0u) {
                     snprintf(
@@ -11439,10 +11866,13 @@ static bool emit_decode_array_expression_ctx(
         }
 
         char declared_name[256];
+
         declared_c_name(
+            ctx->module_abbr,
             declared->name,
             declared_name,
             sizeof(declared_name));
+
 
         if (declared->enum_count > 0u) {
             snprintf(
@@ -11599,10 +12029,13 @@ static bool emit_decode_hierarchy_expression_ctx(
         }
 
         char candidate_name[256];
+
         declared_c_name(
+            ctx->module_abbr,
             candidate->name,
             candidate_name,
             sizeof(candidate_name));
+
 
         fprintf(
             output,
@@ -11862,10 +12295,13 @@ static bool emit_decode_value_expression_ctx(
     if (declared_type->has_tiered_int) {
         char tiered_name[256];
 
+
         declared_c_name(
+            ctx->module_abbr,
             declared_type->name,
             tiered_name,
             sizeof(tiered_name));
+
 
         fprintf(
             output,
@@ -11910,10 +12346,13 @@ static bool emit_decode_value_expression_ctx(
 
     if (declared_type->enum_count > 0u) {
         char enum_name[256];
+
         declared_c_name(
+            ctx->module_abbr,
             declared_type->name,
             enum_name,
             sizeof(enum_name));
+
 
         fprintf(
             output,
@@ -11951,21 +12390,32 @@ static bool emit_decode_value_expression_ctx(
     }
 
     char nested_name[256];
+
     declared_c_name(
+        ctx->module_abbr,
         declared_type->name,
         nested_name,
         sizeof(nested_name));
 
 
 
+
+
     /*
      * Standalone wrappers sometimes construct a context without
-     * base_snake. Snapshot the context and fill it from the caller's
+     * module_abbr. Snapshot the context and fill it from the caller's
      * authoritative prefix before calling the strict owner helper.
-     * In project mode base_snake is already set, so this is a no-op.
+     * In project mode module_abbr is already set, so this is a no-op.
      */
     emitter_ctx_t effective_ctx = *ctx;
 
+    if (effective_ctx.module_abbr[0] == '\0' && base_snake != NULL) {
+        (void)snprintf(
+            effective_ctx.module_abbr,
+            sizeof(effective_ctx.module_abbr),
+            "%s",
+            base_snake);
+    }
     if (effective_ctx.base_snake[0] == '\0' && base_snake != NULL) {
         (void)snprintf(
             effective_ctx.base_snake,
@@ -11973,6 +12423,7 @@ static bool emit_decode_value_expression_ctx(
             "%s",
             base_snake);
     }
+
 
     char nested_owner[256];
 

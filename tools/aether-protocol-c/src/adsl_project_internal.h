@@ -117,6 +117,9 @@ typedef struct {
     const adsl_project_resolver_t *resolver;
     const adsl_project_t *project;
     const adsl_emission_plan_t *plan;
+
+    char module_abbr[32];
+
     char base_snake[256];
 } emitter_ctx_t;
 
