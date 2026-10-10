@@ -1,0 +1,8 @@
+include:
+  - B_defines_item
+
+types:
+  Holder:
+    fields:
+      single: Item
+      many: Item[]

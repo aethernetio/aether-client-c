@@ -315,6 +315,49 @@ add_test(
 )
 
 
+add_executable(aether_adslc_unified_types_test
+    tests/test_unified_types.c
+)
+
+target_link_libraries(aether_adslc_unified_types_test
+    PRIVATE
+        aether_adslc_core
+)
+
+target_compile_definitions(aether_adslc_unified_types_test
+    PRIVATE
+        ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+        ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-unified-types-output"
+        AETHER_RUNTIME_INC="${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+        AETHER_RUNTIME_SRC="${CMAKE_CURRENT_SOURCE_DIR}/../../src/aether_meta_runtime.c"
+        ADSL_CC="${CMAKE_C_COMPILER}"
+)
+
+target_compile_features(
+    aether_adslc_unified_types_test
+    PRIVATE
+        c_std_11
+)
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(
+        aether_adslc_unified_types_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+            -UNDEBUG
+    )
+endif()
+
+add_test(
+    NAME aether_adslc_unified_types_test
+    COMMAND aether_adslc_unified_types_test
+)
+
+
+
 
 
 add_executable(aether_adslc_type_registry_test

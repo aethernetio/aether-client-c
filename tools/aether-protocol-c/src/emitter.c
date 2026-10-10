@@ -578,6 +578,137 @@ static void declared_c_name(
 }
 
 
+/*
+ * Pure provenance prefix: the C symbol prefix implied by the physical ADSL
+ * file that declares the type. No fallback, no context. Returns an empty
+ * string when the declaration has no source_path.
+ */
+static void type_symbol_prefix(
+    const adsl_type_t *type,
+    char *out,
+    size_t capacity) {
+
+    if (out == NULL || capacity == 0u) {
+        return;
+    }
+
+    out[0] = '\0';
+
+    if (type != NULL &&
+        type->source_path != NULL &&
+        type->source_path[0] != '\0') {
+
+        abbreviate_from_path(
+            type->source_path,
+            out,
+            capacity);
+    }
+}
+
+/*
+ * The single authority for a type declaration's effective C symbol prefix.
+ *
+ * Every generated symbol of a declaration -- typedef, struct tag,
+ * serializer, deserializer, *_with_depth entry points, tiered-int tables,
+ * hierarchy helpers and cross-file references -- must obtain its prefix
+ * here. No other code path may invent or fall back to a prefix.
+ *
+ * Rules, in order:
+ *   1. If the declaration has a source_path, the prefix is derived from
+ *      that file. Parser-produced declarations always have one, so this is
+ *      the normal case in every mode.
+ *   2. Otherwise the declaration has no provenance. A fallback to the
+ *      current module name is permitted ONLY for the historical standalone
+ *      single-file wrappers: resolver == NULL, module_abbr non-empty, and
+ *      the document was loaded from one physical file
+ *      (document->root_source_path != NULL). In unified/merged mode the
+ *      merged document has no root_source_path, so this fallback can never
+ *      apply there.
+ *   3. Anything else is a hard error: a declaration with no usable origin
+ *      must not silently produce symbols.
+ */
+static bool type_effective_prefix_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type,
+    char *out,
+    size_t capacity,
+    char *error,
+    size_t error_capacity) {
+
+    if (out == NULL || capacity == 0u) {
+        set_error(error, error_capacity, "invalid type prefix buffer");
+        return false;
+    }
+
+    out[0] = '\0';
+
+    type_symbol_prefix(type, out, capacity);
+
+    if (out[0] != '\0') {
+        return true;
+    }
+
+    bool legacy_single_file =
+        ctx != NULL &&
+        ctx->resolver == NULL &&
+        ctx->module_abbr[0] != '\0' &&
+        ctx->document != NULL &&
+        ctx->document->root_source_path != NULL;
+
+    if (legacy_single_file) {
+
+        (void)snprintf(
+            out,
+            capacity,
+            "%s",
+            ctx->module_abbr);
+
+        return out[0] != '\0';
+    }
+
+    set_error(
+        error,
+        error_capacity,
+        "type declaration has no source_path and no legacy module prefix");
+
+    return false;
+}
+
+
+
+
+/*
+ * Full prefixed C name of a resolved type declaration:
+ * "<effective prefix>_<snake(name)>". This is the only way callers should
+ * obtain a type's C name; the prefix is decided solely by
+ * type_effective_prefix_ctx(), so typedefs, serializers and references of
+ * the same declaration can never disagree.
+ */
+static bool declared_type_c_name_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_type_t *type,
+    char *out,
+    size_t capacity,
+    char *error,
+    size_t error_capacity) {
+
+    if (type == NULL || out == NULL || capacity == 0u) {
+        set_error(error, error_capacity, "invalid type name request");
+        return false;
+    }
+
+    char prefix[32];
+
+    if (!type_effective_prefix_ctx(
+            ctx, type, prefix, sizeof(prefix), error, error_capacity)) {
+        return false;
+    }
+
+    declared_c_name(prefix, type->name, out, capacity);
+
+    return out[0] != '\0';
+}
+
 
 static void upper_name(
     const char *source,
@@ -1036,7 +1167,9 @@ static bool array_alias_name_ctx(
     const emitter_ctx_t *ctx,
     const char *type,
     char *name,
-    size_t capacity) {
+    size_t capacity,
+    char *error,
+    size_t error_capacity) {
 
     if (ctx == NULL || ctx->document == NULL) {
         return false;
@@ -1079,12 +1212,15 @@ static bool array_alias_name_ctx(
 
     if (declared != NULL) {
 
-
-        declared_c_name(
-            ctx->module_abbr,
-            declared->name,
-            stem,
-            sizeof(stem));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                declared,
+                stem,
+                sizeof(stem),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
     } else {
@@ -1125,7 +1261,7 @@ static bool array_alias_name(
     size_t capacity) {
 
     emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return array_alias_name_ctx(&ctx, type, name, capacity);
+    return array_alias_name_ctx(&ctx, type, name, capacity, NULL, 0u);
 }
 
 
@@ -1169,13 +1305,15 @@ static bool emit_array_element_c_type_ctx(
 
     char generated_name[256];
 
-
-
-declared_c_name(
-        ctx->module_abbr,
-        declared->name,
-        generated_name,
-        sizeof(generated_name));
+    if (!declared_type_c_name_ctx(
+            ctx,
+            declared,
+            generated_name,
+            sizeof(generated_name),
+            error,
+            error_capacity)) {
+        return false;
+    }
 
 
 
@@ -1292,12 +1430,16 @@ static bool emit_array_alias_ctx(
             ctx,
             type,
             alias,
-            sizeof(alias))) {
-
-        set_error(
+            sizeof(alias),
             error,
-            error_capacity,
-            "generated array alias name is too long");
+            error_capacity)) {
+
+        if (error != NULL && error[0] == '\0') {
+            set_error(
+                error,
+                error_capacity,
+                "generated array alias name is too long");
+        }
 
         return false;
     }
@@ -1839,9 +1981,12 @@ static bool emit_parameter_type_ctx(
         char alias[256];
 
         if (!array_alias_name_ctx(
-                ctx, type, alias, sizeof(alias))) {
-            set_error(error, error_capacity,
-                "generated array parameter type name is too long");
+                ctx, type, alias, sizeof(alias),
+                error, error_capacity)) {
+            if (error != NULL && error[0] == '\0') {
+                set_error(error, error_capacity,
+                    "generated array parameter type name is too long");
+            }
             return false;
         }
 
@@ -1882,9 +2027,15 @@ static bool emit_parameter_type_ctx(
 
     char generated_name[256];
 
-    declared_c_name(
-        ctx->module_abbr,
-        declared_type->name, generated_name, sizeof(generated_name));
+    if (!declared_type_c_name_ctx(
+            ctx,
+            declared_type,
+            generated_name,
+            sizeof(generated_name),
+            error,
+            error_capacity)) {
+        return false;
+    }
 
 
     if (declared_type->has_tiered_int) {
@@ -2314,10 +2465,15 @@ static bool emit_serialize_param_ctx(
 
         char type_name[256];
 
-
-        declared_c_name(
-            ctx->module_abbr,
-            declared_type->name, type_name, sizeof(type_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                declared_type,
+                type_name,
+                sizeof(type_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(
@@ -2690,11 +2846,15 @@ static bool emit_types_header_ctx(
 
         char type_name[256];
 
-        declared_c_name(
-            ctx->module_abbr,
-            type->name,
-            type_name,
-            sizeof(type_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                type,
+                type_name,
+                sizeof(type_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(
@@ -2714,10 +2874,21 @@ static bool emit_types_header_ctx(
             continue;
         }
 
+        char stream_prefix[32];
+
+        if (!type_effective_prefix_ctx(
+                ctx,
+                type,
+                stream_prefix,
+                sizeof(stream_prefix),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
         if (!emit_stream_typedef(
                 output,
-                ctx->module_abbr,
+                stream_prefix,
                 type->name,
                 error,
                 error_capacity)) {
@@ -2768,12 +2939,15 @@ static bool emit_types_header_ctx(
 
         char type_name[256];
 
-
-        declared_c_name(
-            ctx->module_abbr,
-            type->name,
-            type_name,
-            sizeof(type_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                type,
+                type_name,
+                sizeof(type_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(output, "typedef enum {\n");
@@ -2818,12 +2992,15 @@ static bool emit_types_header_ctx(
 
         char type_name[256];
 
-
-        declared_c_name(
-            ctx->module_abbr,
-            type->name,
-            type_name,
-            sizeof(type_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                type,
+                type_name,
+                sizeof(type_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(
@@ -3004,7 +3181,6 @@ static bool emit_types_header_ctx(
         }
     }
 
-    const char *serializer_base = ctx->module_abbr;
 
     for (size_t i = 0u; i < type_count; ++i) {
 
@@ -3024,11 +3200,22 @@ static bool emit_types_header_ctx(
             continue;
         }
 
-        char type_name[256];
         char type_suffix[256];
+        char type_name[256];
+        char serializer_base[32];
+
+        if (!type_effective_prefix_ctx(
+                ctx,
+                type,
+                serializer_base,
+                sizeof(serializer_base),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
         declared_c_name(
-            ctx->module_abbr,
+            serializer_base,
             type->name,
             type_name,
             sizeof(type_name));
@@ -3213,7 +3400,6 @@ static bool emit_types_source_ctx(
 
 
 
-    const char *base_snake = ctx->module_abbr;
 
 
 
@@ -3263,11 +3449,15 @@ static bool emit_types_source_ctx(
 
         char type_name[256];
 
-        declared_c_name(
-            ctx->module_abbr,
-            type->name,
-            type_name,
-            sizeof(type_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                type,
+                type_name,
+                sizeof(type_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(
@@ -3308,11 +3498,28 @@ static bool emit_types_source_ctx(
             continue;
         }
 
-        char type_name[256];
+
+        /*
+         * Per-type serialize/deserialize symbol prefix. Shadows the
+         * function-scope base_snake so each type uses the file that
+         * declares it, not the output module name.
+         */
+        char base_snake[32];
         char type_suffix[256];
+        char type_name[256];
+
+        if (!type_effective_prefix_ctx(
+                ctx,
+                type,
+                base_snake,
+                sizeof(base_snake),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
         declared_c_name(
-            ctx->module_abbr,
+            base_snake,
             type->name,
             type_name,
             sizeof(type_name));
@@ -3359,10 +3566,10 @@ static bool emit_types_source_ctx(
                 "    %s_t *value,\n"
                 "    unsigned int recursion_depth);\n\n",
                 base_snake,
-                type_name,
+                type_suffix,
                 type_name,
                 base_snake,
-                type_name,
+                type_suffix,
                 type_name);
         }
     }
@@ -3388,8 +3595,20 @@ static bool emit_types_source_ctx(
         char type_name[256];
         char type_suffix[256];
 
+        char base_snake[32];
+
+        if (!type_effective_prefix_ctx(
+                ctx,
+                type,
+                base_snake,
+                sizeof(base_snake),
+                error,
+                error_capacity)) {
+            return false;
+        }
+
         declared_c_name(
-            ctx->module_abbr,
+            base_snake,
             type->name,
             type_name,
             sizeof(type_name));
@@ -5363,15 +5582,35 @@ static bool emit_api_header_ctx(
     (void)base_name;
 
 
-    const char *base_snake = ctx->module_abbr;
+    size_t api_count = 0u;
+    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
-    fprintf(
-        output,
-        "typedef aether_status_t (*%s_send_fn)(\n"
-        "    void *ctx,\n"
-        "    const uint8_t *data,\n"
-        "    size_t length);\n\n",
-        base_snake);
+    /*
+     * The transport send-fn typedef is only meaningful when at least one
+     * API is emitted. A type-only unified document has no API, so emitting
+     * a global (_send_fn) with an empty prefix would be dead and, worse,
+     * collide across unrelated outputs. Emit it once, only when needed.
+     */
+    bool any_api = false;
+
+    for (size_t a = 0u; a < api_count; ++a) {
+        if (selected_api_name != NULL &&
+            strcmp(apis[a].name, selected_api_name) != 0) {
+            continue;
+        }
+        any_api = true;
+        break;
+    }
+
+    if (any_api) {
+        fprintf(
+            output,
+            "typedef aether_status_t (*%s_send_fn)(\n"
+            "    void *ctx,\n"
+            "    const uint8_t *data,\n"
+            "    size_t length);\n\n",
+            ctx->module_abbr);
+    }
 
 
     /*
@@ -5405,8 +5644,6 @@ static bool emit_api_header_ctx(
     }
 
 
-    size_t api_count = 0u;
-    const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
     for (size_t a = 0u; a < api_count; ++a) {
 
@@ -5429,7 +5666,7 @@ static bool emit_api_header_ctx(
             "    size_t tx_capacity;\n"
 
             "} %s_%s_remote_t;\n\n",
-            base_snake, base_snake, api_name);
+            ctx->module_abbr, ctx->module_abbr, api_name);
 
 
         adsl_effective_method_t *effective = NULL;
@@ -6035,35 +6272,33 @@ bool type_owner_base_snake(
 
 
         /*
-         * Standalone: every declaration lives in one translation unit,
-         * so the owner is always the current module. Callers must have
-
-*          * populated ctx->module_abbr before invoking this helper; the
-*          * emitter's standalone wrappers take care of that so the
-*          * returned prefix is never empty. A missing module_abbr here is
-
-         * an internal invariant violation, not a case to guess around.
+         * Standalone / unified: one translation unit. The declaration's
+         * owner prefix is, by definition, its own effective symbol prefix.
+         * This delegates to the single authority so the owner name and the
+         * generated symbols can never diverge. In legacy single-file mode
+         * every type resolves to the same file, so this is equivalent to
+         * the historical module_abbr behavior.
          */
+        char decl_prefix[32];
 
-        if (ctx->module_abbr[0] == '\0') {
-            set_error(
-                error,
-                error_capacity,
-                "standalone emitter context has no module_abbr");
+        if (!type_effective_prefix_ctx(
+                ctx, type, decl_prefix, sizeof(decl_prefix),
+                error, error_capacity)) {
             return false;
         }
 
-        size_t length = strlen(ctx->module_abbr);
+        size_t length = strlen(decl_prefix);
 
         if (length + 1u > capacity) {
             set_error(
                 error,
                 error_capacity,
-                "standalone emitter module_abbr does not fit");
+                "type owner prefix does not fit");
             return false;
         }
 
-        memcpy(out, ctx->module_abbr, length + 1u);
+        memcpy(out, decl_prefix, length + 1u);
+
         return true;
 
     }
@@ -7175,12 +7410,15 @@ static bool emit_value_expression_ctx(
         char tiered_name[256];
         char tiered_expression[768];
 
-
-        declared_c_name(
-            ctx->module_abbr,
-            declared_type->name,
-            tiered_name,
-            sizeof(tiered_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                declared_type,
+                tiered_name,
+                sizeof(tiered_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         int tiered_expression_size =
@@ -7321,6 +7559,24 @@ static bool emit_value_expression_ctx(
         nested_name,
         sizeof(nested_name));
 
+    /*
+     * The nested type may be declared in a different input file than the
+     * one currently being emitted. Its serialize/deserialize symbols are
+     * always prefixed by its own declaring file, so derive that prefix
+     * here instead of reusing the caller's base_snake.
+     */
+    char nested_prefix[32];
+
+    if (!type_effective_prefix_ctx(
+            ctx,
+            declared_type,
+            nested_prefix,
+            sizeof(nested_prefix),
+            error,
+            error_capacity)) {
+        return false;
+    }
+
 
 
     char nested_value[1024];
@@ -7374,7 +7630,15 @@ static bool emit_value_expression_ctx(
         return false;
     }
 
-    bool nested_local =
+    /*
+     * In unified/standalone mode (no resolver) every declaration is emitted
+     * into the same aether_api.c, so a nested reference is always local and
+     * is called through the static *_impl directly. The owner comparison is
+     * only meaningful in the legacy project emitter, where each type has its
+     * own translation unit and non-owners must go through *_with_depth.
+     */
+    bool nested_in_same_tu =
+        ctx->resolver == NULL ||
         strcmp(nested_owner, effective_ctx.base_snake) == 0;
 
 
@@ -7392,7 +7656,7 @@ static bool emit_value_expression_ctx(
          * one to the recursion depth because the callee is entered
          * at the impl-equivalent level.
          */
-        if (nested_local) {
+        if (nested_in_same_tu) {
             fprintf(
                 output,
                 "    {\n"
@@ -7404,7 +7668,7 @@ static bool emit_value_expression_ctx(
                 "            %s + 1u);\n"
                 "        if (meta_status != AETHER_OK) return meta_status;\n"
                 "    }\n",
-                base_snake,
+                nested_prefix,
                 nested_name,
                 nested_value,
                 runtime_depth);
@@ -7516,12 +7780,15 @@ static bool emit_struct_definition_ctx(
 
     char type_name[256];
 
-
-    declared_c_name(
-        ctx->module_abbr,
-        type->name,
-        type_name,
-        sizeof(type_name));
+    if (!declared_type_c_name_ctx(
+            ctx,
+            type,
+            type_name,
+            sizeof(type_name),
+            error,
+            error_capacity)) {
+        return false;
+    }
 
 
     fprintf(
@@ -8064,12 +8331,15 @@ static bool emit_hierarchy_ref_ctx(
 
     char static_name[256];
 
-
-    declared_c_name(
-        ctx->module_abbr,
-        type->name,
-        static_name,
-        sizeof(static_name));
+    if (!declared_type_c_name_ctx(
+            ctx,
+            type,
+            static_name,
+            sizeof(static_name),
+            error,
+            error_capacity)) {
+        return false;
+    }
 
 
     size_t concrete_count = 0u;
@@ -8170,19 +8440,25 @@ static bool emit_hierarchy_ref_ctx(
         char candidate_c_name[256];
 
 
-        declared_c_name(
-            ctx->module_abbr,
-            type->name,
-            static_c_name,
-            sizeof(static_c_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                type,
+                static_c_name,
+                sizeof(static_c_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
-
-
-        declared_c_name(
-            ctx->module_abbr,
-            candidate->name,
-            candidate_c_name,
-            sizeof(candidate_c_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                candidate,
+                candidate_c_name,
+                sizeof(candidate_c_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         upper_name(
@@ -8240,12 +8516,15 @@ static bool emit_hierarchy_ref_ctx(
 
             char candidate_name[256];
 
-
-            declared_c_name(
-                ctx->module_abbr,
-                candidate->name,
-                candidate_name,
-                sizeof(candidate_name));
+            if (!declared_type_c_name_ctx(
+                    ctx,
+                    candidate,
+                    candidate_name,
+                    sizeof(candidate_name),
+                    error,
+                    error_capacity)) {
+                return false;
+            }
 
 
             fprintf(
@@ -8293,12 +8572,15 @@ static bool emit_hierarchy_ref_ctx(
 
             char candidate_name[256];
 
-
-            declared_c_name(
-                ctx->module_abbr,
-                candidate->name,
-                candidate_name,
-                sizeof(candidate_name));
+            if (!declared_type_c_name_ctx(
+                    ctx,
+                    candidate,
+                    candidate_name,
+                    sizeof(candidate_name),
+                    error,
+                    error_capacity)) {
+                return false;
+            }
 
 
             fprintf(
@@ -8414,12 +8696,15 @@ static bool emit_hierarchy_expression_ctx(
 
         char candidate_name[256];
 
-
-        declared_c_name(
-            ctx->module_abbr,
-            candidate->name,
-            candidate_name,
-            sizeof(candidate_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                candidate,
+                candidate_name,
+                sizeof(candidate_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         char child_prefix[768];
@@ -8773,8 +9058,12 @@ static bool format_c_type_ctx(
                 ctx,
                 cleaned,
                 base_out,
-                base_capacity)) {
-            set_error(error, error_capacity, "field array alias is too long");
+                base_capacity,
+                error,
+                error_capacity)) {
+            if (error != NULL && error[0] == '\0') {
+                set_error(error, error_capacity, "field array alias is too long");
+            }
             return false;
         }
 
@@ -8809,7 +9098,11 @@ static bool format_c_type_ctx(
     }
 
     char name[256];
-    declared_c_name(ctx->module_abbr, declared->name, name, sizeof(name));
+
+    if (!declared_type_c_name_ctx(
+            ctx, declared, name, sizeof(name), error, error_capacity)) {
+        return false;
+    }
 
     if (declared->stream != NULL ||
         declared->enum_count > 0u ||
@@ -11535,11 +11828,15 @@ static bool emit_decode_struct_fields_recursive_ctx(
                     ctx,
                     underlying,
                     ctype_buf,
-                    sizeof(ctype_buf))) {
-                set_error(
+                    sizeof(ctype_buf),
                     error,
-                    error_capacity,
-                    "nullable array alias name is too long");
+                    error_capacity)) {
+                if (error != NULL && error[0] == '\0') {
+                    set_error(
+                        error,
+                        error_capacity,
+                        "nullable array alias name is too long");
+                }
                 return false;
             }
 
@@ -11574,11 +11871,15 @@ static bool emit_decode_struct_fields_recursive_ctx(
 
                 char declared_name[256];
 
-                declared_c_name(
-                    ctx->module_abbr,
-                    declared->name,
-                    declared_name,
-                    sizeof(declared_name));
+                if (!declared_type_c_name_ctx(
+                        ctx,
+                        declared,
+                        declared_name,
+                        sizeof(declared_name),
+                        error,
+                        error_capacity)) {
+                    return false;
+                }
 
 
                 if (declared->enum_count > 0u) {
@@ -11911,11 +12212,15 @@ static bool emit_decode_array_expression_ctx(
 
         char declared_name[256];
 
-        declared_c_name(
-            ctx->module_abbr,
-            declared->name,
-            declared_name,
-            sizeof(declared_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                declared,
+                declared_name,
+                sizeof(declared_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         if (declared->enum_count > 0u) {
@@ -12074,11 +12379,15 @@ static bool emit_decode_hierarchy_expression_ctx(
 
         char candidate_name[256];
 
-        declared_c_name(
-            ctx->module_abbr,
-            candidate->name,
-            candidate_name,
-            sizeof(candidate_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                candidate,
+                candidate_name,
+                sizeof(candidate_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(
@@ -12339,12 +12648,15 @@ static bool emit_decode_value_expression_ctx(
     if (declared_type->has_tiered_int) {
         char tiered_name[256];
 
-
-        declared_c_name(
-            ctx->module_abbr,
-            declared_type->name,
-            tiered_name,
-            sizeof(tiered_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                declared_type,
+                tiered_name,
+                sizeof(tiered_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(
@@ -12391,11 +12703,15 @@ static bool emit_decode_value_expression_ctx(
     if (declared_type->enum_count > 0u) {
         char enum_name[256];
 
-        declared_c_name(
-            ctx->module_abbr,
-            declared_type->name,
-            enum_name,
-            sizeof(enum_name));
+        if (!declared_type_c_name_ctx(
+                ctx,
+                declared_type,
+                enum_name,
+                sizeof(enum_name),
+                error,
+                error_capacity)) {
+            return false;
+        }
 
 
         fprintf(
@@ -12441,6 +12757,22 @@ static bool emit_decode_value_expression_ctx(
         nested_name,
         sizeof(nested_name));
 
+    /*
+     * See emit_value_expression_ctx: the nested type's decode symbols are
+     * prefixed by its own declaring file, not by the caller's base_snake.
+     */
+    char nested_prefix[32];
+
+    if (!type_effective_prefix_ctx(
+            ctx,
+            declared_type,
+            nested_prefix,
+            sizeof(nested_prefix),
+            error,
+            error_capacity)) {
+        return false;
+    }
+
 
 
 
@@ -12478,7 +12810,9 @@ static bool emit_decode_value_expression_ctx(
         return false;
     }
 
-    bool nested_local =
+    /* See emit_value_expression_ctx: unified mode is always a local call. */
+    bool nested_in_same_tu =
+        ctx->resolver == NULL ||
         strcmp(nested_owner, effective_ctx.base_snake) == 0;
 
 
@@ -12490,7 +12824,7 @@ static bool emit_decode_value_expression_ctx(
          * owner's *_with_depth entry point, and the caller adds one to
          * the recursion depth in both cases.
          */
-        if (nested_local) {
+        if (nested_in_same_tu) {
             fprintf(
                 output,
                 "    {\n"
@@ -12500,7 +12834,7 @@ static bool emit_decode_value_expression_ctx(
                 "            %s + 1u);\n"
                 "        if (meta_status != AETHER_OK) return meta_status;\n"
                 "    }\n",
-                base_snake,
+                nested_prefix,
                 nested_name,
                 target,
                 runtime_depth);
