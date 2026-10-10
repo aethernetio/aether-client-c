@@ -676,6 +676,64 @@ static bool type_effective_prefix_ctx(
 
 
 
+/*
+ * Effective C symbol prefix for an API declaration. Mirrors the rules of
+ * type_effective_prefix_ctx(): the prefix is taken from the physical ADSL
+ * file that declares the API. In merged/unified mode the document has no
+ * root_source_path, so this is the only correct source for the prefix.
+ */
+static bool api_effective_prefix_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_api_t *api,
+    char *out,
+    size_t capacity,
+    char *error,
+    size_t error_capacity) {
+
+    if (out == NULL || capacity == 0u) {
+        set_error(error, error_capacity, "invalid api prefix buffer");
+        return false;
+    }
+
+    out[0] = '\0';
+
+    if (api != NULL &&
+        api->source_path != NULL &&
+        api->source_path[0] != '\0') {
+
+        abbreviate_from_path(
+            api->source_path,
+            out,
+            capacity);
+    }
+
+    if (out[0] != '\0') {
+        return true;
+    }
+
+    bool legacy_single_file =
+        ctx != NULL &&
+        ctx->resolver == NULL &&
+        ctx->module_abbr[0] != '\0' &&
+        ctx->document != NULL &&
+        ctx->document->root_source_path != NULL;
+
+    if (legacy_single_file) {
+        (void)snprintf(out, capacity, "%s", ctx->module_abbr);
+        return out[0] != '\0';
+    }
+
+    set_error(
+        error,
+        error_capacity,
+        "api declaration has no source_path and no legacy module prefix");
+
+    return false;
+}
+
+
+
+
 
 /*
  * Full prefixed C name of a resolved type declaration:
@@ -1889,6 +1947,17 @@ static size_t nullable_mask_width(
 
 
 
+
+static bool stream_effective_prefix_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_stream_t *stream,
+    const char *fallback_source_path,
+    char *out,
+    size_t capacity,
+    char *error,
+    size_t error_capacity);
+
+
 static bool emit_parameter_type_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
@@ -1910,8 +1979,37 @@ static bool emit_parameter_type_ctx(
             return false;
         }
 
+
         char stream_name[256];
-        declared_c_name(ctx->module_abbr, type, stream_name, sizeof(stream_name));
+
+        const adsl_type_t *stream_type =
+            find_declared_type_ctx(ctx, type);
+
+
+        char stream_abbr[32];
+        stream_abbr[0] = '\0';
+
+
+
+        if (stream_type != NULL &&
+            !type_effective_prefix_ctx(
+                ctx, stream_type, stream_abbr, sizeof(stream_abbr),
+                error, error_capacity)) {
+            return false;
+        }
+
+        if (stream_abbr[0] == '\0' &&
+            !stream_effective_prefix_ctx(
+                ctx, param->stream, NULL,
+                stream_abbr, sizeof(stream_abbr),
+                error, error_capacity)) {
+            return false;
+        }
+
+
+        declared_c_name(
+            stream_abbr, type, stream_name, sizeof(stream_name));
+
 
         fprintf(output, "const %s_t *", stream_name);
         return true;
@@ -2463,17 +2561,22 @@ static bool emit_serialize_param_ctx(
     if (declared_type != NULL &&
         type_is_polymorphic_reference_ctx(ctx, declared_type)) {
 
-        char type_name[256];
 
-        if (!declared_type_c_name_ctx(
-                ctx,
-                declared_type,
-                type_name,
-                sizeof(type_name),
-                error,
-                error_capacity)) {
+
+
+        char type_name[256];
+        char type_abbr[32];
+
+        if (!type_effective_prefix_ctx(
+                ctx, declared_type, type_abbr, sizeof(type_abbr),
+                error, error_capacity)) {
             return false;
         }
+
+
+        snake_name(
+            declared_type->name, type_name, sizeof(type_name));
+
 
 
         fprintf(
@@ -2486,7 +2589,9 @@ static bool emit_serialize_param_ctx(
             "            %s);\n"
             "        if (meta_status != AETHER_OK) return meta_status;\n"
             "    }\n",
-            base_snake, type_name, param->name);
+
+            type_abbr, type_name, param->name);
+
         return true;
     }
 
@@ -2650,6 +2755,11 @@ static bool emit_local_nullable_param_mask(
 
     return true;
 }
+
+
+
+
+
 
 
 static bool emit_stream_typedef(
@@ -2876,15 +2986,20 @@ static bool emit_types_header_ctx(
 
         char stream_prefix[32];
 
-        if (!type_effective_prefix_ctx(
+
+
+        if (!stream_effective_prefix_ctx(
                 ctx,
-                type,
+                type->stream,
+                type->source_path,
                 stream_prefix,
                 sizeof(stream_prefix),
                 error,
                 error_capacity)) {
             return false;
         }
+
+
 
         if (!emit_stream_typedef(
                 output,
@@ -2915,16 +3030,31 @@ static bool emit_types_header_ctx(
                 }
 
 
+                char stream_prefix[32];
+
+
+                if (!stream_effective_prefix_ctx(
+                        ctx,
+                        param->stream,
+                        method->source_path,
+                        stream_prefix,
+                        sizeof(stream_prefix),
+                        error,
+                        error_capacity)) {
+                    return false;
+                }
+
+
                 if (!emit_stream_typedef(
                         output,
-                        ctx->module_abbr,
+                        stream_prefix,
                         param->type,
                         error,
                         error_capacity)) {
 
-
                     return false;
                 }
+
             }
         }
     }
@@ -4175,76 +4305,6 @@ static const adsl_effective_method_t *emitter_find_effective_method(
 }
 
 
-static bool stream_has_builder_api(
-    const adsl_stream_t *stream) {
-
-    if (stream == NULL) {
-        return false;
-    }
-
-    if (stream->api != NULL &&
-        *stream->api != '\0') {
-
-        return true;
-    }
-
-    for (size_t i = 0u;
-         i < stream->api_count;
-         ++i) {
-
-        if (stream->apis[i].api != NULL &&
-            *stream->apis[i].api != '\0') {
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static bool document_has_stream_builders(
-    const adsl_document_t *document) {
-
-    for (size_t i = 0u;
-         i < document->resolved_type_count;
-         ++i) {
-
-        if (stream_has_builder_api(
-                document->resolved_types[i].stream)) {
-
-            return true;
-        }
-    }
-
-    for (size_t a = 0u;
-         a < document->resolved_api_count;
-         ++a) {
-
-        const adsl_api_t *api =
-            &document->resolved_apis[a];
-
-        for (size_t m = 0u;
-             m < api->method_count;
-             ++m) {
-
-            const adsl_method_t *method =
-                &api->methods[m];
-
-            for (size_t p = 0u;
-                 p < method->param_count;
-                 ++p) {
-
-                if (stream_has_builder_api(
-                        method->params[p].stream)) {
-
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
-}
 
 
 static bool method_has_collapsible_params(
@@ -4253,9 +4313,11 @@ static bool method_has_collapsible_params(
 
 
 
+
 static bool emit_stream_builder_declarations_for_api_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
+    const char *stream_abbr,
     const char *stream_name,
     const char *api_reference,
     char *error,
@@ -4273,7 +4335,7 @@ static bool emit_stream_builder_declarations_for_api_ctx(
     char stream_c_name[256];
     char api_name[256];
 
-    declared_c_name(ctx->module_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
+    declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
     snake_name(api->name, api_name, sizeof(api_name));
 
     adsl_effective_method_t *effective = NULL;
@@ -4302,20 +4364,22 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
         emit_method_origin(output, effective[m].owner, method);
 
+        /*
+         * The builder entry point is namespaced by the stream *type* name
+         * (e.g. csa_login_stream) so that the module prefix (csa_) still
+         * leads the symbol, while the builder cannot collide with the plain
+         * API function that shares {api_prefix}_{api_name}_{method_name}.
+         */
         fprintf(
             output,
-
-
             "aether_status_t %s_%s_%s(\n"
             "    %s_t *builder_stream",
-            ctx->module_abbr, api_name, method_name, stream_c_name);
-
-
+            stream_c_name, api_name, method_name, stream_c_name);
 
         if (collapsible) {
 
             fprintf(output, ",\n    %s_%s_%s_context_t *collapse",
-                ctx->module_abbr, api_name, method_name);
+                stream_c_name, api_name, method_name);
 
         }
 
@@ -4344,14 +4408,11 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
             fprintf(
                 output,
-
-
                 "aether_status_t %s_%s_%s_flush(\n"
                 "    %s_t *builder_stream,\n"
                 "    %s_%s_%s_context_t *collapse);\n\n",
-                ctx->module_abbr, api_name, method_name,
-                stream_c_name, ctx->module_abbr, api_name, method_name);
-
+                stream_c_name, api_name, method_name,
+                stream_c_name, stream_c_name, api_name, method_name);
 
         }
     }
@@ -4362,13 +4423,107 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
 
 
+
+
+/*
+ * Effective C symbol prefix for a stream builder. Streams carry their
+ * physical origin only indirectly: through the API that owns them. When
+ * the stream type itself has no source_path (merged/unified document) we
+ * fall back to the owning API's prefix, and finally to the legacy module
+ * prefix for standalone output.
+ */
+static bool stream_effective_prefix_ctx(
+    const emitter_ctx_t *ctx,
+    const adsl_stream_t *stream,
+    const char *fallback_source_path,
+    char *out,
+    size_t capacity,
+    char *error,
+    size_t error_capacity) {
+
+    if (out == NULL || capacity == 0u) {
+        set_error(error, error_capacity, "invalid stream prefix buffer");
+        return false;
+    }
+
+    out[0] = '\0';
+
+    /*
+     * Prefer the prefix of the API that owns this stream. Streams defined
+     * inline inside a parameter carry no source_path of their own, and the
+     * enclosing method's source_path can belong to a different document
+     * when the API is inherited across files. The owning API is always the
+     * physical declaration site, so its prefix is authoritative.
+     */
+    if (stream != NULL) {
+
+        if (stream->api != NULL && *stream->api != '\0') {
+
+            const adsl_api_t *api =
+                find_api_definition_ctx(ctx, stream->api);
+
+            if (api != NULL &&
+                api_effective_prefix_ctx(
+                    ctx, api, out, capacity,
+                    error, error_capacity)) {
+                if (out[0] != '\0') {
+                    return true;
+                }
+            }
+        }
+
+        for (size_t i = 0u; i < stream->api_count; ++i) {
+
+            if (stream->apis[i].api == NULL ||
+                *stream->apis[i].api == '\0') {
+                continue;
+            }
+
+            const adsl_api_t *api =
+                find_api_definition_ctx(ctx, stream->apis[i].api);
+
+            if (api != NULL &&
+                api_effective_prefix_ctx(
+                    ctx, api, out, capacity,
+                    error, error_capacity)) {
+                if (out[0] != '\0') {
+                    return true;
+                }
+            }
+        }
+    }
+
+    if (fallback_source_path != NULL && fallback_source_path[0] != '\0') {
+        abbreviate_from_path(fallback_source_path, out, capacity);
+    }
+
+    if (out[0] != '\0') {
+        return true;
+    }
+
+    if (ctx != NULL && ctx->module_abbr[0] != '\0') {
+        (void)snprintf(out, capacity, "%s", ctx->module_abbr);
+        return out[0] != '\0';
+    }
+
+    set_error(
+        error, error_capacity,
+        "stream builder has no module prefix");
+
+    return false;
+}
+
+
+
 static bool emit_stream_builder_declarations_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
+    const char *stream_abbr,
     const char *stream_name,
     const adsl_stream_t *stream,
     char *error,
     size_t error_capacity) {
+
 
     if (stream == NULL) {
         return true;
@@ -4376,9 +4531,11 @@ static bool emit_stream_builder_declarations_ctx(
 
     if (stream->api != NULL &&
         *stream->api != '\0' &&
-        !emit_stream_builder_declarations_for_api_ctx(
-            output, ctx, stream_name, stream->api,
+
+!emit_stream_builder_declarations_for_api_ctx(
+            output, ctx, stream_abbr, stream_name, stream->api,
             error, error_capacity)) {
+
         return false;
     }
 
@@ -4389,9 +4546,11 @@ static bool emit_stream_builder_declarations_ctx(
             continue;
         }
 
-        if (!emit_stream_builder_declarations_for_api_ctx(
-                output, ctx, stream_name, stream->apis[i].api,
+
+if (!emit_stream_builder_declarations_for_api_ctx(
+                output, ctx, stream_abbr, stream_name, stream->apis[i].api,
                 error, error_capacity)) {
+
             return false;
         }
     }
@@ -4414,9 +4573,27 @@ static bool emit_all_stream_builder_declarations_ctx(
 
         const adsl_type_t *type = &types[i];
 
-        if (!emit_stream_builder_declarations_ctx(
-                output, ctx, type->name, type->stream,
+        if (type->stream == NULL) {
+            continue;
+        }
+
+        char stream_abbr[32];
+
+
+
+        if (!stream_effective_prefix_ctx(
+                ctx, type->stream, type->source_path,
+                stream_abbr, sizeof(stream_abbr),
                 error, error_capacity)) {
+            return false;
+        }
+
+
+
+        if (!emit_stream_builder_declarations_ctx(
+                output, ctx, stream_abbr, type->name, type->stream,
+                error, error_capacity)) {
+
             return false;
         }
     }
@@ -4440,9 +4617,42 @@ static bool emit_all_stream_builder_declarations_ctx(
                     continue;
                 }
 
+
+                char stream_abbr[32];
+                stream_abbr[0] = '\0';
+                bool have_abbr = false;
+
+
+                const adsl_type_t *stream_type =
+                    find_declared_type_ctx(ctx, param->type);
+
+
+
+                if (stream_type != NULL) {
+                    have_abbr = type_effective_prefix_ctx(
+                        ctx, stream_type, stream_abbr, sizeof(stream_abbr),
+                        error, error_capacity);
+                    if (!have_abbr) {
+                        return false;
+                    }
+                }
+
+                if (stream_abbr[0] == '\0') {
+
+                    if (!stream_effective_prefix_ctx(
+                            ctx, param->stream, method->source_path,
+                            stream_abbr,
+                            sizeof(stream_abbr),
+                            error, error_capacity)) {
+                        return false;
+                    }
+
+                }
+
                 if (!emit_stream_builder_declarations_ctx(
-                        output, ctx, param->type, param->stream,
+                        output, ctx, stream_abbr, param->type, param->stream,
                         error, error_capacity)) {
+
                     return false;
                 }
             }
@@ -4454,9 +4664,11 @@ static bool emit_all_stream_builder_declarations_ctx(
 
 
 
+
 static bool emit_stream_builder_definitions_for_api_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
+    const char *stream_abbr,
     const char *stream_name,
     const char *api_reference,
     char *error,
@@ -4474,7 +4686,7 @@ static bool emit_stream_builder_definitions_for_api_ctx(
     char stream_c_name[256];
     char api_name[256];
 
-    declared_c_name(ctx->module_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
+    declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
     snake_name(api->name, api_name, sizeof(api_name));
 
     adsl_effective_method_t *effective = NULL;
@@ -4504,16 +4716,19 @@ static bool emit_stream_builder_definitions_for_api_ctx(
         emit_method_origin(output, effective[m].owner, method);
 
         if (collapsible) {
+            /*
+             * The builder entry point is namespaced by the stream type name
+             * (csa_login_stream) so that the module prefix still leads the
+             * symbol and the builder cannot collide with the plain API
+             * function that shares {api_prefix}_{api_name}_{method_name}.
+             */
             fprintf(
                 output,
-
                 "aether_status_t %s_%s_%s(\n"
                 "    %s_t *builder_stream,\n"
                 "    %s_%s_%s_context_t *collapse",
-                ctx->module_abbr, api_name, method_name,
-                stream_c_name, ctx->module_abbr, api_name, method_name);
-
-
+                stream_c_name, api_name, method_name,
+                stream_c_name, stream_c_name, api_name, method_name);
 
             for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -4541,11 +4756,10 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 "    }\n\n"
 
                 "    %s_%s_remote_t remote = {0};\n\n"
-                "    return %s_%s(\n"
+                "    return %s_%s_%s(\n"
                 "        &remote,\n"
                 "        collapse",
-                ctx->module_abbr, api_name, api_name, method_name);
-
+                stream_abbr, api_name, stream_abbr, api_name, method_name);
 
             for (size_t p = 0u; p < method->param_count; ++p) {
                 fprintf(output, ",\n        %s",
@@ -4593,31 +4807,22 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 "        collapse);\n"
                 "}\n\n",
 
-
-
-                ctx->module_abbr, api_name, method_name,
+                stream_c_name, api_name, method_name,
                 stream_c_name,
-                ctx->module_abbr, api_name, method_name,
-                ctx->module_abbr,
-                ctx->module_abbr, api_name,
-                ctx->module_abbr,
-                ctx->module_abbr, api_name, method_name);
-
-
-
+                stream_abbr, api_name, method_name,
+                stream_abbr,
+                stream_abbr, api_name,
+                stream_abbr,
+                stream_c_name, api_name, method_name);
 
             continue;
         }
 
         fprintf(
             output,
-
-
             "aether_status_t %s_%s_%s(\n"
             "    %s_t *builder_stream",
-            ctx->module_abbr, api_name, method_name, stream_c_name);
-
-
+            stream_c_name, api_name, method_name, stream_c_name);
 
         if (has_response) {
             fputs(",\n    uint32_t request_id", output);
@@ -4664,10 +4869,9 @@ static bool emit_stream_builder_definitions_for_api_ctx(
             "        builder_stream->data + builder_stream->length,\n"
             "        remaining\n"
             "    };\n\n"
-            "    return %s_%s(\n"
+            "    return %s_%s_%s(\n"
             "        &remote",
-            ctx->module_abbr, ctx->module_abbr, api_name, ctx->module_abbr, api_name, method_name);
-
+            stream_abbr, stream_abbr, api_name, stream_abbr, stream_abbr, api_name, method_name);
 
         if (has_response) {
             fputs(",\n        request_id", output);
@@ -4686,13 +4890,16 @@ static bool emit_stream_builder_definitions_for_api_ctx(
 
 
 
+
 static bool emit_stream_builder_definitions_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
+    const char *stream_abbr,
     const char *stream_name,
     const adsl_stream_t *stream,
     char *error,
     size_t error_capacity) {
+
 
     if (stream == NULL) {
         return true;
@@ -4700,9 +4907,11 @@ static bool emit_stream_builder_definitions_ctx(
 
     if (stream->api != NULL &&
         *stream->api != '\0' &&
-        !emit_stream_builder_definitions_for_api_ctx(
-            output, ctx, stream_name, stream->api,
+
+!emit_stream_builder_definitions_for_api_ctx(
+            output, ctx, stream_abbr, stream_name, stream->api,
             error, error_capacity)) {
+
         return false;
     }
 
@@ -4713,13 +4922,89 @@ static bool emit_stream_builder_definitions_ctx(
             continue;
         }
 
-        if (!emit_stream_builder_definitions_for_api_ctx(
-                output, ctx, stream_name,
+
+if (!emit_stream_builder_definitions_for_api_ctx(
+                output, ctx, stream_abbr, stream_name,
                 stream->apis[i].api,
                 error, error_capacity)) {
+
             return false;
         }
     }
+
+    return true;
+}
+
+
+
+
+/*
+ * Emit the per-module stream commit helper once for every distinct prefix.
+ * The helper struct and its static function are shared by all stream builders
+ * that belong to the same ADSL document, and must therefore live under that
+ * document's prefix (csa_, pa_, ...). A missing prefix would collide with
+ * unrelated outputs and break compilation.
+ */
+static bool emit_stream_commit_once_ctx(
+    FILE *output,
+    const char *abbr,
+    char emitted[32][32],
+    size_t *emitted_count,
+    char *error,
+    size_t error_capacity) {
+
+    if (abbr == NULL || abbr[0] == '\0') {
+        set_error(
+            error, error_capacity,
+            "stream builder has no module prefix");
+        return false;
+    }
+
+    if (emitted == NULL || emitted_count == NULL) {
+        set_error(error, error_capacity, "invalid stream commit state");
+        return false;
+    }
+
+    for (size_t i = 0u; i < *emitted_count; ++i) {
+        if (strcmp(emitted[i], abbr) == 0) {
+            return true;
+        }
+    }
+
+    if (*emitted_count >= 32u) {
+        set_error(error, error_capacity, "too many stream prefixes");
+        return false;
+    }
+
+    (void)snprintf(
+        emitted[*emitted_count], sizeof(emitted[0]), "%s", abbr);
+
+    *emitted_count += 1u;
+
+    fprintf(
+        output,
+        "typedef struct {\n"
+        "    size_t *length;\n"
+        "    size_t remaining;\n"
+        "} %s_stream_commit_t;\n\n"
+        "static aether_status_t %s_stream_commit(\n"
+        "    void *ctx,\n"
+        "    const uint8_t *data,\n"
+        "    size_t length) {\n\n"
+        "    (void)data;\n\n"
+        "    %s_stream_commit_t *commit =\n"
+        "        ctx;\n\n"
+        "    if (commit == NULL ||\n"
+        "        commit->length == NULL) {\n"
+        "        return AETHER_ERR_ARGUMENT;\n"
+        "    }\n\n"
+        "    if (length > commit->remaining) {\n"
+        "        return AETHER_ERR_OVERFLOW;\n"
+        "    }\n\n"
+        "    *commit->length += length;\n\n"
+        "    return AETHER_OK;\n"
+        "}\n\n",
+        abbr, abbr, abbr);
 
     return true;
 }
@@ -4732,6 +5017,15 @@ static bool emit_all_stream_builder_definitions_ctx(
     char *error,
     size_t error_capacity) {
 
+    /*
+     * The stream commit helper is per-module: the struct type and the
+     * static function are emitted once for each distinct stream prefix
+     * that actually owns stream builders. Collect prefixes on the fly so
+     * that csa_/pa_/etc. each get their own commit helper.
+     */
+    char emitted_abbrs[32][32];
+    size_t emitted_count = 0u;
+
     size_t type_count = 0u;
     const adsl_type_t *types = ctx_types(ctx, &type_count);
 
@@ -4739,10 +5033,35 @@ static bool emit_all_stream_builder_definitions_ctx(
 
         const adsl_type_t *type = &types[i];
 
+        if (type->stream == NULL) {
+            continue;
+        }
+
+        char stream_abbr[32];
+
+
+
+        if (!stream_effective_prefix_ctx(
+                ctx, type->stream, type->source_path,
+                stream_abbr, sizeof(stream_abbr),
+                error, error_capacity)) {
+            return false;
+        }
+
+
+
+        if (!emit_stream_commit_once_ctx(
+                output, stream_abbr,
+                emitted_abbrs, &emitted_count,
+                error, error_capacity)) {
+            return false;
+        }
+
         if (!emit_stream_builder_definitions_ctx(
-                output, ctx,
+                output, ctx, stream_abbr,
                 type->name, type->stream,
                 error, error_capacity)) {
+
             return false;
         }
     }
@@ -4765,10 +5084,47 @@ static bool emit_all_stream_builder_definitions_ctx(
                 if (param->stream == NULL) {
                     continue;
                 }
+
+                char stream_abbr[32];
+
+                const adsl_type_t *stream_type =
+                    find_declared_type_ctx(ctx, param->type);
+
+                if (stream_type != NULL) {
+                    if (!type_effective_prefix_ctx(
+                            ctx, stream_type, stream_abbr,
+                            sizeof(stream_abbr),
+                            error, error_capacity)) {
+                        return false;
+                    }
+                } else {
+                    stream_abbr[0] = '\0';
+                }
+
+                if (stream_abbr[0] == '\0') {
+
+                    if (!stream_effective_prefix_ctx(
+                            ctx, param->stream, method->source_path,
+                            stream_abbr,
+                            sizeof(stream_abbr),
+                            error, error_capacity)) {
+                        return false;
+                    }
+
+                }
+
+                if (!emit_stream_commit_once_ctx(
+                        output, stream_abbr,
+                        emitted_abbrs, &emitted_count,
+                        error, error_capacity)) {
+                    return false;
+                }
+
                 if (!emit_stream_builder_definitions_ctx(
-                        output, ctx,
+                        output, ctx, stream_abbr,
                         param->type, param->stream,
                         error, error_capacity)) {
+
                     return false;
                 }
             }
@@ -5188,6 +5544,7 @@ static bool emit_collapsible_entry_store_ctx(
 static bool emit_collapsible_method_declarations_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
+    const char *api_abbr,
     const char *api_name,
     const char *method_name,
     const adsl_method_t *method,
@@ -5204,7 +5561,6 @@ static bool emit_collapsible_method_declarations_ctx(
         }
     }
 
-
     fprintf(
         output,
         "} %s_%s_%s_entry_t;\n\n"
@@ -5217,14 +5573,12 @@ static bool emit_collapsible_method_declarations_ctx(
         "aether_status_t %s_%s_%s(\n"
         "    %s_%s_remote_t *api,\n"
         "    %s_%s_%s_context_t *collapse",
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name,
-        ctx->module_abbr, api_name, method_name);
-
-
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name,
+        api_abbr, api_name, method_name);
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -5239,7 +5593,6 @@ static bool emit_collapsible_method_declarations_ctx(
         fprintf(output, " %s", method->params[p].name);
     }
 
-
     fprintf(
         output,
         ");\n\n"
@@ -5248,13 +5601,11 @@ static bool emit_collapsible_method_declarations_ctx(
         "    %s_%s_%s_context_t *collapse);\n\n"
         "void %s_%s_%s_reset(\n"
         "    %s_%s_%s_context_t *collapse);\n\n",
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name);
-
-
+        api_abbr, api_name, method_name,
+        api_abbr, api_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name);
 
     return !ferror(output);
 }
@@ -5265,6 +5616,7 @@ static bool emit_collapsible_method_declarations_ctx(
 static bool emit_collapsible_method_source_ctx(
     FILE *output,
     const emitter_ctx_t *ctx,
+    const char *api_abbr,
     const char *api_name,
     const char *method_name,
     const adsl_method_t *method,
@@ -5285,14 +5637,11 @@ static bool emit_collapsible_method_source_ctx(
         "    %s_%s_remote_t *api,\n"
         "    %s_%s_%s_context_t *collapse",
 
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name,
-        ctx->module_abbr, api_name, method_name);
-
-
-
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name,
+        api_abbr, api_name, method_name);
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -5321,8 +5670,7 @@ static bool emit_collapsible_method_source_ctx(
         "    for (size_t i = 0u; i < collapse->count; ++i) {\n"
         "        %s_%s_%s_entry_t *_entry = &collapse->entries[i];\n"
         "        bool _match = true;\n",
-        ctx->module_abbr, api_name, method_name);
-
+        api_abbr, api_name, method_name);
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -5356,8 +5704,7 @@ static bool emit_collapsible_method_source_ctx(
         "            return AETHER_ERR_OVERFLOW;\n"
         "        }\n\n"
         "        _entry = &collapse->entries[collapse->count];\n",
-        ctx->module_abbr, api_name, method_name);
-
+        api_abbr, api_name, method_name);
 
     for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -5436,13 +5783,12 @@ static bool emit_collapsible_method_source_ctx(
         "            return AETHER_ERR_OVERFLOW;\n"
         "        }\n\n"
         "        tx[pos++] = %uu;\n",
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
         (unsigned int)command_id);
-
 
     if (!emit_remote_nullable_param_mask(
             output, method, "_entry->", error, error_capacity)) {
@@ -5467,7 +5813,7 @@ static bool emit_collapsible_method_source_ctx(
         stored.name = expression;
 
         if (!emit_serialize_param_ctx(
-                output, ctx, ctx->module_abbr, &stored,
+                output, ctx, api_abbr, &stored,
                 error, error_capacity)) {
             return false;
         }
@@ -5538,18 +5884,15 @@ static bool emit_collapsible_method_source_ctx(
         "        collapse->count = 0u;\n"
         "    }\n"
         "}\n\n",
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name,
-        ctx->module_abbr, api_name, method_name);
-
-
-
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name,
+        api_abbr, api_name, method_name);
 
     return !ferror(output);
 }
@@ -5581,35 +5924,70 @@ static bool emit_api_header_ctx(
 
     (void)base_name;
 
-
     size_t api_count = 0u;
     const adsl_api_t *apis = ctx_apis(ctx, &api_count);
 
+
     /*
-     * The transport send-fn typedef is only meaningful when at least one
-     * API is emitted. A type-only unified document has no API, so emitting
-     * a global (_send_fn) with an empty prefix would be dead and, worse,
-     * collide across unrelated outputs. Emit it once, only when needed.
+     * The transport send-fn typedef is emitted once per distinct module
+     * prefix. Every API's remote_t refers to its own module's send fn, so a
+     * single global typedef keyed off the first API would break any output
+     * where more than one document contributes APIs (project/unified mode).
      */
-    bool any_api = false;
+
+    char send_abbrs[32][32];
+    size_t send_abbr_count = 0u;
 
     for (size_t a = 0u; a < api_count; ++a) {
+
+        const adsl_api_t *api = &apis[a];
+
         if (selected_api_name != NULL &&
-            strcmp(apis[a].name, selected_api_name) != 0) {
+            strcmp(api->name, selected_api_name) != 0) {
             continue;
         }
-        any_api = true;
-        break;
-    }
 
-    if (any_api) {
+        char send_abbr[32];
+
+        if (!api_effective_prefix_ctx(
+                ctx, api, send_abbr, sizeof(send_abbr),
+                error, error_capacity)) {
+            return false;
+        }
+
+        bool already = false;
+
+        for (size_t s = 0u; s < send_abbr_count; ++s) {
+            if (strcmp(send_abbrs[s], send_abbr) == 0) {
+                already = true;
+                break;
+            }
+        }
+
+        if (already) {
+            continue;
+        }
+
+        if (send_abbr_count >= 32u) {
+            set_error(error, error_capacity, "too many API prefixes");
+            return false;
+        }
+
+        (void)snprintf(
+            send_abbrs[send_abbr_count],
+            sizeof(send_abbrs[0]),
+            "%s",
+            send_abbr);
+
+        send_abbr_count += 1u;
+
         fprintf(
             output,
             "typedef aether_status_t (*%s_send_fn)(\n"
             "    void *ctx,\n"
             "    const uint8_t *data,\n"
             "    size_t length);\n\n",
-            ctx->module_abbr);
+            send_abbr);
     }
 
 
@@ -5643,8 +6021,6 @@ static bool emit_api_header_ctx(
         external_modules_free(&external_api);
     }
 
-
-
     for (size_t a = 0u; a < api_count; ++a) {
 
         const adsl_api_t *api = &apis[a];
@@ -5652,6 +6028,14 @@ static bool emit_api_header_ctx(
         if (selected_api_name != NULL &&
             strcmp(api->name, selected_api_name) != 0) {
             continue;
+        }
+
+        char api_abbr[32];
+
+        if (!api_effective_prefix_ctx(
+                ctx, api, api_abbr, sizeof(api_abbr),
+                error, error_capacity)) {
+            return false;
         }
 
         char api_name[256];
@@ -5666,8 +6050,7 @@ static bool emit_api_header_ctx(
             "    size_t tx_capacity;\n"
 
             "} %s_%s_remote_t;\n\n",
-            ctx->module_abbr, ctx->module_abbr, api_name);
-
+            api_abbr, api_abbr, api_name);
 
         adsl_effective_method_t *effective = NULL;
         size_t effective_count = 0u;
@@ -5699,7 +6082,7 @@ static bool emit_api_header_ctx(
 
             if (method_has_collapsible_params(method)) {
                 if (!emit_collapsible_method_declarations_ctx(
-                        output, ctx, api_name, method_name, method,
+                        output, ctx, api_abbr, api_name, method_name, method,
                         error, error_capacity)) {
                     free(effective);
                     return false;
@@ -5707,16 +6090,13 @@ static bool emit_api_header_ctx(
                 continue;
             }
 
-
             fprintf(
                 output,
 
                 "aether_status_t %s_%s_%s(\n"
                 "    %s_%s_remote_t *api",
-                ctx->module_abbr, api_name, method_name,
-                ctx->module_abbr, api_name);
-
-
+                api_abbr, api_name, method_name,
+                api_abbr, api_name);
 
             if (has_response) {
                 fputs(",\n    uint32_t request_id", output);
@@ -5748,7 +6128,6 @@ static bool emit_api_header_ctx(
             output, ctx, error, error_capacity)) {
         return false;
     }
-
 
     if (ferror(output)) {
         set_error(error, error_capacity, "cannot write generated API header");
@@ -5788,44 +6167,9 @@ static bool emit_api_source_ctx(
 
     (void)base_name;
 
-
-    const char *base_snake = ctx->module_abbr;
-
-
-    if (selected_api_name == NULL &&
-        selected_method_name == NULL &&
-        document_has_stream_builders(ctx->document)) {
-
-        fprintf(
-            output,
-            "typedef struct {\n"
-            "    size_t *length;\n"
-            "    size_t remaining;\n"
-            "} %s_stream_commit_t;\n\n"
-            "static aether_status_t %s_stream_commit(\n"
-            "    void *ctx,\n"
-            "    const uint8_t *data,\n"
-            "    size_t length) {\n\n"
-            "    (void)data;\n\n"
-            "    %s_stream_commit_t *commit =\n"
-            "        ctx;\n\n"
-            "    if (commit == NULL ||\n"
-            "        commit->length == NULL) {\n"
-            "        return AETHER_ERR_ARGUMENT;\n"
-            "    }\n\n"
-            "    if (length > commit->remaining) {\n"
-            "        return AETHER_ERR_OVERFLOW;\n"
-            "    }\n\n"
-            "    *commit->length += length;\n\n"
-            "    return AETHER_OK;\n"
-            "}\n\n",
-            base_snake,
-            base_snake,
-            base_snake);
-    }
-
     size_t api_count = 0u;
     const adsl_api_t *apis = ctx_apis(ctx, &api_count);
+
 
     for (size_t a = 0u; a < api_count; ++a) {
 
@@ -5834,6 +6178,14 @@ static bool emit_api_source_ctx(
         if (selected_api_name != NULL &&
             strcmp(api->name, selected_api_name) != 0) {
             continue;
+        }
+
+        char api_abbr[32];
+
+        if (!api_effective_prefix_ctx(
+                ctx, api, api_abbr, sizeof(api_abbr),
+                error, error_capacity)) {
+            return false;
         }
 
         char api_name[256];
@@ -5869,7 +6221,7 @@ static bool emit_api_source_ctx(
 
             if (method_has_collapsible_params(method)) {
                 if (!emit_collapsible_method_source_ctx(
-                        output, ctx, api_name, method_name,
+                        output, ctx, api_abbr, api_name, method_name,
                         method, effective[m].id, error, error_capacity)) {
                     free(effective);
                     return false;
@@ -5877,16 +6229,13 @@ static bool emit_api_source_ctx(
                 continue;
             }
 
-
             fprintf(
                 output,
 
                 "aether_status_t %s_%s_%s(\n"
                 "    %s_%s_remote_t *api",
-                ctx->module_abbr, api_name, method_name,
-                ctx->module_abbr, api_name);
-
-
+                api_abbr, api_name, method_name,
+                api_abbr, api_name);
 
             if (has_response) {
                 fputs(",\n    uint32_t request_id", output);
@@ -5951,7 +6300,7 @@ static bool emit_api_source_ctx(
 
             for (size_t p = 0u; p < method->param_count; ++p) {
                 if (!emit_serialize_param_ctx(
-                        output, ctx, base_snake, &method->params[p],
+                        output, ctx, api_abbr, &method->params[p],
                         error, error_capacity)) {
                     free(effective);
                     return false;
@@ -7096,13 +7445,31 @@ bool adsl_emit_c_project(
     const adsl_document_t *document =
         &project->documents[document_index];
 
-    emitter_ctx_t ctx;
+
+emitter_ctx_t ctx;
     ctx.document = document;
 
     ctx.resolver = resolver;
     ctx.project = project;
     ctx.plan = plan;
     snake_name(base_name, ctx.base_snake, sizeof(ctx.base_snake));
+
+    /*
+     * The module abbreviation is derived from the physical ADSL file that
+     * owns this document, not from the caller's base_name. All symbols of
+     * this module -- types, serializers, API functions and stream builders
+     * -- must carry the same prefix, so every one of them is looked up
+     * from this single field.
+     */
+    ctx.module_abbr[0] = '\0';
+
+    if (document->root_source_path != NULL) {
+        abbreviate_from_path(
+            document->root_source_path,
+            ctx.module_abbr,
+            sizeof(ctx.module_abbr));
+    }
+
 
 
     char base_snake[256];

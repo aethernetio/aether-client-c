@@ -78,17 +78,16 @@ static void test_generation_and_compile(void) {
     fixture_path("unified_types/B_defines_item.adsl.yaml", b_path, sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/unified_types"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
 
     char error[512] = {0};
 
+
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u, &project, error, sizeof(error)));
+        paths, 2u, &project, error, sizeof(error)));
+
 
     adsl_document_t merged;
     adsl_document_init(&merged);

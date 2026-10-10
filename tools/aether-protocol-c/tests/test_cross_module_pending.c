@@ -118,9 +118,6 @@ static void pending_res_001_cross_file_without_include(void) {
         sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -128,7 +125,7 @@ static void pending_res_001_cross_file_without_include(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
 
@@ -176,7 +173,7 @@ static void pending_res_004_project_validate_rejects_collision(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, NULL, 0u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     error[0] = '\0';
@@ -209,7 +206,7 @@ static void pending_res_005_project_validate_rejects_case_collision(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, NULL, 0u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     error[0] = '\0';
@@ -233,9 +230,6 @@ static void pending_res_003_resolution_order_independent(void) {
         "cross_module/B_defines_item.adsl.yaml",
         b_path, sizeof(b_path));
 
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     for (int order = 0; order < 2; ++order) {
 
@@ -255,7 +249,7 @@ static void pending_res_003_resolution_order_independent(void) {
         char error[512] = {0};
 
         assert(adsl_project_load_files(
-            paths, 2u, include_paths, 1u,
+            paths, 2u,
             &project, error, sizeof(error)));
 
         assert(adsl_project_validate(&project, error, sizeof(error)));
@@ -285,7 +279,6 @@ static void pending_include_only_declaration_resolves(void) {
         "registry_project_include/ClientServerApi.adsl.yaml",
         root_path, sizeof(root_path));
 
-    const char *include_paths[] = { dir };
     const char *paths[] = { root_path };
 
     adsl_project_t project;
@@ -294,7 +287,7 @@ static void pending_include_only_declaration_resolves(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 1u, include_paths, 1u,
+        paths, 1u,
         &project, error, sizeof(error)));
 
     assert(adsl_project_validate(&project, error, sizeof(error)));
@@ -316,9 +309,6 @@ static void pending_cross_file_array_and_nullable(void) {
         b_path, sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -326,7 +316,7 @@ static void pending_cross_file_array_and_nullable(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     assert(adsl_project_validate(&project, error, sizeof(error)));
@@ -354,7 +344,7 @@ static void pending_cross_file_stream_key(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, NULL, 0u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     /*
@@ -380,9 +370,6 @@ static void pending_project_validate_is_const(void) {
         b_path, sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -390,7 +377,7 @@ static void pending_project_validate_is_const(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
 
@@ -450,9 +437,6 @@ static void pending_over_long_reference_rejected(void) {
         b_path, sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -460,7 +444,7 @@ static void pending_over_long_reference_rejected(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     error[0] = '\0';
@@ -486,9 +470,6 @@ static void pending_cross_file_api_inheritance(void) {
         child_path, sizeof(child_path));
 
     const char *paths[] = { base_path, child_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -496,7 +477,7 @@ static void pending_cross_file_api_inheritance(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     /*
@@ -532,7 +513,7 @@ static void pending_global_api_collision_rejected(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, NULL, 0u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     error[0] = '\0';
@@ -559,9 +540,6 @@ static void pending_emission_plan_validation(void) {
         b_path, sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -569,7 +547,7 @@ static void pending_emission_plan_validation(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     adsl_emission_module_t modules[2];
@@ -843,7 +821,7 @@ static void pending_cross_file_hierarchy_resolves(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, NULL, 0u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     /*
@@ -990,7 +968,7 @@ static void pending_cross_file_by_value_field(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, NULL, 0u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
 
@@ -1094,9 +1072,6 @@ static void pending_cross_file_inheritance_emission(void) {
         child_path, sizeof(child_path));
 
     const char *paths[] = { base_path, child_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -1104,7 +1079,7 @@ static void pending_cross_file_inheritance_emission(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     assert(adsl_project_validate(&project, error, sizeof(error)));
@@ -1185,9 +1160,6 @@ static void pending_type_owner_lookup(void) {
         b_path, sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -1195,7 +1167,7 @@ static void pending_type_owner_lookup(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     assert(adsl_project_validate(&project, error, sizeof(error)));
@@ -1298,7 +1270,6 @@ static void pending_two_roots_common_include_rejected(void) {
         "registry_project_include/common.adsl.yaml",
         b_path, sizeof(b_path));
 
-    const char *include_paths[] = { dir };
     const char *paths[] = { a_path, b_path };
 
     adsl_project_t project;
@@ -1307,7 +1278,7 @@ static void pending_two_roots_common_include_rejected(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, include_paths, 1u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     error[0] = '\0';
@@ -1349,7 +1320,7 @@ static void pending_cross_file_external_array(void) {
     char error[512] = {0};
 
     assert(adsl_project_load_files(
-        paths, 2u, NULL, 0u,
+        paths, 2u,
         &project, error, sizeof(error)));
 
     assert(adsl_project_validate(&project, error, sizeof(error)));

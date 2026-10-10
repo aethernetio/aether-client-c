@@ -44,14 +44,14 @@ static void load_registry_project(
 
     adsl_project_init(project);
 
+
     assert(adsl_project_load_files(
         (const char *const *)files,
         file_count,
-        include_paths,
-        1u,
         project,
         error,
         sizeof(error)));
+
 
     for (size_t i = 0u; i < file_count; ++i) {
         free(files[i]);
@@ -172,21 +172,20 @@ static void test_duplicate_module(void) {
     fixture_path("registry_dup_b", dir_b, sizeof(dir_b));
 
     const char *paths[] = { path_a, path_b };
-    const char *include_paths[] = { dir_a, dir_b };
 
     adsl_project_t project;
     adsl_project_init(&project);
 
     char error[512] = {0};
 
+
     assert(adsl_project_load_files(
         paths,
-        2u,
-        include_paths,
         2u,
         &project,
         error,
         sizeof(error)));
+
 
     adsl_type_registry_t registry;
     adsl_type_registry_init(&registry);
@@ -258,9 +257,11 @@ static void test_registry_include_not_attributed_to_root(void) {
 
     adsl_project_t project;
     adsl_project_init(&project);
+
     assert(adsl_project_load_files(
         (const char *const *)files, file_count,
-        include_paths, 1u, &project, error, sizeof(error)));
+        &project, error, sizeof(error)));
+
 
     adsl_type_registry_t registry;
     adsl_type_registry_init(&registry);

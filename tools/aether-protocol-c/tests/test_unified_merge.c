@@ -72,19 +72,17 @@ static void load_and_merge(
         path_ptrs[i] = paths[i];
     }
 
-    const char *include_paths[] = { ADSL_FIXTURE_DIR "/unified_merge" };
-
     adsl_project_t project;
     adsl_project_init(&project);
+
 
     assert(adsl_project_load_files(
         path_ptrs,
         file_count,
-        include_paths,
-        1u,
         &project,
         error,
         error_capacity));
+
 
     assert(adsl_project_merge_into_document(
         &project,

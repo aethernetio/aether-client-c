@@ -5564,3 +5564,310 @@ policy B или выборочный merge closure в standalone).
 3. registry — это не map, а линейный скан ≤8 элементов. Достаточно.
 4. parse_signed_key резолвит провайдера ДО чтения sign_type — это единственный
    способ узнать длину тела ключа. Валидация sign_type — после чтения тела.
+=== aether-client-c structure ===
+=== aether-client-c ai.txt ===
+=== generator structure ===
+=== ADSL files ===
+=== generator README ===
+=== generated dirs ===
+=== ADSL в aether ===
+=== Команды генерации в CMakeLists ===
+=== CMakeLists aether-client-c ===
+=== Проверить makefile/скрипты регенерации ===
+=== regen mentions ===
+=== build generator binary ===
+=== ADSL origin comments в generated ===
+=== adsl in client-server-work-api ===
+=== ClientServerApi.adsl.yaml ===
+=== regen scripts ===
+=== [1] ADSL origin comments: какие реальные входы используются ===
+=== [2] Список src/generated (какие модули реально committed ===
+=== [3] CMakeLists: сборка generated модулей ===
+=== [4] ai.txt: команды регенерации (фрагменты) ===
+=== [5] Сгенерированные заголовки: высокоуровневая структура ===
+=== [6] Ручные адаптеры (production logic поверх generated) ===
+=== [7] Обращения к сгенерированным символам в ручном коде (src/*.c) ===
+=== [8] Обращения к сгенерированным символам в include/ ===
+=== [9] Обращения в тестах и examples ===
+=== [10] Проверка ADSL-файлов (доступность) ===
+=== [11] Существующий бинарь генератора ===
+=== [12] Реальные заголовки ClientServerApi/Peer* в aether ===
+=== [13] Упоминания PeerApi.adsl.yaml / PeerLanApi.adsl.yaml ===
+=== [14] Проверка CMakeLists верхнего уровня: где вообще упоминается aether-adslc ===
+=== [15] Точное местоположение ADSL-файлов в проекте aether ===
+=== [1] Пересборка генератора из актуального source ===
+=== [2] Одна генерация по всем трём ADSL в /tmp ===
+=== [3] Что сгенерировалось ===
+=== [4] Диффы committed vs fresh для client_server_api ===
+=== [5] Структуры свежих заголовков ===
+=== [6] Есть ли response-файл в fresh? ===
+=== [7] Генерация response для registrationDirect / recovery ===
+=== [8] Генерация local-api для PeerApi ===
+=== [9] Список всех fresh файлов ===
+=== [10] Сигнатуры registrationDirect / recovery: committed vs fresh ===
+=== [11] Проверка дубликатов closure: собираются ли fresh headers вместе ===
+=== [12] Что ручной код включает из generated ===
+=== [1] Где реально лежат PeerApi.adsl.yaml / PeerLanApi.adsl.yaml ===
+=== [2] git status в aether: может быть файлы удалены незакоммиченно ===
+=== [3] Все ADSL во всех root'ах (включая другие проекты) ===
+=== [4] Какой генератор строит commited src/generated? Смотрим origin ADSL: комментарии ===
+=== [5] Сравнить aether-adslc binaries (release vs stage2-partial vs build-adsl-generator) ===
+=== [6] Проверить CLI aether-adslc: справка ===
+=== [7] Прочитать CLI-парсер main.c (usage/опции) ===
+=== [8] Публичный API генератора (adslc.h) ===
+=== [9] Проверить, есть ли там функция project-level генерации ===
+=== [10] CMakeLists tools — что за targets (важен project-mode) ===
+=== [11] Есть ли project-mode фикстуры/тесты ===
+=== [12] Все .c/.h в src/generated (точно какие модули) ===
+=== [13] CMakeLists aether-client: как эти generated собираются (project mode?) ===
+=== [14] README client-c: раздел regeneration ===
+=== [15] git log — как менялись src/generated (последние коммиты) ===
+=== [16] git log проекта aether-client-c ===
+=== [17] Ветка и состояние репо ===
+=== [1] Восстановить PeerApi / PeerLanApi из git-истории ===
+=== [2] Что в этих ADSL ===
+=== [3] Сравнить с committed origin (по строкам из ADSL:) ===
+=== [4] Project mode генерация: единый aether_api.* ===
+=== [5] Что в project-mode aether_api.h (верхний уровень) ===
+=== [6] Сравнить project-mode aether_api.h с committed client_server_api_api.h — есть ли общие символы ===
+=== [7] Проверить: собирается ли project-mode aether_api.c standalone ===
+=== [8] Что требуется от ТЗ: 'не запускать три отдельные генерации' — есть ли project mode с раздельными именами? ===
+=== [9] Что проект делает с project-mode: где вызывается aether_api.h/.c ===
+=== [10] CMakeLists: как project-mode должен был бы собираться (или это новая фича) ===
+=== [11] Проверить: соответствуют ли committed src/generated project-mode выводу? ===
+=== [12] git diff src/generated (какие коммиты что меняли) ===
+=== [13] Что было в коммите d735410 'generator: single aether_api.h/.c' ===
+=== [14] Аналогично — что делали 'upgrade gen' и последний 'upgrade' ===
+=== [15] Есть ли в committed generated следы project-mode (единый base-name) ===
+=== [16] Проверить: собирается ли host build с текущими committed generated (baseline) ===
+=== [17] Финальный вывод: какая структура src/generated = source of truth сегодня ===
+=== [1] Точное содержимое aether-client-java/client/src/main/resources ===
+=== [2] ClientServerApi в aether-client-java vs aether ===
+=== [3] Диф между aether-client-java и aether версиями ClientServerApi ===
+=== [4] Есть ли common.adsl.yaml в aether-client-java? ===
+=== [5] Всё, что есть в aether-client-java (ADSL-related) ===
+=== [6] project mode — правильная команда (только output-dir) ===
+=== [7] Что в project-mode aether_api.h (структура) ===
+=== [8] Какие API и типы есть в project-mode выводе ===
+=== [9] Собирается ли project-mode aether_api.c standalone ===
+=== [10] Файлы, которые инклудит project-mode aether_api.h ===
+=== [11] README generator: раздел project mode ===
+=== [12] Сравнить символы project-mode vs committed src/generated ===
+=== [13] ТЗ-контекст: что вообще в /home/angel/projects/aether-client-c уже используют ===
+=== [14] CMakeLists: как committed src/generated собираются (baseline) ===
+=== [15] README client-c: regeneration policy ===
+=== [16] git log последних правок в aether-client-c ===
+=== [17] Что содержит .gitignore относительно src/generated ===
+=== [18] Точно проверить: committed ли src/generated ===
+=== [19] Что делает aether-adslc -I <dir> <out> (project mode) — точнее ===
+=== [20] adsl_emit_c_project сигнатура и что производит ===
+=== [1] Все ADSL-файлы во всех roots ===
+=== [2] Реальные пути в aether-client-java (по результату findFiles) ===
+=== [3] Есть ли PeerLanApi.adsl.yaml вообще где-либо ===
+=== [4] Где определён common (include) для ADSL из aether-client-java ===
+=== [5] aether-client-java: есть ли где-то common.adsl.yaml ===
+=== [6] project-mode: одна генерация, но нужен правильный -I (через bash запрещено — используем view для проверки структуры) ===
+=== [7] Что в свежем project-mode выводе (aether_api.h) ===
+=== [8] Где сейчас ADSL source of truth: ClientServerApi versions ===
+=== [1] ClientServerApi canonical: есть ли в нём constants: ===
+=== [2] common.adsl.yaml: есть ли constants: ===
+=== [3] PeerApi из aether-client-java: полное содержимое ===
+=== [4] clienttypes.adsl.yaml: полное содержимое ===
+=== [5] PeerApi: сравнить с committed peer_api_types.h типами ===
+=== [6] PeerApi: какие типы в ADSL vs какие в committed ===
+=== [7] Все использования PeerLanProbe / PeerLanSearch / peer_lan_api_ в ручном коде ===
+=== [8] Кто вообще включает peer_lan_api_*.h ===
+=== [9] CMakeLists: собирается ли peer_lan_api_* ===
+=== [10] Все 'constants:' во ВСЕХ adsl.yaml, которые могут попасть в -I ===
+=== [11] Java-генератор: поддержка 'constants' ===
+=== [1] aether_reflection.adsl.yaml: кто его вообще включает ===
+=== [2] Где в проекте ОБЪЯВЛЕНЫ PeerHello / PeerFrame / PeerHandshakeTranscript (то, что в committed peer_api_types.h) ===
+=== [3] Тот же поиск во всех репозиториях, не только в ADSL ===
+=== [4] Кто в C-ручном коде использует PeerHello / PeerFrame / PeerHandshake* ===
+=== [5] aether_peer_frame.c — полный обзор потребителей generated ===
+=== [6] aether_peer.h / aether_peer_uap.h / aether_peer_identity.h ===
+=== [7] Где в C-проекте упоминается PeerRootApi / PeerAuthorizedApi (как в ADSL из aether-client-java) ===
+=== [8] aether_peer_identity_verify.c / aether_peer_identity.c ===
+=== [9] aether_lan.c и aether_lan_codec.c: что они используют из generated ===
+=== [10] CMakeLists: полный список source для aether_client ===
+=== [11] README client-c: секция protocol generation ===
+=== [12] tools README: раздел 26 (verified parity) — что там про PeerFrame/PeerHello ===
+=== [13] Java generator: где обрабатывается API-уровень (ApiGenerator) ===
+=== [14] ApiGenerator.groovy — заголовок и структура ===
+=== [15] aether-client-java: полный список ADSL + их содержимое ===
+=== [16] aether-client-java: как определяется ADSL source of truth (gradle config) ===
+=== [17] aether-client-java: build.gradle client ===
+=== [18] client-ts: аналогично — какие ADSL и что в ClientServerApi.adsl.yaml ===
+=== [19] client-ts: package.json / как генерится ===
+=== [20] aether_reflection.adsl.yaml — почитать целиком (мелкий файл) ===
+=== [1] Java client: какие ADSL — источник истины ===
+=== [2] Java client: build.gradle (как ADSL подключаются) ===
+=== [3] ClientServerApi (canonical, aether) vs (java) — идентичны ли ===
+=== [4] PeerApi (canonical, java): полное содержимое ===
+=== [5] clienttypes (canonical, java): полное содержимое ===
+=== [6] aether/common-api: common.adsl.yaml (280 строк, реальные типы) ===
+=== [7] Что C-клиент сейчас использует из client_server_api_* ===
+=== [8] Что C-клиент использует из peer_api_* ===
+=== [9] Что C-клиент использует из peer_lan_api_* (если вообще) ===
+=== [10] Что C-клиент использует из client_server_issue_peer_identity_* ===
+=== [11] aether_reg_* — ручные адаптеры, они вызывают generated ===
+=== [12] Java client: build/generated — что там реально сгенерировано ===
+=== [13] Java client: peer protocol логика (что переносить в C) ===
+=== [14] Java client: main classes для peer identity/hello/session ===
+=== [15] Java client: LoginApi, ServerRegistrationApi, AuthorizedApi handling ===
+=== [16] C-клиент: текущие файлы src/*.c (какие вообще есть) ===
+=== [17] C-клиент include/*.h (какие вообще есть) ===
+=== [18] Реальная рабочая схема сегодня: как C-клиент регенерирует src/generated ===
+=== [19] git log: когда последний раз успешно регенерировали и что менялось ===
+=== [20] Проверка: попробовать project mode с ТРЕМЯ файлами явно, без -I ===
+=== [21] Java client: какой генератор для него (тот же или другой)? ===
+=== [22] ApiGenerator — что определяет имена методов (важно для parity) ===
+=== [23] TypeGenerator — имена типов и полей (важно для parity) ===
+=== [1] main.c: полный CLI-парсер ===
+=== [2] adsl_project_load_files — сигнатура и поведение ===
+=== [3] adsl_find_files — что сканирует ===
+=== [4] adsl_project_merge_into_document ===
+=== [5] project-mode tail в main.c (emit) ===
+=== [6] остаток main.c ===
+=== [7] adsl_project_t структура ===
+=== [8] adsl_emission_plan_t / adsl_emission_module_t / adsl_emit_c_project ===
+=== [9] как adsl_emit_c_project используется в main.c ===
+=== [10] adsl_project_validate / adsl_type_registry_build ===
+=== [11] CMakeLists tools: как устроен project_test ===
+=== [12] test_project.c / test_project_scan.c — эталон для нового теста ===
+=== [13] фикстуры project_scan ===
+=== [14] fixtures registry_project (для cross-module inciude) ===
+=== [15] fixtures unified_merge (multi-input) ===
+=== [16] test_unified_merge.c ===
+=== [17] adsl_project_load_files сигнатура (в adslc.h) ===
+=== [18] adsl_emit_c_project сигнатура (полная) ===
+=== [19] emitter: как строится emission plan (auto module names) ===
+=== [20] test_cross_module.c — как вызывают project-mode напрямую ===
+=== [21] project_internal.h — структура adsl_project_t ===
+=== [22] какие модули эмитятся в project mode (что значит 'module') ===
+=== [23] adsl_collect_effective_methods сигнатура ===
+=== [24] как формируется base-name в project mode ===
+=== [25] все существующие test target'ы (эталон для нового) ===
+=== [1] main.c: 1-20 (header + includes) ===
+=== [2] main.c: точный блок usage/parse (85-270) ===
+=== [3] main.c: блок project_mode + emit (250-420) ===
+=== [4] main.c: конец файла (600-611) ===
+=== [5] main.c: длина файла ===
+=== [6] CMakeLists tools — куда добавить новый test target (например после project_test) ===
+=== [7] adsl_validate сигнатура ===
+=== [8] adsl_emit_c_method сигнатура ===
+=== [9] test_project_scan.c — целевой эталон для нового теста (полностью) ===
+=== [10] а также registry_project_include fixture — common + ClientServerApi ===
+=== [11] adsl_module_name_from_root (как вычисляется имя модуля) ===
+=== [12] adsl_emit_c сигнатура ===
+=== [1] AetherProtocolPlugin.groovy — точка входа Gradle-плагина ===
+=== [2] Generator.groovy — как он ищет/сливает файлы ===
+=== [3] Generator.groovy: где path/dir/file/include ===
+=== [4] AetherProtocolPlugin: extension / task — что за inputs ===
+=== [5] build.gradle aether-protocol-plugin ===
+=== [6] aether-client-java: как в build.gradle клиента указываются ADSL ===
+=== [7] aether-client-java: есть ли где-то aether.protocol конфиг (кроме plugin id) ===
+=== [8] aether: как модуль client-server-work-api объявляет ADSL источник ===
+=== [9] aether: build.gradle в корне (общие настройки protocol) ===
+=== [10] aether: где упоминается adsl.yaml как source ===
+=== [11] aether-gradle-plugin: extension class (AetherProtocolExtension?) ===
+=== [12] AetherProtocolPlugin.groovy: полный текст (возможно extension + task def) ===
+=== [13] Generator.groovy: как он читает несколько файлов (findFile / collect) ===
+=== [14] Java: типичный источник протокола (aether-protocol refs) ===
+=== [15] client-ts: как ADSL собираются (node/browser) ===
+=== [1] adsl.c: как сейчас резолвится include (путь-based) ===
+=== [2] adsl.c: функция, которая обрабатывает include-директивы ===
+=== [3] adsl.c: полный текст adsl_load_file_with_include_paths ===
+=== [4] adsl.c: как парсится секция include: в YAML ===
+=== [5] adsl.c: resolve_include_candidate / путь-кандидат ===
+=== [6] adsl.c: dedup — как сейчас дедуплицируются физические файлы ===
+=== [7] adsl.c: структура adsl_document_t в adslc.h (полная) ===
+=== [8] adsl.c: adsl_project_merge_into_document (полная реализация) ===
+=== [9] adsl.c: как устроен парсер верхнего уровня (main parse loop) ===
+=== [10] adsl.c: обработка ошибок (set_error) ===
+=== [11] adsl.c: recursive include — детали, чтобы повторить ту же логику в пуле ===
+=== [1] adsl.c: точные строки adsl_resolve_include для замены ===
+=== [2] adsl.c: adsl_load_state_t и его хелперы ===
+=== [3] adsl.c: adsl_path_join / adsl_file_exists / adsl_normalize_path / adsl_canonical_path ===
+=== [4] adsl.c: adsl_path_is_directory / adsl_find_files (для каталогов) ===
+=== [5] adsl.c: adsl_merge_loaded_document ===
+=== [6] adsl.c: adsl_parse_file сигнатура ===
+=== [7] adsl.c: adsl_normalize_document / adsl_validate_unique_declarations ===
+=== [8] adsl.c: deduplication helper 'adsl_load_state_*' целиком ===
+=== [9] точный конец файла adsl.c ===
+=== [10] adslc.h: точное место для объявления новой функции adsl_load_pool ===
+=== [11] главный парсинг — adsl_parse_file (для понимания, что вернёт документ) ===
+=== [12] emitter.c: adsl_emit_c_method — что делает для merged document с base_name aether_api ===
+=== [13] CMakeLists: точный блок, куда добавить новый тест (после project_scan_test) ===
+=== [14] main.c: где начинается project_mode обработка (для вставки --input) ===
+=== [1] Прочитать точный фрагмент adsl.c: adsl_load_state_t (перед 3578) ===
+=== [2] Точный фрагмент 4100-4140 — конец adsl_load_state_add ===
+=== [3] adsl_project_load_files целиком (5157-5235) ===
+=== [4] Точное место adsl_project_load_files в adslc.h ===
+=== [5] adsl_load_file (5006-5019) — публичная обёртка ===
+=== [6] adsl_load_file_with_include_paths целиком ===
+=== [7] adsl_project_load_files — точные границы ===
+=== [8] adsl_find_files целиком ===
+=== [9] Тесты, которые нужно переписать ===
+=== [10] Фикстуры для этих тестов ===
+=== [11] Показать содержимое ключевых фикстур ===
+=== [12] Показать содержимое A.adsl.yaml, B.adsl.yaml (для test_project) ===
+=== [13] Полный CMakeLists tools — чтобы точно знать структуру test-целей ===
+=== [14] test_include.c — там старый path-based include ===
+=== [15] test_adsl.c ===
+
+
+## Прогресс: emitter в project/merged режиме (достигнуто)
+
+### Исправления в emitter.c
+
+1. `emit_parameter_type_ctx` — abbr stream-типа через `find_declared_type_ctx` + `type_effective_prefix_ctx`.
+2. `api_effective_prefix_ctx` — добавлен (после `type_effective_prefix_ctx`, ~строка 685). Берёт abbr из `api->source_path` через `abbreviate_from_path`; fallback на `ctx->module_abbr` только для legacy standalone.
+3. `emit_collapsible_method_declarations_ctx` / `emit_collapsible_method_source_ctx` — добавлен параметр `api_abbr`; все `ctx->module_abbr` заменены на `api_abbr`.
+4. `emit_stream_builder_declarations_for_api_ctx` — `declared_c_name(stream_abbr, ...)` вместо `ctx->module_abbr`.
+5. `emit_api_header_ctx` — per-API `api_abbr` через `api_effective_prefix_ctx`; typedef `_send_fn` теперь эмитится per-API (с дедупом по abbr), не только для первой API.
+6. `emit_api_source_ctx` — per-API `api_abbr`; убран единый блок `stream_commit_t`/`stream_commit` (перенесён в stream-builder definitions как per-abbr).
+7. `emit_stream_commit_once_ctx` — новый helper: эмитит `{abbr}_stream_commit_t` + `{abbr}_stream_commit` один раз на каждый уникальный abbr.
+8. `stream_effective_prefix_ctx` — новый helper: для stream берёт abbr через API-владельца (`stream->api` / `stream->apis[]` → `find_api_definition_ctx` → `api_effective_prefix_ctx`), fallback на `ctx->module_abbr`.
+9. `emit_all_stream_builder_declarations_ctx` / `emit_all_stream_builder_definitions_ctx` — используют `stream_effective_prefix_ctx`.
+10. Удалены неиспользуемые: `stream_has_builder_api`, `document_has_stream_builders`.
+
+### Текущий результат генерации
+
+`generated aether_api.h/.c from 4 documents`
+- `grep -c '^aether_status_t _'` → 0 ✓
+- `grep -c '    login_stream_t'` → 0 ✓
+- `csa_` API функций → 227
+- `pa_` API функций → 84
+
+### Оставшийся дефект
+
+Stream builder конфликт имён. Stream-builder функция называется `{stream_abbr}_{api_name}_{method_name}` и совпадает с обычной API-функцией того же API.
+Пример:
+aether_status_t csa_authorized_api_back_id(csa_authorized_api_remote_t *api, int16_t); // обычная API
+aether_status_t csa_authorized_api_back_id(csa_login_stream_t *builder_stream, int16_t); // stream builder
+
+text
+Компиляция падает с `conflicting types`.
+
+Причина: `stream_abbr` в unified-модели = abbr API-владельца (csa), не имя stream-типа.
+
+Требует уточнения от постановщика: как должно выглядеть имя stream-builder функции? Возможно `{stream_type_abbr}_{api_name}_{method_name}`, где `stream_type_abbr` = `csa_login`.
+
+### Тесты
+
+`ctest` — 28/35 прошло. Упавшие/не собирающиеся:
+- `test_project.c`, `test_project_scan.c` — не компилируются (старая сигнатура `adsl_project_load_files`).
+- `test_include.c` — падает (новая pool-based модель).
+- `test_adslc` — unexpected method id: count=0 id=0.
+- `test_cross_module_pending`, `test_unified_types`, `emitter_hardening` — aborted.
+- `test_cross_module_smoke_compile` — Failed.
+- `emitter_nullable_stream` — Failed.
+
+### Что делать дальше
+
+1. Уточнить у постановщика формат stream-builder имени.
+2. Обновить `test_project.c` / `test_project_scan.c` под новую сигнатуру `adsl_project_load_files(paths, count, project, error, cap)`.
+3. Адаптировать `test_include.c` под pool-based include resolution.
+4. Добавить `tests/test_input_pool.c` + регистрация в CMakeLists.
+5. Разобраться с оставшимися упавшими тестами.

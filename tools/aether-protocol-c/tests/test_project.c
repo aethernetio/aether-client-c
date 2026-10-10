@@ -28,7 +28,7 @@ static void test_project_two_documents(void) {
 
     const char *paths[] = {
         a_path,
-        b_path,
+        b_path
     };
 
     adsl_project_t project;
@@ -39,8 +39,6 @@ static void test_project_two_documents(void) {
     assert(adsl_project_load_files(
         paths,
         2u,
-        NULL,
-        0u,
         &project,
         error,
         sizeof(error)));

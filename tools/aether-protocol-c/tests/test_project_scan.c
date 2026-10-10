@@ -113,14 +113,14 @@ static void test_scan_loads_project(void) {
     adsl_project_t project;
     adsl_project_init(&project);
 
+
     assert(adsl_project_load_files(
         (const char *const *)files,
         file_count,
-        include_paths,
-        1u,
         &project,
         error,
         sizeof(error)));
+
 
     assert(project.document_count == 2u);
     assert(project.documents != NULL);

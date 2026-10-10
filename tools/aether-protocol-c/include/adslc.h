@@ -488,22 +488,33 @@ void adsl_project_init(
 void adsl_project_free(
     adsl_project_t *project);
 
+
 /*
- * Load each path as one top-level document in the project.
+ * Load a project from a mixed list of file and directory inputs.
  *
- * The project must be empty before the call. Each document resolves its own
- * include closure using the usual rules and records its own root_source_path.
+ * Each entry in paths[] is either:
+ *   - a directory: scanned recursively for *.adsl.yaml files;
+ *   - a file: used directly as a document.
  *
- * On failure the project is left empty.
+ * Every discovered document is registered under its basename (the file
+ * name without the ".adsl.yaml"/".adsl.yml" suffix). include: directives
+ * inside documents are resolved against this pool by document name only;
+ * there is no directory search path.
+ *
+ * A name collision between two distinct physical files with the same
+ * basename is an error, unless their byte contents are identical, in which
+ * case one document is kept.
+ *
+ * The project must be empty before the call. On failure the project is
+ * left empty.
  */
 bool adsl_project_load_files(
     const char *const *paths,
     size_t path_count,
-    const char *const *include_paths,
-    size_t include_path_count,
     adsl_project_t *project,
     char *error,
     size_t error_capacity);
+
 
 
 /*

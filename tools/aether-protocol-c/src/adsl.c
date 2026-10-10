@@ -3597,20 +3597,6 @@ static void adsl_load_state_free(
     state->count = 0u;
 }
 
-static bool adsl_file_exists(
-    const char *path) {
-
-    FILE *input =
-        fopen(path, "rb");
-
-    if (input == NULL) {
-        return false;
-    }
-
-    fclose(input);
-
-    return true;
-}
 
 static bool adsl_normalize_path(
     const char *path,
@@ -3932,162 +3918,7 @@ static bool adsl_include_stem(
     return true;
 }
 
-static bool adsl_include_file_name(
-    const char *include_name,
-    const char *suffix,
-    char *output,
-    size_t capacity) {
 
-    if (adsl_has_suffix(
-            include_name,
-            ".adsl.yaml") ||
-        adsl_has_suffix(
-            include_name,
-            ".adsl.yml")) {
-
-        int written =
-            snprintf(
-                output,
-                capacity,
-                "%s",
-                include_name);
-
-        return
-            written >= 0 &&
-            (size_t)written < capacity;
-    }
-
-    int written =
-        snprintf(
-            output,
-            capacity,
-            "%s%s",
-            include_name,
-            suffix);
-
-    return
-        written >= 0 &&
-        (size_t)written < capacity;
-}
-
-static bool adsl_resolve_include(
-    const char *source_path,
-    const char *include_name,
-    const char *const *include_paths,
-    size_t include_path_count,
-    char *resolved,
-    size_t resolved_capacity) {
-
-    char directory[4096];
-
-    if (!adsl_path_directory(
-            source_path,
-            directory,
-            sizeof(directory))) {
-
-        return false;
-    }
-
-    char stem[1024];
-
-    if (!adsl_include_stem(
-            include_name,
-            stem,
-            sizeof(stem))) {
-
-        return false;
-    }
-
-    static const char *const suffixes[] = {
-        ".adsl.yaml",
-        ".adsl.yml"
-    };
-
-    for (size_t i = 0u;
-         i < sizeof(suffixes) /
-                 sizeof(suffixes[0]);
-         ++i) {
-
-        char file_name[1024];
-
-        if (!adsl_include_file_name(
-                include_name,
-                suffixes[i],
-                file_name,
-                sizeof(file_name))) {
-
-            continue;
-        }
-
-        char candidate[4096];
-
-        if (adsl_path_join(
-                directory,
-                file_name,
-                candidate,
-                sizeof(candidate)) &&
-            adsl_file_exists(candidate)) {
-
-            return adsl_normalize_path(
-                candidate,
-                resolved,
-                resolved_capacity);
-        }
-
-        char sibling[2048];
-
-        int written =
-            snprintf(
-                sibling,
-                sizeof(sibling),
-                "../%s/%s",
-                stem,
-                file_name);
-
-        if (written >= 0 &&
-            (size_t)written <
-                sizeof(sibling) &&
-            adsl_path_join(
-                directory,
-                sibling,
-                candidate,
-                sizeof(candidate)) &&
-            adsl_file_exists(candidate)) {
-
-            return adsl_normalize_path(
-                candidate,
-                resolved,
-                resolved_capacity);
-        }
-
-        for (size_t p = 0u;
-             p < include_path_count;
-             ++p) {
-
-            if (include_paths == NULL ||
-                include_paths[p] == NULL ||
-                *include_paths[p] == '\0') {
-
-                continue;
-            }
-
-            if (adsl_path_join(
-                    include_paths[p],
-                    file_name,
-                    candidate,
-                    sizeof(candidate)) &&
-                adsl_file_exists(candidate)) {
-
-                return adsl_normalize_path(
-                    candidate,
-                    resolved,
-                    resolved_capacity);
-            }
-        }
-    }
-
-    return false;
-}
 
 static bool adsl_load_state_contains(
     const adsl_load_state_t *state,
@@ -4136,6 +3967,179 @@ static bool adsl_load_state_add(
 
     return true;
 }
+
+
+
+/*
+ * Pool of documents keyed by basename.
+ *
+ * Entries are (name, path) pairs where name is the document's basename
+ * without the ".adsl.yaml"/".adsl.yml" suffix. Lookup is exact-match.
+ *
+ * Duplicate basenames are rejected at insert time by comparing file
+ * contents; identical duplicates are silently collapsed.
+ */
+typedef struct {
+    char **names;
+    char **paths;
+    size_t count;
+} adsl_document_pool_t;
+
+static void adsl_document_pool_free(
+    adsl_document_pool_t *pool) {
+
+    if (pool == NULL) {
+        return;
+    }
+
+    for (size_t i = 0u; i < pool->count; ++i) {
+        free(pool->names[i]);
+        free(pool->paths[i]);
+    }
+
+    free(pool->names);
+    free(pool->paths);
+
+    pool->names = NULL;
+    pool->paths = NULL;
+    pool->count = 0u;
+}
+
+static const char *adsl_document_pool_find(
+    const adsl_document_pool_t *pool,
+    const char *name) {
+
+    if (pool == NULL || name == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0u; i < pool->count; ++i) {
+        if (strcmp(pool->names[i], name) == 0) {
+            return pool->paths[i];
+        }
+    }
+
+    return NULL;
+}
+
+static bool adsl_document_pool_key(
+    const char *path,
+    char *key,
+    size_t capacity) {
+
+    const char *base = path;
+
+    for (const char *p = path; *p != '\0'; ++p) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+
+    return adsl_include_stem(base, key, capacity);
+}
+
+static bool adsl_files_identical(
+    const char *left,
+    const char *right) {
+
+    FILE *a = fopen(left, "rb");
+    FILE *b = fopen(right, "rb");
+
+    if (a == NULL || b == NULL) {
+        if (a != NULL) fclose(a);
+        if (b != NULL) fclose(b);
+        return false;
+    }
+
+    unsigned char buf_a[4096];
+    unsigned char buf_b[4096];
+
+    bool same = true;
+
+    for (;;) {
+        size_t read_a = fread(buf_a, 1u, sizeof(buf_a), a);
+        size_t read_b = fread(buf_b, 1u, sizeof(buf_b), b);
+
+        if (read_a != read_b ||
+            memcmp(buf_a, buf_b, read_a) != 0) {
+            same = false;
+            break;
+        }
+
+        if (read_a < sizeof(buf_a)) {
+            break;
+        }
+    }
+
+    fclose(a);
+    fclose(b);
+
+    return same;
+}
+
+static bool adsl_document_pool_add(
+    adsl_document_pool_t *pool,
+    const char *path,
+    char *error,
+    size_t error_capacity) {
+
+    char key[1024];
+
+    if (!adsl_document_pool_key(path, key, sizeof(key))) {
+        set_error(error, error_capacity, "cannot derive document name from '%s'", path);
+        return false;
+    }
+
+    const char *existing = adsl_document_pool_find(pool, key);
+
+    if (existing != NULL) {
+        if (adsl_files_identical(existing, path)) {
+            return true;
+        }
+
+        set_error(
+            error,
+            error_capacity,
+            "conflicting documents named '%s': '%s' and '%s'",
+            key,
+            existing,
+            path);
+
+        return false;
+    }
+
+    char **names = realloc(pool->names, (pool->count + 1u) * sizeof(*names));
+
+    if (names == NULL) {
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    pool->names = names;
+
+    char **paths = realloc(pool->paths, (pool->count + 1u) * sizeof(*paths));
+
+    if (paths == NULL) {
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    pool->paths = paths;
+
+    names[pool->count] = copy_string(key);
+    paths[pool->count] = copy_string(path);
+
+    if (names[pool->count] == NULL ||
+        paths[pool->count] == NULL) {
+        set_error(error, error_capacity, "out of memory");
+        return false;
+    }
+
+    pool->count++;
+
+    return true;
+}
+
 
 
 
@@ -4851,19 +4855,18 @@ static bool adsl_merge_loaded_document(
 }
 
 
+
 static bool adsl_load_recursive(
     const char *path,
-    const char *const *include_paths,
-    size_t include_path_count,
-
+    const adsl_document_pool_t *pool,
     adsl_document_t *destination,
     adsl_document_t *include_destination,
     adsl_load_state_t *state,
-
     size_t depth,
     bool root_declaration,
     char *error,
     size_t error_capacity) {
+
 
 
     if (depth > 128u) {
@@ -4928,20 +4931,16 @@ static bool adsl_load_recursive(
          i < current.include_count;
          ++i) {
 
-        char include_path[4096];
 
-        if (!adsl_resolve_include(
-                normalized,
-                current.includes[i],
-                include_paths,
-                include_path_count,
-                include_path,
-                sizeof(include_path))) {
+const char *include_path =
+            adsl_document_pool_find(pool, current.includes[i]);
 
+        if (include_path == NULL) {
             set_error(
                 error,
                 error_capacity,
-                "cannot resolve include '%s' from '%s'",
+                "cannot resolve include '%s' from '%s': "
+                "no document with that name in the input pool",
                 current.includes[i],
                 normalized);
 
@@ -4950,24 +4949,23 @@ static bool adsl_load_recursive(
         }
 
 
-        if (!adsl_load_recursive(
-                include_path,
-                include_paths,
-                include_path_count,
 
+
+if (!adsl_load_recursive(
+                include_path,
+                pool,
                 destination,
                 include_destination,
                 state,
-
                 depth + 1u,
                 false,
                 error,
                 error_capacity)) {
 
-
             adsl_document_free(&current);
             return false;
         }
+
     }
 
 
@@ -5019,6 +5017,7 @@ bool adsl_load_file(
 }
 
 
+
 bool adsl_load_file_with_include_paths(
     const char *path,
     const char *const *include_paths,
@@ -5027,53 +5026,67 @@ bool adsl_load_file_with_include_paths(
     char *error,
     size_t error_capacity) {
 
+    /*
+     * Legacy single-file entry point. All includes must live in the same
+     * directory as `path` and are resolved by basename from that pool.
+     * include_paths is accepted for signature compatibility and ignored:
+     * the pool model has no directory search path.
+     */
 
+    (void)include_paths;
+    (void)include_path_count;
 
-
-    if (path == NULL ||
-        document == NULL ||
-        (include_path_count > 0u &&
-         include_paths == NULL)) {
-
-        set_error(
-            error,
-            error_capacity,
-            "invalid loader arguments");
-
+    if (path == NULL || document == NULL) {
+        set_error(error, error_capacity, "invalid loader arguments");
         return false;
     }
 
-    
-    document->root_source_path =
-        strdup(path);
+    adsl_document_pool_t pool = {0};
 
-    
+    char directory[4096];
+
+    if (!adsl_path_directory(path, directory, sizeof(directory))) {
+        set_error(error, error_capacity, "cannot derive directory from '%s'", path);
+        return false;
+    }
+
+    char **siblings = NULL;
+    size_t sibling_count = 0u;
+
+    const char *dirs[] = { directory };
+
+    if (!adsl_find_files(dirs, 1u, &siblings, &sibling_count, error, error_capacity)) {
+        return false;
+    }
+
+    for (size_t i = 0u; i < sibling_count; ++i) {
+        if (!adsl_document_pool_add(&pool, siblings[i], error, error_capacity)) {
+            for (size_t j = 0u; j < sibling_count; ++j) free(siblings[j]);
+            free(siblings);
+            adsl_document_pool_free(&pool);
+            return false;
+        }
+    }
+
+    for (size_t j = 0u; j < sibling_count; ++j) free(siblings[j]);
+    free(siblings);
+
+    document->root_source_path = strdup(path);
+
     if (document->root_source_path == NULL) {
-        set_error(
-            error,
-            error_capacity,
-            "out of memory");
+        set_error(error, error_capacity, "out of memory");
+        adsl_document_pool_free(&pool);
         return false;
     }
 
-
-
-
-
-
-    adsl_load_state_t state = {
-        NULL,
-        0u
-    };
-
+    adsl_load_state_t state = { NULL, 0u };
     adsl_document_t include_destination;
     adsl_document_init(&include_destination);
 
     bool loaded =
         adsl_load_recursive(
             path,
-            include_paths,
-            include_path_count,
+            &pool,
             document,
             &include_destination,
             &state,
@@ -5082,43 +5095,23 @@ bool adsl_load_file_with_include_paths(
             error,
             error_capacity);
 
-
-
-
-
-
-
-
     if (loaded) {
-
         if (!adsl_build_resolved_context(document, &include_destination)) {
-
-            set_error(
-                error,
-                error_capacity,
-                "out of memory while building resolved context");
-
+            set_error(error, error_capacity, "out of memory while building resolved context");
             loaded = false;
-
         } else if (!adsl_normalize_document(document, error, error_capacity) ||
                    !adsl_validate_unique_declarations(document, error, error_capacity)) {
-
             loaded = false;
         }
     }
 
-
-
-
-
     adsl_document_free(&include_destination);
-
-
     adsl_load_state_free(&state);
-
+    adsl_document_pool_free(&pool);
 
     return loaded;
 }
+
 
 
 void adsl_project_init(
@@ -5154,82 +5147,161 @@ void adsl_project_free(
 }
 
 
+
 bool adsl_project_load_files(
     const char *const *paths,
     size_t path_count,
-    const char *const *include_paths,
-    size_t include_path_count,
     adsl_project_t *project,
     char *error,
     size_t error_capacity) {
 
     if (paths == NULL ||
         path_count == 0u ||
-        project == NULL ||
-        (include_path_count > 0u &&
-         include_paths == NULL)) {
+        project == NULL) {
 
-        set_error(
-            error,
-            error_capacity,
-            "invalid project loader arguments");
-
+        set_error(error, error_capacity, "invalid project loader arguments");
         return false;
     }
 
     if (project->documents != NULL ||
         project->document_count != 0u) {
 
-        set_error(
-            error,
-            error_capacity,
-            "project is not empty");
-
+        set_error(error, error_capacity, "project is not empty");
         return false;
     }
 
-    adsl_document_t *documents =
-        calloc(
-            path_count,
-            sizeof(*documents));
-
-    if (documents == NULL) {
-
-        set_error(
-            error,
-            error_capacity,
-            "out of memory");
-
-        return false;
-    }
+    adsl_document_pool_t pool = {0};
 
     for (size_t i = 0u; i < path_count; ++i) {
 
-        adsl_document_init(&documents[i]);
+        const char *input = paths[i];
 
-        if (!adsl_load_file_with_include_paths(
-                paths[i],
-                include_paths,
-                include_path_count,
-                &documents[i],
-                error,
-                error_capacity)) {
+        if (input == NULL || input[0] == '\0') {
+            set_error(error, error_capacity, "empty input path");
+            adsl_document_pool_free(&pool);
+            return false;
+        }
 
-            for (size_t j = 0u; j <= i; ++j) {
-                adsl_document_free(&documents[j]);
+        struct stat info;
+
+        if (stat(input, &info) != 0) {
+            set_error(error, error_capacity, "cannot stat input '%s'", input);
+            adsl_document_pool_free(&pool);
+            return false;
+        }
+
+        if (S_ISDIR(info.st_mode)) {
+
+            char **found = NULL;
+            size_t found_count = 0u;
+
+            const char *dirs[] = { input };
+
+            if (!adsl_find_files(dirs, 1u, &found, &found_count, error, error_capacity)) {
+                adsl_document_pool_free(&pool);
+                return false;
             }
 
-            free(documents);
+            for (size_t j = 0u; j < found_count; ++j) {
+                if (!adsl_document_pool_add(&pool, found[j], error, error_capacity)) {
+                    for (size_t k = 0u; k < found_count; ++k) free(found[k]);
+                    free(found);
+                    adsl_document_pool_free(&pool);
+                    return false;
+                }
+            }
 
+            for (size_t k = 0u; k < found_count; ++k) free(found[k]);
+            free(found);
+            continue;
+        }
+
+        if (!S_ISREG(info.st_mode)) {
+            set_error(error, error_capacity, "input '%s' is neither file nor directory", input);
+            adsl_document_pool_free(&pool);
+            return false;
+        }
+
+        if (!adsl_document_pool_add(&pool, input, error, error_capacity)) {
+            adsl_document_pool_free(&pool);
             return false;
         }
     }
 
+    if (pool.count == 0u) {
+        set_error(error, error_capacity, "no .adsl.yaml documents found in inputs");
+        adsl_document_pool_free(&pool);
+        return false;
+    }
+
+    adsl_document_t *documents = calloc(pool.count, sizeof(*documents));
+
+    if (documents == NULL) {
+        set_error(error, error_capacity, "out of memory");
+        adsl_document_pool_free(&pool);
+        return false;
+    }
+
+    for (size_t i = 0u; i < pool.count; ++i) {
+
+        adsl_document_init(&documents[i]);
+
+        documents[i].root_source_path = strdup(pool.paths[i]);
+
+        if (documents[i].root_source_path == NULL) {
+            set_error(error, error_capacity, "out of memory");
+            for (size_t j = 0u; j <= i; ++j) adsl_document_free(&documents[j]);
+            free(documents);
+            adsl_document_pool_free(&pool);
+            return false;
+        }
+
+        adsl_load_state_t state = { NULL, 0u };
+        adsl_document_t include_destination;
+        adsl_document_init(&include_destination);
+
+        bool loaded =
+            adsl_load_recursive(
+                pool.paths[i],
+                &pool,
+                &documents[i],
+                &include_destination,
+                &state,
+                0u,
+                true,
+                error,
+                error_capacity);
+
+        if (loaded) {
+            if (!adsl_build_resolved_context(&documents[i], &include_destination)) {
+                set_error(error, error_capacity, "out of memory while building resolved context");
+                loaded = false;
+            } else if (!adsl_normalize_document(&documents[i], error, error_capacity) ||
+                       !adsl_validate_unique_declarations(&documents[i], error, error_capacity)) {
+                loaded = false;
+            }
+        }
+
+        adsl_document_free(&include_destination);
+        adsl_load_state_free(&state);
+
+        if (!loaded) {
+            for (size_t j = 0u; j <= i; ++j) adsl_document_free(&documents[j]);
+            free(documents);
+            adsl_document_pool_free(&pool);
+            return false;
+        }
+    }
+
+    size_t document_count = pool.count;
+    adsl_document_pool_free(&pool);
+
     project->documents = documents;
-    project->document_count = path_count;
+    project->document_count = document_count;
 
     return true;
 }
+
 
 
 /* Deduplicated, owned string list used by the include-directory scanner. */
