@@ -2,8 +2,11 @@
 #include "p2p_test_support.h"
 
 #include "aether_platform.h"
+
 #include "aether_test_crypto_hydrogen.h"
+#include "aether_crypto_registry.h"
 #include "aether_posix_transport.h"
+
 
 #include <inttypes.h>
 #include <limits.h>
@@ -415,8 +418,19 @@ aether_status_t aether_platform_init(
             flash_save
         };
 
+
     platform->crypto =
         &AETHER_TEST_HYDROGEN_CRYPTO;
+
+    /*
+     * The signed-key parser resolves its backend through the
+     * process-wide registry, so the test HYDROGEN provider must be
+     * registered before any SignedKey is parsed.
+     */
+    (void)aether_crypto_register(
+        &AETHER_TEST_HYDROGEN_CRYPTO,
+        ctx);
+
 
     platform->crypto_ctx =
         ctx;

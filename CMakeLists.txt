@@ -24,8 +24,11 @@ target_compile_features(
 
 add_library(aether_client STATIC
 
+
     src/aether_client.c
+    src/aether_crypto_registry.c
     src/aether_meta_runtime.c
+
     src/aether_client_app.c
 
     src/aether_rx_first.c

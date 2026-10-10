@@ -627,7 +627,19 @@ typedef void (*aether_event_callback_t)(
     aether_flash_vtable_t flash;
 
     const aether_crypto_vtable_t *crypto;
+
     void *crypto_ctx;
+
+    /*
+     * Wire-level discriminator for the default crypto backend.
+     *
+     * When crypto is NULL and crypto_lib is non-zero, aether_client_init()
+     * resolves the vtable and ctx from the process-wide crypto registry
+     * (see aether_crypto_registry.h). When crypto is non-NULL, the fields
+     * are used as-is and crypto_lib is ignored.
+     */
+    uint8_t crypto_lib;
+
 
     aether_pow_vtable_t pow;
 

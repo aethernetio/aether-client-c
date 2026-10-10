@@ -31,7 +31,10 @@
 #include "generated/aether_reg_root_key.h"
 #include "generated/aether_reg_safe.h"
 #include "generated/aether_reg_unsafe_local.h"
+
 #include "generated/client_server_api_api.h"
+#include "aether_crypto_registry.h"
+
 
 #include <string.h>
 
@@ -910,30 +913,49 @@ static void transport_close(
 }
 
 
+
 static bool parse_signed_key(
     reader_t *reader,
     const aether_client_t *client,
     aether_signed_key_t *key) {
 
-    const aether_crypto_profile_t *profile =
-        &client->config.crypto->profile;
+    (void)client;
 
-    memset(
-        key,
-        0,
-        sizeof(*key));
+    /*
+     * MCU code must not pull in <string.h>; zero the struct with a
+     * plain byte loop instead of memset.
+     */
+    uint8_t *raw =
+        (uint8_t *)key;
+
+    for (size_t i = 0u;
+         i < sizeof(*key);
+         ++i) {
+
+        raw[i] = 0u;
+    }
 
     key->key_type =
         r_u8(reader);
 
-    if (key->key_type !=
-        profile->asymmetric_public_key_type) {
+    /*
+     * The wire carries key_type but not crypto_lib, so the backend
+     * must be resolved from the ADSL wire type id alone.
+     */
+    const aether_crypto_provider_t *provider =
+        aether_crypto_find_by_asymmetric_public_key_type(
+            key->key_type);
+
+    if (provider == NULL) {
 
         reader->failed =
             true;
 
         return false;
     }
+
+    const aether_crypto_profile_t *profile =
+        &provider->vtable->profile;
 
     if (!r_bytes(
             reader,
@@ -963,23 +985,27 @@ static bool parse_signed_key(
 }
 
 
+
+
 static bool verify_signed_key(
     const aether_client_t *client,
     const aether_signed_key_t *key) {
 
-    const aether_crypto_vtable_t *crypto =
-        client->config.crypto;
+    const aether_crypto_provider_t *provider =
+        aether_crypto_find_by_wire_types(
+            key->key_type,
+            key->sign_type);
 
-    const aether_crypto_profile_t *profile =
-        &crypto->profile;
-
-    if (key->key_type !=
-            profile->asymmetric_public_key_type ||
-        key->sign_type !=
-            profile->sign_type) {
+    if (provider == NULL) {
 
         return false;
     }
+
+    const aether_crypto_vtable_t *crypto =
+        provider->vtable;
+
+    const aether_crypto_profile_t *profile =
+        &crypto->profile;
 
     for (size_t i = 0u;
          i <
@@ -992,7 +1018,7 @@ static bool verify_signed_key(
                 profile->sign_public_key_bytes;
 
         if (crypto->verify_signature(
-                client->config.crypto_ctx,
+                provider->ctx,
                 root,
                 profile->sign_public_key_bytes,
                 key->signature,
@@ -1007,6 +1033,7 @@ static bool verify_signed_key(
 
     return false;
 }
+
 
 
 static aether_status_t crypto_asymmetric_encrypt(
@@ -4550,10 +4577,29 @@ void aether_client_init(
     client->ingress.kind =
         AETHER_INGRESS_NONE;
 
+
     if (config != NULL) {
-        client->config =
-            *config;
+        client->config = *config;
     }
+
+    /*
+     * Resolve a default crypto provider from the process-wide registry
+     * when the caller specified crypto_lib but no vtable. This is the
+     * only place where the registry feeds the low-level client; existing
+     * callers that set config.crypto directly keep working unchanged.
+     */
+    if (client->config.crypto == NULL &&
+        client->config.crypto_lib != 0u) {
+
+        const aether_crypto_provider_t *provider =
+            aether_crypto_find(client->config.crypto_lib);
+
+        if (provider != NULL) {
+            client->config.crypto = provider->vtable;
+            client->config.crypto_ctx = provider->ctx;
+        }
+    }
+
 
     if (client->config.ping_interval_ms ==
         0u) {

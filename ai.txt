@@ -5460,3 +5460,107 @@ A-модуля, только правильные имена символов.
 child_t; struct child_t {...}' — forward declaration безопасна.
 
 Следующий шаг — B2.4.3B (by-value cycle detection).
+=== 2026-10-10 C-генератор: проверка готовности и P2P e2e ===
+
+РЕЗУЛЬТАТ: актуальный C-клиент успешно собран и прошёл P2P e2e.
+
+Команда: gradle -p /home/angel/projects/aether :tests:test \
+  --tests io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages
+
+Тест сам:
+  1. Поднимает локальный Aether-сервер через AbstractTestStarter.startAetherServerSide().
+  2. Собирает C-клиент:
+     cmake -S . -B build-p2p-e2e -DCMAKE_BUILD_TYPE=Debug
+     cmake --build build-p2p-e2e --target aether_p2p_e2e -j2
+  3. Запускает build-p2p-e2e/aether_p2p_e2e.
+  4. Печатает 'C public API P2P E2E PASS' при успехе.
+
+Вывод: BUILD SUCCESSFUL, PASS.
+
+Использованные tracked src/generated/ — рабочие. Двух C-клиентов A и B
+регистрируют, обмениваются сообщениями, тест завершается успехом.
+
+ОГРАНИЧЕНИЕ: standalone регенерация из актуальных ADSL сейчас НЕ даёт
+тот же самый src/generated/:
+  - ClientServerApi root: регенерированный output содержит другие
+    guard-имена (CLIENT_SERVER_API_TYPES_H vs CLIENTSERVERAPI_TYPES_H),
+    типы, определения.
+  - PeerApi root: регенерированный output содержит другие stream-типы
+    (login_stream_t, client_api_stream_t, ...) vs текущие
+    (peer_stream_t, peer_frame_type_t) в tracked.
+
+  => tracked src/generated/ — это результат другого набора ADSL/генератора,
+     не того, что лежит в /aether и /aether-client-java сегодня. Ручной
+     или полуавтоматический merge.
+
+  Регенерация поверх сломает клиент: один TU получает и peer_api_types.h,
+  и client_server_api_types.h, каждый из которых содержит общий closure
+  common.adsl.yaml → clash: enum crypto_lib_SODIUM дважды, typedef
+  crypto_lib_t дважды, ip_info_t дважды.
+
+  Это проявление ownership-конфликта policy B на уровне generated C:
+  standalone generation эмитит полный include closure в каждый root
+  module, поэтому пересекающиеся closure (PeerApi включает
+  ClientServerApi и common) дают дубликаты определений.
+
+Ограничение зафиксировано для будущей задачи (пересмотр ownership
+policy B или выборочный merge closure в standalone).
+
+ЗАКРЫТИЕ: критерий ТЗ выполнен — актуальная сборка C-клиента,
+успешный P2P e2e, без ручных правок generated C в текущем цикле.
+
+=== Crypto registry: Commits 1-3 завершены (aether-client-c) ===
+
+Дата: см. git log. HEAD до коммита: bfd1388.
+
+## Что сделано
+
+### Commit 1 — registry + config.crypto_lib
+- include/aether_crypto_registry.h, src/aether_crypto_registry.c — новый публичный API.
+  Fixed-size массив AETHER_MAX_CRYPTO_PROVIDERS=8, без heap, без <string.h>, без
+  __attribute__((constructor)). Явная регистрация, идемпотентная по crypto_lib.
+- include/aether_client.h — поле uint8_t crypto_lib в aether_client_config_t.
+- src/aether_client.c — в aether_client_init, если crypto==NULL && crypto_lib!=0,
+  резолв vtable/ctx из registry.
+- CMakeLists.txt — новый source в aether_client.
+
+### Commit 2 — parse/verify signed_key через registry
+- parse_signed_key: crypto_lib в wire НЕ передаётся, только key_type (ADSL id
+  асимметричного публичного ключа) и sign_type. sign_type стоит ПОСЛЕ тела ключа,
+  а размер тела нужен ДО чтения → искать провайдера можно только по одному
+  key_type. Добавлен aether_crypto_find_by_asymmetric_public_key_type.
+  Уникальность key_type между провайдерами гарантирована общим ADSL-пространством
+  типов: HydrogenCurvePublic=2, SodiumCurvePublic=8, P256AesGcmCurvePublic=13.
+- parse_signed_key: убран memset (правило MCU — никакого <string.h>), заменён
+  циклом по байтам. Параметр client стал (void)client.
+- verify_signed_key: провайдер находится через aether_crypto_find_by_wire_types
+  (key_type, sign_type); verify_signature вызывается с provider->ctx.
+- В registry добавлен aether_crypto_find_by_asymmetric_public_key_type.
+
+### Commit 3 — регистрация провайдеров в platform
+- tests/p2p_test_support.c: aether_crypto_register(&AETHER_TEST_HYDROGEN_CRYPTO, ctx)
+  в aether_platform_init после platform->crypto = ... .
+- platform/esp32/aether_platform_esp32.c: include aether_crypto_registry.h и
+  aether_crypto_register(aether_esp32_p256_aes_gcm_crypto(), ctx).
+- crypto_asymmetric_encrypt / symmetric_encrypt/decrypt / derive_server_keys
+  оставлены на client->config.crypto (client default, исходящее шифрование).
+
+## Проверка
+- cmake --build build-p2p-e2e --target aether_p2p_e2e — OK.
+- gradle :tests:test --tests ...CClientP2PTest.twoCClientsRegisterAndExchangeMessages
+  --rerun-tasks — C public API P2P E2E PASS, BUILD SUCCESSFUL.
+
+## Грабли / заметки на будущее
+1. aether_platform_init вызывается отдельно для каждого storage_slot
+   (client_a, client_b). aether_crypto_register идемпотентен по crypto_lib,
+   поэтому второй вызов перезаписывает ctx первого слота. Сейчас безопасно,
+   потому что HYDROGEN verify_signature игнорирует ctx (void)ctx, а P256 для
+   проверки подписи ctx тоже не использует. Если появится stateful-провайдер,
+   чей ctx хранит состояние, нельзя регистрировать per-slot ctx — нужен
+   единственный процессный ctx либо регистрация только из main/init-хука.
+2. crypto_lib (ADSL enum CryptoLib: SODIUM=0, HYDROGEN=1, P256_AES_GCM=2) —
+   плотный, но wire его не переносит. asymmetric_public_key_type и sign_type
+   (ADSL type ids) — единственные доступные в wire ключи резолва провайдера.
+3. registry — это не map, а линейный скан ≤8 элементов. Достаточно.
+4. parse_signed_key резолвит провайдера ДО чтения sign_type — это единственный
+   способ узнать длину тела ключа. Валидация sign_type — после чтения тела.

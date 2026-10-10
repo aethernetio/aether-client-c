@@ -1,7 +1,10 @@
 
 #include "aether_platform.h"
+
 #include "aether_platform_esp32.h"
 #include "aether_crypto_p256_aes_gcm.h"
+#include "aether_crypto_registry.h"
+
 
 #include <errno.h>
 #include <limits.h>
@@ -1494,8 +1497,19 @@ aether_status_t aether_platform_init(
             storage_save
         };
 
+
     platform->crypto =
         aether_esp32_p256_aes_gcm_crypto();
+
+    /*
+     * Signed-key parsing and verification resolve their backend
+     * through the process-wide registry, so register the ESP32
+     * P256/AES-GCM provider here. Idempotent if init runs twice.
+     */
+    (void)aether_crypto_register(
+        aether_esp32_p256_aes_gcm_crypto(),
+        ctx);
+
 
     platform->crypto_ctx =
         ctx;
