@@ -5871,3 +5871,38 @@ text
 3. Адаптировать `test_include.c` под pool-based include resolution.
 4. Добавить `tests/test_input_pool.c` + регистрация в CMakeLists.
 5. Разобраться с оставшимися упавшими тестами.
+
+
+## Обновление: старые режимы CLI удалены
+
+### Что сделано
+- `main.c` полностью переписан: только `--input <path>... <output-dir>` (и опциональные позиционные входы до последнего).
+- Удалены флаги `--api`, `--method`, `--local-api`, `--response-method`, `-I`.
+- Удалены хелперы `file_base_name`, `derive_base_name`.
+- `adsl_document_pool_add` больше не падает при коллизии basename — несколько файлов с одинаковым basename могут сосуществовать; дедуп только по полному пути.
+- Удалена `adsl_files_identical` (больше не нужна).
+
+### Состояние сборки
+- Генератор (`aether-adslc`) — собирается без ошибок и предупреждений.
+- Сгенерированный `aether_api.h/.c` (из 4 ADSL) — компилируется без ошибок и предупреждений.
+- `grep -c '^aether_status_t _'` → 0.
+- `ctest` — часть тестов падает, потому что CMakeLists.txt всё ещё вызывает `aether-adslc` со **старыми** флагами (`--response-method`, `--local-api`) и с одиночным input без `--input`.
+
+### Что осталось
+1. **CMakeLists.txt** — переписать все `add_custom_command`, использующие `--response-method`/`--local-api`/одиночный input, на `--input <file...> <outdir>`.
+2. **Тесты старых режимов** — перевести на unified или удалить:
+   - `test_generated_response_method.c`, `test_generated_response_ping.c`, `test_generated_response_describe.c`
+   - `test_generated_local_dispatch.c`
+   - `test_generated_nullable_api_params.c`
+   - `test_generated_typed_throws_calculate.c`, `test_generated_typed_throws_notify.c`
+   - `test_include.c`, `test_project_scan.c`, `test_unified_types.c`, `test_cross_module_pending.c`, `test_emitter_hardening.c`
+3. **Удаление мёртвого кода** в emitter.c (старые не-`_ctx` функции): `adsl_emit_c`, `adsl_emit_c_local_api`, `adsl_emit_c_response_method`, `adsl_emit_c_project`, `emitter_ctx_standalone`, `emitter_collect_effective`, `emit_types_header`, `emit_types_source`, `find_api_definition`, `find_declared_type`, `emit_parameter_type`, `classify_param_kind`, `array_alias_name`, `format_c_type`, `emit_field_declaration`, `emit_local_*`, `response_*`.
+4. **Регрессионный тест** `tests/test_input_pool.c` (2+ входа, include по basename, скан каталога, коллизия basename).
+
+### Ключевые концепции (закреплено)
+- Abbr = abbreviated basename ADSL-файла.
+- Abbr ставится на **ВСЕ** символы из данного ADSL-файла (типы, функции, stream builders).
+- Basename не является уникальным идентификатором. Разные файлы с одинаковым basename могут сосуществовать как отдельные документы.
+- Реальный конфликт — только при совпадении **abbr + имени типа/API** с разным содержимым.
+- Include в ADSL — только basename без расширения/пути.
+- Standalone — отменён, единственный режим — unified `--input`.

@@ -598,17 +598,17 @@ file(MAKE_DIRECTORY
     "${AETHER_ADSLC_STRUCT_GENERATED_DIR}"
 )
 
+
 add_custom_command(
     OUTPUT
-        "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/include_root_types.h"
-        "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/include_root_types.c"
-        "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/include_root_api.h"
-        "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/include_root_api.c"
+        "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/aether_api.h"
+        "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/aether_api.c"
     COMMAND
         aether-adslc
+        --input
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/IncludeRoot.adsl.yaml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/CommonTypes.adsl.yaml"
         "${AETHER_ADSLC_STRUCT_GENERATED_DIR}"
-        IncludeRoot
     DEPENDS
         aether-adslc
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/IncludeRoot.adsl.yaml"
@@ -618,8 +618,7 @@ add_custom_command(
 
 add_executable(aether_generated_struct_test
     tests/test_generated_struct.c
-    "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/include_root_types.c"
-    "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/include_root_api.c"
+    "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/aether_api.c"
 )
 
 target_include_directories(aether_generated_struct_test
@@ -649,6 +648,7 @@ add_test(
     NAME aether_generated_struct_test
     COMMAND aether_generated_struct_test
 )
+
 
 
 set(AETHER_ADSLC_VALUE_GENERATED_DIR

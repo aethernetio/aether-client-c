@@ -5104,6 +5104,84 @@ void adsl_project_free(
 }
 
 
+/* Deduplicated, owned string list used by the include-directory scanner. */
+typedef struct {
+    char **items;
+    size_t count;
+    size_t capacity;
+} adsl_string_list_t;
+
+static bool adsl_string_list_contains(
+    const adsl_string_list_t *list,
+    const char *value) {
+
+    for (size_t i = 0u; i < list->count; ++i) {
+        if (strcmp(list->items[i], value) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool adsl_string_list_add(
+    adsl_string_list_t *list,
+    const char *value) {
+
+    if (adsl_string_list_contains(list, value)) {
+        return true;
+    }
+
+    if (list->count == list->capacity) {
+
+        size_t next_capacity =
+            list->capacity == 0u
+                ? 8u
+                : list->capacity * 2u;
+
+        char **items =
+            realloc(
+                list->items,
+                next_capacity * sizeof(*items));
+
+        if (items == NULL) {
+            return false;
+        }
+
+        list->items = items;
+        list->capacity = next_capacity;
+    }
+
+    char *copy =
+        copy_string(value);
+
+    if (copy == NULL) {
+        return false;
+    }
+
+    list->items[list->count++] = copy;
+
+    return true;
+}
+
+static void adsl_string_list_free(
+    adsl_string_list_t *list) {
+
+    for (size_t i = 0u; i < list->count; ++i) {
+        free(list->items[i]);
+    }
+
+    free(list->items);
+
+    list->items = NULL;
+    list->count = 0u;
+    list->capacity = 0u;
+}
+
+
+
+
+
 
 bool adsl_project_load_files(
     const char *const *paths,
@@ -5179,10 +5257,13 @@ bool adsl_project_load_files(
             return false;
         }
 
+
         if (!adsl_document_pool_add(&pool, input, error, error_capacity)) {
             adsl_document_pool_free(&pool);
             return false;
         }
+
+
     }
 
     if (pool.count == 0u) {
@@ -5261,79 +5342,6 @@ bool adsl_project_load_files(
 
 
 
-/* Deduplicated, owned string list used by the include-directory scanner. */
-typedef struct {
-    char **items;
-    size_t count;
-    size_t capacity;
-} adsl_string_list_t;
-
-static bool adsl_string_list_contains(
-    const adsl_string_list_t *list,
-    const char *value) {
-
-    for (size_t i = 0u; i < list->count; ++i) {
-        if (strcmp(list->items[i], value) == 0) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static bool adsl_string_list_add(
-    adsl_string_list_t *list,
-    const char *value) {
-
-    if (adsl_string_list_contains(list, value)) {
-        return true;
-    }
-
-    if (list->count == list->capacity) {
-
-        size_t next_capacity =
-            list->capacity == 0u
-                ? 8u
-                : list->capacity * 2u;
-
-        char **items =
-            realloc(
-                list->items,
-                next_capacity * sizeof(*items));
-
-        if (items == NULL) {
-            return false;
-        }
-
-        list->items = items;
-        list->capacity = next_capacity;
-    }
-
-    char *copy =
-        copy_string(value);
-
-    if (copy == NULL) {
-        return false;
-    }
-
-    list->items[list->count++] = copy;
-
-    return true;
-}
-
-static void adsl_string_list_free(
-    adsl_string_list_t *list) {
-
-    for (size_t i = 0u; i < list->count; ++i) {
-        free(list->items[i]);
-    }
-
-    free(list->items);
-
-    list->items = NULL;
-    list->count = 0u;
-    list->capacity = 0u;
-}
 
 static int adsl_compare_canonical_paths(
     const void *left,
@@ -5534,6 +5542,10 @@ static bool adsl_scan_directory_recursive(
 
     return true;
 }
+
+
+
+
 
 bool adsl_find_files(
     const char *const *include_paths,
