@@ -1,5 +1,5 @@
 
-#include "stream_builder_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -9,14 +9,14 @@
 static void test_multiple_commands_append_in_place(void) {
     uint8_t storage[32] = {0};
 
-    command_stream_t stream = {
+    sb_command_stream_t stream = {
         storage,
         sizeof(storage),
         0u
     };
 
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             &stream,
             INT32_C(0x01020304)) ==
         AETHER_OK);
@@ -38,7 +38,7 @@ static void test_multiple_commands_append_in_place(void) {
             sizeof(first_expected)) == 0);
 
     assert(
-        command_stream_stream_api_query(
+        sb_command_stream_stream_api_query(
             &stream,
             UINT32_C(0xa1b2c3d4),
             INT16_C(0x1234)) ==
@@ -72,14 +72,14 @@ static void test_multiple_commands_append_in_place(void) {
 static void test_overflow_does_not_commit_length(void) {
     uint8_t storage[8] = {0};
 
-    command_stream_t stream = {
+    sb_command_stream_t stream = {
         storage,
         sizeof(storage),
         0u
     };
 
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             &stream,
             INT32_C(0x01020304)) ==
         AETHER_OK);
@@ -87,7 +87,7 @@ static void test_overflow_does_not_commit_length(void) {
     assert(stream.length == 5u);
 
     assert(
-        command_stream_stream_api_query(
+        sb_command_stream_stream_api_query(
             &stream,
             UINT32_C(1),
             INT16_C(2)) ==
@@ -113,14 +113,14 @@ static void test_overflow_does_not_commit_length(void) {
 static void test_first_command_overflow_keeps_empty_stream(void) {
     uint8_t storage[4] = {0};
 
-    command_stream_t stream = {
+    sb_command_stream_t stream = {
         storage,
         sizeof(storage),
         0u
     };
 
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             &stream,
             INT32_C(1)) ==
         AETHER_ERR_OVERFLOW);
@@ -130,43 +130,43 @@ static void test_first_command_overflow_keeps_empty_stream(void) {
 
 static void test_stream_arguments(void) {
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             NULL,
             INT32_C(1)) ==
         AETHER_ERR_ARGUMENT);
 
-    command_stream_t invalid_length = {
+    sb_command_stream_t invalid_length = {
         NULL,
         0u,
         1u
     };
 
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             &invalid_length,
             INT32_C(1)) ==
         AETHER_ERR_ARGUMENT);
 
-    command_stream_t null_storage = {
+    sb_command_stream_t null_storage = {
         NULL,
         8u,
         0u
     };
 
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             &null_storage,
             INT32_C(1)) ==
         AETHER_ERR_ARGUMENT);
 
-    command_stream_t empty = {
+    sb_command_stream_t empty = {
         NULL,
         0u,
         0u
     };
 
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             &empty,
             INT32_C(1)) ==
         AETHER_ERR_OVERFLOW);
@@ -176,20 +176,20 @@ static void test_stream_arguments(void) {
 static void test_collapsible_method_is_deferred_until_stream_flush(void) {
     uint8_t storage[32] = {0};
 
-    command_stream_t stream = {
+    sb_command_stream_t stream = {
         storage,
         sizeof(storage),
         0u
     };
 
     assert(
-        command_stream_stream_api_append_value(
+        sb_command_stream_stream_api_append_value(
             &stream,
             INT32_C(0x01020304)) ==
         AETHER_OK);
 
-    stream_api_update_value_entry_t entries[2] = {0};
-    stream_api_update_value_context_t collapse = {
+    sb_stream_api_update_value_entry_t entries[2] = {0};
+    sb_stream_api_update_value_context_t collapse = {
         entries,
         2u,
 
@@ -199,7 +199,7 @@ static void test_collapsible_method_is_deferred_until_stream_flush(void) {
     };
 
     assert(
-        command_stream_stream_api_update_value(
+        sb_command_stream_stream_api_update_value(
             &stream,
             &collapse,
             INT32_C(7),
@@ -210,7 +210,7 @@ static void test_collapsible_method_is_deferred_until_stream_flush(void) {
     assert(collapse.count == 1u);
 
     assert(
-        command_stream_stream_api_update_value(
+        sb_command_stream_stream_api_update_value(
             &stream,
             &collapse,
             INT32_C(7),
@@ -218,7 +218,7 @@ static void test_collapsible_method_is_deferred_until_stream_flush(void) {
         AETHER_OK);
 
     assert(
-        command_stream_stream_api_update_value(
+        sb_command_stream_stream_api_update_value(
             &stream,
             &collapse,
             INT32_C(8),
@@ -229,7 +229,7 @@ static void test_collapsible_method_is_deferred_until_stream_flush(void) {
     assert(collapse.count == 2u);
 
     assert(
-        command_stream_stream_api_update_value_flush(
+        sb_command_stream_stream_api_update_value_flush(
             &stream,
             &collapse) ==
         AETHER_OK);
@@ -261,14 +261,14 @@ static void test_collapsible_method_is_deferred_until_stream_flush(void) {
 static void test_collapsible_stream_overflow_keeps_pending_table(void) {
     uint8_t storage[8] = {0};
 
-    command_stream_t stream = {
+    sb_command_stream_t stream = {
         storage,
         sizeof(storage),
         0u
     };
 
-    stream_api_update_value_entry_t entries[1] = {0};
-    stream_api_update_value_context_t collapse = {
+    sb_stream_api_update_value_entry_t entries[1] = {0};
+    sb_stream_api_update_value_context_t collapse = {
         entries,
         1u,
 
@@ -282,7 +282,7 @@ static void test_collapsible_stream_overflow_keeps_pending_table(void) {
      * collapse storage is caller-owned and the stream is touched only at flush.
      */
     assert(
-        command_stream_stream_api_update_value(
+        sb_command_stream_stream_api_update_value(
             &stream,
             &collapse,
             INT32_C(1),
@@ -293,7 +293,7 @@ static void test_collapsible_stream_overflow_keeps_pending_table(void) {
     assert(collapse.count == 1u);
 
     assert(
-        command_stream_stream_api_update_value_flush(
+        sb_command_stream_stream_api_update_value_flush(
             &stream,
             &collapse) ==
         AETHER_ERR_OVERFLOW);

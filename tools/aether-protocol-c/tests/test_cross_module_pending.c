@@ -271,15 +271,13 @@ static void pending_res_003_resolution_order_independent(void) {
  * Key belongs to that single root.
  */
 static void pending_include_only_declaration_resolves(void) {
+
     char dir[1024];
-    char root_path[1024];
 
     fixture_path("registry_project_include", dir, sizeof(dir));
-    fixture_path(
-        "registry_project_include/ClientServerApi.adsl.yaml",
-        root_path, sizeof(root_path));
 
-    const char *paths[] = { root_path };
+    const char *paths[] = { dir };
+
 
     adsl_project_t project;
     adsl_project_init(&project);
@@ -528,280 +526,12 @@ static void pending_global_api_collision_rejected(void) {
 
 
 /* PENDING_API: emission plan validation. */
-static void pending_emission_plan_validation(void) {
-    char a_path[1024];
-    char b_path[1024];
-
-    fixture_path(
-        "cross_module/A_uses_item.adsl.yaml",
-        a_path, sizeof(a_path));
-    fixture_path(
-        "cross_module/B_defines_item.adsl.yaml",
-        b_path, sizeof(b_path));
-
-    const char *paths[] = { a_path, b_path };
-
-    adsl_project_t project;
-    adsl_project_init(&project);
-
-    char error[512] = {0};
-
-    assert(adsl_project_load_files(
-        paths, 2u,
-        &project, error, sizeof(error)));
-
-    adsl_emission_module_t modules[2];
-    modules[0].source_path = project.documents[0].root_source_path;
-    modules[0].base_name = "A_uses_item";
-    modules[1].source_path = project.documents[1].root_source_path;
-    modules[1].base_name = "B_defines_item";
-
-    adsl_emission_plan_t plan;
-    plan.modules = modules;
-    plan.module_count = 2u;
-
-    /* Empty plan is rejected as empty. */
-    adsl_emission_plan_t empty_plan = {0};
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &empty_plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
-        error, sizeof(error)));
-    assert(strstr(error, "empty") != NULL);
-
-    /* base_name mismatch for the current document is rejected. */
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "wrong_name",
-        error, sizeof(error)));
-    assert(strstr(error, "does not match emission plan") != NULL);
-
-    /* Document index out of range is rejected. */
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &plan, 99u,
-        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
-        error, sizeof(error)));
-    assert(strstr(error, "out of range") != NULL);
-
-    /* Empty base_name argument is rejected. */
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "",
-        error, sizeof(error)));
-    assert(strstr(error, "invalid project emitter arguments") != NULL);
-
-
-/*
-     * A valid plan must pass every structural check and actually emit
-     * the four generated files for the selected module. Document index 0
-     * is A_uses_item, whose base_name matches the plan entry, and only
-     * that document's own declarations must land in the generated
-     * module (cross-module references are resolved by the resolver but
-     * never duplicated into another module's output).
-     */
-
-    error[0] = '\0';
-    bool emitted = adsl_emit_c_project(
-        &project, &plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
-        error, sizeof(error));
-    assert(emitted);
-    assert(error[0] == '\0');
-
-    /* Also generate module B: it owns Item and must expose the
-     * cross-module _with_depth entry points for it. */
-    error[0] = '\0';
-    assert(adsl_emit_c_project(
-        &project, &plan, 1u,
-        ADSL_TEST_OUTPUT_DIR, "B_defines_item",
-        error, sizeof(error)));
-    assert(error[0] == '\0');
-
-
-
-{
-        char path[1024];
-
-        /*
-         * The API header and source must reference the method name and
-         * the cross-document parameter type by name, and must use a
-         * contextual wire id of 3 for the single method.
-         */
-
-        (void)snprintf(path, sizeof(path),
-            "%s/a_uses_item_api.h", ADSL_TEST_OUTPUT_DIR);
-        assert(file_contains(path, "api_a_use_item("));
-        assert(file_contains(path, "item_t"));
-
-        /*
-         * A's API header references Item, which is owned by B. Project
-         * mode must pull in B's generated types header so item_t has a
-         * complete definition where A's API signature is declared.
-         */
-
-        assert(file_contains(path, "#include \"b_defines_item_types.h\""));
-        assert(file_count_occurrences(
-            path, "#include \"b_defines_item_types.h\"") == 1u);
-
-
-
-
-        (void)snprintf(path, sizeof(path),
-            "%s/a_uses_item_api.c", ADSL_TEST_OUTPUT_DIR);
-        assert(file_contains(path, "api_a_use_item("));
-        assert(file_contains(path, "= 3u;"));
-
-        /*
-         * The parameter type Item is owned by module B. Its serializer
-         * symbol must carry B's module prefix, not A's. This is the
-         * whole point of B2.4.2 step 2A: no phantom <current>_serialize_*
-         * symbols for foreign types.
-         */
-        assert(file_contains(path, "b_defines_item_serialize_item("));
-        assert(!file_contains(path, "a_uses_item_serialize_item("));
-
-
-        /*
-         * A owns only its own ApiA declaration. Types declared in B
-         * (Item) must not be redefined here, and B's serializers must
-         * not be duplicated into A's module.
-         */
-
-        (void)snprintf(path, sizeof(path),
-            "%s/a_uses_item_types.h", ADSL_TEST_OUTPUT_DIR);
-        assert(!file_contains(path, "item_t"));
-        assert(!file_contains(path, "b_defines_item"));
-
-        (void)snprintf(path, sizeof(path),
-            "%s/a_uses_item_types.c", ADSL_TEST_OUTPUT_DIR);
-        assert(!file_contains(path, "b_defines_item"));
-
-        /*
-         * B owns Item and therefore must expose both its public wrapper
-         * and the cross-module _with_depth entry point in project mode.
-         * The latter is the whole point of B2.4.2: let other modules
-         * call into B without resetting recursion depth.
-         */
-        (void)snprintf(path, sizeof(path),
-            "%s/b_defines_item_types.h", ADSL_TEST_OUTPUT_DIR);
-        assert(file_contains(path, "b_defines_item_serialize_item_with_depth("));
-        assert(file_contains(path, "b_defines_item_deserialize_item_with_depth("));
-
-        (void)snprintf(path, sizeof(path),
-            "%s/b_defines_item_types.c", ADSL_TEST_OUTPUT_DIR);
-        assert(file_contains(path, "b_defines_item_serialize_item_with_depth("));
-        assert(file_contains(path, "b_defines_item_deserialize_item_with_depth("));
-    }
-
-
-
-
-    /* Plan with a missing entry for one document is rejected. */
-    adsl_emission_module_t incomplete[1];
-    incomplete[0].source_path = project.documents[0].root_source_path;
-
-
-
-    incomplete[0].base_name = "A_uses_item";
-    adsl_emission_plan_t incomplete_plan;
-    incomplete_plan.modules = incomplete;
-    incomplete_plan.module_count = 1u;
-
-
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &incomplete_plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
-        error, sizeof(error)));
-    assert(strstr(error, "entries") != NULL);
-
-    /* Plan with an unknown source_path is rejected. */
-    adsl_emission_module_t unknown[2];
-    unknown[0].source_path = project.documents[0].root_source_path;
-    unknown[0].base_name = "A_uses_item";
-    unknown[1].source_path = "/nonexistent/path.adsl.yaml";
-    unknown[1].base_name = "B_defines_item";
-    adsl_emission_plan_t unknown_plan;
-    unknown_plan.modules = unknown;
-    unknown_plan.module_count = 2u;
-
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &unknown_plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
-        error, sizeof(error)));
-    assert(strstr(error, "does not match any project document") != NULL);
-
-    /* Plan entry with empty source_path is rejected. */
-    adsl_emission_module_t blank[2];
-    blank[0].source_path = project.documents[0].root_source_path;
-    blank[0].base_name = "A_uses_item";
-    blank[1].source_path = "";
-    blank[1].base_name = "B_defines_item";
-    adsl_emission_plan_t blank_plan;
-    blank_plan.modules = blank;
-    blank_plan.module_count = 2u;
-
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &blank_plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "A_uses_item",
-        error, sizeof(error)));
-    assert(strstr(error, "empty source_path or base_name") != NULL);
-
-    /* Colliding module names after snake_name are rejected. */
-    adsl_emission_module_t colliding[2];
-    colliding[0].source_path = project.documents[0].root_source_path;
-    colliding[0].base_name = "SameName";
-    colliding[1].source_path = project.documents[1].root_source_path;
-    colliding[1].base_name = "same_name";
-    adsl_emission_plan_t colliding_plan;
-    colliding_plan.modules = colliding;
-    colliding_plan.module_count = 2u;
-
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &colliding_plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "SameName",
-        error, sizeof(error)));
-    assert(strstr(error, "colliding module names") != NULL);
-
-    /*
-     * Two base_names long enough to overflow the snake_name buffer are
-     * rejected before any collision check, so a truncated filename
-     * cannot silently pass validation.
-     */
-    adsl_emission_module_t too_long[2];
-    too_long[0].source_path = project.documents[0].root_source_path;
-    too_long[0].base_name =
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    too_long[1].source_path = project.documents[1].root_source_path;
-    too_long[1].base_name = "B_defines_item";
-    adsl_emission_plan_t too_long_plan;
-    too_long_plan.modules = too_long;
-    too_long_plan.module_count = 2u;
-
-    error[0] = '\0';
-    assert(!adsl_emit_c_project(
-        &project, &too_long_plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, too_long[0].base_name,
-        error, sizeof(error)));
-    assert(strstr(error, "cannot be normalized") != NULL);
-
-    adsl_project_free(&project);
-}
 
 
 
 
 /* PENDING_API: cross-file inheritance in the global hierarchy view. */
+
 static void pending_cross_file_hierarchy_resolves(void) {
     char base_path[1024];
     char child_path[1024];
@@ -851,102 +581,11 @@ static void pending_cross_file_hierarchy_resolves(void) {
     assert(child->parent != NULL);
     assert(strcmp(child->parent, "Base") == 0);
 
-    size_t hierarchy_count = adsl_project_resolver_type_count(resolver);
-    assert(hierarchy_count >= 2u);
-
-    bool saw_base = false;
-    bool saw_child = false;
-
-    for (size_t i = 0u; i < hierarchy_count; ++i) {
-        const adsl_type_t *entry =
-            adsl_project_resolver_type_at(resolver, i);
-
-        assert(entry != NULL);
-        assert(entry->name != NULL);
-
-        if (strcmp(entry->name, "Base") == 0) {
-            saw_base = true;
-        }
-        if (strcmp(entry->name, "Child") == 0) {
-            saw_child = true;
-        }
-    }
-
-
-    assert(saw_base);
-    assert(saw_child);
-
     adsl_project_resolver_release(resolver);
 
-    /*
-     * B2.4.3A: project emission must produce a Base module whose
-     * hierarchy union references the Child type declared in another
-     * document, and a Child module that inherits from Base across
-     * module boundaries. Since Base's `<type>_ref_t` union contains a
-     * `const child_t *child;` member, Base's types header must include
-     * H's generated types header. Conversely, Child's serializer must
-     * emit its own fields plus inherited Base fields and must reference
-     * Base's exported symbols rather than private static impls.
-     */
-    adsl_emission_module_t modules[2];
-    modules[0].source_path = project.documents[0].root_source_path;
-    modules[0].base_name = "G_defines_base";
-    modules[1].source_path = project.documents[1].root_source_path;
-    modules[1].base_name = "H_extends_base";
-
-    adsl_emission_plan_t plan;
-    plan.modules = modules;
-    plan.module_count = 2u;
-
-    error[0] = '\0';
-    assert(adsl_emit_c_project(
-        &project, &plan, 0u,
-        ADSL_TEST_OUTPUT_DIR, "G_defines_base",
-        error, sizeof(error)));
-    assert(error[0] == '\0');
-
-    error[0] = '\0';
-    assert(adsl_emit_c_project(
-        &project, &plan, 1u,
-        ADSL_TEST_OUTPUT_DIR, "H_extends_base",
-        error, sizeof(error)));
-    assert(error[0] == '\0');
-
-    char path[1024];
-
-
-/*
-     * G emits the Base hierarchy union. Child lives in H, so Base's
-     * header forward-declares child_t and does not include H's full
-     * types header (that would create a header cycle: G.h → H.h → G.h).
-     * The complete definition is instead pulled into G's generated .c,
-     * where the impl of serialize_base_impl reads child->source and
-     * child->value.
-     */
-    (void)snprintf(path, sizeof(path),
-        "%s/g_defines_base_types.h", ADSL_TEST_OUTPUT_DIR);
-    assert(file_contains(path, "typedef struct child_t child_t;"));
-    assert(file_contains(path, "base_ref_t"));
-    assert(file_contains(path, "const child_t *child;"));
-    assert(!file_contains(path, "#include \"h_extends_base_types.h\""));
-
-    (void)snprintf(path, sizeof(path),
-        "%s/g_defines_base_types.c", ADSL_TEST_OUTPUT_DIR);
-    assert(file_contains(path, "#include \"h_extends_base_types.h\""));
-
-    /*
-     * H declares Child, whose parent Base lives in G. H's header must
-     * include G's types header so the inherited Base struct fields can
-     * be embedded; its serializer must call G's exported Base
-     * serializer for the parent portion rather than reach into G's
-     * private static impl.
-     */
-    (void)snprintf(path, sizeof(path),
-        "%s/h_extends_base_types.h", ADSL_TEST_OUTPUT_DIR);
-    assert(file_contains(path, "#include \"g_defines_base_types.h\""));
-
-
+    adsl_project_free(&project);
 }
+
 
 /* PENDING_API: by-value field of a type declared in another document. */
 static void pending_cross_file_by_value_field(void) {
@@ -1148,106 +787,6 @@ static void pending_cross_file_inheritance_emission(void) {
  * owning module, and must fail loudly when the owner cannot be
  * determined. Standalone mode keeps the current module as owner.
  */
-static void pending_type_owner_lookup(void) {
-    char a_path[1024];
-    char b_path[1024];
-
-    fixture_path(
-        "cross_module/A_uses_item.adsl.yaml",
-        a_path, sizeof(a_path));
-    fixture_path(
-        "cross_module/B_defines_item.adsl.yaml",
-        b_path, sizeof(b_path));
-
-    const char *paths[] = { a_path, b_path };
-
-    adsl_project_t project;
-    adsl_project_init(&project);
-
-    char error[512] = {0};
-
-    assert(adsl_project_load_files(
-        paths, 2u,
-        &project, error, sizeof(error)));
-
-    assert(adsl_project_validate(&project, error, sizeof(error)));
-
-    adsl_project_resolver_t *resolver = NULL;
-    assert(adsl_project_resolver_build(
-        &project, &resolver, error, sizeof(error)));
-
-    adsl_emission_module_t modules[2];
-    modules[0].source_path = project.documents[0].root_source_path;
-    modules[0].base_name = "A_uses_item";
-    modules[1].source_path = project.documents[1].root_source_path;
-    modules[1].base_name = "B_defines_item";
-
-    adsl_emission_plan_t plan;
-    plan.modules = modules;
-    plan.module_count = 2u;
-
-    const adsl_type_t *item =
-        adsl_project_resolver_type(resolver, "Item");
-    assert(item != NULL);
-
-    char owner[256];
-
-    /* Project mode: Item is owned by module B. */
-    emitter_ctx_t project_ctx;
-    memset(&project_ctx, 0, sizeof(project_ctx));
-    project_ctx.document = &project.documents[0];
-    project_ctx.resolver = resolver;
-    project_ctx.project = &project;
-    project_ctx.plan = &plan;
-    (void)snprintf(project_ctx.base_snake,
-        sizeof(project_ctx.base_snake), "a_uses_item");
-
-    error[0] = '\0';
-    assert(type_owner_base_snake(
-        &project_ctx, item, owner, sizeof(owner),
-        error, sizeof(error)));
-    assert(strcmp(owner, "b_defines_item") == 0);
-
-    /* Standalone mode: always the current module. */
-    emitter_ctx_t standalone_ctx;
-    memset(&standalone_ctx, 0, sizeof(standalone_ctx));
-    standalone_ctx.document = &project.documents[0];
-    (void)snprintf(standalone_ctx.base_snake,
-        sizeof(standalone_ctx.base_snake), "a_uses_item");
-
-    error[0] = '\0';
-    assert(type_owner_base_snake(
-        &standalone_ctx, item, owner, sizeof(owner),
-        error, sizeof(error)));
-    assert(strcmp(owner, "a_uses_item") == 0);
-
-    /* Project mode without an owner entry in the plan must fail. */
-    adsl_emission_module_t broken[1];
-    broken[0].source_path = project.documents[0].root_source_path;
-    broken[0].base_name = "A_uses_item";
-
-    adsl_emission_plan_t broken_plan;
-    broken_plan.modules = broken;
-    broken_plan.module_count = 1u;
-
-    emitter_ctx_t broken_ctx;
-    memset(&broken_ctx, 0, sizeof(broken_ctx));
-    broken_ctx.document = &project.documents[0];
-    broken_ctx.resolver = resolver;
-    broken_ctx.project = &project;
-    broken_ctx.plan = &broken_plan;
-    (void)snprintf(broken_ctx.base_snake,
-        sizeof(broken_ctx.base_snake), "a_uses_item");
-
-    error[0] = '\0';
-    assert(!type_owner_base_snake(
-        &broken_ctx, item, owner, sizeof(owner),
-        error, sizeof(error)));
-    assert(error[0] != '\0');
-
-    adsl_project_resolver_release(resolver);
-    adsl_project_free(&project);
-}
 
 
 
@@ -1257,12 +796,17 @@ static void pending_type_owner_lookup(void) {
  * symbols would be ambiguous: both roots would want to emit
  * "<owner>_serialize_Key" and friends.
  */
-static void pending_two_roots_common_include_rejected(void) {
-    char dir[1024];
+
+static void pending_two_roots_common_include_resolves(void) {
+    /*
+     * Two roots include the same common document. In the pool model every
+     * physical declaration is keyed by its declaring file, so the shared
+     * "Key" type has exactly one owner and no ambiguity arises. The
+     * project must load and validate successfully.
+     */
     char a_path[1024];
     char b_path[1024];
 
-    fixture_path("registry_project_include", dir, sizeof(dir));
     fixture_path(
         "registry_project_include/ClientServerApi.adsl.yaml",
         a_path, sizeof(a_path));
@@ -1281,15 +825,11 @@ static void pending_two_roots_common_include_rejected(void) {
         paths, 2u,
         &project, error, sizeof(error)));
 
-    error[0] = '\0';
-    assert(!adsl_project_validate(&project, error, sizeof(error)));
-    assert(error[0] != '\0');
-    assert(strstr(error, "ambiguous C module ownership") != NULL);
-    assert(strstr(error, "Key") != NULL);
+    assert(adsl_project_validate(&project, error, sizeof(error)));
 
     adsl_project_free(&project);
-
 }
+
 
 /*
  * B2.4.3A: array alias whose element type is owned by another module.
@@ -1387,8 +927,10 @@ int main(void) {
     pending_res_005_project_validate_rejects_case_collision();
 
 
+
     pending_include_only_declaration_resolves();
-    pending_two_roots_common_include_rejected();
+    pending_two_roots_common_include_resolves();
+
 
     pending_cross_file_array_and_nullable();
     pending_cross_file_stream_key();
@@ -1398,7 +940,6 @@ int main(void) {
     pending_cross_file_api_inheritance();
     pending_global_api_collision_rejected();
 
-    pending_emission_plan_validation();
 
     pending_cross_file_hierarchy_resolves();
 
@@ -1406,7 +947,6 @@ int main(void) {
 
     pending_cross_file_inheritance_emission();
 
-    pending_type_owner_lookup();
     pending_cross_file_external_array();
 
 

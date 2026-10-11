@@ -1,5 +1,5 @@
 
-#include "collapsible_fields_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -44,7 +44,7 @@ static void test_collapsible_struct_round_trip(void) {
         sizeof(alias_data)
     };
 
-    reading_t source = {
+    cf_reading_t source = {
         INT64_C(0x0102030405060708),
         1.5f,
         &alias
@@ -54,7 +54,7 @@ static void test_collapsible_struct_round_trip(void) {
     size_t position = 0u;
 
     assert(
-        collapsible_fields_serialize_reading(
+        cf_serialize_reading(
             wire,
             sizeof(wire),
             &position,
@@ -75,10 +75,10 @@ static void test_collapsible_struct_round_trip(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    reading_t decoded = {0};
+    cf_reading_t decoded = {0};
 
     assert(
-        collapsible_fields_deserialize_reading(
+        cf_deserialize_reading(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -95,7 +95,7 @@ static void test_collapsible_struct_round_trip(void) {
 }
 
 static void test_collapsible_nullable_null(void) {
-    reading_t source = {
+    cf_reading_t source = {
         INT64_C(7),
         2.0f,
         NULL
@@ -105,7 +105,7 @@ static void test_collapsible_nullable_null(void) {
     size_t position = 0u;
 
     assert(
-        collapsible_fields_serialize_reading(
+        cf_serialize_reading(
             wire,
             sizeof(wire),
             &position,
@@ -120,10 +120,10 @@ static void test_collapsible_nullable_null(void) {
     ctx.reader.data = wire;
     ctx.reader.length = position;
 
-    reading_t decoded = {0};
+    cf_reading_t decoded = {0};
 
     assert(
-        collapsible_fields_deserialize_reading(
+        cf_deserialize_reading(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -138,15 +138,15 @@ static void test_collapsible_api_deferred_replace(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    collapsible_api_remote_t remote = {
+    cf_collapsible_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    collapsible_api_update_entry_t entries[2] = {0};
-    collapsible_api_update_context_t collapse = {
+    cf_collapsible_api_update_entry_t entries[2] = {0};
+    cf_collapsible_api_update_context_t collapse = {
         entries,
         2u,
 
@@ -159,7 +159,7 @@ static void test_collapsible_api_deferred_replace(void) {
         INT64_C(0x0102030405060708);
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &collapse,
             key,
@@ -170,7 +170,7 @@ static void test_collapsible_api_deferred_replace(void) {
     assert(collapse.count == 1u);
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &collapse,
             key,
@@ -181,7 +181,7 @@ static void test_collapsible_api_deferred_replace(void) {
     assert(collapse.count == 1u);
 
     assert(
-        collapsible_api_update_flush(
+        cf_collapsible_api_update_flush(
             &remote,
             &collapse) ==
         AETHER_OK);
@@ -207,15 +207,15 @@ static void test_collapsible_api_preserves_key_order(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    collapsible_api_remote_t remote = {
+    cf_collapsible_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    collapsible_api_update_entry_t entries[2] = {0};
-    collapsible_api_update_context_t collapse = {
+    cf_collapsible_api_update_entry_t entries[2] = {0};
+    cf_collapsible_api_update_context_t collapse = {
         entries,
         2u,
 
@@ -225,7 +225,7 @@ static void test_collapsible_api_preserves_key_order(void) {
     };
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &collapse,
             INT64_C(11),
@@ -233,7 +233,7 @@ static void test_collapsible_api_preserves_key_order(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &collapse,
             INT64_C(22),
@@ -241,7 +241,7 @@ static void test_collapsible_api_preserves_key_order(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update_flush(
+        cf_collapsible_api_update_flush(
             &remote,
             &collapse) ==
         AETHER_OK);
@@ -271,15 +271,15 @@ static void test_collapsible_api_capacity_reset_and_retry(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    collapsible_api_remote_t remote = {
+    cf_collapsible_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    collapsible_api_update_entry_t entries[1] = {0};
-    collapsible_api_update_context_t collapse = {
+    cf_collapsible_api_update_entry_t entries[1] = {0};
+    cf_collapsible_api_update_context_t collapse = {
         entries,
         1u,
 
@@ -289,7 +289,7 @@ static void test_collapsible_api_capacity_reset_and_retry(void) {
     };
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &collapse,
             INT64_C(1),
@@ -297,7 +297,7 @@ static void test_collapsible_api_capacity_reset_and_retry(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &collapse,
             INT64_C(2),
@@ -310,7 +310,7 @@ static void test_collapsible_api_capacity_reset_and_retry(void) {
         AETHER_ERR_BUSY;
 
     assert(
-        collapsible_api_update_flush(
+        cf_collapsible_api_update_flush(
             &remote,
             &collapse) ==
         AETHER_ERR_BUSY);
@@ -321,7 +321,7 @@ static void test_collapsible_api_capacity_reset_and_retry(void) {
         AETHER_OK;
 
     assert(
-        collapsible_api_update_flush(
+        cf_collapsible_api_update_flush(
             &remote,
             &collapse) ==
         AETHER_OK);
@@ -329,14 +329,14 @@ static void test_collapsible_api_capacity_reset_and_retry(void) {
     assert(collapse.count == 0u);
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &collapse,
             INT64_C(3),
             3.0f) ==
         AETHER_OK);
 
-    collapsible_api_update_reset(
+    cf_collapsible_api_update_reset(
         &collapse);
 
     assert(collapse.count == 0u);
@@ -372,15 +372,15 @@ static void test_collapsible_string_key_and_value(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    collapsible_api_remote_t remote = {
+    cf_collapsible_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    collapsible_api_update_text_entry_t entries[2] = {0};
-    collapsible_api_update_text_context_t collapse = {
+    cf_collapsible_api_update_text_entry_t entries[2] = {0};
+    cf_collapsible_api_update_text_context_t collapse = {
         entries,
         2u,
 
@@ -390,7 +390,7 @@ static void test_collapsible_string_key_and_value(void) {
     };
 
     assert(
-        collapsible_api_update_text(
+        cf_collapsible_api_update_text(
             &remote,
             &collapse,
             key_a,
@@ -398,7 +398,7 @@ static void test_collapsible_string_key_and_value(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update_text(
+        cf_collapsible_api_update_text(
             &remote,
             &collapse,
             key_b,
@@ -409,7 +409,7 @@ static void test_collapsible_string_key_and_value(void) {
     assert(collapse.count == 1u);
 
     assert(
-        collapsible_api_update_text_flush(
+        cf_collapsible_api_update_text_flush(
             &remote,
             &collapse) ==
         AETHER_OK);
@@ -436,15 +436,15 @@ static void test_nullable_scalar_snapshot(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    collapsible_api_remote_t remote = {
+    cf_collapsible_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    collapsible_api_update_nullable_entry_t entries[1] = {0};
-    collapsible_api_update_nullable_context_t collapse = {
+    cf_collapsible_api_update_nullable_entry_t entries[1] = {0};
+    cf_collapsible_api_update_nullable_context_t collapse = {
         entries,
         1u,
 
@@ -457,7 +457,7 @@ static void test_nullable_scalar_snapshot(void) {
     int32_t first_value = INT32_C(10);
 
     assert(
-        collapsible_api_update_nullable(
+        cf_collapsible_api_update_nullable(
             &remote,
             &collapse,
             &first_key,
@@ -479,7 +479,7 @@ static void test_nullable_scalar_snapshot(void) {
     int32_t latest_value = INT32_C(12);
 
     assert(
-        collapsible_api_update_nullable(
+        cf_collapsible_api_update_nullable(
             &remote,
             &collapse,
             &equal_key,
@@ -495,7 +495,7 @@ static void test_nullable_scalar_snapshot(void) {
     latest_value = INT32_C(77);
 
     assert(
-        collapsible_api_update_nullable_flush(
+        cf_collapsible_api_update_nullable_flush(
             &remote,
             &collapse) ==
         AETHER_OK);
@@ -520,7 +520,7 @@ static void test_nullable_scalar_snapshot(void) {
     equal_key = INT32_C(7);
 
     assert(
-        collapsible_api_update_nullable(
+        cf_collapsible_api_update_nullable(
             &remote,
             &collapse,
             &equal_key,
@@ -530,7 +530,7 @@ static void test_nullable_scalar_snapshot(void) {
     equal_key = INT32_C(88);
 
     assert(
-        collapsible_api_update_nullable_flush(
+        cf_collapsible_api_update_nullable_flush(
             &remote,
             &collapse) ==
         AETHER_OK);
@@ -582,7 +582,7 @@ static void test_shared_queue_preserves_first_pending_method_order(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    collapsible_api_remote_t remote = {
+    cf_collapsible_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -596,16 +596,16 @@ static void test_shared_queue_preserves_first_pending_method_order(void) {
         0u
     };
 
-    collapsible_api_update_text_entry_t text_entries[1] = {0};
-    collapsible_api_update_text_context_t text = {
+    cf_collapsible_api_update_text_entry_t text_entries[1] = {0};
+    cf_collapsible_api_update_text_context_t text = {
         text_entries,
         1u,
         0u,
         &queue
     };
 
-    collapsible_api_update_entry_t update_entries[1] = {0};
-    collapsible_api_update_context_t update = {
+    cf_collapsible_api_update_entry_t update_entries[1] = {0};
+    cf_collapsible_api_update_context_t update = {
         update_entries,
         1u,
         0u,
@@ -618,7 +618,7 @@ static void test_shared_queue_preserves_first_pending_method_order(void) {
      * updateText then update regardless of schema declaration order.
      */
     assert(
-        collapsible_api_update_text(
+        cf_collapsible_api_update_text(
             &remote,
             &text,
             key,
@@ -626,7 +626,7 @@ static void test_shared_queue_preserves_first_pending_method_order(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update(
+        cf_collapsible_api_update(
             &remote,
             &update,
             INT64_C(9),
@@ -637,7 +637,7 @@ static void test_shared_queue_preserves_first_pending_method_order(void) {
      * Replacing the same updateText key must not enqueue the method again.
      */
     assert(
-        collapsible_api_update_text(
+        cf_collapsible_api_update_text(
             &remote,
             &text,
             key,
@@ -653,7 +653,7 @@ static void test_shared_queue_preserves_first_pending_method_order(void) {
         AETHER_ERR_BUSY;
 
     assert(
-        collapsible_api_update_flush(
+        cf_collapsible_api_update_flush(
             &remote,
             &update) ==
         AETHER_ERR_BUSY);
@@ -671,7 +671,7 @@ static void test_shared_queue_preserves_first_pending_method_order(void) {
         AETHER_OK;
 
     assert(
-        collapsible_api_update_flush(
+        cf_collapsible_api_update_flush(
             &remote,
             &update) ==
         AETHER_OK);
@@ -718,15 +718,15 @@ static void test_float_double_java_key_and_wire_semantics(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    collapsible_api_remote_t remote = {
+    cf_collapsible_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    collapsible_api_update_float_entry_t float_entries[3] = {0};
-    collapsible_api_update_float_context_t float_ctx = {
+    cf_collapsible_api_update_float_entry_t float_entries[3] = {0};
+    cf_collapsible_api_update_float_context_t float_ctx = {
         float_entries,
         3u,
         0u,
@@ -739,7 +739,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
     float minus_zero = float_from_bits(UINT32_C(0x80000000));
 
     assert(
-        collapsible_api_update_float(
+        cf_collapsible_api_update_float(
             &remote,
             &float_ctx,
             nan_a,
@@ -747,7 +747,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update_float(
+        cf_collapsible_api_update_float(
             &remote,
             &float_ctx,
             nan_b,
@@ -758,7 +758,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
     assert(float_ctx.count == 1u);
 
     assert(
-        collapsible_api_update_float(
+        cf_collapsible_api_update_float(
             &remote,
             &float_ctx,
             plus_zero,
@@ -766,7 +766,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update_float(
+        cf_collapsible_api_update_float(
             &remote,
             &float_ctx,
             minus_zero,
@@ -777,7 +777,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
     assert(float_ctx.count == 3u);
 
     assert(
-        collapsible_api_update_float_flush(
+        cf_collapsible_api_update_float_flush(
             &remote,
             &float_ctx) ==
         AETHER_OK);
@@ -803,8 +803,8 @@ static void test_float_double_java_key_and_wire_semantics(void) {
             expected_float,
             sizeof(expected_float)) == 0);
 
-    collapsible_api_update_double_entry_t double_entries[3] = {0};
-    collapsible_api_update_double_context_t double_ctx = {
+    cf_collapsible_api_update_double_entry_t double_entries[3] = {0};
+    cf_collapsible_api_update_double_context_t double_ctx = {
         double_entries,
         3u,
         0u,
@@ -821,7 +821,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
         double_from_bits(UINT64_C(0x8000000000000000));
 
     assert(
-        collapsible_api_update_double(
+        cf_collapsible_api_update_double(
             &remote,
             &double_ctx,
             dnan_a,
@@ -829,7 +829,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update_double(
+        cf_collapsible_api_update_double(
             &remote,
             &double_ctx,
             dnan_b,
@@ -839,7 +839,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
     assert(double_ctx.count == 1u);
 
     assert(
-        collapsible_api_update_double(
+        cf_collapsible_api_update_double(
             &remote,
             &double_ctx,
             dplus_zero,
@@ -847,7 +847,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
         AETHER_OK);
 
     assert(
-        collapsible_api_update_double(
+        cf_collapsible_api_update_double(
             &remote,
             &double_ctx,
             dminus_zero,
@@ -857,7 +857,7 @@ static void test_float_double_java_key_and_wire_semantics(void) {
     assert(double_ctx.count == 3u);
 
     assert(
-        collapsible_api_update_double_flush(
+        cf_collapsible_api_update_double_flush(
             &remote,
             &double_ctx) ==
         AETHER_OK);

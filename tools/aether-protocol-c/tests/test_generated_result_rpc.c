@@ -1,5 +1,5 @@
 
-#include "result_rpc_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -37,12 +37,12 @@ static aether_status_t capture_send(
     return AETHER_OK;
 }
 
-static result_api_remote_t make_remote(
+static rr_result_api_remote_t make_remote(
     capture_t *capture,
     uint8_t *tx,
     size_t tx_capacity) {
 
-    result_api_remote_t remote = {
+    rr_result_api_remote_t remote = {
         capture,
         capture_send,
         tx,
@@ -71,14 +71,14 @@ static void test_fire_and_forget_unchanged(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    result_api_remote_t remote =
+    rr_result_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
     assert(
-        result_api_notify(
+        rr_result_api_notify(
             &remote,
             INT32_C(0x12345678)) ==
         AETHER_OK);
@@ -101,14 +101,14 @@ static void test_void_result_request_id_is_le4(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    result_api_remote_t remote =
+    rr_result_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
     assert(
-        result_api_finish(
+        rr_result_api_finish(
             &remote,
             UINT32_C(0x78563412),
             INT32_C(0x01020304)) ==
@@ -140,14 +140,14 @@ static void test_typed_result_has_same_request_frame(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    result_api_remote_t remote =
+    rr_result_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
     assert(
-        result_api_query(
+        rr_result_api_query(
             &remote,
             UINT32_C(0xa1b2c3d4),
             INT16_C(0x1234)) ==
@@ -177,14 +177,14 @@ static void test_result_header_capacity_requires_five_bytes(void) {
     uint8_t tx[4] = {0};
     capture_t capture = {0};
 
-    result_api_remote_t remote =
+    rr_result_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
     assert(
-        result_api_finish(
+        rr_result_api_finish(
             &remote,
             UINT32_C(1),
             INT32_C(2)) ==

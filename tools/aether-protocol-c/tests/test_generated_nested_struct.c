@@ -1,5 +1,5 @@
 
-#include "nested_struct_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -41,18 +41,18 @@ static void test_nested_wire(void) {
     uint8_t tx[64] = {0};
     capture_t capture = {0};
 
-    nested_api_remote_t remote = {
+    ns_nested_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    inner_t inner = {
+    ns_inner_t inner = {
         INT16_C(0x1234)
     };
 
-    middle_t middle = {
+    ns_middle_t middle = {
         inner,
         {
             UINT64_C(0x0102030405060708),
@@ -65,7 +65,7 @@ static void test_nested_wire(void) {
         0x69u
     };
 
-    outer_t outer = {
+    ns_outer_t outer = {
         middle,
         {
             name_data,
@@ -75,7 +75,7 @@ static void test_nested_wire(void) {
     };
 
     assert(
-        nested_api_send(
+        ns_nested_api_send(
             &remote,
             &outer) ==
         AETHER_OK);
@@ -121,14 +121,14 @@ static void test_nested_validation(void) {
     uint8_t tx[64] = {0};
     capture_t capture = {0};
 
-    nested_api_remote_t remote = {
+    ns_nested_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    outer_t outer = {0};
+    ns_outer_t outer = {0};
 
     outer.name.data =
         NULL;
@@ -137,7 +137,7 @@ static void test_nested_validation(void) {
         1u;
 
     assert(
-        nested_api_send(
+        ns_nested_api_send(
             &remote,
             &outer) ==
         AETHER_ERR_ARGUMENT);
@@ -145,7 +145,7 @@ static void test_nested_validation(void) {
     assert(capture.calls == 0u);
 
     assert(
-        nested_api_send(
+        ns_nested_api_send(
             &remote,
             NULL) ==
         AETHER_ERR_ARGUMENT);
@@ -157,18 +157,18 @@ static void test_nested_overflow(void) {
     uint8_t tx[4] = {0};
     capture_t capture = {0};
 
-    nested_api_remote_t remote = {
+    ns_nested_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    inner_t inner = {
+    ns_inner_t inner = {
         INT16_C(1)
     };
 
-    middle_t middle = {
+    ns_middle_t middle = {
         inner,
         {
             UINT64_C(1),
@@ -176,7 +176,7 @@ static void test_nested_overflow(void) {
         }
     };
 
-    outer_t outer = {
+    ns_outer_t outer = {
         middle,
         {
             NULL,
@@ -186,7 +186,7 @@ static void test_nested_overflow(void) {
     };
 
     assert(
-        nested_api_send(
+        ns_nested_api_send(
             &remote,
             &outer) ==
         AETHER_ERR_OVERFLOW);

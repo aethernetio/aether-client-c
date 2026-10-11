@@ -1,5 +1,5 @@
 
-#include "arrays_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -37,12 +37,12 @@ static aether_status_t capture_send(
     return AETHER_OK;
 }
 
-static array_api_remote_t make_remote(
+static arrays_array_api_remote_t make_remote(
     capture_t *capture,
     uint8_t *tx,
     size_t tx_capacity) {
 
-    array_api_remote_t remote = {
+    arrays_array_api_remote_t remote = {
         capture,
         capture_send,
         tx,
@@ -71,7 +71,7 @@ static void test_struct_arrays_exact_wire(void) {
     uint8_t tx[256] = {0};
     capture_t capture = {0};
 
-    array_api_remote_t remote =
+    arrays_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -135,7 +135,7 @@ static void test_struct_arrays_exact_wire(void) {
         2u
     };
 
-    static const array_item_t item_data[] = {
+    static const arrays_array_item_t item_data[] = {
         {
             INT16_C(7)
         },
@@ -144,7 +144,7 @@ static void test_struct_arrays_exact_wire(void) {
         }
     };
 
-    array_item_array_view_t items = {
+    arrays_array_item_array_view_t items = {
         item_data,
         2u
     };
@@ -166,7 +166,7 @@ static void test_struct_arrays_exact_wire(void) {
         }
     };
 
-    array_holder_t value = {
+    arrays_array_holder_t value = {
         bytes,
         shorts,
         ids,
@@ -178,7 +178,7 @@ static void test_struct_arrays_exact_wire(void) {
     };
 
     assert(
-        array_api_send_holder(
+        arrays_array_api_send_holder(
             &remote,
             &value) ==
         AETHER_OK);
@@ -261,7 +261,7 @@ static void test_dynamic_parameter(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    array_api_remote_t remote =
+    arrays_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -278,7 +278,7 @@ static void test_dynamic_parameter(void) {
     };
 
     assert(
-        array_api_send_shorts(
+        arrays_array_api_send_shorts(
             &remote,
             values) ==
         AETHER_OK);
@@ -302,7 +302,7 @@ static void test_static_parameter(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    array_api_remote_t remote =
+    arrays_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -318,7 +318,7 @@ static void test_static_parameter(void) {
     };
 
     assert(
-        array_api_send_fixed(
+        arrays_array_api_send_fixed(
             &remote,
             &values) ==
         AETHER_OK);
@@ -366,7 +366,7 @@ static void test_roundtrip_holder_decode(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    array_holder_t value = {0};
+    arrays_array_holder_t value = {0};
 
     assert(
         arrays_deserialize_array_holder(
@@ -450,7 +450,7 @@ static void test_scratch_overflow(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    array_holder_t value = {0};
+    arrays_array_holder_t value = {0};
 
     assert(
         arrays_deserialize_array_holder(
@@ -477,7 +477,7 @@ static void test_truncated_input(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    array_holder_t value = {0};
+    arrays_array_holder_t value = {0};
 
     assert(
         arrays_deserialize_array_holder(
@@ -491,7 +491,7 @@ static void test_empty_dynamic_null_data(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    array_api_remote_t remote =
+    arrays_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -503,7 +503,7 @@ static void test_empty_dynamic_null_data(void) {
     };
 
     assert(
-        array_api_send_shorts(
+        arrays_array_api_send_shorts(
             &remote,
             values) ==
         AETHER_OK);
@@ -523,7 +523,7 @@ static void test_invalid_dynamic_null_data(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    array_api_remote_t remote =
+    arrays_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -535,7 +535,7 @@ static void test_invalid_dynamic_null_data(void) {
     };
 
     assert(
-        array_api_send_shorts(
+        arrays_array_api_send_shorts(
             &remote,
             values) ==
         AETHER_ERR_ARGUMENT);
@@ -547,7 +547,7 @@ static void test_nullable_array_present(void) {
     uint8_t tx[256] = {0};
     capture_t capture = {0};
 
-    array_api_remote_t remote =
+    arrays_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -573,7 +573,7 @@ static void test_nullable_array_present(void) {
         0u
     };
 
-    array_item_array_view_t items = {
+    arrays_array_item_array_view_t items = {
         NULL,
         0u
     };
@@ -605,7 +605,7 @@ static void test_nullable_array_present(void) {
         sizeof(maybe_data)
     };
 
-    array_holder_t value = {
+    arrays_array_holder_t value = {
         empty,
         shorts,
         ids,
@@ -617,7 +617,7 @@ static void test_nullable_array_present(void) {
     };
 
     assert(
-        array_api_send_holder(
+        arrays_array_api_send_holder(
             &remote,
             &value) ==
         AETHER_OK);

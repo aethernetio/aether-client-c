@@ -21,6 +21,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 
 
 
@@ -355,8 +358,21 @@ static const adsl_type_t *ctx_types(
         return ctx->document->types;
     }
 
-    *count = ctx->document->resolved_type_count;
-    return ctx->document->resolved_types;
+
+    /*
+     * Legacy parsed documents may not have gone through the include
+     * resolution pass yet (adsl_parse_file without adsl_load_file), so
+     * fall back to the root arrays. Merged/project documents alias the
+     * two views and are unaffected.
+     */
+    if (ctx->document->resolved_type_count > 0u) {
+        *count = ctx->document->resolved_type_count;
+        return ctx->document->resolved_types;
+    }
+
+    *count = ctx->document->type_count;
+    return ctx->document->types;
+
 }
 
 
@@ -369,8 +385,15 @@ static const adsl_api_t *ctx_apis(
         return ctx->document->apis;
     }
 
-    *count = ctx->document->resolved_api_count;
-    return ctx->document->resolved_apis;
+
+    if (ctx->document->resolved_api_count > 0u) {
+        *count = ctx->document->resolved_api_count;
+        return ctx->document->resolved_apis;
+    }
+
+    *count = ctx->document->api_count;
+    return ctx->document->apis;
+
 }
 
 
@@ -434,13 +457,18 @@ static size_t ctx_local_type_index(
     const adsl_type_t *base;
     size_t count;
 
+
     if (ctx->resolver != NULL) {
         base = ctx->document->types;
         count = ctx->document->type_count;
-    } else {
+    } else if (ctx->document->resolved_type_count > 0u) {
         base = ctx->document->resolved_types;
         count = ctx->document->resolved_type_count;
+    } else {
+        base = ctx->document->types;
+        count = ctx->document->type_count;
     }
+
 
     /*
      * Compare element addresses for equality rather than performing
@@ -2193,12 +2221,24 @@ static const adsl_type_t *find_declared_type_doc(
     size_t name_length =
         strlen(name);
 
+
+    const adsl_type_t *type_source =
+        document->resolved_type_count > 0u
+            ? document->resolved_types
+            : document->types;
+
+    size_t type_source_count =
+        document->resolved_type_count > 0u
+            ? document->resolved_type_count
+            : document->type_count;
+
     for (size_t i = 0u;
-         i < document->resolved_type_count;
+         i < type_source_count;
          ++i) {
 
+
         const adsl_type_t *candidate =
-            &document->resolved_types[i];
+            &type_source[i];
 
         size_t candidate_length =
             strlen(candidate->name);
@@ -4332,11 +4372,20 @@ static bool emit_stream_builder_declarations_for_api_ctx(
         return false;
     }
 
+
     char stream_c_name[256];
     char api_name[256];
+    char api_abbr[32];
 
     declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
     snake_name(api->name, api_name, sizeof(api_name));
+
+    if (!api_effective_prefix_ctx(
+            ctx, api, api_abbr, sizeof(api_abbr),
+            error, error_capacity)) {
+        return false;
+    }
+
 
     adsl_effective_method_t *effective = NULL;
     size_t effective_count = 0u;
@@ -4378,8 +4427,10 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
         if (collapsible) {
 
+
             fprintf(output, ",\n    %s_%s_%s_context_t *collapse",
-                stream_c_name, api_name, method_name);
+                api_abbr, api_name, method_name);
+
 
         }
 
@@ -4411,8 +4462,10 @@ static bool emit_stream_builder_declarations_for_api_ctx(
                 "aether_status_t %s_%s_%s_flush(\n"
                 "    %s_t *builder_stream,\n"
                 "    %s_%s_%s_context_t *collapse);\n\n",
+
                 stream_c_name, api_name, method_name,
-                stream_c_name, stream_c_name, api_name, method_name);
+                stream_c_name, api_abbr, api_name, method_name);
+
 
         }
     }
@@ -4683,11 +4736,20 @@ static bool emit_stream_builder_definitions_for_api_ctx(
         return false;
     }
 
+
     char stream_c_name[256];
     char api_name[256];
+    char api_abbr[32];
 
     declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
     snake_name(api->name, api_name, sizeof(api_name));
+
+    if (!api_effective_prefix_ctx(
+            ctx, api, api_abbr, sizeof(api_abbr),
+            error, error_capacity)) {
+        return false;
+    }
+
 
     adsl_effective_method_t *effective = NULL;
     size_t effective_count = 0u;
@@ -4727,8 +4789,10 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 "aether_status_t %s_%s_%s(\n"
                 "    %s_t *builder_stream,\n"
                 "    %s_%s_%s_context_t *collapse",
+
                 stream_c_name, api_name, method_name,
-                stream_c_name, stream_c_name, api_name, method_name);
+                stream_c_name, api_abbr, api_name, method_name);
+
 
             for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -4807,13 +4871,15 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 "        collapse);\n"
                 "}\n\n",
 
+
                 stream_c_name, api_name, method_name,
                 stream_c_name,
-                stream_abbr, api_name, method_name,
+                api_abbr, api_name, method_name,
                 stream_abbr,
                 stream_abbr, api_name,
                 stream_abbr,
-                stream_c_name, api_name, method_name);
+                api_abbr, api_name, method_name);
+
 
             continue;
         }
@@ -6433,6 +6499,13 @@ bool adsl_emit_c_method(
             "generated output path is too long");
         return false;
     }
+
+    /*
+     * The output directory is created if missing so that callers do not
+     * need to create it themselves (the CLI passes a user-supplied path
+     * and library callers may point anywhere).
+     */
+    (void)mkdir(output_directory, 0777);
 
 
 
@@ -8103,11 +8176,15 @@ static bool emit_struct_definition_ctx(
 
     const adsl_type_t *type;
 
+
     if (ctx->resolver != NULL) {
         type = &ctx->document->types[type_index];
-    } else {
+    } else if (ctx->document->resolved_type_count > 0u) {
         type = &ctx->document->resolved_types[type_index];
+    } else {
+        type = &ctx->document->types[type_index];
     }
+
 
     if (states[type_index] == 2u) {
         return true;

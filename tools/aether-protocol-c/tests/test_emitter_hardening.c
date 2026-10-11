@@ -351,12 +351,12 @@ static void test_acceptable_output_path_succeeds(void) {
 
     assert(emitted);
 
+
     static const char *const expected[] = {
-        "base_types.h",
-        "base_types.c",
-        "base_api.h",
-        "base_api.c",
+        "aether_api.h",
+        "aether_api.c",
     };
+
 
     for (size_t i = 0u;
          i < sizeof(expected) / sizeof(expected[0]);

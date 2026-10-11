@@ -1,5 +1,5 @@
 
-#include "hierarchy_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -37,12 +37,12 @@ static aether_status_t capture_send(
     return AETHER_OK;
 }
 
-static hierarchy_api_remote_t make_remote(
+static hierarchy_hierarchy_api_remote_t make_remote(
     capture_t *capture,
     uint8_t *tx,
     size_t tx_capacity) {
 
-    hierarchy_api_remote_t remote = {
+    hierarchy_hierarchy_api_remote_t remote = {
         capture,
         capture_send,
         tx,
@@ -67,8 +67,8 @@ static void expect_bytes(
             expected_length) == 0);
 }
 
-static temperature_event_t make_temperature(void) {
-    temperature_event_t value = {
+static hierarchy_temperature_event_t make_temperature(void) {
+    hierarchy_temperature_event_t value = {
         .source = INT8_C(0x2a),
         .note = NULL,
         .sequence = INT16_C(0x1234),
@@ -82,24 +82,24 @@ static void test_abstract_reference_writes_type_id(void) {
     uint8_t tx[64] = {0};
     capture_t capture = {0};
 
-    hierarchy_api_remote_t remote =
+    hierarchy_hierarchy_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    temperature_event_t temperature =
+    hierarchy_temperature_event_t temperature =
         make_temperature();
 
-    event_ref_t event = {
+    hierarchy_event_ref_t event = {
         .type_id = UINT8_C(7),
         .as = {
-            .temperature_event = &temperature
+            .hierarchy_temperature_event = &temperature
         }
     };
 
     assert(
-        hierarchy_api_send_event(
+        hierarchy_hierarchy_api_send_event(
             &remote,
             &event) ==
         AETHER_OK);
@@ -135,7 +135,7 @@ static void test_nested_polymorphic_field(void) {
     uint8_t tx[64] = {0};
     capture_t capture = {0};
 
-    hierarchy_api_remote_t remote =
+    hierarchy_hierarchy_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -160,25 +160,25 @@ static void test_nested_polymorphic_field(void) {
         sizeof(text_data)
     };
 
-    text_event_t concrete = {
+    hierarchy_text_event_t concrete = {
         .source = INT8_C(0x11),
         .note = &note,
         .text = text
     };
 
-    event_ref_t event = {
+    hierarchy_event_ref_t event = {
         .type_id = UINT8_C(9),
         .as = {
-            .text_event = &concrete
+            .hierarchy_text_event = &concrete
         }
     };
 
-    event_envelope_t envelope = {
+    hierarchy_event_envelope_t envelope = {
         .event = event
     };
 
     assert(
-        hierarchy_api_send_envelope(
+        hierarchy_hierarchy_api_send_envelope(
             &remote,
             &envelope) ==
         AETHER_OK);
@@ -212,17 +212,17 @@ static void test_concrete_leaf_has_no_discriminator(void) {
     uint8_t tx[64] = {0};
     capture_t capture = {0};
 
-    hierarchy_api_remote_t remote =
+    hierarchy_hierarchy_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    temperature_event_t temperature =
+    hierarchy_temperature_event_t temperature =
         make_temperature();
 
     assert(
-        hierarchy_api_send_temperature(
+        hierarchy_hierarchy_api_send_temperature(
             &remote,
             &temperature) ==
         AETHER_OK);
@@ -251,18 +251,18 @@ static void test_unknown_type_id_rejected(void) {
     uint8_t tx[64] = {0};
     capture_t capture = {0};
 
-    hierarchy_api_remote_t remote =
+    hierarchy_hierarchy_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    event_ref_t event = {
+    hierarchy_event_ref_t event = {
         .type_id = UINT8_C(8)
     };
 
     assert(
-        hierarchy_api_send_event(
+        hierarchy_hierarchy_api_send_event(
             &remote,
             &event) ==
         AETHER_ERR_ARGUMENT);
@@ -274,21 +274,21 @@ static void test_selected_concrete_pointer_required(void) {
     uint8_t tx[64] = {0};
     capture_t capture = {0};
 
-    hierarchy_api_remote_t remote =
+    hierarchy_hierarchy_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    event_ref_t event = {
+    hierarchy_event_ref_t event = {
         .type_id = UINT8_C(7),
         .as = {
-            .temperature_event = NULL
+            .hierarchy_temperature_event = NULL
         }
     };
 
     assert(
-        hierarchy_api_send_event(
+        hierarchy_hierarchy_api_send_event(
             &remote,
             &event) ==
         AETHER_ERR_ARGUMENT);
@@ -322,7 +322,7 @@ static void test_hierarchy_roundtrip(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    event_ref_t decoded = {0};
+    hierarchy_event_ref_t decoded = {0};
 
     assert(
         hierarchy_deserialize_event(
@@ -332,17 +332,17 @@ static void test_hierarchy_roundtrip(void) {
 
     assert(ctx.reader.position == sizeof(wire));
     assert(decoded.type_id == UINT8_C(7));
-    assert(decoded.as.temperature_event != NULL);
+    assert(decoded.as.hierarchy_temperature_event != NULL);
     assert(
-        (const uint8_t *)decoded.as.temperature_event >= scratch);
+        (const uint8_t *)decoded.as.hierarchy_temperature_event >= scratch);
     assert(
-        (const uint8_t *)decoded.as.temperature_event <
+        (const uint8_t *)decoded.as.hierarchy_temperature_event <
         scratch + sizeof(scratch));
 
-    assert(decoded.as.temperature_event->source == INT8_C(0x2a));
-    assert(decoded.as.temperature_event->note == NULL);
-    assert(decoded.as.temperature_event->sequence == INT16_C(0x1234));
-    assert(decoded.as.temperature_event->temperature == 21.5f);
+    assert(decoded.as.hierarchy_temperature_event->source == INT8_C(0x2a));
+    assert(decoded.as.hierarchy_temperature_event->note == NULL);
+    assert(decoded.as.hierarchy_temperature_event->sequence == INT16_C(0x1234));
+    assert(decoded.as.hierarchy_temperature_event->temperature == 21.5f);
 
     uint8_t tx[64] = {0};
     size_t pos = 0u;
@@ -383,7 +383,7 @@ static void test_hierarchy_unknown_discriminator(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    event_ref_t decoded = {0};
+    hierarchy_event_ref_t decoded = {0};
 
     assert(
         hierarchy_deserialize_event(
@@ -425,7 +425,7 @@ static void test_hierarchy_misaligned_scratch_base(void) {
     ctx.scratch = raw + 1u;
     ctx.scratch_capacity = sizeof(raw) - 1u;
 
-    event_ref_t decoded = {0};
+    hierarchy_event_ref_t decoded = {0};
 
     assert(
         hierarchy_deserialize_event(
@@ -434,15 +434,15 @@ static void test_hierarchy_misaligned_scratch_base(void) {
         AETHER_OK);
 
     assert(decoded.type_id == UINT8_C(7));
-    assert(decoded.as.temperature_event != NULL);
+    assert(decoded.as.hierarchy_temperature_event != NULL);
 
     assert(
-        ((uintptr_t)decoded.as.temperature_event %
-         _Alignof(temperature_event_t)) == 0u);
+        ((uintptr_t)decoded.as.hierarchy_temperature_event %
+         _Alignof(hierarchy_temperature_event_t)) == 0u);
 
-    assert(decoded.as.temperature_event->source == INT8_C(0x2a));
-    assert(decoded.as.temperature_event->sequence == INT16_C(0x1234));
-    assert(decoded.as.temperature_event->temperature == 21.5f);
+    assert(decoded.as.hierarchy_temperature_event->source == INT8_C(0x2a));
+    assert(decoded.as.hierarchy_temperature_event->sequence == INT16_C(0x1234));
+    assert(decoded.as.hierarchy_temperature_event->temperature == 21.5f);
 }
 
 

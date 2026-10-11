@@ -1,5 +1,5 @@
 
-#include "value_types_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -41,7 +41,7 @@ static void test_uuid_string_uri_wire(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    value_api_remote_t remote = {
+    vt_value_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -75,7 +75,7 @@ static void test_uuid_string_uri_wire(void) {
     };
 
     assert(
-        value_api_send_values(
+        vt_value_api_send_values(
             &remote,
             id,
             name,
@@ -127,7 +127,7 @@ static void test_empty_view_allows_null_data(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    value_api_remote_t remote = {
+    vt_value_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -140,7 +140,7 @@ static void test_empty_view_allows_null_data(void) {
     };
 
     assert(
-        value_api_send_text(
+        vt_value_api_send_text(
             &remote,
             empty) ==
         AETHER_OK);
@@ -164,7 +164,7 @@ static void test_nonempty_view_rejects_null_data(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    value_api_remote_t remote = {
+    vt_value_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -177,7 +177,7 @@ static void test_nonempty_view_rejects_null_data(void) {
     };
 
     assert(
-        value_api_send_text(
+        vt_value_api_send_text(
             &remote,
             invalid) ==
         AETHER_ERR_ARGUMENT);
@@ -199,7 +199,7 @@ static void test_pack_boundary_251(void) {
 
     capture_t capture = {0};
 
-    value_api_remote_t remote = {
+    vt_value_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -212,7 +212,7 @@ static void test_pack_boundary_251(void) {
     };
 
     assert(
-        value_api_send_text(
+        vt_value_api_send_text(
             &remote,
             view) ==
         AETHER_OK);
@@ -260,10 +260,10 @@ static void test_boolean_java_wire_compat(void) {
         ctx.reader.data = payloads[i];
         ctx.reader.length = sizeof(payloads[i]);
 
-        flag_holder_t decoded = {0};
+        vt_flag_holder_t decoded = {0};
 
         assert(
-            value_types_deserialize_flag_holder(
+            vt_deserialize_flag_holder(
                 &ctx,
                 &decoded) ==
             AETHER_OK);
@@ -289,7 +289,7 @@ static void test_pack_boundary_1515(void) {
 
     capture_t capture = {0};
 
-    value_api_remote_t remote = {
+    vt_value_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -302,7 +302,7 @@ static void test_pack_boundary_1515(void) {
     };
 
     assert(
-        value_api_send_text(
+        vt_value_api_send_text(
             &remote,
             view) ==
         AETHER_OK);

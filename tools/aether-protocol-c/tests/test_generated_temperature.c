@@ -1,5 +1,5 @@
 
-#include "temperature_sensor_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -41,7 +41,7 @@ static void test_report_temperature_wire(void) {
     uint8_t tx[16] = {0};
     capture_t capture = {0};
 
-    temperature_sensor_api_remote_t remote = {
+    ts_temperature_sensor_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -52,7 +52,7 @@ static void test_report_temperature_wire(void) {
         21.5f;
 
     assert(
-        temperature_sensor_api_report_temperature(
+        ts_temperature_sensor_api_report_temperature(
             &remote,
             temperature) ==
         AETHER_OK);
@@ -79,7 +79,7 @@ static void test_report_temperature_negative_wire(void) {
     uint8_t tx[16] = {0};
     capture_t capture = {0};
 
-    temperature_sensor_api_remote_t remote = {
+    ts_temperature_sensor_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -90,7 +90,7 @@ static void test_report_temperature_negative_wire(void) {
         -2.25f;
 
     assert(
-        temperature_sensor_api_report_temperature(
+        ts_temperature_sensor_api_report_temperature(
             &remote,
             temperature) ==
         AETHER_OK);
@@ -117,7 +117,7 @@ static void test_report_temperature_overflow(void) {
     uint8_t tx[4] = {0};
     capture_t capture = {0};
 
-    temperature_sensor_api_remote_t remote = {
+    ts_temperature_sensor_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -125,7 +125,7 @@ static void test_report_temperature_overflow(void) {
     };
 
     assert(
-        temperature_sensor_api_report_temperature(
+        ts_temperature_sensor_api_report_temperature(
             &remote,
             1.0f) ==
         AETHER_ERR_OVERFLOW);
@@ -135,14 +135,14 @@ static void test_report_temperature_overflow(void) {
 
 static void test_report_temperature_arguments(void) {
     assert(
-        temperature_sensor_api_report_temperature(
+        ts_temperature_sensor_api_report_temperature(
             NULL,
             1.0f) ==
         AETHER_ERR_ARGUMENT);
 
     uint8_t tx[16] = {0};
 
-    temperature_sensor_api_remote_t no_send = {
+    ts_temperature_sensor_api_remote_t no_send = {
         NULL,
         NULL,
         tx,
@@ -150,14 +150,14 @@ static void test_report_temperature_arguments(void) {
     };
 
     assert(
-        temperature_sensor_api_report_temperature(
+        ts_temperature_sensor_api_report_temperature(
             &no_send,
             1.0f) ==
         AETHER_ERR_ARGUMENT);
 
     capture_t capture = {0};
 
-    temperature_sensor_api_remote_t no_buffer = {
+    ts_temperature_sensor_api_remote_t no_buffer = {
         &capture,
         capture_send,
         NULL,
@@ -165,7 +165,7 @@ static void test_report_temperature_arguments(void) {
     };
 
     assert(
-        temperature_sensor_api_report_temperature(
+        ts_temperature_sensor_api_report_temperature(
             &no_buffer,
             1.0f) ==
         AETHER_ERR_ARGUMENT);

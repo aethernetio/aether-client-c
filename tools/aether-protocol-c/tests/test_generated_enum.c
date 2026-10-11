@@ -1,5 +1,5 @@
 
-#include "enum_types_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -41,7 +41,8 @@ static void test_enum_parameter_wire(void) {
     uint8_t tx[8] = {0};
     capture_t capture = {0};
 
-    enum_api_remote_t remote = {
+
+    et_enum_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -49,10 +50,11 @@ static void test_enum_parameter_wire(void) {
     };
 
     assert(
-        enum_api_set_mode(
+        et_enum_api_set_mode(
             &remote,
-            mode_AUTO) ==
+            et_mode_AUTO) ==
         AETHER_OK);
+
 
     static const uint8_t expected[] = {
         0x03u,
@@ -73,23 +75,25 @@ static void test_enum_struct_field_wire(void) {
     uint8_t tx[8] = {0};
     capture_t capture = {0};
 
-    enum_api_remote_t remote = {
+
+    et_enum_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    device_state_t state = {
-        mode_ON,
+    et_device_state_t state = {
+        et_mode_ON,
         (int16_t)0x1234
     };
 
     assert(
-        enum_api_send_state(
+        et_enum_api_send_state(
             &remote,
             &state) ==
         AETHER_OK);
+
 
     static const uint8_t expected[] = {
         0x04u,

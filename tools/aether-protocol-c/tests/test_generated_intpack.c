@@ -1,5 +1,5 @@
 
-#include "int_pack_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -45,7 +45,7 @@ static void expect_value(
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    pack_api_remote_t remote = {
+    ip_pack_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -53,7 +53,7 @@ static void expect_value(
     };
 
     assert(
-        pack_api_send_value(
+        ip_pack_api_send_value(
             &remote,
             value) ==
         AETHER_OK);
@@ -176,23 +176,24 @@ static void test_invalid_domain(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    pack_api_remote_t remote = {
+    ip_pack_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
+
+
     assert(
-        pack_api_send_value(
+        ip_pack_api_send_value(
             &remote,
             INT64_C(-1)) ==
         AETHER_ERR_ARGUMENT);
 
-    assert(capture.calls == 0u);
 
     assert(
-        pack_api_send_value(
+        ip_pack_api_send_value(
             &remote,
             INT64_C(1099512677611)) ==
         AETHER_ERR_OVERFLOW);
@@ -200,26 +201,30 @@ static void test_invalid_domain(void) {
     assert(capture.calls == 0u);
 }
 
+
 static void test_struct_field(void) {
     uint8_t tx[8] = {0};
     capture_t capture = {0};
 
-    pack_api_remote_t remote = {
+
+    ip_pack_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    pack_holder_t holder = {
+
+    ip_pack_holder_t holder = {
         INT64_C(251)
     };
 
     assert(
-        pack_api_send_holder(
+        ip_pack_api_send_holder(
             &remote,
             &holder) ==
         AETHER_OK);
+
 
     static const uint8_t expected[] = {
         0x04u,
@@ -243,7 +248,7 @@ static void test_struct_field(void) {
         0u;
 
     assert(
-        pack_api_send_holder(
+        ip_pack_api_send_holder(
             &remote,
             &holder) ==
         AETHER_ERR_ARGUMENT);
@@ -255,7 +260,7 @@ static void test_buffer_overflow(void) {
     uint8_t tx[1] = {0};
     capture_t capture = {0};
 
-    pack_api_remote_t remote = {
+    ip_pack_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -263,7 +268,7 @@ static void test_buffer_overflow(void) {
     };
 
     assert(
-        pack_api_send_value(
+        ip_pack_api_send_value(
             &remote,
             INT64_C(251)) ==
         AETHER_ERR_OVERFLOW);

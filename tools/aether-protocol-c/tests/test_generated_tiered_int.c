@@ -1,5 +1,5 @@
 
-#include "tiered_int_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -34,12 +34,12 @@ static aether_status_t capture_send(
     return AETHER_OK;
 }
 
-static counter_api_remote_t make_remote(
+static ti_counter_api_remote_t make_remote(
     capture_t *capture,
     uint8_t *tx,
     size_t tx_capacity) {
 
-    counter_api_remote_t remote = {
+    ti_counter_api_remote_t remote = {
         capture,
         capture_send,
         tx,
@@ -50,21 +50,21 @@ static counter_api_remote_t make_remote(
 }
 
 static void expect_remote_counter(
-    counter_t value,
+    ti_counter_t value,
     const uint8_t *expected,
     size_t expected_length) {
 
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    counter_api_remote_t remote =
+    ti_counter_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
     assert(
-        counter_api_set_counter(
+        ti_counter_api_set_counter(
             &remote,
             value) ==
         AETHER_OK);
@@ -136,17 +136,17 @@ static void test_nullable_api_parameter(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    counter_api_remote_t remote =
+    ti_counter_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    counter_t value =
+    ti_counter_t value =
         UINT64_C(1515);
 
     assert(
-        counter_api_set_optional(
+        ti_counter_api_set_optional(
             &remote,
             &value) ==
         AETHER_OK);
@@ -168,7 +168,7 @@ static void test_nullable_api_parameter(void) {
     memset(&capture, 0, sizeof(capture));
 
     assert(
-        counter_api_set_optional(
+        ti_counter_api_set_optional(
             &remote,
             NULL) ==
         AETHER_OK);
@@ -188,10 +188,10 @@ static void test_nullable_api_parameter(void) {
 }
 
 static void test_struct_round_trip(void) {
-    counter_t optional =
+    ti_counter_t optional =
         UINT64_C(1515);
 
-    counter_holder_t source = {0};
+    ti_counter_holder_t source = {0};
     source.value = UINT64_C(251);
     source.optionalValue = &optional;
     source.pair.data[0] = UINT64_C(250);
@@ -201,7 +201,7 @@ static void test_struct_round_trip(void) {
     size_t position = 0u;
 
     assert(
-        tiered_int_serialize_counter_holder(
+        ti_serialize_counter_holder(
             wire,
             sizeof(wire),
             &position,
@@ -232,10 +232,10 @@ static void test_struct_round_trip(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    counter_holder_t decoded = {0};
+    ti_counter_holder_t decoded = {0};
 
     assert(
-        tiered_int_deserialize_counter_holder(
+        ti_deserialize_counter_holder(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -255,7 +255,7 @@ static void test_struct_round_trip(void) {
 }
 
 static void test_struct_null_optional(void) {
-    counter_holder_t source = {0};
+    ti_counter_holder_t source = {0};
     source.value = UINT64_C(250);
     source.optionalValue = NULL;
     source.pair.data[0] = UINT64_C(0);
@@ -265,7 +265,7 @@ static void test_struct_null_optional(void) {
     size_t position = 0u;
 
     assert(
-        tiered_int_serialize_counter_holder(
+        ti_serialize_counter_holder(
             wire,
             sizeof(wire),
             &position,
@@ -290,10 +290,10 @@ static void test_struct_null_optional(void) {
     ctx.reader.data = wire;
     ctx.reader.length = position;
 
-    counter_holder_t decoded = {0};
+    ti_counter_holder_t decoded = {0};
 
     assert(
-        tiered_int_deserialize_counter_holder(
+        ti_deserialize_counter_holder(
             &ctx,
             &decoded) ==
         AETHER_OK);

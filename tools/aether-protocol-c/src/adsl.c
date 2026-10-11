@@ -2829,7 +2829,14 @@ static bool effective_collect_recursive(
     char *error,
     size_t error_capacity) {
 
-if (depth > document->resolved_api_count) {
+
+    size_t api_bound =
+        document->resolved_api_count > 0u
+            ? document->resolved_api_count
+            : document->api_count;
+
+    if (depth > api_bound) {
+
 
         set_error(
             error,
@@ -2965,12 +2972,19 @@ bool adsl_collect_effective_methods(
      * Upper bound: total methods declared across every resolved API.
      * Parent-first traversal that deduplicates by name cannot exceed this.
      */
+
     size_t capacity = 0u;
 
-    for (size_t i = 0u; i < document->resolved_api_count; ++i) {
-
-        capacity += document->resolved_apis[i].method_count;
+    if (document->resolved_api_count > 0u) {
+        for (size_t i = 0u; i < document->resolved_api_count; ++i) {
+            capacity += document->resolved_apis[i].method_count;
+        }
+    } else {
+        for (size_t i = 0u; i < document->api_count; ++i) {
+            capacity += document->apis[i].method_count;
+        }
     }
+
 
     if (capacity == 0u) {
 
@@ -3219,33 +3233,49 @@ bool adsl_validate(
         return false;
     }
 
+
+    const adsl_type_t *types =
+        document->resolved_type_count > 0u
+            ? document->resolved_types
+            : document->types;
+
+    size_t type_count =
+        document->resolved_type_count > 0u
+            ? document->resolved_type_count
+            : document->type_count;
+
     for (size_t i = 0u;
-i < document->resolved_type_count;
+         i < type_count;
          ++i) {
 
 
+
         for (size_t j = i + 1u;
-             j < document->resolved_type_count;
+
+             j < type_count;
              ++j) {
 
 
             if (same_name(
-                    document->resolved_types[i].name,
-                    document->resolved_types[j].name)) {
+                    types[i].name,
+                    types[j].name)) {
 
                 set_error(
                     error,
                     error_capacity,
                     "type declarations differ only by case: '%s' and '%s'",
-                    document->resolved_types[i].name,
-                    document->resolved_types[j].name);
+                    types[i].name,
+                    types[j].name);
 
                 return false;
             }
         }
 
-        adsl_type_t *type =
-&document->resolved_types[i];
+
+        const adsl_type_t *type =
+            &types[i];
+
+
 
 
         if (type->has_tiered_int) {
@@ -3351,36 +3381,48 @@ i < document->resolved_type_count;
         }
     }
 
+
+    const adsl_api_t *apis =
+        document->resolved_api_count > 0u
+            ? document->resolved_apis
+            : document->apis;
+
+    size_t api_count =
+        document->resolved_api_count > 0u
+            ? document->resolved_api_count
+            : document->api_count;
+
     for (size_t i = 0u;
 
-         i < document->resolved_api_count;
+         i < api_count;
          ++i) {
 
 
 
         for (size_t j = i + 1u;
-             j < document->resolved_api_count;
+             j < api_count;
              ++j) {
 
 
             if (same_name(
-                    document->resolved_apis[i].name,
-                    document->resolved_apis[j].name)) {
+                    apis[i].name,
+                    apis[j].name)) {
 
                 set_error(
                     error,
                     error_capacity,
                     "API declarations differ only by case: '%s' and '%s'",
-                    document->resolved_apis[i].name,
-                    document->resolved_apis[j].name);
+                    apis[i].name,
+                    apis[j].name);
 
                 return false;
             }
         }
 
 
-        adsl_api_t *api =
-            &document->resolved_apis[i];
+        const adsl_api_t *api =
+            &apis[i];
+
 
 
         /*

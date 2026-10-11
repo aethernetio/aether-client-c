@@ -1,5 +1,5 @@
 
-#include "static_struct_array_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -34,12 +34,12 @@ static aether_status_t capture_send(
     return AETHER_OK;
 }
 
-static static_struct_array_api_remote_t make_remote(
+static ssa_static_struct_array_api_remote_t make_remote(
     capture_t *capture,
     uint8_t *tx,
     size_t tx_capacity) {
 
-    static_struct_array_api_remote_t remote = {
+    ssa_static_struct_array_api_remote_t remote = {
         capture,
         capture_send,
         tx,
@@ -63,8 +63,8 @@ static void expect_bytes(
             expected_length) == 0);
 }
 
-static static_item_array_2_t make_items(void) {
-    static_item_array_2_t items = {
+static ssa_static_item_array_2_t make_items(void) {
+    ssa_static_item_array_2_t items = {
         {
             { INT16_C(0x1122) },
             { INT16_C(-2) }
@@ -75,7 +75,7 @@ static static_item_array_2_t make_items(void) {
 }
 
 static void test_inline_layout(void) {
-    static_holder_t holder = {0};
+    ssa_static_holder_t holder = {0};
 
     /*
      * Static arrays are inline caller-owned storage. There is no pointer,
@@ -83,7 +83,7 @@ static void test_inline_layout(void) {
      */
     assert(
         sizeof(holder.items.data) ==
-        sizeof(static_item_t) * 2u);
+        sizeof(ssa_static_item_t) * 2u);
 
     holder.items.data[0].code =
         INT16_C(7);
@@ -96,7 +96,7 @@ static void test_inline_layout(void) {
 }
 
 static void test_holder_round_trip(void) {
-    static_holder_t source = {
+    ssa_static_holder_t source = {
         make_items()
     };
 
@@ -104,7 +104,7 @@ static void test_holder_round_trip(void) {
     size_t position = 0u;
 
     assert(
-        static_struct_array_serialize_static_holder(
+        ssa_serialize_static_holder(
             wire,
             sizeof(wire),
             &position,
@@ -131,10 +131,10 @@ static void test_holder_round_trip(void) {
     ctx.reader.data = wire;
     ctx.reader.length = position;
 
-    static_holder_t decoded = {0};
+    ssa_static_holder_t decoded = {0};
 
     assert(
-        static_struct_array_deserialize_static_holder(
+        ssa_deserialize_static_holder(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -147,7 +147,7 @@ static void test_holder_round_trip(void) {
     size_t second_position = 0u;
 
     assert(
-        static_struct_array_serialize_static_holder(
+        ssa_serialize_static_holder(
             second_wire,
             sizeof(second_wire),
             &second_position,
@@ -166,18 +166,18 @@ static void test_holder_api_wire(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    static_struct_array_api_remote_t remote =
+    ssa_static_struct_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    static_holder_t holder = {
+    ssa_static_holder_t holder = {
         make_items()
     };
 
     assert(
-        static_struct_array_api_send_holder(
+        ssa_static_struct_array_api_send_holder(
             &remote,
             &holder) ==
         AETHER_OK);
@@ -198,17 +198,17 @@ static void test_api_only_static_array_wire(void) {
     uint8_t tx[32] = {0};
     capture_t capture = {0};
 
-    static_struct_array_api_remote_t remote =
+    ssa_static_struct_array_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    static_item_array_2_t items =
+    ssa_static_item_array_2_t items =
         make_items();
 
     assert(
-        static_struct_array_api_send_items(
+        ssa_static_struct_array_api_send_items(
             &remote,
             &items) ==
         AETHER_OK);
@@ -235,10 +235,10 @@ static void test_truncated_decode(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    static_holder_t value = {0};
+    ssa_static_holder_t value = {0};
 
     assert(
-        static_struct_array_deserialize_static_holder(
+        ssa_deserialize_static_holder(
             &ctx,
             &value) ==
         AETHER_ERR_PROTOCOL);

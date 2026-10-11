@@ -1,5 +1,5 @@
 
-#include "nullable_struct_api.h"
+#include "aether_api.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -37,12 +37,12 @@ static aether_status_t capture_send(
     return AETHER_OK;
 }
 
-static nullable_api_remote_t make_remote(
+static ns_nullable_api_remote_t make_remote(
     capture_t *capture,
     uint8_t *tx,
     size_t tx_capacity) {
 
-    nullable_api_remote_t remote = {
+    ns_nullable_api_remote_t remote = {
         capture,
         capture_send,
         tx,
@@ -71,7 +71,7 @@ static void test_nullable_mixed(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    nullable_api_remote_t remote =
+    ns_nullable_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -87,7 +87,7 @@ static void test_nullable_mixed(void) {
         sizeof(name_data)
     };
 
-    nullable_mixed_t value = {
+    ns_nullable_mixed_t value = {
         NULL,
         INT8_C(0x2a),
         &name,
@@ -95,7 +95,7 @@ static void test_nullable_mixed(void) {
     };
 
     assert(
-        nullable_api_send_mixed(
+        ns_nullable_api_send_mixed(
             &remote,
             &value) ==
         AETHER_OK);
@@ -119,7 +119,7 @@ static void test_nullable_present_values(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    nullable_api_remote_t remote =
+    ns_nullable_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -128,11 +128,11 @@ static void test_nullable_present_values(void) {
     int16_t short_value =
         INT16_C(0x1234);
 
-    nullable_inner_t inner = {
+    ns_nullable_inner_t inner = {
         INT16_C(0x4567)
     };
 
-    nullable_mixed_t value = {
+    ns_nullable_mixed_t value = {
         &short_value,
         INT8_C(7),
         NULL,
@@ -140,7 +140,7 @@ static void test_nullable_present_values(void) {
     };
 
     assert(
-        nullable_api_send_mixed(
+        ns_nullable_api_send_mixed(
             &remote,
             &value) ==
         AETHER_OK);
@@ -165,16 +165,16 @@ static void test_mask_width_2(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    nullable_api_remote_t remote =
+    ns_nullable_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    mask9_t value = {0};
+    ns_mask9_t value = {0};
 
     assert(
-        nullable_api_send_mask9(
+        ns_nullable_api_send_mask9(
             &remote,
             &value) ==
         AETHER_OK);
@@ -195,16 +195,16 @@ static void test_mask_width_4(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    nullable_api_remote_t remote =
+    ns_nullable_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    mask17_t value = {0};
+    ns_mask17_t value = {0};
 
     assert(
-        nullable_api_send_mask17(
+        ns_nullable_api_send_mask17(
             &remote,
             &value) ==
         AETHER_OK);
@@ -227,16 +227,16 @@ static void test_mask_width_8(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    nullable_api_remote_t remote =
+    ns_nullable_api_remote_t remote =
         make_remote(
             &capture,
             tx,
             sizeof(tx));
 
-    mask33_t value = {0};
+    ns_mask33_t value = {0};
 
     assert(
-        nullable_api_send_mask33(
+        ns_nullable_api_send_mask33(
             &remote,
             &value) ==
         AETHER_OK);
@@ -263,7 +263,7 @@ static void test_nullable_view_validation(void) {
     uint8_t tx[128] = {0};
     capture_t capture = {0};
 
-    nullable_api_remote_t remote =
+    ns_nullable_api_remote_t remote =
         make_remote(
             &capture,
             tx,
@@ -274,7 +274,7 @@ static void test_nullable_view_validation(void) {
         1u
     };
 
-    nullable_mixed_t value = {
+    ns_nullable_mixed_t value = {
         NULL,
         INT8_C(1),
         &bad_name,
@@ -282,7 +282,7 @@ static void test_nullable_view_validation(void) {
     };
 
     assert(
-        nullable_api_send_mixed(
+        ns_nullable_api_send_mixed(
             &remote,
             &value) ==
         AETHER_ERR_ARGUMENT);
@@ -313,10 +313,10 @@ static void test_nullable_decode_mask(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    nullable_mixed_t value = {0};
+    ns_nullable_mixed_t value = {0};
 
     assert(
-        nullable_struct_deserialize_nullable_mixed(
+        ns_deserialize_nullable_mixed(
             &ctx,
             &value) ==
         AETHER_OK);
@@ -339,7 +339,7 @@ static void test_nullable_decode_mask(void) {
     size_t pos = 0u;
 
     assert(
-        nullable_struct_serialize_nullable_mixed(
+        ns_serialize_nullable_mixed(
             tx,
             sizeof(tx),
             &pos,
@@ -365,10 +365,10 @@ static void test_nullable_mask9_decode(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    mask9_t value = {0};
+    ns_mask9_t value = {0};
 
     assert(
-        nullable_struct_deserialize_mask9(
+        ns_deserialize_mask9(
             &ctx,
             &value) ==
         AETHER_OK);
@@ -395,10 +395,10 @@ static void test_nullable_mask17_decode(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    mask17_t value = {0};
+    ns_mask17_t value = {0};
 
     assert(
-        nullable_struct_deserialize_mask17(
+        ns_deserialize_mask17(
             &ctx,
             &value) ==
         AETHER_OK);
@@ -429,10 +429,10 @@ static void test_nullable_mask33_decode(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    mask33_t value = {0};
+    ns_mask33_t value = {0};
 
     assert(
-        nullable_struct_deserialize_mask33(
+        ns_deserialize_mask33(
             &ctx,
             &value) ==
         AETHER_OK);
@@ -470,10 +470,10 @@ static void test_nested_nullable_container(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    nullable_container_t value = {0};
+    ns_nullable_container_t value = {0};
 
     assert(
-        nullable_struct_deserialize_nullable_container(
+        ns_deserialize_nullable_container(
             &ctx,
             &value) ==
         AETHER_OK);
@@ -489,7 +489,7 @@ static void test_nested_nullable_container(void) {
     size_t pos = 0u;
 
     assert(
-        nullable_struct_serialize_nullable_container(
+        ns_serialize_nullable_container(
             tx,
             sizeof(tx),
             &pos,

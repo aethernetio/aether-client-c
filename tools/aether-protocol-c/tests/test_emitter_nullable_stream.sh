@@ -21,27 +21,29 @@ trap 'rm -rf "$TMP"' EXIT
 OUT="$TMP/out"
 mkdir -p "$OUT"
 
+
 # EMIT-A3, REGRESSION.
 #
 # A nullable inline stream parameter (`name: TestStream?`) must produce a
-# self-consistent C type name: the declaration in the generated types header
-# and the local dispatcher must agree on the stream typedef.
-"$GEN" --local-api StreamApi "$FIXTURE" "$OUT" EmitterNullableStream \
+# self-consistent C type name: the stream typedef in the generated header
+# and every reference in the generated translation unit must agree.
+"$GEN" --input "$FIXTURE" "$OUT" \
     >/dev/null 2>"$TMP/gen.err" ||
     fail "generation failed: $(cat "$TMP/gen.err")"
 
-LOCAL_C="$OUT/emitter_nullable_stream_local.c"
-[[ -f "$LOCAL_C" ]] || fail "local source not generated"
+API_C="$OUT/aether_api.c"
+[[ -f "$API_C" ]] || fail "generated source not produced"
 
-# Compile the generated dispatcher against the generated headers and the
-# shared runtime headers. This is a one-translation-unit compile
-# (syntax + type checking), not a link step; it is sufficient to catch the
-# name mismatch between 'test_stream__t' and 'test_stream_t'.
+# Compile the generated translation unit against the shared runtime
+# headers. This is a one-translation-unit syntax/type check; it is
+# sufficient to catch a mismatch between 'test_stream__t' and
+# 'test_stream_t'.
 "$CC" -fsyntax-only \
     -I"$OUT" \
     -I"$RUNTIME_INCLUDE" \
-    "$LOCAL_C" \
+    "$API_C" \
     2>"$TMP/cc.err" ||
-    fail "generated local dispatcher does not compile: $(cat "$TMP/cc.err")"
+    fail "generated source does not compile: $(cat "$TMP/cc.err")"
+
 
 exit 0

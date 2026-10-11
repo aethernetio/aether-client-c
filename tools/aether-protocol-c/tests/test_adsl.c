@@ -208,10 +208,14 @@ static void assert_emit_rejects_by_value_cycle(
             error,
             sizeof(error)));
 
+
+
+
     assert(
         strstr(
             error,
             "non-nullable by-value type cycle cannot be represented in generated C") != NULL);
+
 
     adsl_document_free(&document);
 }

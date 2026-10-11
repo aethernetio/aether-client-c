@@ -1,5 +1,5 @@
 
-#include "recursive_struct_types.h"
+#include "aether_api.h"
 
 #ifdef NDEBUG
 #undef NDEBUG
@@ -21,7 +21,7 @@ static void assert_in_scratch(
 }
 
 static void test_node_recursive_round_trip(void) {
-    node_t next = {
+    rs_node_t next = {
         .value = -2,
         .next = NULL,
         .children = {
@@ -30,7 +30,7 @@ static void test_node_recursive_round_trip(void) {
         }
     };
 
-    node_t child = {
+    rs_node_t child = {
         .value = INT32_C(0x01020304),
         .next = NULL,
         .children = {
@@ -39,7 +39,7 @@ static void test_node_recursive_round_trip(void) {
         }
     };
 
-    node_t head = {
+    rs_node_t head = {
         .value = INT32_C(0x11223344),
         .next = &next,
         .children = {
@@ -52,7 +52,7 @@ static void test_node_recursive_round_trip(void) {
     size_t encoded_size = 0u;
 
     assert(
-        recursive_struct_serialize_node(
+        rs_serialize_node(
             encoded,
             sizeof(encoded),
             &encoded_size,
@@ -84,10 +84,10 @@ static void test_node_recursive_round_trip(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    node_t decoded = {0};
+    rs_node_t decoded = {0};
 
     assert(
-        recursive_struct_deserialize_node(
+        rs_deserialize_node(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -120,7 +120,7 @@ static void test_node_recursive_round_trip(void) {
 }
 
 static void test_inline_recursive_root(void) {
-    recursive_root_t value = {
+    rs_recursive_root_t value = {
         .rootId = INT32_C(0x55667788),
         .node = {
             .value = 7,
@@ -136,7 +136,7 @@ static void test_inline_recursive_root(void) {
     size_t encoded_size = 0u;
 
     assert(
-        recursive_struct_serialize_recursive_root(
+        rs_serialize_recursive_root(
             encoded,
             sizeof(encoded),
             &encoded_size,
@@ -157,10 +157,10 @@ static void test_inline_recursive_root(void) {
     ctx.reader.data = encoded;
     ctx.reader.length = encoded_size;
 
-    recursive_root_t decoded = {0};
+    rs_recursive_root_t decoded = {0};
 
     assert(
-        recursive_struct_deserialize_recursive_root(
+        rs_deserialize_recursive_root(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -174,7 +174,7 @@ static void test_inline_recursive_root(void) {
 }
 
 static void test_mutual_recursion_round_trip(void) {
-    mutual_a_t parent = {
+    rs_mutual_a_t parent = {
         .tag = -2,
         .child = {
             .code = -3,
@@ -182,7 +182,7 @@ static void test_mutual_recursion_round_trip(void) {
         }
     };
 
-    mutual_a_t value = {
+    rs_mutual_a_t value = {
         .tag = INT8_C(0x7f),
         .child = {
             .code = INT16_C(0x1234),
@@ -194,7 +194,7 @@ static void test_mutual_recursion_round_trip(void) {
     size_t encoded_size = 0u;
 
     assert(
-        recursive_struct_serialize_mutual_a(
+        rs_serialize_mutual_a(
             encoded,
             sizeof(encoded),
             &encoded_size,
@@ -220,10 +220,10 @@ static void test_mutual_recursion_round_trip(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    mutual_a_t decoded = {0};
+    rs_mutual_a_t decoded = {0};
 
     assert(
-        recursive_struct_deserialize_mutual_a(
+        rs_deserialize_mutual_a(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -244,7 +244,7 @@ static void test_mutual_recursion_round_trip(void) {
 
 
 static void test_recursive_encode_depth_limit(void) {
-    node_t value = {
+    rs_node_t value = {
         .value = 1,
         .next = NULL,
         .children = {
@@ -259,7 +259,7 @@ static void test_recursive_encode_depth_limit(void) {
     size_t encoded_size = 0u;
 
     assert(
-        recursive_struct_serialize_node(
+        rs_serialize_node(
             encoded,
             sizeof(encoded),
             &encoded_size,
@@ -302,10 +302,10 @@ static void test_recursive_decode_depth_limit(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    node_t decoded = {0};
+    rs_node_t decoded = {0};
 
     assert(
-        recursive_struct_deserialize_node(
+        rs_deserialize_node(
             &ctx,
             &decoded) ==
         AETHER_ERR_OVERFLOW);

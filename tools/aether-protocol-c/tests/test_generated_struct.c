@@ -41,22 +41,24 @@ static void test_struct_wire(void) {
     uint8_t tx[16] = {0};
     capture_t capture = {0};
 
-    sensor_api_remote_t remote = {
+
+    ir_sensor_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    sensor_reading_t reading = {
+    ct_sensor_reading_t reading = {
         21.5f
     };
 
     assert(
-        sensor_api_publish(
+        ir_sensor_api_publish(
             &remote,
             &reading) ==
         AETHER_OK);
+
 
     static const uint8_t expected[] = {
         0x03u,
@@ -80,7 +82,8 @@ static void test_struct_null_argument(void) {
     uint8_t tx[16] = {0};
     capture_t capture = {0};
 
-    sensor_api_remote_t remote = {
+
+    ir_sensor_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
@@ -88,10 +91,11 @@ static void test_struct_null_argument(void) {
     };
 
     assert(
-        sensor_api_publish(
+        ir_sensor_api_publish(
             &remote,
             NULL) ==
         AETHER_ERR_ARGUMENT);
+
 
     assert(capture.calls == 0u);
 }
@@ -100,22 +104,24 @@ static void test_struct_overflow(void) {
     uint8_t tx[4] = {0};
     capture_t capture = {0};
 
-    sensor_api_remote_t remote = {
+
+    ir_sensor_api_remote_t remote = {
         &capture,
         capture_send,
         tx,
         sizeof(tx)
     };
 
-    sensor_reading_t reading = {
+    ct_sensor_reading_t reading = {
         1.0f
     };
 
     assert(
-        sensor_api_publish(
+        ir_sensor_api_publish(
             &remote,
             &reading) ==
         AETHER_ERR_OVERFLOW);
+
 
     assert(capture.calls == 0u);
 }

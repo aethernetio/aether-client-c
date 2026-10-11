@@ -118,29 +118,58 @@ static void test_include_cycle(void) {
     adsl_document_free(&document);
 }
 
+
 static void test_sibling_include(void) {
-    char path[1024];
+    char root_path[1024];
+    char common_path[1024];
 
     fixture_path(
         "SiblingRoot/Root.adsl.yaml",
-        path,
-        sizeof(path));
+        root_path,
+        sizeof(root_path));
 
-    adsl_document_t document;
-    adsl_document_init(&document);
+    fixture_path(
+        "SiblingCommon/SiblingCommon.adsl.yaml",
+        common_path,
+        sizeof(common_path));
+
+    const char *paths[] = {
+        root_path,
+        common_path
+    };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
 
     char error[512] = {0};
 
     assert(
-        adsl_load_file(
-            path,
+        adsl_project_load_files(
+            paths,
+            2u,
+            &project,
+            error,
+            sizeof(error)));
+
+    adsl_document_t document;
+    adsl_document_init(&document);
+
+    assert(
+        adsl_project_merge_into_document(
+            &project,
             &document,
             error,
             sizeof(error)));
 
+    adsl_project_free(&project);
 
-    /* SiblingRoot declares the API itself but no types. */
-    assert(document.type_count == 0u);
+
+    /*
+     * The merged document contains the declarations of both input
+     * documents. SiblingRoot contributes one API; SiblingCommon
+     * contributes one type.
+     */
+    assert(document.type_count == 1u);
     assert(document.api_count == 1u);
     assert(document.resolved_type_count == 1u);
     assert(document.resolved_api_count == 1u);
@@ -161,22 +190,35 @@ static void test_sibling_include(void) {
 }
 
 
+
+
 static void test_explicit_include_search_path(void) {
+    /*
+     * The search-path include model is gone: every input file is a peer in
+     * a flat pool, and includes resolve by basename inside that pool. This
+     * regression now covers the equivalent unified call: passing the
+     * include target directly.
+     */
     char root_path[1024];
+    char shared_path[1024];
+
     fixture_path(
         "SearchRoot/Root.adsl.yaml",
         root_path,
         sizeof(root_path));
 
-    char include_path[1024];
     fixture_path(
-        "SearchPath",
-        include_path,
-        sizeof(include_path));
+        "SearchPath/shared.adsl.yaml",
+        shared_path,
+        sizeof(shared_path));
 
-    const char *include_paths[] = {
-        include_path
+    const char *paths[] = {
+        root_path,
+        shared_path
     };
+
+    adsl_project_t project;
+    adsl_project_init(&project);
 
     adsl_document_t document;
     adsl_document_init(&document);
@@ -184,17 +226,29 @@ static void test_explicit_include_search_path(void) {
     char error[512] = {0};
 
     assert(
-        adsl_load_file_with_include_paths(
-            root_path,
-            include_paths,
-            1u,
+        adsl_project_load_files(
+            paths,
+            2u,
+            &project,
+            error,
+            sizeof(error)));
+
+    assert(
+        adsl_project_merge_into_document(
+            &project,
             &document,
             error,
             sizeof(error)));
 
+    adsl_project_free(&project);
 
-    /* SearchRoot declares the API itself but no types. */
-    assert(document.type_count == 0u);
+
+    /*
+     * The merged document contains the declarations of both input
+     * documents. SearchRoot contributes one API; SearchPath contributes
+     * one type.
+     */
+    assert(document.type_count == 1u);
     assert(document.api_count == 1u);
     assert(document.resolved_type_count == 1u);
     assert(document.resolved_api_count == 1u);
@@ -213,6 +267,7 @@ static void test_explicit_include_search_path(void) {
 
     adsl_document_free(&document);
 }
+
 
 
 static void test_duplicate_include(void) {
