@@ -1,5 +1,5 @@
 
 #ifdef AETHER_SIZE_WITH_CLIENT
-#include "../../src/generated/client_server_reg_root_enter_api.c"
+/* per-module generated source removed */
 #include "../../src/generated/aether_reg_root_enter.c"
 #endif

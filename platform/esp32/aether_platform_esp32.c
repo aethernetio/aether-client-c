@@ -1482,13 +1482,15 @@ aether_status_t aether_platform_init(
     platform->ctx =
         ctx;
 
+
     platform->transport_io =
         (aether_transport_io_vtable_t){
-            ctx,
-            transport_open,
-            transport_close,
-            transport_send
+            .ctx = ctx,
+            .open = transport_open,
+            .close = transport_close,
+            .send = transport_send
         };
+
 
     platform->flash =
         (aether_flash_vtable_t){

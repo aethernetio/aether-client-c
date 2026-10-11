@@ -5,7 +5,7 @@
 #include "aether_registration.h"
 
 #include "aether_reg_safe.h"
-#include "client_server_api_api.h"
+#include "aether_api.h"
 
 
 #include "aether_hydrogen.h"
@@ -3257,10 +3257,10 @@ static void test_recovery_builder_matches_canonical(void) {
         manual,
         sizeof(manual),
         &manual_len,
-        KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC,
+        COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC,
         p256_temp,
         sizeof(p256_temp),
-        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX,
+        COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX,
         old_hydrogen,
         sizeof(old_hydrogen),
         new_p256,
@@ -3271,27 +3271,27 @@ static void test_recovery_builder_matches_canonical(void) {
     uint8_t canonical[512];
     size_t canonical_len = 0u;
 
-    hydrogen_secret_box_t old_hb = { .data = { .data = { 0 } } };
-    p256_aes_gcm_symmetric_t new_p256_sym = { .data = { .data = { 0 } } };
-    p256_aes_gcm_symmetric_t temp_p256_sym = { .data = { .data = { 0 } } };
+    common_hydrogen_secret_box_t old_hb = { .data = { .data = { 0 } } };
+    common_p256_aes_gcm_symmetric_t new_p256_sym = { .data = { .data = { 0 } } };
+    common_p256_aes_gcm_symmetric_t temp_p256_sym = { .data = { .data = { 0 } } };
     memcpy(old_hb.data.data, old_hydrogen, 32u);
     memcpy(new_p256_sym.data.data, new_p256, 32u);
     memcpy(temp_p256_sym.data.data, p256_temp, 32u);
 
-    key_ref_t return_key_ref;
+    common_key_ref_t return_key_ref;
     memset(&return_key_ref, 0, sizeof(return_key_ref));
-    return_key_ref.type_id = KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC;
-    return_key_ref.as.p256_aes_gcm_symmetric = &temp_p256_sym;
+    return_key_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC;
+    return_key_ref.as.common_p256_aes_gcm_symmetric = &temp_p256_sym;
 
-    key_ref_t old_master_ref;
+    common_key_ref_t old_master_ref;
     memset(&old_master_ref, 0, sizeof(old_master_ref));
-    old_master_ref.type_id = KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX;
-    old_master_ref.as.hydrogen_secret_box = &old_hb;
+    old_master_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX;
+    old_master_ref.as.common_hydrogen_secret_box = &old_hb;
 
-    key_ref_t new_master_ref;
+    common_key_ref_t new_master_ref;
     memset(&new_master_ref, 0, sizeof(new_master_ref));
-    new_master_ref.type_id = KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC;
-    new_master_ref.as.p256_aes_gcm_symmetric = &new_p256_sym;
+    new_master_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC;
+    new_master_ref.as.common_p256_aes_gcm_symmetric = &new_p256_sym;
 
     struct {
         uint8_t *buf;
@@ -3299,20 +3299,20 @@ static void test_recovery_builder_matches_canonical(void) {
         size_t cap;
     } acc = { canonical, 0u, sizeof(canonical) };
 
-    server_registration_api_remote_t remote;
+    csa_server_registration_api_remote_t remote;
     memset(&remote, 0, sizeof(remote));
     remote.send_ctx = &acc;
     remote.send = canonical_append;
     remote.tx = canonical;
     remote.tx_capacity = sizeof(canonical);
 
-    assert(server_registration_api_set_return_key(
+    assert(csa_server_registration_api_set_return_key(
         &remote, &return_key_ref) == AETHER_OK);
 
     remote.tx = canonical + acc.len;
     remote.tx_capacity = sizeof(canonical) - acc.len;
 
-    assert(server_registration_api_recovery(
+    assert(csa_server_registration_api_recovery(
         &remote,
         request_id,
         uid,

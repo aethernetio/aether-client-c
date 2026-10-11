@@ -6,7 +6,7 @@
  * The payload inside the frame belongs to higher peer protocol layers.
  */
 
-#include "peer_api_types.h"
+#include "aether_api.h"
 #include "aether_meta_runtime.h"
 
 #include <string.h>

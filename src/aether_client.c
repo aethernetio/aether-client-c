@@ -25,14 +25,14 @@
 #include "aether_client.h"
 #include "aether_registration.h"
 #include "aether_credentials.h"
-#include "generated/client_server_reg_direct_response_response.h"
+#include "aether_api.h"
 #include "generated/aether_reg_global.h"
 #include "generated/aether_reg_root_enter.h"
 #include "generated/aether_reg_root_key.h"
 #include "generated/aether_reg_safe.h"
 #include "generated/aether_reg_unsafe_local.h"
 
-#include "generated/client_server_api_api.h"
+/* aggregate aether_api.h already included */
 #include "aether_crypto_registry.h"
 
 
@@ -919,7 +919,7 @@ static bool parse_signed_key(
     const aether_client_t *client,
     aether_signed_key_t *key) {
 
-    (void)client;
+    /* client is used below for a config.crypto fallback. */
 
     /*
      * MCU code must not pull in <string.h>; zero the struct with a
@@ -942,11 +942,30 @@ static bool parse_signed_key(
      * The wire carries key_type but not crypto_lib, so the backend
      * must be resolved from the ADSL wire type id alone.
      */
+
+    const aether_crypto_profile_t *profile =
+        NULL;
+
     const aether_crypto_provider_t *provider =
         aether_crypto_find_by_asymmetric_public_key_type(
             key->key_type);
 
-    if (provider == NULL) {
+    if (provider != NULL) {
+
+        profile =
+            &provider->vtable->profile;
+
+    } else if (client != NULL &&
+               client->config.crypto != NULL &&
+               client->config.crypto->profile
+                       .asymmetric_public_key_type ==
+                   key->key_type) {
+
+        profile =
+            &client->config.crypto->profile;
+    }
+
+    if (profile == NULL) {
 
         reader->failed =
             true;
@@ -954,8 +973,6 @@ static bool parse_signed_key(
         return false;
     }
 
-    const aether_crypto_profile_t *profile =
-        &provider->vtable->profile;
 
     if (!r_bytes(
             reader,
@@ -991,21 +1008,50 @@ static bool verify_signed_key(
     const aether_client_t *client,
     const aether_signed_key_t *key) {
 
+
+    const aether_crypto_vtable_t *crypto =
+        NULL;
+
+    void *crypto_ctx =
+        NULL;
+
     const aether_crypto_provider_t *provider =
         aether_crypto_find_by_wire_types(
             key->key_type,
             key->sign_type);
 
-    if (provider == NULL) {
+    if (provider != NULL) {
+
+        crypto =
+            provider->vtable;
+
+        crypto_ctx =
+            provider->ctx;
+
+    } else if (client != NULL &&
+               client->config.crypto != NULL &&
+               client->config.crypto->profile
+                       .asymmetric_public_key_type ==
+                   key->key_type &&
+               client->config.crypto->profile
+                       .sign_type ==
+                   key->sign_type) {
+
+        crypto =
+            client->config.crypto;
+
+        crypto_ctx =
+            client->config.crypto_ctx;
+    }
+
+    if (crypto == NULL) {
 
         return false;
     }
 
-    const aether_crypto_vtable_t *crypto =
-        provider->vtable;
-
     const aether_crypto_profile_t *profile =
         &crypto->profile;
+
 
     for (size_t i = 0u;
          i <
@@ -1018,7 +1064,7 @@ static bool verify_signed_key(
                 profile->sign_public_key_bytes;
 
         if (crypto->verify_signature(
-                provider->ctx,
+                crypto_ctx,
                 root,
                 profile->sign_public_key_bytes,
                 key->signature,
@@ -2903,8 +2949,11 @@ static aether_status_t handle_reg_safe_plain(
                reader.length) {
 
 
+
         size_t frame_start =
             reader.pos;
+        (void)frame_start;
+
 
 
         uint8_t command =
@@ -2941,54 +2990,43 @@ static aether_status_t handle_reg_safe_plain(
                     client->registration->req_finish) {
 
 
-                server_registration_api_registration_direct_response_storage_t storage = {
-                    .cloud_data_storage =
-                        client->cloud_sids,
-                    .cloud_data_capacity =
-                        sizeof(client->cloud_sids) /
-                        sizeof(client->cloud_sids[0])
-                };
 
-                server_registration_api_registration_direct_response_frame_t frame = {
-                    0
-                };
+                client->alias =
+                    r_uuid(&reader);
 
-                size_t consumed =
-                    0u;
+                client->uid =
+                    r_uuid(&reader);
 
-                aether_status_t status =
-                    server_registration_api_registration_direct_response_decode(
-                        &storage,
-                        data + frame_start,
-                        length - frame_start,
-                        &frame,
-                        &consumed);
+                uint64_t cloud_count =
+                    r_pack(&reader);
 
-                if (status != AETHER_OK ||
-                    consumed == 0u ||
-                    consumed > length - frame_start ||
-                    frame.kind !=
-                        SERVER_REGISTRATION_API_REGISTRATION_DIRECT_RESPONSE_RESULT ||
-                    frame.request_id !=
-                        request_id) {
+                if (reader.failed ||
+                    cloud_count > AETHER_MAX_SERVERS) {
 
                     return
                         fail(
                             client,
-                            status != AETHER_OK
-                                ? status
-                                : AETHER_ERR_PROTOCOL);
+                            AETHER_ERR_PROTOCOL);
                 }
 
-
-                client->alias =
-                    frame.result.alias;
-
-                client->uid =
-                    frame.result.uid;
-
                 client->cloud_count =
-                    frame.result.cloud.data.length;
+                    (uint8_t)cloud_count;
+
+                for (uint8_t i = 0u;
+                     i < client->cloud_count;
+                     ++i) {
+
+                    client->cloud_sids[i] =
+                        r_i16le(&reader);
+                }
+
+                if (reader.failed) {
+                    return
+                        fail(
+                            client,
+                            AETHER_ERR_PROTOCOL);
+                }
+
 
                 client->registered =
                     true;
@@ -5545,7 +5583,7 @@ aether_status_t aether_client_send_message(
         next_request_id(
             client);
 
-    message_t message = {
+    csa_message_t message = {
         .uid = destination,
         .data = {
             .data = data,
@@ -5553,7 +5591,7 @@ aether_status_t aether_client_send_message(
         }
     };
 
-    authorized_api_remote_t authorized = {
+    csa_authorized_api_remote_t authorized = {
         .send_ctx = client,
         .send = generated_authorized_send,
         .tx = client->tx_plain,
@@ -5562,7 +5600,7 @@ aether_status_t aether_client_send_message(
     };
 
     aether_status_t status =
-        authorized_api_send_message_with_result(
+        csa_authorized_api_send_message_with_result(
             &authorized,
             request_id,
             &message);

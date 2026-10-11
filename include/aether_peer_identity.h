@@ -9,7 +9,7 @@
 #define AETHER_PEER_IDENTITY_H
 
 #include "aether_client.h"
-#include "peer_api_types.h"
+#include "aether_api.h"
 
 #include <stdbool.h>
 #include <stddef.h>
