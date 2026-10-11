@@ -17,77 +17,22 @@
 
 
 
-static const char *file_base_name(
-    const char *path) {
 
-    const char *base =
-        path;
-
-    for (const char *p = path;
-         *p != '\0';
-         ++p) {
-
-        if (*p == '/' ||
-            *p == '\\') {
-
-            base =
-                p + 1;
-        }
-    }
-
-    return base;
-}
-
-static void derive_base_name(
-    const char *path,
-    char *output,
-    size_t capacity) {
-
-    const char *base =
-        file_base_name(path);
-
-    (void)snprintf(
-        output,
-        capacity,
-        "%s",
-        base);
-
-    char *suffix =
-        strstr(
-            output,
-            ".adsl.yaml");
-
-    if (suffix == NULL) {
-        suffix =
-            strstr(
-                output,
-                ".adsl.yml");
-    }
-
-    if (suffix != NULL) {
-        *suffix =
-            '\0';
-    }
-}
 
 int main(
     int argc,
     char **argv) {
 
-
-    const char *include_paths[64];
-    size_t include_path_count = 0u;
-
-    const char *explicit_inputs[64];
-    size_t explicit_input_count = 0u;
-
-
-    const char *api_selection = NULL;
-    const char *method_selection = NULL;
-
-    const char *local_api_selection = NULL;
-    const char *response_method_selection = NULL;
-
+    /*
+     * Unified generation mode. The CLI accepts a list of files and
+     * directories via repeated --input (a bare positional input list is
+     * also accepted for convenience). Directories are scanned recursively
+     * for *.adsl.yaml; every document is loaded into a flat pool keyed by
+     * basename, and includes resolve by name inside that pool. The single
+     * positional argument is the output directory.
+     */
+    const char *inputs[128];
+    size_t input_count = 0u;
 
     int argument = 1;
 
@@ -96,173 +41,20 @@ int main(
 
         if (strcmp(
                 argv[argument],
-                "-I") == 0) {
-
-            if (argument + 1 >= argc ||
-                include_path_count >=
-                    sizeof(include_paths) /
-                        sizeof(include_paths[0])) {
-
-                fprintf(
-                    stderr,
-                    "usage: aether-adslc [-I <include-dir>]... [--api ApiName | --method Api.method | --local-api ApiName] <input.adsl.yaml> <output-dir> [base-name]\n");
-
-                return 2;
-            }
-
-            include_paths[include_path_count++] =
-                argv[argument + 1];
-
-            argument += 2;
-            continue;
-        }
-
-
-        if (strcmp(
-                argv[argument],
                 "--input") == 0) {
 
             if (argument + 1 >= argc ||
-                explicit_input_count >=
-                    sizeof(explicit_inputs) /
-                        sizeof(explicit_inputs[0])) {
+                input_count >=
+                    sizeof(inputs) / sizeof(inputs[0])) {
 
                 fprintf(
                     stderr,
-                    "usage: aether-adslc [-I <include-dir>]... --input <dir-or-file>... <output-dir>\n");
+                    "usage: aether-adslc --input <dir-or-file>... <output-dir>\n");
 
                 return 2;
             }
 
-            explicit_inputs[explicit_input_count++] =
-                argv[argument + 1];
-
-            argument += 2;
-            continue;
-        }
-
-
-        if (strcmp(
-                argv[argument],
-                "--api") == 0) {
-
-
-            if (argument + 1 >= argc ||
-                api_selection != NULL ||
-                method_selection != NULL ||
-                local_api_selection != NULL ||
-                response_method_selection != NULL) {
-
-
-                fprintf(
-                    stderr,
-                    "usage: aether-adslc [-I <include-dir>]... [--api ApiName | --method Api.method | --local-api ApiName] <input.adsl.yaml> <output-dir> [base-name]\n");
-
-                return 2;
-            }
-
-            api_selection =
-                argv[argument + 1];
-
-            if (api_selection[0] == '\0' ||
-                strchr(
-                    api_selection,
-                    '.') != NULL) {
-
-                fprintf(
-                    stderr,
-                    "--api must be a single API name\n");
-
-                return 2;
-            }
-
-            argument += 2;
-            continue;
-        }
-
-        if (strcmp(
-                argv[argument],
-                "--local-api") == 0) {
-
-
-            if (argument + 1 >= argc ||
-                api_selection != NULL ||
-                method_selection != NULL ||
-                local_api_selection != NULL ||
-                response_method_selection != NULL) {
-
-
-                fprintf(
-                    stderr,
-                    "usage: aether-adslc [-I <include-dir>]... [--api ApiName | --method Api.method | --local-api ApiName] <input.adsl.yaml> <output-dir> [base-name]\n");
-
-                return 2;
-            }
-
-            local_api_selection =
-                argv[argument + 1];
-
-            if (local_api_selection[0] == '\0' ||
-                strchr(
-                    local_api_selection,
-                    '.') != NULL) {
-
-                fprintf(
-                    stderr,
-                    "--local-api must be a single API name\n");
-
-                return 2;
-            }
-
-            argument += 2;
-            continue;
-        }
-
-        if (strcmp(
-                argv[argument],
-                "--method") == 0) {
-
-
-            if (argument + 1 >= argc ||
-                method_selection != NULL ||
-                api_selection != NULL ||
-                local_api_selection != NULL ||
-                response_method_selection != NULL) {
-
-
-                fprintf(
-                    stderr,
-                    "usage: aether-adslc [-I <include-dir>]... [--api ApiName | --method Api.method | --local-api ApiName] <input.adsl.yaml> <output-dir> [base-name]\n");
-
-                return 2;
-            }
-
-            method_selection =
-                argv[argument + 1];
-
-            argument += 2;
-            continue;
-        }
-
-
-        if (strcmp(
-                argv[argument],
-                "--response-method") == 0) {
-
-            if (argument + 1 >= argc ||
-                response_method_selection != NULL ||
-                method_selection != NULL ||
-                api_selection != NULL ||
-                local_api_selection != NULL) {
-
-                fprintf(
-                    stderr,
-                    "usage: aether-adslc [-I <include-dir>]... [--api ApiName | --method Api.method | --local-api ApiName | --response-method Api.method] <input.adsl.yaml> <output-dir> [base-name]\n");
-
-                return 2;
-            }
-
-            response_method_selection =
+            inputs[input_count++] =
                 argv[argument + 1];
 
             argument += 2;
@@ -275,323 +67,101 @@ int main(
             argv[argument]);
 
         return 2;
-
     }
-
-    int positional_count =
-        argc - argument;
-
-
 
     /*
-     * --input mode: explicit list of files and directories.
-     * Each directory is scanned recursively; each file is used directly.
-     * The pool is keyed by document basename; includes resolve by name.
-     * Output is a single aether_api.h/.c in <output-dir>.
+     * Trailing positional inputs (up to the last one) are treated as
+     * additional --input entries. The final positional is the output
+     * directory.
      */
-    if (explicit_input_count > 0u) {
-
-        if (positional_count != 1) {
-            fprintf(
-                stderr,
-                "usage: aether-adslc --input <dir-or-file>... <output-dir>\n");
-            return 2;
-        }
-
-        if (api_selection != NULL ||
-            method_selection != NULL ||
-            local_api_selection != NULL ||
-            response_method_selection != NULL) {
-
-            fprintf(
-                stderr,
-                "--input mode does not support method/API selection\n");
-            return 2;
-        }
-
-        const char *output_directory = argv[argument];
-
-        char error[512] = {0};
-
-        adsl_project_t project;
-        adsl_project_init(&project);
-
-        if (!adsl_project_load_files(
-                explicit_inputs,
-                explicit_input_count,
-                &project,
-                error,
-                sizeof(error))) {
-
-            fprintf(
-                stderr,
-                "ADSL project load error: %s\n",
-                error);
-
-            adsl_project_free(&project);
-            return 1;
-        }
-
-        adsl_document_t merged;
-        adsl_document_init(&merged);
-
-        bool merged_ok = adsl_project_merge_into_document(
-            &project,
-            &merged,
-            error,
-            sizeof(error));
-
-        size_t document_count = project.document_count;
-        adsl_project_free(&project);
-
-        if (!merged_ok) {
-            fprintf(
-                stderr,
-                "ADSL merge error: %s\n",
-                error);
-
-            adsl_document_free(&merged);
-            return 1;
-        }
-
-        if (!adsl_validate(&merged, error, sizeof(error))) {
-            fprintf(
-                stderr,
-                "ADSL validation error: %s\n",
-                error);
-
-            adsl_document_free(&merged);
-            return 1;
-        }
-
-        bool emitted = adsl_emit_c_method(
-            &merged,
-            output_directory,
-            "aether_api",
-            NULL,
-            NULL,
-            error,
-            sizeof(error));
-
-        adsl_document_free(&merged);
-
-        if (!emitted) {
-            fprintf(
-                stderr,
-                "ADSL generation error: %s\n",
-                error);
-
-            return 1;
-        }
-
+    if (argc - argument < 1) {
         fprintf(
             stderr,
-            "generated aether_api.h/.c from %zu documents\n",
-            document_count);
-
-        return 0;
-    }
-
-    if (positional_count < 2 ||
-        positional_count > 3) {
-
-        fprintf(
-            stderr,
-            "usage: aether-adslc --input <dir-or-file>... <output-dir>\n"
-            "       aether-adslc <input.adsl.yaml> <output-dir> [base-name]\n");
-
+            "usage: aether-adslc --input <dir-or-file>... <output-dir>\n");
         return 2;
     }
 
-
-
-    const char *input_path =
-        argv[argument];
-
-    const char *output_directory =
-        argv[argument + 1];
-
-    char base_name[256];
-
-    if (positional_count == 3) {
-        (void)snprintf(
-            base_name,
-            sizeof(base_name),
-            "%s",
-            argv[argument + 2]);
-    } else {
-        derive_base_name(
-            input_path,
-            base_name,
-            sizeof(base_name));
-    }
-
-
-    char selected_api_name[256] = {0};
-    char selected_method_name[256] = {0};
-
-    const char *qualified_method_selection =
-        method_selection != NULL
-            ? method_selection
-            : response_method_selection;
-
-    if (qualified_method_selection != NULL) {
-        const char *separator =
-            strchr(
-                qualified_method_selection,
-                '.');
-
-
-        if (separator == NULL ||
-            separator == qualified_method_selection ||
-            separator[1] == '\0' ||
-            strchr(
-                separator + 1,
-                '.') != NULL) {
-
-            fprintf(
-                stderr,
-                "method selection must be Api.method\n");
-
+    for (int i = argument; i < argc - 1; ++i) {
+        if (input_count >= sizeof(inputs) / sizeof(inputs[0])) {
+            fprintf(stderr, "too many inputs\n");
             return 2;
         }
-
-        size_t api_length =
-            (size_t)(
-                separator -
-                qualified_method_selection);
-
-        size_t method_length =
-            strlen(
-                separator + 1);
-
-        if (api_length >=
-                sizeof(selected_api_name) ||
-            method_length >=
-                sizeof(selected_method_name)) {
-
-            fprintf(
-                stderr,
-                "--method selection is too long\n");
-
-            return 2;
-        }
-
-        memcpy(
-            selected_api_name,
-            qualified_method_selection,
-            api_length);
-
-        selected_api_name[api_length] =
-            '\0';
-
-        memcpy(
-            selected_method_name,
-            separator + 1,
-            method_length + 1u);
+        inputs[input_count++] = argv[i];
     }
 
-    adsl_document_t document;
-    adsl_document_init(&document);
+    if (input_count == 0u) {
+        fprintf(
+            stderr,
+            "usage: aether-adslc --input <dir-or-file>... <output-dir>\n");
+        return 2;
+    }
 
-    char error[512] = {0};
+    const char *output_directory = argv[argc - 1];
 
-    if (!adsl_load_file_with_include_paths(
-            input_path,
-            include_paths,
-            include_path_count,
-            &document,
+    char error[1024] = {0};
+
+    adsl_project_t project;
+    adsl_project_init(&project);
+
+    if (!adsl_project_load_files(
+            inputs,
+            input_count,
+            &project,
             error,
             sizeof(error))) {
 
-        fprintf(
-            stderr,
-            "ADSL load error: %s\n",
-            error);
-
-        adsl_document_free(&document);
+        fprintf(stderr, "ADSL load error: %s\n", error);
+        adsl_project_free(&project);
         return 1;
     }
 
+    adsl_document_t merged;
+    adsl_document_init(&merged);
+
+    if (!adsl_project_merge_into_document(
+            &project,
+            &merged,
+            error,
+            sizeof(error))) {
+
+        fprintf(stderr, "ADSL merge error: %s\n", error);
+        adsl_project_free(&project);
+        adsl_document_free(&merged);
+        return 1;
+    }
 
     if (!adsl_validate(
-            &document,
+            &merged,
             error,
             sizeof(error))) {
 
-        fprintf(
-            stderr,
-            "ADSL validation error: %s\n",
-            error);
-
-        adsl_document_free(&document);
+        fprintf(stderr, "ADSL validation error: %s\n", error);
+        adsl_project_free(&project);
+        adsl_document_free(&merged);
         return 1;
     }
 
-    bool emitted;
+    bool emitted = adsl_emit_c_method(
+        &merged,
+        output_directory,
+        "aether_api",
+        NULL,
+        NULL,
+        error,
+        sizeof(error));
 
-    if (method_selection != NULL) {
-        emitted =
-            adsl_emit_c_method(
-                &document,
-                output_directory,
-                base_name,
-                selected_api_name,
-                selected_method_name,
-                error,
-                sizeof(error));
-    } else if (api_selection != NULL) {
-        emitted =
-            adsl_emit_c_method(
-                &document,
-                output_directory,
-                base_name,
-                api_selection,
-                NULL,
-                error,
-                sizeof(error));
-    } else if (local_api_selection != NULL) {
-        emitted =
-            adsl_emit_c_local_api(
-                &document,
-                output_directory,
-                base_name,
-                local_api_selection,
-                error,
-                sizeof(error));
-
-    } else if (response_method_selection != NULL) {
-        emitted =
-            adsl_emit_c_response_method(
-                &document,
-                output_directory,
-                base_name,
-                selected_api_name,
-                selected_method_name,
-                error,
-                sizeof(error));
-    } else {
-
-        emitted =
-            adsl_emit_c(
-                &document,
-                output_directory,
-                base_name,
-                error,
-                sizeof(error));
-    }
+    adsl_project_free(&project);
+    adsl_document_free(&merged);
 
     if (!emitted) {
-        fprintf(
-            stderr,
-            "ADSL generation error: %s\n",
-            error);
-
-        adsl_document_free(&document);
+        fprintf(stderr, "ADSL generation error: %s\n", error);
         return 1;
     }
 
-    adsl_document_free(&document);
+    fprintf(
+        stderr,
+        "generated aether_api.h/.c from %zu documents\n",
+        input_count);
 
     return 0;
 }

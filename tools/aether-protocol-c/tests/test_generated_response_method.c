@@ -70,16 +70,16 @@ static void test_result(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    global_api_finish_response_frame_t decoded = {0};
+    rm_global_api_finish_response_frame_t decoded = {0};
 
     assert(
-        global_api_finish_response_decode(
+        rm_global_api_finish_response_decode(
             &ctx,
             &decoded) ==
         AETHER_OK);
 
     assert(ctx.reader.position == sizeof(frame));
-    assert(decoded.kind == GLOBAL_API_FINISH_RESPONSE_RESULT);
+    assert(decoded.kind == RM_GLOBAL_API_FINISH_RESPONSE_RESULT);
     assert(decoded.request_id == UINT32_C(0x12345678));
 
     assert(
@@ -123,16 +123,16 @@ static void test_error(void) {
     ctx.reader.data = frame;
     ctx.reader.length = sizeof(frame);
 
-    global_api_finish_response_frame_t decoded = {0};
+    rm_global_api_finish_response_frame_t decoded = {0};
 
     assert(
-        global_api_finish_response_decode(
+        rm_global_api_finish_response_decode(
             &ctx,
             &decoded) ==
         AETHER_OK);
 
     assert(ctx.reader.position == sizeof(frame));
-    assert(decoded.kind == GLOBAL_API_FINISH_RESPONSE_ERROR);
+    assert(decoded.kind == RM_GLOBAL_API_FINISH_RESPONSE_ERROR);
     assert(decoded.request_id == UINT32_C(0x01020304));
 }
 
@@ -180,10 +180,10 @@ static void test_pack_251(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    global_api_finish_response_frame_t decoded = {0};
+    rm_global_api_finish_response_frame_t decoded = {0};
 
     assert(
-        global_api_finish_response_decode(
+        rm_global_api_finish_response_decode(
             &ctx,
             &decoded) ==
         AETHER_OK);
@@ -211,10 +211,10 @@ static void test_scratch_overflow(void) {
     ctx.reader.data = frame;
     ctx.reader.length = sizeof(frame);
 
-    global_api_finish_response_frame_t decoded = {0};
+    rm_global_api_finish_response_frame_t decoded = {0};
 
     assert(
-        global_api_finish_response_decode(
+        rm_global_api_finish_response_decode(
             &ctx,
             &decoded) ==
         AETHER_ERR_OVERFLOW);
@@ -233,10 +233,10 @@ static void test_truncated(void) {
     ctx.reader.data = truncated;
     ctx.reader.length = sizeof(truncated);
 
-    global_api_finish_response_frame_t decoded = {0};
+    rm_global_api_finish_response_frame_t decoded = {0};
 
     assert(
-        global_api_finish_response_decode(
+        rm_global_api_finish_response_decode(
             &ctx,
             &decoded) ==
         AETHER_ERR_PROTOCOL);
@@ -259,32 +259,32 @@ static void test_concatenated(void) {
     ctx.reader.data = frames;
     ctx.reader.length = sizeof(frames);
 
-    global_api_finish_response_frame_t decoded = {0};
+    rm_global_api_finish_response_frame_t decoded = {0};
 
     assert(
-        global_api_finish_response_decode(
+        rm_global_api_finish_response_decode(
             &ctx,
             &decoded) ==
         AETHER_OK);
 
     assert(ctx.reader.position == first_length);
-    assert(decoded.kind == GLOBAL_API_FINISH_RESPONSE_RESULT);
+    assert(decoded.kind == RM_GLOBAL_API_FINISH_RESPONSE_RESULT);
 
     /*
      * The decoder reads one object and leaves the cursor on the next byte,
      * so a second frame in the same buffer decodes cleanly without a
      * separate "consumed" output.
      */
-    global_api_finish_response_frame_t second = {0};
+    rm_global_api_finish_response_frame_t second = {0};
 
     assert(
-        global_api_finish_response_decode(
+        rm_global_api_finish_response_decode(
             &ctx,
             &second) ==
         AETHER_OK);
 
     assert(ctx.reader.position == sizeof(frames));
-    assert(second.kind == GLOBAL_API_FINISH_RESPONSE_ERROR);
+    assert(second.kind == RM_GLOBAL_API_FINISH_RESPONSE_ERROR);
     assert(second.request_id == 9u);
 }
 

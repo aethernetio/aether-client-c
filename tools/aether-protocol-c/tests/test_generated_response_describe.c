@@ -42,16 +42,16 @@ static void test_nullable_anonymous_result(void) {
     ctx.scratch = scratch;
     ctx.scratch_capacity = sizeof(scratch);
 
-    global_api_describe_response_frame_t frame = {0};
+    rm_global_api_describe_response_frame_t frame = {0};
 
     assert(
-        global_api_describe_response_decode(
+        rm_global_api_describe_response_decode(
             &ctx,
             &frame) ==
         AETHER_OK);
 
     assert(ctx.reader.position == sizeof(wire));
-    assert(frame.kind == GLOBAL_API_DESCRIBE_RESPONSE_RESULT);
+    assert(frame.kind == RM_GLOBAL_API_DESCRIBE_RESPONSE_RESULT);
     assert(frame.request_id == UINT32_C(0x12345678));
 
     assert(frame.result.required == INT8_C(0x2a));
@@ -78,10 +78,10 @@ static void test_all_nullable(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    global_api_describe_response_frame_t frame = {0};
+    rm_global_api_describe_response_frame_t frame = {0};
 
     assert(
-        global_api_describe_response_decode(
+        rm_global_api_describe_response_decode(
             &ctx,
             &frame) ==
         AETHER_OK);

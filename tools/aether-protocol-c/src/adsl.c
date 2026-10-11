@@ -4038,44 +4038,6 @@ static bool adsl_document_pool_key(
     return adsl_include_stem(base, key, capacity);
 }
 
-static bool adsl_files_identical(
-    const char *left,
-    const char *right) {
-
-    FILE *a = fopen(left, "rb");
-    FILE *b = fopen(right, "rb");
-
-    if (a == NULL || b == NULL) {
-        if (a != NULL) fclose(a);
-        if (b != NULL) fclose(b);
-        return false;
-    }
-
-    unsigned char buf_a[4096];
-    unsigned char buf_b[4096];
-
-    bool same = true;
-
-    for (;;) {
-        size_t read_a = fread(buf_a, 1u, sizeof(buf_a), a);
-        size_t read_b = fread(buf_b, 1u, sizeof(buf_b), b);
-
-        if (read_a != read_b ||
-            memcmp(buf_a, buf_b, read_a) != 0) {
-            same = false;
-            break;
-        }
-
-        if (read_a < sizeof(buf_a)) {
-            break;
-        }
-    }
-
-    fclose(a);
-    fclose(b);
-
-    return same;
-}
 
 static bool adsl_document_pool_add(
     adsl_document_pool_t *pool,
@@ -4090,22 +4052,17 @@ static bool adsl_document_pool_add(
         return false;
     }
 
-    const char *existing = adsl_document_pool_find(pool, key);
-
-    if (existing != NULL) {
-        if (adsl_files_identical(existing, path)) {
+    /*
+     * Document basenames are not unique identifiers. Several files with
+     * the same basename may legitimately coexist as long as their declared
+     * types/APIs do not collide. Only an exact path repeat is deduplicated
+     * here; name-level ambiguities are resolved (or rejected) later, when
+     * an include actually references the name.
+     */
+    for (size_t i = 0u; i < pool->count; ++i) {
+        if (strcmp(pool->paths[i], path) == 0) {
             return true;
         }
-
-        set_error(
-            error,
-            error_capacity,
-            "conflicting documents named '%s': '%s' and '%s'",
-            key,
-            existing,
-            path);
-
-        return false;
     }
 
     char **names = realloc(pool->names, (pool->count + 1u) * sizeof(*names));

@@ -26,16 +26,16 @@ static void test_void_result(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    global_api_ping_response_frame_t frame = {0};
+    rm_global_api_ping_response_frame_t frame = {0};
 
     assert(
-        global_api_ping_response_decode(
+        rm_global_api_ping_response_decode(
             &ctx,
             &frame) ==
         AETHER_OK);
 
     assert(ctx.reader.position == sizeof(wire));
-    assert(frame.kind == GLOBAL_API_PING_RESPONSE_RESULT);
+    assert(frame.kind == RM_GLOBAL_API_PING_RESPONSE_RESULT);
     assert(frame.request_id == UINT32_C(0x12345678));
 }
 
@@ -50,16 +50,16 @@ static void test_void_error(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    global_api_ping_response_frame_t frame = {0};
+    rm_global_api_ping_response_frame_t frame = {0};
 
     assert(
-        global_api_ping_response_decode(
+        rm_global_api_ping_response_decode(
             &ctx,
             &frame) ==
         AETHER_OK);
 
     assert(ctx.reader.position == sizeof(wire));
-    assert(frame.kind == GLOBAL_API_PING_RESPONSE_ERROR);
+    assert(frame.kind == RM_GLOBAL_API_PING_RESPONSE_ERROR);
     assert(frame.request_id == UINT32_C(0xddccbbaa));
 }
 
@@ -76,28 +76,28 @@ static void test_void_concatenated(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    global_api_ping_response_frame_t first = {0};
+    rm_global_api_ping_response_frame_t first = {0};
 
     assert(
-        global_api_ping_response_decode(
+        rm_global_api_ping_response_decode(
             &ctx,
             &first) ==
         AETHER_OK);
 
     assert(ctx.reader.position == 5u);
-    assert(first.kind == GLOBAL_API_PING_RESPONSE_RESULT);
+    assert(first.kind == RM_GLOBAL_API_PING_RESPONSE_RESULT);
     assert(first.request_id == 1u);
 
-    global_api_ping_response_frame_t second = {0};
+    rm_global_api_ping_response_frame_t second = {0};
 
     assert(
-        global_api_ping_response_decode(
+        rm_global_api_ping_response_decode(
             &ctx,
             &second) ==
         AETHER_OK);
 
     assert(ctx.reader.position == sizeof(wire));
-    assert(second.kind == GLOBAL_API_PING_RESPONSE_ERROR);
+    assert(second.kind == RM_GLOBAL_API_PING_RESPONSE_ERROR);
     assert(second.request_id == 2u);
 }
 
@@ -109,10 +109,10 @@ static void test_truncated_void(void) {
     ctx.reader.data = wire;
     ctx.reader.length = sizeof(wire);
 
-    global_api_ping_response_frame_t frame = {0};
+    rm_global_api_ping_response_frame_t frame = {0};
 
     assert(
-        global_api_ping_response_decode(
+        rm_global_api_ping_response_decode(
             &ctx,
             &frame) ==
         AETHER_ERR_PROTOCOL);

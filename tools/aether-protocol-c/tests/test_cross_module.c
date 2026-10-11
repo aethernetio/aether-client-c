@@ -114,9 +114,6 @@ static void test_res_003_load_order_stability(void) {
         b_path,
         sizeof(b_path));
 
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     char error[512] = {0};
 
@@ -135,14 +132,14 @@ static void test_res_003_load_order_stability(void) {
         adsl_project_t project;
         adsl_project_init(&project);
 
+
         assert(adsl_project_load_files(
             paths,
             2u,
-            include_paths,
-            1u,
             &project,
             error,
             sizeof(error)));
+
 
         assert(project.document_count == 2u);
 
@@ -198,14 +195,14 @@ static void test_res_011_registry_ownership(void) {
 
     char error[512] = {0};
 
+
     assert(adsl_project_load_files(
         paths,
         1u,
-        NULL,
-        0u,
         &project,
         error,
         sizeof(error)));
+
 
     adsl_type_registry_t registry;
     adsl_type_registry_init(&registry);
@@ -263,23 +260,20 @@ static void test_res_001_current_limitation(void) {
         sizeof(b_path));
 
     const char *paths[] = { a_path, b_path };
-    const char *include_paths[] = {
-        ADSL_FIXTURE_DIR "/cross_module"
-    };
 
     adsl_project_t project;
     adsl_project_init(&project);
 
     char error[512] = {0};
 
+
     assert(adsl_project_load_files(
         paths,
         2u,
-        include_paths,
-        1u,
         &project,
         error,
         sizeof(error)));
+
 
     adsl_document_t *a = NULL;
 
