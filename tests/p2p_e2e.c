@@ -313,7 +313,7 @@ int main(void) {
     }
 
 
-    if (wait_ready(20000u) != 0) {
+    if (wait_ready(5000u) != 0) {
         fprintf(
             stderr,
             "C clients did not become ready\n");
