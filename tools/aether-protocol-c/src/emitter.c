@@ -3244,29 +3244,7 @@ static bool emit_types_header_ctx(
                 }
             }
 
-            if ((!array_alias_requires_complete_element_ctx(
-                        ctx,
-                        method->returns_type) &&
-                  !emit_array_alias_ctx(
-                      output,
-                      ctx,
-                      &alias_state,
-                      method->returns_type,
-                      error,
-                      error_capacity)) ||
-                (!array_alias_requires_complete_element_ctx(
-                        ctx,
-                        method->throws_type) &&
-                  !emit_array_alias_ctx(
-                      output,
-                      ctx,
-                      &alias_state,
-                      method->throws_type,
-                      error,
-                      error_capacity))) {
 
-                return false;
-            }
         }
     }
 
@@ -3325,29 +3303,7 @@ static bool emit_types_header_ctx(
                 }
             }
 
-            if ((array_alias_requires_complete_element_ctx(
-                        ctx,
-                        method->returns_type) &&
-                  !emit_array_alias_ctx(
-                      output,
-                      ctx,
-                      &alias_state,
-                      method->returns_type,
-                      error,
-                      error_capacity)) ||
-                (array_alias_requires_complete_element_ctx(
-                        ctx,
-                        method->throws_type) &&
-                  !emit_array_alias_ctx(
-                      output,
-                      ctx,
-                      &alias_state,
-                      method->throws_type,
-                      error,
-                      error_capacity))) {
 
-                return false;
-            }
         }
     }
 
@@ -4400,10 +4356,7 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
         const adsl_method_t *method = effective[m].method;
 
-        bool has_response =
-            method->returns_type != NULL ||
-            method->return_field_count > 0u ||
-            method->throws_type != NULL;
+
 
         char method_name[256];
         snake_name(method->name, method_name, sizeof(method_name));
@@ -4434,9 +4387,7 @@ static bool emit_stream_builder_declarations_for_api_ctx(
 
         }
 
-        if (has_response) {
-            fputs(",\n    uint32_t request_id", output);
-        }
+
 
         for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -4764,10 +4715,7 @@ static bool emit_stream_builder_definitions_for_api_ctx(
 
         const adsl_method_t *method = effective[m].method;
 
-        bool has_response =
-            method->returns_type != NULL ||
-            method->return_field_count > 0u ||
-            method->throws_type != NULL;
+
 
         char method_name[256];
         snake_name(method->name, method_name, sizeof(method_name));
@@ -4890,9 +4838,7 @@ static bool emit_stream_builder_definitions_for_api_ctx(
             "    %s_t *builder_stream",
             stream_c_name, api_name, method_name, stream_c_name);
 
-        if (has_response) {
-            fputs(",\n    uint32_t request_id", output);
-        }
+
 
         for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -4939,9 +4885,7 @@ static bool emit_stream_builder_definitions_for_api_ctx(
             "        &remote",
             stream_abbr, stream_abbr, api_name, stream_abbr, stream_abbr, api_name, method_name);
 
-        if (has_response) {
-            fputs(",\n        request_id", output);
-        }
+
 
         for (size_t p = 0u; p < method->param_count; ++p) {
             fprintf(output, ",\n        %s", method->params[p].name);
@@ -6136,10 +6080,7 @@ static bool emit_api_header_ctx(
                 continue;
             }
 
-            bool has_response =
-                method->returns_type != NULL ||
-                method->return_field_count > 0u ||
-                method->throws_type != NULL;
+
 
             char method_name[256];
             snake_name(method->name, method_name, sizeof(method_name));
@@ -6164,9 +6105,7 @@ static bool emit_api_header_ctx(
                 api_abbr, api_name, method_name,
                 api_abbr, api_name);
 
-            if (has_response) {
-                fputs(",\n    uint32_t request_id", output);
-            }
+
 
             for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -6275,10 +6214,7 @@ static bool emit_api_source_ctx(
                 continue;
             }
 
-            bool has_response =
-                method->returns_type != NULL ||
-                method->return_field_count > 0u ||
-                method->throws_type != NULL;
+
 
             char method_name[256];
             snake_name(method->name, method_name, sizeof(method_name));
@@ -6303,9 +6239,7 @@ static bool emit_api_source_ctx(
                 api_abbr, api_name, method_name,
                 api_abbr, api_name);
 
-            if (has_response) {
-                fputs(",\n    uint32_t request_id", output);
-            }
+
 
             for (size_t p = 0u; p < method->param_count; ++p) {
 
@@ -6342,21 +6276,10 @@ static bool emit_api_source_ctx(
                 method->param_count != 0u
                     ? "    size_t tx_capacity = api->tx_capacity;\n\n"
                     : "",
-                has_response ? 5u : 1u,
+1u,
                 (unsigned int)effective[m].id);
 
-            if (has_response) {
-                fputs(
-                    "    api->tx[pos++] = "
-                    "(uint8_t)((request_id >> 0u) & UINT32_C(0xff));\n"
-                    "    api->tx[pos++] = "
-                    "(uint8_t)((request_id >> 8u) & UINT32_C(0xff));\n"
-                    "    api->tx[pos++] = "
-                    "(uint8_t)((request_id >> 16u) & UINT32_C(0xff));\n"
-                    "    api->tx[pos++] = "
-                    "(uint8_t)((request_id >> 24u) & UINT32_C(0xff));\n",
-                    output);
-            }
+
 
             if (!emit_remote_nullable_param_mask(
                     output, method, "", error, error_capacity)) {
@@ -7071,44 +6994,7 @@ static bool collect_external_modules_types(
                 }
             }
 
-            const char *return_refs[2] = {
-                method->returns_type,
-                method->throws_type
-            };
 
-            for (size_t r = 0u; r < 2u; ++r) {
-
-                const char *ref = return_refs[r];
-
-                if (ref == NULL ||
-                    (strchr(ref, '[') == NULL &&
-                     strchr(ref, ']') == NULL)) {
-                    continue;
-                }
-
-                if (!external_modules_record(
-                        ctx, ref, state,
-                        error, error_capacity)) {
-                    return false;
-                }
-            }
-
-            for (size_t f = 0u; f < method->return_field_count; ++f) {
-
-                const char *ref = method->return_fields[f].type;
-
-                if (ref == NULL ||
-                    (strchr(ref, '[') == NULL &&
-                     strchr(ref, ']') == NULL)) {
-                    continue;
-                }
-
-                if (!external_modules_record(
-                        ctx, ref, state,
-                        error, error_capacity)) {
-                    return false;
-                }
-            }
         }
     }
 
@@ -7155,25 +7041,7 @@ static bool collect_external_modules_api(
                 }
             }
 
-            if (!external_modules_record(
-                    ctx, method->returns_type, state,
-                    error, error_capacity)) {
-                return false;
-            }
 
-            if (!external_modules_record(
-                    ctx, method->throws_type, state,
-                    error, error_capacity)) {
-                return false;
-            }
-
-            for (size_t f = 0u; f < method->return_field_count; ++f) {
-                if (!external_modules_record(
-                        ctx, method->return_fields[f].type, state,
-                        error, error_capacity)) {
-                    return false;
-                }
-            }
         }
     }
 
@@ -9615,13 +9483,7 @@ static bool emit_field_declaration_ctx(
     char *error,
     size_t error_capacity);
 
-static bool emit_field_declaration(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *type,
-    const char *name,
-    char *error,
-    size_t error_capacity);
+
 
 
 
@@ -10119,14 +9981,7 @@ static bool emit_all_struct_payload_ctx(
 
 
 
-static bool method_is_response_bearing(
-    const adsl_method_t *method) {
 
-    return method != NULL &&
-           (method->returns_type != NULL ||
-            method->return_field_count > 0u ||
-            method->throws_type != NULL);
-}
 
 
 static bool local_api_supported(
@@ -10234,9 +10089,7 @@ static bool emit_local_callback_declaration(
         method_name);
 
 
-    if (method_is_response_bearing(method)) {
-        fputs(",\n    uint32_t request_id", output);
-    }
+
 
     for (size_t p = 0u; p < method->param_count; ++p) {
         const adsl_param_t *param = &method->params[p];
@@ -10936,9 +10789,7 @@ static bool emit_local_callback_invocation(
         "                api->ctx",
         method_name);
 
-    if (method_is_response_bearing(method)) {
-        fputs(",\n                request_id", output);
-    }
+
 
 
     for (size_t p = 0u; p < method->param_count; ++p) {
@@ -11088,14 +10939,7 @@ static bool emit_local_api_source(
             "        }\n\n",
             method_name);
 
-        if (method_is_response_bearing(method)) {
-            fputs(
-                "        uint32_t request_id = 0u;\n"
-                "        if (!aether_meta_read_u32le(&ctx->reader, &request_id)) {\n"
-                "            return AETHER_ERR_PROTOCOL;\n"
-                "        }\n\n",
-                output);
-        }
+
 
 
         if (!emit_local_nullable_param_mask(
@@ -11286,109 +11130,18 @@ bool adsl_emit_c_local_api(
 
 
 
-static const adsl_api_t *response_find_api(
-    const adsl_document_t *document,
-    const char *name) {
-
-    if (document == NULL ||
-        name == NULL) {
-
-        return NULL;
-    }
-
-    for (size_t i = 0u;
-         i < document->resolved_api_count;
-         ++i) {
-
-        if (document->resolved_apis[i].name != NULL &&
-            strcmp(
-                document->resolved_apis[i].name,
-                name) == 0) {
-
-            return
-                &document->resolved_apis[i];
-        }
-    }
-
-    return NULL;
-}
-
-
-
-static const adsl_method_t *response_find_method(
-    const adsl_document_t *document,
-    const adsl_api_t *api,
-    const char *name,
-    char *error,
-    size_t error_capacity) {
-
-    if (api == NULL ||
-        name == NULL) {
-
-        return NULL;
-    }
-
-    /*
-     * Response generation must resolve the method through the same
-     * effective-method collector used by remote/local emission, so
-     * `--response-method ChildApi.foo` picks the parent declaration when
-     * a same-name child declaration is shadowed, exactly like Java.
-     */
-    adsl_effective_method_t *effective = NULL;
-    size_t effective_count = 0u;
-
-    if (!emitter_collect_effective(
-            document,
-            api,
-            &effective,
-            &effective_count,
-            error,
-            error_capacity)) {
-
-        return NULL;
-    }
-
-    const adsl_effective_method_t *found =
-        emitter_find_effective_method(
-            effective,
-            effective_count,
-            name);
-
-    const adsl_method_t *result =
-        found != NULL ? found->method : NULL;
-
-    free(effective);
-
-    return result;
-}
 
 
 
 
 
 
-/*
- * Response decoder emitter.
- *
- * The response envelope (command byte + request id) is the only place with
- * response-specific knowledge. The result payload is decoded by the same
- * generic type codec that standalone ADSL types use, so enum, static
- * arrays, nested structs, polymorphic and inherited result values all
- * share one wire implementation with no parallel type-support matrix.
- *
- * Result C representation uses the canonical generated types emitted into
- * <base>_types.h. Dynamic non-byte arrays and polymorphic concrete children
- * land in caller-owned scratch. byte[] and String borrow the RX buffer.
- *
- * Response decoder ABI:
- *
- *   aether_status_t <api>_<method>_response_decode(
- *       aether_meta_read_context_t *ctx,
- *       <api>_<method>_response_frame_t *frame);
- *
- * The caller owns ctx->reader, ctx->scratch and frame. On success
- * ctx->reader.position points one past the consumed frame.
- */
+
+
+
+
+
+
 
 
 
@@ -11435,18 +11188,7 @@ static bool emit_field_declaration_ctx(
 }
 
 
-static bool emit_field_declaration(
-    FILE *output,
-    const adsl_document_t *document,
-    const char *type,
-    const char *name,
-    char *error,
-    size_t error_capacity) {
 
-    emitter_ctx_t ctx = emitter_ctx_standalone(document);
-    return emit_field_declaration_ctx(
-        output, &ctx, type, name, error, error_capacity);
-}
 
 
 
@@ -11454,661 +11196,11 @@ static bool emit_field_declaration(
 
 
 
-static bool method_has_result_payload(
-    const adsl_method_t *method) {
 
-    if (method == NULL) {
-        return false;
-    }
 
-    if (method->return_field_count > 0u) {
-        return true;
-    }
 
-    return method->returns_type != NULL &&
-           strcmp(
-               method->returns_type,
-               "void") != 0;
-}
 
 
-
-static bool method_returns_void(
-    const adsl_method_t *method);
-
-
-
-static bool response_emit_result_struct(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_method_t *method,
-    const char *abbr,
-    const char *api_name,
-    const char *method_name,
-    char *error,
-    size_t error_capacity) {
-
-    /*
-     * A throws-only method and `returns: void` both have a successful
-     * response envelope but no success payload.
-     */
-    if (!method_has_result_payload(method)) {
-        return true;
-    }
-
-    fprintf(output, "typedef struct {\n");
-
-    if (method->returns_type != NULL) {
-        if (!emit_field_declaration(
-                output,
-                document,
-                method->returns_type,
-                "value",
-                error,
-                error_capacity)) {
-            return false;
-        }
-    } else {
-        for (size_t i = 0u; i < method->return_field_count; ++i) {
-            if (!emit_field_declaration(
-                    output,
-                    document,
-                    method->return_fields[i].type,
-                    method->return_fields[i].name,
-                    error,
-                    error_capacity)) {
-                return false;
-            }
-        }
-    }
-
-    fprintf(
-        output,
-        "} %s_%s_%s_result_t;\n\n",
-        abbr,
-        api_name,
-        method_name);
-
-    return true;
-}
-
-
-
-static bool response_emit_error_struct(
-    FILE *output,
-    const adsl_document_t *document,
-    const adsl_method_t *method,
-    const char *abbr,
-    const char *api_name,
-    const char *method_name,
-    char *error,
-    size_t error_capacity) {
-
-    if (method == NULL ||
-        method->throws_type == NULL) {
-
-        return true;
-    }
-
-    fputs(
-        "typedef struct {\n",
-        output);
-
-    if (!emit_field_declaration(
-            output,
-            document,
-            method->throws_type,
-            "value",
-            error,
-            error_capacity)) {
-
-        return false;
-    }
-
-    fprintf(
-        output,
-        "} %s_%s_%s_error_t;\n\n",
-        abbr,
-        api_name,
-        method_name);
-
-    return true;
-}
-
-
-
-
-
-static bool method_returns_void(
-    const adsl_method_t *method) {
-
-    return method != NULL &&
-           method->returns_type != NULL &&
-           strcmp(method->returns_type, "void") == 0;
-}
-
-
-static bool response_method_supported(
-    const adsl_document_t *document,
-    const adsl_method_t *method,
-    char *error,
-    size_t error_capacity) {
-
-    (void)document;
-
-    if (method == NULL) {
-        set_error(error, error_capacity, "selected response method not found");
-        return false;
-    }
-
-
-    /*
-     * A declared `throws` type is supported by the response decoder. Its
-     * payload uses the ordinary ADSL value codec after META_ERROR+request_id.
-     */
-
-
-    /*
-     * returns: void is a response-bearing method: the wire format still
-     * carries META_RESULT + request_id, but no result payload follows.
-     * Java ApiGenerator treats it the same way.
-     */
-    if (method_returns_void(method)) {
-        return true;
-    }
-
-
-    if (!method_has_result_payload(method) &&
-        method->throws_type == NULL) {
-
-        set_error(
-            error,
-            error_capacity,
-            "selected response method has no result or throws");
-
-        return false;
-    }
-
-
-    if (method->returns_type != NULL &&
-        method->return_field_count > 0u) {
-        set_error(error, error_capacity,
-            "response method cannot mix named and anonymous result");
-        return false;
-    }
-
-    return true;
-}
-
-
-
-
-static void response_emit_frame_declaration(
-    FILE *output,
-    const char *abbr,
-    const char *api_name,
-    const char *method_name,
-    const char *abbr_upper,
-    const char *api_upper,
-    const char *method_upper,
-    bool has_result,
-    bool has_typed_error) {
-
-    fprintf(
-        output,
-        "typedef enum {\n"
-        "    %s_%s_%s_RESPONSE_RESULT = 0,\n"
-        "    %s_%s_%s_RESPONSE_ERROR = 1\n"
-        "} %s_%s_%s_response_kind_t;\n\n",
-        abbr_upper, api_upper, method_upper,
-        abbr_upper, api_upper, method_upper,
-        abbr, api_name, method_name);
-
-    fprintf(
-        output,
-        "typedef struct {\n"
-        "    %s_%s_%s_response_kind_t kind;\n"
-        "    uint32_t request_id;\n",
-        abbr,
-        api_name,
-        method_name);
-
-    if (has_result &&
-        has_typed_error) {
-
-        /*
-         * A response can carry either a result payload or a typed error, never
-         * both. Keep them in an anonymous union so MCU RAM is max(result,error)
-         * while preserving the existing frame.result source API.
-         */
-        fprintf(
-            output,
-            "    union {\n"
-            "        %s_%s_%s_result_t result;\n"
-            "        %s_%s_%s_error_t error;\n"
-            "    };\n",
-            abbr,
-            api_name,
-            method_name,
-            abbr,
-            api_name,
-            method_name);
-    } else if (has_result) {
-        fprintf(
-            output,
-            "    %s_%s_%s_result_t result;\n",
-            abbr,
-            api_name,
-            method_name);
-    } else if (has_typed_error) {
-        fprintf(
-            output,
-            "    %s_%s_%s_error_t error;\n",
-            abbr,
-            api_name,
-            method_name);
-    }
-
-    fprintf(
-        output,
-        "} %s_%s_%s_response_frame_t;\n\n"
-        "aether_status_t %s_%s_%s_response_decode(\n"
-        "    aether_meta_read_context_t *ctx,\n"
-        "    %s_%s_%s_response_frame_t *frame);\n\n",
-        abbr,
-        api_name,
-        method_name,
-        abbr,
-        api_name,
-        method_name,
-        abbr,
-        api_name,
-        method_name);
-}
-
-
-
-static bool emit_response_method_header(
-    const adsl_document_t *document,
-    const adsl_api_t *api,
-    const adsl_method_t *method,
-    const char *path,
-    const char *base_name,
-    char *error,
-    size_t error_capacity) {
-
-    FILE *output = fopen(path, "wb");
-
-    if (output == NULL) {
-        set_error(error, error_capacity, "cannot create generated response header");
-        return false;
-    }
-
-
-    char guard[256];
-    char base_snake[256];
-    char abbr[32];
-    char api_name[256];
-    char method_name[256];
-    char abbr_upper[32];
-    char api_upper[256];
-    char method_upper[256];
-
-    upper_name(base_name, guard, sizeof(guard));
-    snake_name(base_name, base_snake, sizeof(base_snake));
-    abbreviate_from_path(document->root_source_path, abbr, sizeof(abbr));
-    snake_name(api->name, api_name, sizeof(api_name));
-    c_identifier(method->name, method_name, sizeof(method_name));
-    upper_name(abbr, abbr_upper, sizeof(abbr_upper));
-    upper_name(api_name, api_upper, sizeof(api_upper));
-    upper_name(method_name, method_upper, sizeof(method_upper));
-
-
-    fprintf(
-        output,
-        "#ifndef %s_RESPONSE_H\n"
-        "#define %s_RESPONSE_H\n\n"
-        "#include \"%s_types.h\"\n"
-        "#include \"aether_meta_runtime.h\"\n\n"
-        "#ifdef __cplusplus\n"
-        "extern \"C\" {\n"
-        "#endif\n\n",
-        guard,
-        guard,
-        base_snake);
-
-
-
-    emit_method_origin(
-        output,
-        api,
-        method);
-
-
-
-    bool ok =
-        response_emit_result_struct(
-            output,
-            document,
-            method,
-            abbr,
-            api_name,
-            method_name,
-            error,
-            error_capacity);
-
-
-    if (ok) {
-
-            response_emit_error_struct(
-                output,
-                document,
-                method,
-                abbr,
-                api_name,
-                method_name,
-                error,
-                error_capacity);
-
-    }
-
-    if (ok) {
-
-        response_emit_frame_declaration(
-            output,
-            abbr,
-            api_name,
-            method_name,
-            abbr_upper,
-            api_upper,
-            method_upper,
-            method_has_result_payload(method),
-            method->throws_type != NULL);
-
-    }
-
-
-    fprintf(
-        output,
-        "#ifdef __cplusplus\n"
-        "}\n"
-        "#endif\n\n"
-        "#endif\n");
-
-    if (ferror(output)) {
-        ok = false;
-        set_error(error, error_capacity, "cannot write generated response header");
-    }
-
-    fclose(output);
-    return ok;
-}
-
-
-static bool emit_response_method_source(
-    const adsl_document_t *document,
-    const adsl_api_t *api,
-    const adsl_method_t *method,
-    const char *path,
-    const char *base_name,
-    char *error,
-    size_t error_capacity) {
-
-    FILE *output = fopen(path, "wb");
-
-    if (output == NULL) {
-        set_error(error, error_capacity, "cannot create generated response source");
-        return false;
-    }
-
-
-    char base_snake[256];
-    char abbr[32];
-    char api_name[256];
-    char method_name[256];
-    char abbr_upper[32];
-    char api_upper[256];
-    char method_upper[256];
-
-    snake_name(base_name, base_snake, sizeof(base_snake));
-    abbreviate_from_path(document->root_source_path, abbr, sizeof(abbr));
-    snake_name(api->name, api_name, sizeof(api_name));
-    c_identifier(method->name, method_name, sizeof(method_name));
-    upper_name(abbr, abbr_upper, sizeof(abbr_upper));
-    upper_name(api_name, api_upper, sizeof(api_upper));
-    upper_name(method_name, method_upper, sizeof(method_upper));
-
-
-
-    fprintf(
-        output,
-        "#include \"%s_response.h\"\n"
-        "#include \"aether_meta_runtime.h\"\n\n"
-        "#include <string.h>\n\n"
-
-        "aether_status_t %s_%s_%s_response_decode(\n"
-        "    aether_meta_read_context_t *ctx,\n"
-        "    %s_%s_%s_response_frame_t *frame) {\n\n"
-        "    if (ctx == NULL || frame == NULL) {\n"
-        "        return AETHER_ERR_ARGUMENT;\n"
-        "    }\n\n"
-        "    memset(frame, 0, sizeof(*frame));\n\n"
-        "    uint8_t command = 0u;\n"
-        "    if (!aether_meta_read_u8(&ctx->reader, &command)) return AETHER_ERR_PROTOCOL;\n\n"
-        "    uint32_t request_id = 0u;\n"
-        "    if (!aether_meta_read_u32le(&ctx->reader, &request_id)) return AETHER_ERR_PROTOCOL;\n"
-        "    frame->request_id = request_id;\n\n"
-        "    if (command == 1u) {\n"
-        "        frame->kind = %s_%s_%s_RESPONSE_ERROR;\n",
-        base_snake,
-        abbr, api_name, method_name,
-        abbr, api_name, method_name,
-        abbr_upper, api_upper, method_upper);
-
-
-    bool ok = true;
-
-    if (method->throws_type != NULL) {
-        ok =
-
-            emit_decode_value_expression_ctx(
-                output,
-                &(emitter_ctx_t){ .document = document, .resolver = NULL },
-
-                method->throws_type,
-                "frame->error.value",
-                base_snake,
-                0u,
-
-                NULL,
-
-                error,
-                error_capacity);
-    }
-
-    if (ok) {
-        fputs(
-            "\n"
-            "        return AETHER_OK;\n"
-            "    }\n\n"
-            "    if (command != 0u) {\n"
-            "        return AETHER_ERR_PROTOCOL;\n"
-            "    }\n\n",
-            output);
-
-        fprintf(
-            output,
-
-            "    frame->kind = %s_%s_%s_RESPONSE_RESULT;\n\n",
-            abbr_upper,
-            api_upper,
-            method_upper);
-
-    }
-
-    if (!ok) {
-        fclose(output);
-        return false;
-    }
-
-    ok = true;
-
-
-
-
-    if (!method_has_result_payload(method)) {
-        ok = true;
-
-    } else if (method->returns_type != NULL) {
-
-        ok = emit_decode_value_expression_ctx(
-            output,
-            &(emitter_ctx_t){ .document = document, .resolver = NULL },
-            method->returns_type,
-            "frame->result.value",
-            base_snake,
-            0u,
-            NULL,
-            error,
-            error_capacity);
-
-    } else {
-
-        adsl_type_t synthetic = {
-            .fields = method->return_fields,
-            .field_count = method->return_field_count
-        };
-
-
-
-        ok = emit_decode_struct_fields_ctx(
-            output,
-            &(emitter_ctx_t){ .document = document, .resolver = NULL },
-            &synthetic,
-            "(&frame->result)",
-            base_snake,
-            0u,
-            NULL,
-            error,
-            error_capacity);
-
-    }
-
-    if (ok) {
-        fputs(
-            "\n    return AETHER_OK;\n"
-            "}\n",
-            output);
-    }
-
-    if (ferror(output)) {
-        ok = false;
-        set_error(error, error_capacity, "cannot write generated response source");
-    }
-
-    fclose(output);
-    return ok;
-}
-
-
-bool adsl_emit_c_response_method(
-    const adsl_document_t *document,
-    const char *output_directory,
-    const char *base_name,
-    const char *selected_api_name,
-    const char *selected_method_name,
-    char *error,
-    size_t error_capacity) {
-
-    if (document == NULL ||
-        output_directory == NULL ||
-        base_name == NULL ||
-        selected_api_name == NULL ||
-        selected_method_name == NULL) {
-
-        set_error(error, error_capacity, "invalid response emitter arguments");
-        return false;
-    }
-
-    const adsl_api_t *api =
-        response_find_api(document, selected_api_name);
-
-    const adsl_method_t *method =
-
-        response_find_method(
-            document,
-            api,
-            selected_method_name,
-            error,
-            error_capacity);
-
-
-    if (!response_method_supported(document, method, error, error_capacity)) {
-        return false;
-    }
-
-
-    char base_snake[256];
-
-    snake_name(base_name, base_snake, sizeof(base_snake));
-
-    char types_h[1024];
-    char types_c[1024];
-    char response_h[1024];
-    char response_c[1024];
-
-    if (!build_output_path(types_h, sizeof(types_h), output_directory, base_snake, "_types.h") ||
-        !build_output_path(types_c, sizeof(types_c), output_directory, base_snake, "_types.c") ||
-        !build_output_path(response_h, sizeof(response_h), output_directory, base_snake, "_response.h") ||
-        !build_output_path(response_c, sizeof(response_c), output_directory, base_snake, "_response.c")) {
-
-        set_error(
-            error,
-            error_capacity,
-            "generated output path is too long");
-
-        return false;
-    }
-
-
-    if (!emit_types_header(
-            document,
-            types_h,
-            base_name,
-            error,
-            error_capacity)) {
-        return false;
-    }
-
-    if (!emit_types_source(
-            document,
-            types_c,
-            base_name,
-            error,
-            error_capacity)) {
-        return false;
-    }
-
-    if (!emit_response_method_header(
-            document,
-            api,
-            method,
-            response_h,
-            base_name,
-            error,
-            error_capacity)) {
-        return false;
-    }
-
-    return emit_response_method_source(
-        document,
-        api,
-        method,
-        response_c,
-        base_name,
-        error,
-        error_capacity);
-}
 
 
 

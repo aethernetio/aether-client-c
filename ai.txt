@@ -5906,3 +5906,101 @@ text
 - Реальный конфликт — только при совпадении **abbr + имени типа/API** с разным содержимым.
 - Include в ADSL — только basename без расширения/пути.
 - Standalone — отменён, единственный режим — unified `--input`.
+
+=== CORRECTION ACCEPTED (rev2) ===
+Задача: только УДАЛИТЬ из emitter.c поддержку response-bearing методов
+(returns:/throws:). Локальный dispatch в генераторе уже есть.
+Ничего не добавлять, CLI не менять.
+
+=== ЭТАП 1 ЗАВЕРШЁН: response-bearing support удалён из C-эмиттера ===
+
+## Что сделано
+Файлы:
+- tools/aether-protocol-c/include/adslc.h
+- tools/aether-protocol-c/src/adsl.c
+- tools/aether-protocol-c/src/emitter.c
+
+## Diff (краткая суть)
+
+### adslc.h
+Удалены поля adsl_method_t:
+  char *returns_type;
+  adsl_field_t *return_fields;
+  size_t return_field_count;
+  char *throws_type;
+Удалён публичный прототип:
+  bool adsl_emit_c_response_method(...)
+
+### adsl.c
+- Удалены enum-значения API_BODY_RETURN_OBJECT / API_BODY_RETURN_FIELDS.
+- Удалён парсер `returns:` / `throws:` из метода.
+- Удалён парсер `API_BODY_RETURN_FIELDS` (anonymous result).
+- Удалён парсер `API_BODY_RETURN_OBJECT` (обёртка fields:).
+- Удалены return_fields из cleanup, deep-copy, валидации, project-валидации, same_method comparator.
+- Удалён блок `if (collapsible_param_count > 0u) { if (returns/throws) error ... }` — норма проверки «collapsible method cannot declare returns/throws» больше не нужна.
+- Удалена валидация returns_type/throws_type/return_fields через validate_type_reference и adsl_project_validate_type_reference.
+
+### emitter.c
+- Удалены adsl_emit_c_response_method и вся response-машинерия:
+  * response_find_api, response_find_method
+  * response_method_supported, method_returns_void, method_has_result_payload
+  * response_emit_result_struct, response_emit_error_struct, response_emit_frame_declaration
+  * emit_response_method_header, emit_response_method_source
+  * emit_field_declaration_ctx и emit_field_declaration (использовались только response-эмиттером)
+  * method_is_response_bearing и три его call sites
+- Удалены has_response из всех API-emitters (stream-builder, api_header, api_source).
+- Удалены `, uint32_t request_id` из ABI remote и stream-builder методов.
+- Удалена сериализация 4-байтного request_id из wire (в response-bearing path).
+- Удалены array-alias-эмиссии для returns_type/throws_type.
+- Удалены external_modules_record для returns_type/throws_type/return_fields.
+
+CLI не менялся. aether_api.h/.c по-прежнему единственный выход. 
+
+## Проверки
+
+- `cmake --build build-tz1 --target aether-adslc` → OK
+- `ctest` в build-tz1 → 24/27 passed.
+- 3 упавших теста (aether_adslc_test, aether_adslc_cross_module_pending_test, aether_adslc_emitter_hardening_test) падали и ДО правок (подтверждено git stash → тот же результат). Pre-existing, не регрессия.
+
+## Регенерация production bindings
+
+`aether-adslc --input <4 production ADSL> /tmp/regen-aether-api` → OK.
+
+Проверка /tmp/regen-aether-api/aether_api.h:
+- присутствует `csa_client_api_safe_send_ping_ack` — это новый метод (id=24) в актуальной ADSL.
+- присутствуют send_uap, send_servers, send_alias, send_signed_uid, send_client_activity и т.п.
+- **отсутствуют** `_response_decode`, `_response_frame_t`, `_response_kind_t`, `adsl_emit_c_response_method`, `response_emit_result_struct`.
+
+Это ровно ожидаемый результат: response-машинерия из генератора исчезла, новые push-методы появились.
+
+Разница размеров подтверждает: регенерация действительно другая (а не бит-в-бит старая):
+- aether_api.h: 3915 строк (новый) vs 3555 (committed).
+- aether_api.c: 28547 строк (новый) vs 25295 (committed).
+
+committed src/generated устарел: содержит response-decoder, но не содержит sendPingAck и ряда других реально используемых API.
+
+## Что осталось (Stage 2+, ожидает согласования)
+
+1. Заменить src/generated/aether_api.h/.c регенерированными.
+2. Удалить мёртвые committed-файлы (после замены главного TU):
+   - src/generated/client_server_api_response.{h,c}
+   - src/generated/client_server_reg_direct_response_response.{h,c}
+   - src/generated/client_server_issue_peer_identity_response.{h,c}
+   (перечисленные файлы не собираются CMakeLists.txt, но лежат в репо как мёртвый груз)
+3. Runtime-интеграция:
+   - `resume_client_safe_plain` сейчас принимает только 4 команды + sendPingAck (id=24) не обрабатывает → `AETHER_ERR_UNSUPPORTED`.
+   - Реализовать обработку `sendPingAck` (id=24) — без response-decoder'а, просто callback.
+   - Ввести ping-state: `ping_active`, `ping_deadline_ms`, `first_auth`.
+   - В send_ping() — установка ожидания ACK и deadline.
+   - В aether_client_poll() — timeout ACK.
+   - На disconnect — сброс ping_state.
+4. Тесты (ping unit + расширение e2e).
+5. Тестовые фикстуры с `returns:`/`throws:` и тесты на них (test_generated_response_*, test_generated_typed_throws_*, ResultRpc, ResponseMethod, TypedThrows, а также LocalStreamDispatch, NullableApiParams fixture) — теперь эти фикстуры парсер отвергает. Их надо либо удалить, либо переписать без returns. Это уже не «pre-existing failure», а следствие нашего архитектурного решения.
+
+## Вопросы ревьюеру
+
+1. Подтверждается ли архитектурное решение: committed `src/generated/*_response.*` удаляются полностью, а не остаются как мёртвые файлы?
+2. Фикстуры и тесты, опирающиеся на `returns:`/`throws:` (response_method, response_ping, response_describe, typed_throws_*, ResultRpc, ResponseMethod, TypedThrows, LocalStreamDispatch, NullableApiParams) — удаляем или переписываем под push-стиль?
+3. Приступать ли сразу к Stage 2 (замена src/generated + runtime ping state + ack), или сначала отдельное ревью этого этапа?
+
+Не коммитил. Готов продолжить по указанию.

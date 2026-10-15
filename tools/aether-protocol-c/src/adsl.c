@@ -57,8 +57,7 @@ typedef enum {
     API_BODY_PARAM_STREAM,
     API_BODY_PARAM_STREAM_APIS,
     API_BODY_PARAM_STREAM_KEYS,
-    API_BODY_RETURN_OBJECT,
-    API_BODY_RETURN_FIELDS
+
 } api_body_t;
 
 
@@ -1372,9 +1371,8 @@ static bool parse_api_body(
          *body == API_BODY_PARAM_OBJECT ||
          *body == API_BODY_PARAM_STREAM ||
          *body == API_BODY_PARAM_STREAM_APIS ||
-         *body == API_BODY_PARAM_STREAM_KEYS ||
-         *body == API_BODY_RETURN_OBJECT ||
-         *body == API_BODY_RETURN_FIELDS)) {
+         *body == API_BODY_PARAM_STREAM_KEYS)) {
+
 
         char *name = NULL;
         char *value = NULL;
@@ -1457,33 +1455,7 @@ static bool parse_api_body(
             return true;
         }
 
-        if (strcmp(key, "returns") == 0) {
-            free((*method)->returns_type);
-            (*method)->returns_type = NULL;
 
-            if (*value == '\0') {
-                *body =
-                    API_BODY_RETURN_OBJECT;
-
-                return true;
-            }
-
-            (*method)->returns_type =
-                copy_string(value);
-
-            return (*method)->returns_type !=
-                   NULL;
-        }
-
-        if (strcmp(key, "throws") == 0) {
-            free((*method)->throws_type);
-
-            (*method)->throws_type =
-                copy_string(value);
-
-            return (*method)->throws_type !=
-                   NULL;
-        }
 
         set_error(
             error,
@@ -1495,109 +1467,9 @@ static bool parse_api_body(
         return false;
     }
 
-    if (indent == 10u &&
-        *method != NULL &&
-        *body == API_BODY_RETURN_OBJECT) {
 
-        char *key = NULL;
-        char *value = NULL;
 
-        if (!split_mapping(
-                text,
-                &key,
-                &value) ||
-            strcmp(key, "fields") != 0 ||
-            *value != '\0') {
 
-            set_error(
-                error,
-                error_capacity,
-                "line %zu: unsupported anonymous return property",
-                line_number);
-
-            return false;
-        }
-
-        *body =
-            API_BODY_RETURN_FIELDS;
-
-        return true;
-    }
-
-    if (indent == 12u &&
-        *method != NULL &&
-        *body == API_BODY_RETURN_FIELDS) {
-
-        char *name = NULL;
-        char *field_type = NULL;
-
-        if (!split_mapping(
-                text,
-                &name,
-                &field_type) ||
-            *field_type == '\0') {
-
-            set_error(
-                error,
-                error_capacity,
-                "line %zu: invalid anonymous return field",
-                line_number);
-
-            return false;
-        }
-
-        adsl_field_t *next =
-            realloc(
-                (*method)->return_fields,
-                ((*method)->return_field_count + 1u) *
-                    sizeof(*next));
-
-        if (next == NULL) {
-            set_error(
-                error,
-                error_capacity,
-                "out of memory");
-
-            return false;
-        }
-
-        (*method)->return_fields =
-            next;
-
-        adsl_field_t *field =
-            &next[(*method)->return_field_count];
-
-        memset(
-            field,
-            0,
-            sizeof(*field));
-
-        field->name =
-            copy_string(name);
-
-        field->type =
-            copy_string(field_type);
-
-        if (field->name == NULL ||
-            field->type == NULL) {
-
-            free(field->name);
-            free(field->type);
-            field->name = NULL;
-            field->type = NULL;
-
-            set_error(
-                error,
-                error_capacity,
-                "out of memory");
-
-            return false;
-        }
-
-        (*method)->return_field_count++;
-
-        return true;
-    }
 
     if (indent == 10u &&
         *method != NULL &&
@@ -1971,18 +1843,7 @@ static void free_api_fields(
 
         free(method->name);
         free(method->source_path);
-        free(method->returns_type);
-        free(method->throws_type);
 
-        for (size_t f = 0u;
-             f < method->return_field_count;
-             ++f) {
-
-            free(method->return_fields[f].name);
-            free(method->return_fields[f].type);
-        }
-
-        free(method->return_fields);
 
         for (size_t p = 0u;
              p < method->param_count;
@@ -3477,18 +3338,7 @@ bool adsl_validate(
             }
 
             if (collapsible_param_count > 0u) {
-                if (method->returns_type != NULL ||
-                    method->return_field_count > 0u ||
-                    method->throws_type != NULL) {
 
-                    set_error(
-                        error,
-                        error_capacity,
-                        "collapsible API method '%s' cannot declare returns or throws",
-                        method->name);
-
-                    return false;
-                }
 
                 if (collapsible_param_count ==
                     method->param_count) {
@@ -3536,34 +3386,7 @@ bool adsl_validate(
 
             }
 
-            if (!validate_type_reference(
-                    document,
-                    method->returns_type,
-                    error,
-                    error_capacity) ||
-                !validate_type_reference(
-                    document,
-                    method->throws_type,
-                    error,
-                    error_capacity)) {
 
-                return false;
-            }
-
-
-            for (size_t f = 0u;
-                 f < method->return_field_count;
-                 ++f) {
-
-                if (!validate_type_reference(
-                        document,
-                        method->return_fields[f].type,
-                        error,
-                        error_capacity)) {
-
-                    return false;
-                }
-            }
         }
 
         /*
@@ -4494,10 +4317,10 @@ static bool adsl_dup_api_fields(
             dst->has_id = src->has_id;
             dst->id = src->id;
 
+
             if (!adsl_dup_string(src->name, &dst->name) ||
-                !adsl_dup_string(src->source_path, &dst->source_path) ||
-                !adsl_dup_string(src->returns_type, &dst->returns_type) ||
-                !adsl_dup_string(src->throws_type, &dst->throws_type)) {
+                !adsl_dup_string(src->source_path, &dst->source_path)) {
+
 
                 return false;
             }
@@ -4530,31 +4353,7 @@ static bool adsl_dup_api_fields(
                 }
             }
 
-            if (src->return_field_count > 0u) {
 
-                dst->return_fields = calloc(
-                    src->return_field_count,
-                    sizeof(*dst->return_fields));
-
-                if (dst->return_fields == NULL) {
-                    return false;
-                }
-
-                dst->return_field_count = src->return_field_count;
-
-                for (size_t f = 0u; f < src->return_field_count; ++f) {
-
-                    if (!adsl_dup_string(
-                            src->return_fields[f].name,
-                            &dst->return_fields[f].name) ||
-                        !adsl_dup_string(
-                            src->return_fields[f].type,
-                            &dst->return_fields[f].type)) {
-
-                        return false;
-                    }
-                }
-            }
         }
     }
 
@@ -7445,19 +7244,7 @@ bool adsl_project_validate(
                 }
 
                 if (collapsible_param_count > 0u) {
-                    if (method->returns_type != NULL ||
-                        method->return_field_count > 0u ||
-                        method->throws_type != NULL) {
 
-                        set_error(
-                            error,
-                            error_capacity,
-                            "collapsible API method '%s' cannot declare returns or throws",
-                            method->name);
-
-                        ok = false;
-                        break;
-                    }
 
                     if (collapsible_param_count == method->param_count) {
                         set_error(
@@ -7500,32 +7287,7 @@ bool adsl_project_validate(
                     }
                 }
 
-                if (!adsl_project_validate_type_reference(
-                        &index,
-                        method->returns_type,
-                        error,
-                        error_capacity) ||
-                    !adsl_project_validate_type_reference(
-                        &index,
-                        method->throws_type,
-                        error,
-                        error_capacity)) {
 
-                    ok = false;
-                    break;
-                }
-
-                for (size_t f = 0u; f < method->return_field_count; ++f) {
-                    if (!adsl_project_validate_type_reference(
-                            &index,
-                            method->return_fields[f].type,
-                            error,
-                            error_capacity)) {
-
-                        ok = false;
-                        break;
-                    }
-                }
                 if (!ok) {
                     break;
                 }
@@ -7712,14 +7474,7 @@ static bool adsl_same_api_definition(
             (left_method->has_id &&
              left_method->id != right_method->id) ||
 
-            !same_name(
-                left_method->returns_type,
-                right_method->returns_type) ||
-            !same_name(
-                left_method->throws_type,
-                right_method->throws_type) ||
-            left_method->param_count != right_method->param_count ||
-            left_method->return_field_count != right_method->return_field_count) {
+            left_method->param_count != right_method->param_count) {
 
             return false;
         }
@@ -7739,20 +7494,7 @@ static bool adsl_same_api_definition(
             }
         }
 
-        for (size_t f = 0u;
-             f < left_method->return_field_count;
-             ++f) {
 
-            if (!same_name(
-                    left_method->return_fields[f].name,
-                    right_method->return_fields[f].name) ||
-                !same_name(
-                    left_method->return_fields[f].type,
-                    right_method->return_fields[f].type)) {
-
-                return false;
-            }
-        }
     }
 
     return true;

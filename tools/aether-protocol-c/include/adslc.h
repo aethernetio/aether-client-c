@@ -126,11 +126,7 @@ typedef struct {
     adsl_param_t *params;
     size_t param_count;
 
-    char *returns_type;
-    adsl_field_t *return_fields;
-    size_t return_field_count;
 
-    char *throws_type;
 } adsl_method_t;
 
 
@@ -404,17 +400,7 @@ void adsl_document_free(
    const char *selected_api_name,
    char *error,
    size_t error_capacity);
-/*
-- Emit a decoder for a selected method's result/error response envelope.
-   */
-  bool adsl_emit_c_response_method(
-   const adsl_document_t *document,
-   const char *output_directory,
-   const char *base_name,
-   const char *selected_api_name,
-   const char *selected_method_name,
-   char *error,
-   size_t error_capacity);
+
 /*
 - Emit all C bindings represented by the supplied semantic document.
    */
