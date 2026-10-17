@@ -5602,7 +5602,6 @@ aether_status_t aether_client_send_message(
     aether_status_t status =
         csa_authorized_api_send_message_with_result(
             &authorized,
-            request_id,
             &message);
 
     if (status != AETHER_OK) {
