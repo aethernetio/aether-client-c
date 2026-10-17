@@ -2318,6 +2318,7 @@ static const adsl_type_t *find_declared_type(
 }
 
 
+
 static bool emit_fixed_expression(
     FILE *output,
     const char *base,
@@ -2333,38 +2334,30 @@ static bool emit_fixed_expression(
         strcmp(base, "boolean") == 0 ||
         strcmp(base, "byte") == 0) {
 
-        runtime_fn = "aether_meta_write_u8";
+        runtime_fn = "aether_data_out_write_byte";
         cast_type = "uint8_t";
     } else if (strcmp(base, "short") == 0) {
-        runtime_fn = "aether_meta_write_u16le";
+        runtime_fn = "aether_data_out_write_ushort";
         cast_type = "uint16_t";
     } else if (strcmp(base, "int") == 0) {
-        runtime_fn = "aether_meta_write_u32le";
+        runtime_fn = "aether_data_out_write_uint";
         cast_type = "uint32_t";
     } else if (strcmp(base, "long") == 0 ||
                strcmp(base, "date") == 0) {
 
-        runtime_fn = "aether_meta_write_u64le";
-        cast_type = "uint64_t";
-} else if (strcmp(base, "float") == 0) {
+        runtime_fn = "aether_data_out_write_long";
+        cast_type = "int64_t";
+    } else if (strcmp(base, "float") == 0) {
         fprintf(
             output,
-            "    {\n"
-            "        uint32_t bits = aether_meta_java_float_bits(%s);\n"
-            "        aether_status_t meta_status = aether_meta_write_u32le(tx, tx_capacity, &pos, bits);\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
+            "    if (!aether_data_out_write_float(out, %s)) return false;\n",
             expression);
 
         return true;
     } else if (strcmp(base, "double") == 0) {
         fprintf(
             output,
-            "    {\n"
-            "        uint64_t bits = aether_meta_java_double_bits(%s);\n"
-            "        aether_status_t meta_status = aether_meta_write_u64le(tx, tx_capacity, &pos, bits);\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
+            "    if (!aether_data_out_write_double(out, %s)) return false;\n",
             expression);
 
         return true;
@@ -2374,10 +2367,7 @@ static bool emit_fixed_expression(
 
     fprintf(
         output,
-        "    {\n"
-        "        aether_status_t meta_status = %s(tx, tx_capacity, &pos, (%s)%s);\n"
-        "        if (meta_status != AETHER_OK) return meta_status;\n"
-        "    }\n",
+        "    if (!%s(out, (%s)%s)) return false;\n",
         runtime_fn,
         cast_type,
         expression);
@@ -2385,35 +2375,18 @@ static bool emit_fixed_expression(
     return true;
 }
 
+
+
 static void emit_uuid_expression(
     FILE *output,
     const char *expression) {
 
     fprintf(
         output,
-        "    {\n"
-
-        "        aether_status_t meta_status = aether_meta_write_uuid(tx, tx_capacity, &pos, %s);\n"
-        "        if (meta_status != AETHER_OK) return meta_status;\n"
-        "    }\n",
+        "    if (!aether_data_out_write_uuid(out, %s)) return false;\n",
         expression);
 }
 
-static void emit_pack_value(
-    FILE *output,
-    const char *value_name,
-    const char *prefix) {
-
-    (void)prefix;
-
-    fprintf(
-        output,
-        "    {\n"
-        "        aether_status_t meta_status = aether_meta_write_pack(tx, tx_capacity, &pos, %s);\n"
-        "        if (meta_status != AETHER_OK) return meta_status;\n"
-        "    }\n",
-        value_name);
-}
 
 static void emit_bytes_view_expression(
     FILE *output,
@@ -2424,14 +2397,11 @@ static void emit_bytes_view_expression(
 
     fprintf(
         output,
-        "    {\n"
-        "        aether_status_t meta_status = aether_meta_write_bytes(tx, tx_capacity, &pos, %s.data, %s.length);\n"
-
-        "        if (meta_status != AETHER_OK) return meta_status;\n"
-        "    }\n",
+        "    if (!aether_data_out_write_bytes(out, %s.data, %s.length)) return false;\n",
         expression,
         expression);
 }
+
 
 
 
@@ -2619,18 +2589,12 @@ static bool emit_serialize_param_ctx(
 
 
 
+
         fprintf(
             output,
-            "    {\n"
-            "        aether_status_t meta_status = %s_serialize_%s(\n"
-            "            tx,\n"
-            "            tx_capacity,\n"
-            "            &pos,\n"
-            "            %s);\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
-
+            "    if (!%s_serialize_%s(out, %s, 0u)) return false;\n",
             type_abbr, type_name, param->name);
+
 
         return true;
     }
@@ -2715,10 +2679,6 @@ static bool emit_remote_nullable_param_mask(
         bit_index++;
     }
 
-    fprintf(
-        output,
-        "    if (pos + %zuu > tx_capacity) return AETHER_ERR_OVERFLOW;\n",
-        mask_width);
 
     for (size_t byte_index = 0u;
          byte_index < mask_width;
@@ -2726,10 +2686,11 @@ static bool emit_remote_nullable_param_mask(
 
         fprintf(
             output,
-            "    tx[pos++] = (uint8_t)"
-            "((_meta_nullable_mask >> %zuu) & UINT64_C(0xff));\n",
+            "    if (!aether_data_out_write_byte(out, (uint8_t)"
+            "((_meta_nullable_mask >> %zuu) & UINT64_C(0xff)))) return false;\n",
             byte_index * 8u);
     }
+
 
     fputc(
         '\n',
@@ -2767,6 +2728,8 @@ static bool emit_local_nullable_param_mask(
         return false;
     }
 
+
+
     fputs(
         "        uint64_t _meta_nullable_mask = UINT64_C(0);\n",
         output);
@@ -2778,20 +2741,19 @@ static bool emit_local_nullable_param_mask(
         fprintf(
             output,
             "        {\n"
-            "            uint8_t _meta_mask_byte = 0u;\n"
-            "            if (!aether_meta_read_u8("
-            "&ctx->reader, &_meta_mask_byte)) {\n"
-            "                return AETHER_ERR_PROTOCOL;\n"
-            "            }\n"
+            "            uint8_t _meta_mask_byte = aether_data_in_read_ubyte(in);\n"
+            "            if (in->error) return false;\n"
             "            _meta_nullable_mask |= "
             "((uint64_t)_meta_mask_byte) << %zuu;\n"
             "        }\n",
             byte_index * 8u);
+
     }
 
     fputc(
         '\n',
         output);
+
 
     return true;
 }
@@ -2941,7 +2903,7 @@ static bool emit_types_header_ctx(
         output,
         "#ifndef AETHER_API_H\n"
         "#define AETHER_API_H\n\n"
-        "#include \"aether_meta_runtime.h\"\n"
+        "#include \"aether_dataio.h\"\n"
         "#include <stdbool.h>\n"
         "#include <stddef.h>\n"
         "#include <stdint.h>\n\n"
@@ -3359,97 +3321,24 @@ static bool emit_types_header_ctx(
             type);
 
 
-        if (hierarchy) {
 
-            fprintf(
-                output,
-                "aether_status_t %s_serialize_%s(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_ref_t *value);\n\n"
-                "aether_status_t %s_deserialize_%s(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_ref_t *value);\n\n",
-                serializer_base,
-                type_suffix,
-                type_name,
-                serializer_base,
-                type_suffix,
-                type_name);
-
-
-            /*
-             * Project mode adds a cross-module entry point that lets a
-             * caller in another generated module thread its current
-             * recursion depth into this module. Standalone does not
-             * need it: all recursive calls stay inside one translation
-             * unit and use the static *_impl directly.
-             */
-            if (ctx->resolver != NULL) {
-                fprintf(
-                    output,
-                    "aether_status_t %s_serialize_%s_with_depth(\n"
-                    "    uint8_t *tx,\n"
-                    "    size_t tx_capacity,\n"
-                    "    size_t *position,\n"
-                    "    const %s_ref_t *value,\n"
-                    "    unsigned int recursion_depth);\n\n"
-                    "aether_status_t %s_deserialize_%s_with_depth(\n"
-                    "    aether_meta_read_context_t *ctx,\n"
-                    "    %s_ref_t *value,\n"
-                    "    unsigned int recursion_depth);\n\n",
-                    serializer_base,
-                    type_suffix,
-                    type_name,
-                    serializer_base,
-                    type_suffix,
-                    type_name);
-
-            }
-        } else {
-            fprintf(
-                output,
-                "aether_status_t %s_serialize_%s(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_t *value);\n\n"
-                "aether_status_t %s_deserialize_%s(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_t *value);\n\n",
-                serializer_base,
-                type_suffix,
-                type_name,
-                serializer_base,
-                type_suffix,
-                type_name);
-
-
-            if (ctx->resolver != NULL) {
-                fprintf(
-                    output,
-                    "aether_status_t %s_serialize_%s_with_depth(\n"
-                    "    uint8_t *tx,\n"
-                    "    size_t tx_capacity,\n"
-                    "    size_t *position,\n"
-                    "    const %s_t *value,\n"
-                    "    unsigned int recursion_depth);\n\n"
-                    "aether_status_t %s_deserialize_%s_with_depth(\n"
-                    "    aether_meta_read_context_t *ctx,\n"
-                    "    %s_t *value,\n"
-                    "    unsigned int recursion_depth);\n\n",
-                    serializer_base,
-                    type_suffix,
-                    type_name,
-                    serializer_base,
-                    type_suffix,
-                    type_name);
-
-            }
-        }
-
+        fprintf(
+            output,
+            "bool %s_serialize_%s(\n"
+            "    aether_data_out_t *out,\n"
+            "    const void *value,\n"
+            "    unsigned int depth);\n\n"
+            "bool %s_deserialize_%s(\n"
+            "    aether_data_in_t *in,\n"
+            "    void *value,\n"
+            "    unsigned int depth);\n\n",
+            serializer_base,
+            type_suffix,
+            serializer_base,
+            type_suffix);
     }
+
+
 
 
     return true;
@@ -3658,46 +3547,7 @@ static bool emit_types_source_ctx(
 
 
 
-        if (hierarchy) {
-            fprintf(
-                output,
-                "static aether_status_t %s_serialize_%s_impl(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_ref_t *value,\n"
-                "    unsigned int recursion_depth);\n\n"
-                "static aether_status_t %s_deserialize_%s_impl(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_ref_t *value,\n"
-                "    unsigned int recursion_depth);\n\n",
-                base_snake,
-                type_suffix,
-                type_name,
-                base_snake,
-                type_suffix,
-                type_name);
 
-        } else {
-            fprintf(
-                output,
-                "static aether_status_t %s_serialize_%s_impl(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_t *value,\n"
-                "    unsigned int recursion_depth);\n\n"
-                "static aether_status_t %s_deserialize_%s_impl(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_t *value,\n"
-                "    unsigned int recursion_depth);\n\n",
-                base_snake,
-                type_suffix,
-                type_name,
-                base_snake,
-                type_suffix,
-                type_name);
-        }
     }
 
     for (size_t i = 0u; i < type_count; ++i) {
@@ -3747,85 +3597,32 @@ static bool emit_types_source_ctx(
 
 
 
-        if (hierarchy) {
-            fprintf(
-                output,
-                "aether_status_t %s_serialize_%s(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_ref_t *value) {\n\n"
-                "    return %s_serialize_%s_impl(\n"
-                "        tx,\n"
-                "        tx_capacity,\n"
-                "        position,\n"
-                "        value,\n"
-                "        0u);\n"
-                "}\n\n"
-                "static aether_status_t %s_serialize_%s_impl(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_ref_t *value,\n"
-                "    unsigned int recursion_depth) {\n\n",
-                base_snake,
-                type_suffix,
-                type_name,
-                base_snake,
-                type_suffix,
-                base_snake,
-                type_suffix,
-                type_name);
+
+        fprintf(
+            output,
+            "bool %s_serialize_%s(\n"
+            "    aether_data_out_t *out,\n"
+            "    const void *value,\n"
+            "    unsigned int depth) {\n\n"
+            "    if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;\n"
+            "    if (out == NULL || value == NULL) return false;\n",
+            base_snake,
+            type_suffix);
+
+        fprintf(
+            output,
+            "    const %s%s *v = (const %s%s *)value;\n",
+            type_name,
+            hierarchy ? "_ref_t" : "_t",
+            type_name,
+            hierarchy ? "_ref_t" : "_t");
+        (void)type_name;
+        (void)hierarchy;
 
 
-        } else {
-            fprintf(
-                output,
-                "aether_status_t %s_serialize_%s(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_t *value) {\n\n"
-                "    return %s_serialize_%s_impl(\n"
-                "        tx,\n"
-                "        tx_capacity,\n"
-                "        position,\n"
-                "        value,\n"
-                "        0u);\n"
-                "}\n\n"
-                "static aether_status_t %s_serialize_%s_impl(\n"
-                "    uint8_t *tx,\n"
-                "    size_t tx_capacity,\n"
-                "    size_t *position,\n"
-                "    const %s_t *value,\n"
-                "    unsigned int recursion_depth) {\n\n",
-                base_snake,
-                type_suffix,
-                type_name,
-                base_snake,
-                type_suffix,
-                base_snake,
-                type_suffix,
-                type_name);
-
-
-        }
-
-        fputs(
-            "    if (recursion_depth >= AETHER_META_MAX_RECURSION_DEPTH) {\n"
-            "        return AETHER_ERR_OVERFLOW;\n"
-            "    }\n\n"
-            "    if (position == NULL || value == NULL ||\n"
-            "        (tx_capacity != 0u && tx == NULL)) {\n"
-            "        return AETHER_ERR_ARGUMENT;\n"
-            "    }\n\n"
-            "    if (*position > tx_capacity) {\n"
-            "        return AETHER_ERR_OVERFLOW;\n"
-            "    }\n\n"
-            "    size_t pos = *position;\n",
-            output);
 
         bool emitted;
+
 
         if (hierarchy) {
             emitted =
@@ -3834,14 +3631,13 @@ static bool emit_types_source_ctx(
                     ctx,
                     base_snake,
                     type,
-                    "value",
+                    "v",
                     "value",
                     true,
                     0u,
-                    "recursion_depth",
+                    "depth",
                     error,
                     error_capacity);
-
         } else {
             emitted =
                 emit_struct_value_expression_ctx(
@@ -3849,137 +3645,54 @@ static bool emit_types_source_ctx(
                     ctx,
                     base_snake,
                     type,
-                    "value",
+                    "v",
                     "value",
                     true,
                     0u,
-                    "recursion_depth",
+                    "depth",
                     error,
                     error_capacity);
         }
+
 
 
         if (!emitted) {
             return false;
         }
 
+
+        (void)emitted;
         fputs(
             "\n"
-            "    *position = pos;\n"
-            "    return AETHER_OK;\n"
+            "    (void)v;\n"
+            "    return true;\n"
             "}\n\n",
-
             output);
 
-        /*
-         * Project mode: cross-module entry point that lets a caller in
-         * another generated module thread its current recursion depth
-         * into this module. Standalone does not need it: all recursive
-         * calls stay inside one translation unit and use the static
-         * *_impl directly.
-         */
-        if (ctx->resolver != NULL) {
-            if (hierarchy) {
-                fprintf(
-                    output,
-                    "aether_status_t %s_serialize_%s_with_depth(\n"
-                    "    uint8_t *tx,\n"
-                    "    size_t tx_capacity,\n"
-                    "    size_t *position,\n"
-                    "    const %s_ref_t *value,\n"
-                    "    unsigned int recursion_depth) {\n\n"
-                    "    return %s_serialize_%s_impl(\n"
-                    "        tx, tx_capacity, position, value,\n"
-                    "        recursion_depth);\n"
-                    "}\n\n",
-                    base_snake, type_name, type_name,
-                    base_snake, type_name);
-            } else {
-                fprintf(
-                    output,
-                    "aether_status_t %s_serialize_%s_with_depth(\n"
-                    "    uint8_t *tx,\n"
-                    "    size_t tx_capacity,\n"
-                    "    size_t *position,\n"
-                    "    const %s_t *value,\n"
-                    "    unsigned int recursion_depth) {\n\n"
-                    "    return %s_serialize_%s_impl(\n"
-                    "        tx, tx_capacity, position, value,\n"
-                    "        recursion_depth);\n"
-                    "}\n\n",
-                    base_snake, type_suffix, type_name,
-                    base_snake, type_suffix);
-
-            }
-        }
-
-
-        if (hierarchy) {
-            fprintf(
-                output,
-                "aether_status_t %s_deserialize_%s(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_ref_t *value) {\n\n"
-                "    return %s_deserialize_%s_impl(\n"
-                "        ctx,\n"
-                "        value,\n"
-                "        0u);\n"
-                "}\n\n"
-                "static aether_status_t %s_deserialize_%s_impl(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_ref_t *value,\n"
-                "    unsigned int recursion_depth) {\n\n",
-                base_snake,
-                type_suffix,
-                type_name,
-                base_snake,
-                type_suffix,
-                base_snake,
-                type_suffix,
-                type_name);
-
-
-        } else {
-            fprintf(
-                output,
-                "aether_status_t %s_deserialize_%s(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_t *value) {\n\n"
-                "    return %s_deserialize_%s_impl(\n"
-                "        ctx,\n"
-                "        value,\n"
-                "        0u);\n"
-                "}\n\n"
-                "static aether_status_t %s_deserialize_%s_impl(\n"
-                "    aether_meta_read_context_t *ctx,\n"
-                "    %s_t *value,\n"
-                "    unsigned int recursion_depth) {\n\n",
-                base_snake,
-                type_suffix,
-                type_name,
-                base_snake,
-                type_suffix,
-                base_snake,
-                type_suffix,
-                type_name);
 
 
 
+        fprintf(
+            output,
+            "bool %s_deserialize_%s(\n"
+            "    aether_data_in_t *in,\n"
+            "    void *value,\n"
+            "    unsigned int depth) {\n\n"
+            "    if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;\n"
+            "    if (in == NULL || value == NULL) return false;\n",
+            base_snake,
+            type_suffix);
 
-        }
-
-        fputs(
-            "    if (recursion_depth >= AETHER_META_MAX_RECURSION_DEPTH) {\n"
-            "        return AETHER_ERR_OVERFLOW;\n"
-            "    }\n\n"
-            "    if (ctx == NULL || value == NULL) {\n"
-            "        return AETHER_ERR_ARGUMENT;\n"
-            "    }\n\n"
-            "    memset(value, 0, sizeof(*value));\n\n",
-            output);
+        fprintf(
+            output,
+            "    %s%s *v = (%s%s *)value;\n"
+            "    memset(v, 0, sizeof(*v));\n",
+            type_name,
+            hierarchy ? "_ref_t" : "_t",
+            type_name,
+            hierarchy ? "_ref_t" : "_t");
 
         bool decoded;
-
 
         if (hierarchy) {
             decoded =
@@ -3987,27 +3700,24 @@ static bool emit_types_source_ctx(
                     output,
                     ctx,
                     type,
-                    "(*value)",
+                    "(*v)",
                     base_snake,
                     0u,
-                    "recursion_depth",
+                    "depth",
                     error,
                     error_capacity);
-
         } else {
-
             decoded =
                 emit_decode_struct_fields_ctx(
                     output,
                     ctx,
                     type,
-                    "value",
+                    "v",
                     base_snake,
                     0u,
-                    "recursion_depth",
+                    "depth",
                     error,
                     error_capacity);
-
         }
 
         if (!decoded) {
@@ -4016,46 +3726,10 @@ static bool emit_types_source_ctx(
 
         fputs(
             "\n"
-            "    return AETHER_OK;\n"
+            "    return true;\n"
             "}\n\n",
-
             output);
 
-        /*
-         * Project mode: cross-module entry point for deserialization.
-         * Mirrors the serializer's *_with_depth. Standalone keeps its
-         * single public wrapper plus static *_impl and does not
-         * generate this symbol.
-         */
-        if (ctx->resolver != NULL) {
-            if (hierarchy) {
-                fprintf(
-                    output,
-                    "aether_status_t %s_deserialize_%s_with_depth(\n"
-                    "    aether_meta_read_context_t *ctx,\n"
-                    "    %s_ref_t *value,\n"
-                    "    unsigned int recursion_depth) {\n\n"
-                    "    return %s_deserialize_%s_impl(\n"
-                    "        ctx, value, recursion_depth);\n"
-                    "}\n\n",
-                    base_snake, type_suffix, type_name,
-                    base_snake, type_suffix);
-
-            } else {
-                fprintf(
-                    output,
-                    "aether_status_t %s_deserialize_%s_with_depth(\n"
-                    "    aether_meta_read_context_t *ctx,\n"
-                    "    %s_t *value,\n"
-                    "    unsigned int recursion_depth) {\n\n"
-                    "    return %s_deserialize_%s_impl(\n"
-                    "        ctx, value, recursion_depth);\n"
-                    "}\n\n",
-                    base_snake, type_suffix, type_name,
-                    base_snake, type_suffix);
-
-            }
-        }
 
     }
 
@@ -4804,20 +4478,23 @@ static bool emit_stream_builder_definitions_for_api_ctx(
                 "    if (remaining == 0u) {\n"
                 "        return AETHER_ERR_OVERFLOW;\n"
                 "    }\n\n"
-                "    %s_stream_commit_t commit = {\n"
-                "        &builder_stream->length,\n"
-                "        remaining\n"
-                "    };\n\n"
-                "    %s_%s_remote_t remote = {\n"
-                "        &commit,\n"
-                "        %s_stream_commit,\n"
-                "        builder_stream->data + builder_stream->length,\n"
-                "        remaining\n"
-                "    };\n\n"
-                "    return %s_%s_%s_flush(\n"
-                "        &remote,\n"
-                "        collapse);\n"
-                "}\n\n",
+
+"    %s_stream_commit_t commit = {\n"
+            "        &builder_stream->length,\n"
+            "        remaining\n"
+            "    };\n\n"
+            "    aether_data_out_t out;\n"
+            "    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);\n\n"
+            "    %s_%s_remote_t remote = {\n"
+            "        &commit,\n"
+            "        %s_stream_commit,\n"
+            "        &out\n"
+            "    };\n\n"
+            "    return %s_%s_%s_flush(\n"
+            "        &remote,\n"
+            "        collapse);\n"
+            "}\n\n",
+
 
 
                 stream_c_name, api_name, method_name,
@@ -4867,22 +4544,24 @@ static bool emit_stream_builder_definitions_for_api_ctx(
             "    }\n\n"
             "    size_t remaining =\n"
             "        builder_stream->capacity - builder_stream->length;\n\n"
+
             "    if (remaining == 0u) {\n"
             "        return AETHER_ERR_OVERFLOW;\n"
             "    }\n\n"
-
             "    %s_stream_commit_t commit = {\n"
             "        &builder_stream->length,\n"
             "        remaining\n"
             "    };\n\n"
+            "    aether_data_out_t out;\n"
+            "    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);\n\n"
             "    %s_%s_remote_t remote = {\n"
             "        &commit,\n"
             "        %s_stream_commit,\n"
-            "        builder_stream->data + builder_stream->length,\n"
-            "        remaining\n"
+            "        &out\n"
             "    };\n\n"
             "    return %s_%s_%s(\n"
             "        &remote",
+
             stream_abbr, stream_abbr, api_name, stream_abbr, stream_abbr, api_name, method_name);
 
 
@@ -6053,13 +5732,14 @@ static bool emit_api_header_ctx(
 
         fprintf(
             output,
+
             "typedef struct {\n"
             "    void *send_ctx;\n"
             "    %s_send_fn send;\n"
-            "    uint8_t *tx;\n"
-            "    size_t tx_capacity;\n"
-
+            "    aether_data_out_t *out;\n"
+            "\n"
             "} %s_%s_remote_t;\n\n",
+
             api_abbr, api_abbr, api_name);
 
         adsl_effective_method_t *effective = NULL;
@@ -6255,29 +5935,23 @@ static bool emit_api_source_ctx(
                 fprintf(output, " %s", method->params[p].name);
             }
 
+
+
             fprintf(
                 output,
                 ") {\n\n"
                 "    if (api == NULL ||\n"
                 "        api->send == NULL ||\n"
-                "        api->tx == NULL) {\n"
+                "        api->out == NULL) {\n"
                 "        return AETHER_ERR_ARGUMENT;\n"
                 "    }\n\n"
-                "%s"
-                "%s"
-                "    if (api->tx_capacity < %uu) {\n"
+                "    aether_data_out_t *out = api->out;\n"
+                "    if (!aether_data_out_write_byte(out, %uu)) {\n"
                 "        return AETHER_ERR_OVERFLOW;\n"
-                "    }\n\n"
-                "    size_t pos = 0u;\n"
-                "    api->tx[pos++] = %uu;\n",
-                method->param_count != 0u
-                    ? "    uint8_t *tx = api->tx;\n"
-                    : "",
-                method->param_count != 0u
-                    ? "    size_t tx_capacity = api->tx_capacity;\n\n"
-                    : "",
-1u,
+                "    }\n",
                 (unsigned int)effective[m].id);
+
+
 
 
 
@@ -6296,14 +5970,16 @@ static bool emit_api_source_ctx(
                 }
             }
 
+
             fprintf(
                 output,
                 "\n"
                 "    return api->send(\n"
                 "        api->send_ctx,\n"
-                "        api->tx,\n"
-                "        pos);\n"
+                "        api->out->data,\n"
+                "        api->out->pos);\n"
                 "}\n\n");
+
         }
 
         free(effective);
@@ -7657,39 +7333,14 @@ static bool emit_value_expression_ctx(
     if (strcmp(base, "intpack") == 0) {
         fprintf(
             output,
-            "    if (%s < 0) return AETHER_ERR_ARGUMENT;\n"
-            "    uint64_t %s_pack_value = (uint64_t)%s;\n",
+            "    if (%s < 0) return false;\n"
+            "    if (!aether_data_out_write_pack(out, (uint64_t)%s)) return false;\n",
             expression,
-            prefix,
             expression);
-
-        char value_name[512];
-
-        int value_name_size =
-            snprintf(
-                value_name,
-                sizeof(value_name),
-                "%s_pack_value",
-                prefix);
-
-        if (value_name_size < 0 ||
-            (size_t)value_name_size >=
-                sizeof(value_name)) {
-
-            set_error(
-                error,
-                error_capacity,
-                "generated intpack value name is too long");
-            return false;
-        }
-
-        emit_pack_value(
-            output,
-            value_name,
-            prefix);
 
         return true;
     }
+
 
     if (primitive_c_type(base) != NULL) {
         set_error(
@@ -7753,19 +7404,15 @@ static bool emit_value_expression_ctx(
             return false;
         }
 
+
         fprintf(
             output,
-            "    {\n"
-            "        aether_status_t meta_status = aether_meta_write_tiered_int(\n"
-            "            tx,\n"
-            "            tx_capacity,\n"
-            "            &pos,\n"
+            "    if (!aether_data_out_write_tiered_int(\n"
+            "            out,\n"
             "            (uint64_t)(%s),\n"
             "            %uu,\n"
             "            %s_tiered_int_limits,\n"
-            "            %zuu);\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
+            "            %zuu)) return false;\n",
             tiered_expression,
             (unsigned int)declared_type->tiered_int_min_bytes,
             tiered_name,
@@ -7774,12 +7421,14 @@ static bool emit_value_expression_ctx(
         return true;
     }
 
+
+
     if (declared_type->stream != NULL) {
         if (struct_pointer) {
             fprintf(
                 output,
-                "    if (%s == NULL) return AETHER_ERR_ARGUMENT;\n"
-                "    if (%s->length > %s->capacity) return AETHER_ERR_ARGUMENT;\n",
+                "    if (%s == NULL) return false;\n"
+                "    if (%s->length > %s->capacity) return false;\n",
                 expression,
                 expression,
                 expression);
@@ -7811,7 +7460,7 @@ static bool emit_value_expression_ctx(
         } else {
             fprintf(
                 output,
-                "    if (%s.length > %s.capacity) return AETHER_ERR_ARGUMENT;\n",
+                "    if (%s.length > %s.capacity) return false;\n",
                 expression,
                 expression);
 
@@ -7824,16 +7473,17 @@ static bool emit_value_expression_ctx(
         return true;
     }
 
-    if (declared_type->enum_count > 0u) {
 
+
+    if (declared_type->enum_count > 0u) {
         fprintf(
             output,
-            "    if (pos + 1u > tx_capacity) return AETHER_ERR_OVERFLOW;\n"
-            "    tx[pos++] = (uint8_t)%s;\n",
+            "    if (!aether_data_out_write_byte(out, (uint8_t)%s)) return false;\n",
             expression);
 
         return true;
     }
+
 
     if (type_is_polymorphic_reference_ctx(ctx, declared_type)) {
 
@@ -7866,26 +7516,6 @@ static bool emit_value_expression_ctx(
         declared_type->name,
         nested_name,
         sizeof(nested_name));
-
-    /*
-     * The nested type may be declared in a different input file than the
-     * one currently being emitted. Its serialize/deserialize symbols are
-     * always prefixed by its own declaring file, so derive that prefix
-     * here instead of reusing the caller's base_snake.
-     */
-    char nested_prefix[32];
-
-    if (!type_effective_prefix_ctx(
-            ctx,
-            declared_type,
-            nested_prefix,
-            sizeof(nested_prefix),
-            error,
-            error_capacity)) {
-        return false;
-    }
-
-
 
     char nested_value[1024];
     int nested_value_size =
@@ -7938,86 +7568,30 @@ static bool emit_value_expression_ctx(
         return false;
     }
 
+
     /*
-     * In unified/standalone mode (no resolver) every declaration is emitted
-     * into the same aether_api.c, so a nested reference is always local and
-     * is called through the static *_impl directly. The owner comparison is
-     * only meaningful in the legacy project emitter, where each type has its
-     * own translation unit and non-owners must go through *_with_depth.
+     * The nested named codec is called through its owner prefix. With the
+     * unified dataio ABI there is a single serialize symbol per type:
+     *   bool <owner>_serialize_<type>(aether_data_out_t*, const void*, unsigned int)
+     * No *_impl and no *_with_depth variants exist.
      */
-    bool nested_in_same_tu =
-        ctx->resolver == NULL ||
-        strcmp(nested_owner, effective_ctx.base_snake) == 0;
-
-
-
     if (runtime_depth != NULL) {
-        /*
-         * Nested call inside another generated impl.
-         *
-         * Local type: call the static impl directly (cheapest path,
-         * unchanged from standalone).
-         *
-         * External type: the impl is private to the owner's
-         * translation unit, so the call must go through the owner's
-         * exported *_with_depth entry point. The caller still adds
-         * one to the recursion depth because the callee is entered
-         * at the impl-equivalent level.
-         */
-        if (nested_in_same_tu) {
-            fprintf(
-                output,
-                "    {\n"
-                "        aether_status_t meta_status = %s_serialize_%s_impl(\n"
-                "            tx,\n"
-                "            tx_capacity,\n"
-                "            &pos,\n"
-                "            %s,\n"
-                "            %s + 1u);\n"
-                "        if (meta_status != AETHER_OK) return meta_status;\n"
-                "    }\n",
-                nested_prefix,
-                nested_name,
-                nested_value,
-                runtime_depth);
-        } else {
-            fprintf(
-                output,
-                "    {\n"
-                "        aether_status_t meta_status = %s_serialize_%s_with_depth(\n"
-                "            tx,\n"
-                "            tx_capacity,\n"
-                "            &pos,\n"
-                "            %s,\n"
-                "            %s + 1u);\n"
-                "        if (meta_status != AETHER_OK) return meta_status;\n"
-                "    }\n",
-                nested_owner,
-                nested_name,
-                nested_value,
-                runtime_depth);
-        }
-    } else {
-        /*
-         * No enclosing impl: this call starts a fresh top-level
-         * serialization, so depth is zero. Call the public wrapper of
-         * whichever module owns the type (in standalone the owner is
-         * always the current module).
-         */
         fprintf(
             output,
-            "    {\n"
-            "        aether_status_t meta_status = %s_serialize_%s(\n"
-            "            tx,\n"
-            "            tx_capacity,\n"
-            "            &pos,\n"
-            "            %s);\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
+            "    if (!%s_serialize_%s(out, %s, %s + 1u)) return false;\n",
+            nested_owner,
+            nested_name,
+            nested_value,
+            runtime_depth);
+    } else {
+        fprintf(
+            output,
+            "    if (!%s_serialize_%s(out, %s, 0u)) return false;\n",
             nested_owner,
             nested_name,
             nested_value);
     }
+
 
 
     return true;
@@ -8180,10 +7754,11 @@ static bool emit_array_expression_ctx(
         return false;
     }
 
+
     if (array_pointer) {
         fprintf(
             output,
-            "    if (%s == NULL) return AETHER_ERR_ARGUMENT;\n",
+            "    if (%s == NULL) return false;\n",
             expression);
     }
 
@@ -8234,52 +7809,25 @@ static bool emit_array_expression_ctx(
 
         fprintf(
             output,
-            "    if (pos + %zuu > tx_capacity) return AETHER_ERR_OVERFLOW;\n"
-            "    memcpy(tx + pos, %s.data, %zuu);\n"
-            "    pos += %zuu;\n",
-            static_size,
+            "    if (!aether_data_out_write(out, (const uint8_t *)%s.data, 0u, %zuu)) return false;\n",
             value_expression,
-            static_size,
             static_size);
 
         return true;
     }
 
+
+
     if (dynamic) {
         fprintf(
             output,
-            "    if (%s.length > 0u && %s.data == NULL) return AETHER_ERR_ARGUMENT;\n"
-            "    uint64_t %s_length = (uint64_t)%s.length;\n",
+            "    if (%s.length > 0u && %s.data == NULL) return false;\n"
+            "    if (!aether_data_out_write_pack(out, (uint64_t)%s.length)) return false;\n",
             value_expression,
             value_expression,
-            prefix,
             value_expression);
-
-        char length_name[512];
-
-        int length_size =
-            snprintf(
-                length_name,
-                sizeof(length_name),
-                "%s_length",
-                prefix);
-
-        if (length_size < 0 ||
-            (size_t)length_size >=
-                sizeof(length_name)) {
-
-            set_error(
-                error,
-                error_capacity,
-                "generated array length name is too long");
-            return false;
-        }
-
-        emit_pack_value(
-            output,
-            length_name,
-            prefix);
     }
+
 
     char index_name[512];
 
@@ -8415,10 +7963,11 @@ static bool emit_struct_value_expression_ctx(
         return false;
     }
 
+
     if (struct_pointer) {
         fprintf(
             output,
-            "    if (%s == NULL) return AETHER_ERR_ARGUMENT;\n",
+            "    if (%s == NULL) return false;\n",
             expression);
     }
 
@@ -8475,21 +8024,16 @@ static bool emit_struct_value_expression_ctx(
             return false;
         }
 
-        fprintf(
-            output,
-            "    if (pos + %zuu > tx_capacity) return AETHER_ERR_OVERFLOW;\n",
-            mask_width);
-
         for (size_t b = 0u; b < mask_width; ++b) {
-
             fprintf(
                 output,
-                "    tx[pos++] = (uint8_t)"
-                "((%s_nullable_mask >> %zuu) & UINT64_C(0xff));\n",
+                "    if (!aether_data_out_write_byte(out, (uint8_t)"
+                "((%s_nullable_mask >> %zuu) & UINT64_C(0xff)))) return false;\n",
                 prefix,
                 b * 8u);
         }
     }
+
 
     return emit_all_struct_payload_ctx(
         output,
@@ -8948,10 +8492,11 @@ static bool emit_hierarchy_expression_ctx(
         return false;
     }
 
+
     if (reference_pointer) {
         fprintf(
             output,
-            "    if (%s == NULL) return AETHER_ERR_ARGUMENT;\n",
+            "    if (%s == NULL) return false;\n",
             expression);
     }
 
@@ -8979,23 +8524,18 @@ static bool emit_hierarchy_expression_ctx(
 
     fprintf(
         output,
-        "    if (pos + 1u > tx_capacity) return AETHER_ERR_OVERFLOW;\n"
-        "    tx[pos++] = (uint8_t)%s.type_id;\n"
+        "    if (!aether_data_out_write_byte(out, (uint8_t)%s.type_id)) return false;\n"
         "    switch (%s.type_id) {\n",
         value_expression,
         value_expression);
 
-
     size_t count = ctx_hierarchy_type_count(ctx);
 
-
     size_t concrete_count = 0u;
-
 
     for (size_t i = 0u; i < count; ++i) {
 
         const adsl_type_t *candidate = ctx_hierarchy_type_at(ctx, i);
-
 
         if (candidate->enum_count > 0u ||
             candidate->is_abstract ||
@@ -9017,7 +8557,6 @@ static bool emit_hierarchy_expression_ctx(
                 error_capacity)) {
             return false;
         }
-
 
         char child_prefix[768];
 
@@ -9064,10 +8603,9 @@ static bool emit_hierarchy_expression_ctx(
         fprintf(
             output,
             "    case %uu:\n"
-            "        if (%s == NULL) return AETHER_ERR_ARGUMENT;\n",
+            "        if (%s == NULL) return false;\n",
             (unsigned int)candidate->id,
             child_expression);
-
 
         if (!emit_struct_value_expression_ctx(
                 output,
@@ -9085,7 +8623,6 @@ static bool emit_hierarchy_expression_ctx(
             return false;
         }
 
-
         fputs(
             "        break;\n",
             output);
@@ -9094,7 +8631,7 @@ static bool emit_hierarchy_expression_ctx(
     if (concrete_count == 0u) {
         fputs(
             "    default:\n"
-            "        return AETHER_ERR_ARGUMENT;\n"
+            "        return false;\n"
             "    }\n",
             output);
 
@@ -9103,12 +8640,13 @@ static bool emit_hierarchy_expression_ctx(
 
     fputs(
         "    default:\n"
-        "        return AETHER_ERR_ARGUMENT;\n"
+        "        return false;\n"
         "    }\n",
         output);
 
     return true;
 }
+
 
 
 
@@ -10227,7 +9765,7 @@ static bool emit_local_api_header(
         "} %s_%s_local_t;\n\n"
         "aether_status_t %s_%s_dispatch(\n"
         "    %s_%s_local_t *api,\n"
-        "    aether_meta_read_context_t *ctx);\n\n"
+        "    aether_data_in_t *in);\n\n"
         "#ifdef __cplusplus\n"
         "}\n"
         "#endif\n\n"
@@ -10303,25 +9841,27 @@ static bool emit_local_param_decode(
                 sizeof(stream_name));
 
 
+
             fprintf(
                 output,
                 "        %s_t *%s = NULL;\n"
                 "        if ((_meta_nullable_mask & "
                 "(UINT64_C(1) << %zuu)) == 0u) {\n"
-                "            %s = (%s_t *)aether_meta_scratch_alloc(\n"
-                "                ctx,\n"
+                "            if (in->scratch_alloc == NULL) return false;\n"
+                "            %s = (%s_t *)in->scratch_alloc(\n"
+                "                in->scratch_ctx,\n"
                 "                sizeof(%s_t),\n"
                 "                _Alignof(%s_t));\n"
-                "            if (%s == NULL) return AETHER_ERR_OVERFLOW;\n"
+                "            if (%s == NULL) return false;\n"
                 "            memset(%s, 0, sizeof(*%s));\n"
                 "            {\n"
                 "                const uint8_t *_meta_stream_data = NULL;\n"
                 "                size_t _meta_stream_length = 0u;\n"
-                "                if (!aether_meta_read_view(\n"
-                "                        &ctx->reader,\n"
+                "                if (!aether_data_in_read_view(\n"
+                "                        in,\n"
                 "                        &_meta_stream_data,\n"
                 "                        &_meta_stream_length)) {\n"
-                "                    return AETHER_ERR_PROTOCOL;\n"
+                "                    return false;\n"
                 "                }\n"
                 "                %s->data = (uint8_t *)_meta_stream_data;\n"
                 "                %s->capacity = _meta_stream_length;\n"
@@ -10341,6 +9881,7 @@ static bool emit_local_param_decode(
                 param->name,
                 param->name,
                 param->name);
+
 
             return true;
         }
@@ -10364,15 +9905,18 @@ static bool emit_local_param_decode(
 
         fprintf(
             output,
+
             "        %s *%s = NULL;\n"
             "        if ((_meta_nullable_mask & "
             "(UINT64_C(1) << %zuu)) == 0u) {\n"
-            "            %s = (%s *)aether_meta_scratch_alloc(\n"
-            "                ctx,\n"
+            "            if (in->scratch_alloc == NULL) return false;\n"
+            "            %s = (%s *)in->scratch_alloc(\n"
+            "                in->scratch_ctx,\n"
             "                sizeof(%s),\n"
             "                _Alignof(%s));\n"
-            "            if (%s == NULL) return AETHER_ERR_OVERFLOW;\n"
+            "            if (%s == NULL) return false;\n"
             "            memset(%s, 0, sizeof(*%s));\n",
+
             ctype,
             param->name,
             nullable_bit_index,
@@ -10450,16 +9994,17 @@ static bool emit_local_param_decode(
             sizeof(stream_name));
 
 
+
         fprintf(
             output,
             "        %s_t %s = {0};\n"
             "        {\n"
             "            const uint8_t *_meta_stream_data = NULL;\n"
             "            size_t _meta_stream_length = 0u;\n"
-            "            if (!aether_meta_read_view(&ctx->reader,\n"
+            "            if (!aether_data_in_read_view(in,\n"
             "                    &_meta_stream_data,\n"
             "                    &_meta_stream_length)) {\n"
-            "                return AETHER_ERR_PROTOCOL;\n"
+            "                return false;\n"
             "            }\n"
             "            (%s).data = (uint8_t *)_meta_stream_data;\n"
             "            (%s).capacity = _meta_stream_length;\n"
@@ -10470,6 +10015,7 @@ static bool emit_local_param_decode(
             param->name,
             param->name,
             param->name);
+
 
         return true;
     }
@@ -10531,20 +10077,21 @@ static bool emit_local_param_decode(
          * MCU stack object (byte[512] would otherwise become a 512-byte
          * stack local).
          */
+
         fprintf(
             output,
-            "        %s *%s = (%s *)aether_meta_scratch_alloc(\n"
-            "            ctx,\n"
+            "        if (in->scratch_alloc == NULL) return false;\n"
+            "        %s *%s = (%s *)in->scratch_alloc(\n"
+            "            in->scratch_ctx,\n"
             "            sizeof(%s),\n"
             "            _Alignof(%s));\n"
-            "        if (%s == NULL) {\n"
-            "            return AETHER_ERR_OVERFLOW;\n"
-            "        }\n"
+            "        if (%s == NULL) return false;\n"
             "        memset(%s, 0, sizeof(*%s));\n",
             alias, param->name, alias,
             alias, alias,
             param->name,
             param->name, param->name);
+
 
         char array_target[320];
 
@@ -10638,16 +10185,17 @@ static bool emit_local_param_decode(
          * struct's mutable `data` field (kept for the builder ABI) does not
          * violate the reader's const contract.
          */
+
         fprintf(
             output,
             "        %s_t %s = {0};\n"
             "        {\n"
             "            const uint8_t *_meta_stream_data = NULL;\n"
             "            size_t _meta_stream_length = 0u;\n"
-            "            if (!aether_meta_read_view(&ctx->reader,\n"
+            "            if (!aether_data_in_read_view(in,\n"
             "                    &_meta_stream_data,\n"
             "                    &_meta_stream_length)) {\n"
-            "                return AETHER_ERR_PROTOCOL;\n"
+            "                return false;\n"
             "            }\n"
             "            (%s).data = (uint8_t *)_meta_stream_data;\n"
             "            (%s).capacity = _meta_stream_length;\n"
@@ -10658,6 +10206,7 @@ static bool emit_local_param_decode(
             param->name,
             param->name,
             param->name);
+
 
         return true;
     }
@@ -10689,20 +10238,21 @@ static bool emit_local_param_decode(
          * so back the decoded struct with caller scratch. Large nested
          * structures must not grow the dispatcher stack frame on MCU.
          */
+
         fprintf(
             output,
-            "        %s_t *%s = (%s_t *)aether_meta_scratch_alloc(\n"
-            "            ctx,\n"
+            "        if (in->scratch_alloc == NULL) return false;\n"
+            "        %s_t *%s = (%s_t *)in->scratch_alloc(\n"
+            "            in->scratch_ctx,\n"
             "            sizeof(%s_t),\n"
             "            _Alignof(%s_t));\n"
-            "        if (%s == NULL) {\n"
-            "            return AETHER_ERR_OVERFLOW;\n"
-            "        }\n"
+            "        if (%s == NULL) return false;\n"
             "        memset(%s, 0, sizeof(*%s));\n",
             declared_name, param->name, declared_name,
             declared_name, declared_name,
             param->name,
             param->name, param->name);
+
 
         char struct_target[320];
 
@@ -10869,10 +10419,11 @@ static bool emit_local_api_source(
         "#include <string.h>\n\n"
 
 
+
         "aether_status_t %s_%s_dispatch(\n"
         "    %s_%s_local_t *api,\n"
-        "    aether_meta_read_context_t *ctx) {\n\n"
-        "    if (api == NULL || ctx == NULL) {\n"
+        "    aether_data_in_t *in) {\n\n"
+        "    if (api == NULL || in == NULL) {\n"
         "        return AETHER_ERR_ARGUMENT;\n"
         "    }\n\n"
         "    /*\n"
@@ -10883,11 +10434,11 @@ static bool emit_local_api_source(
         "     * application-owned storage before returning from the callback.\n"
         "     * request_id may be retained, decoded pointer/view params may not.\n"
         "     */\n"
-        "    size_t scratch_mark = ctx->scratch_position;\n\n"
-        "    uint8_t command = 0u;\n\n"
-        "    if (!aether_meta_read_u8(&ctx->reader, &command)) {\n"
+        "    uint8_t command = aether_data_in_read_ubyte(in);\n\n"
+        "    if (in->error) {\n"
         "        return AETHER_ERR_PROTOCOL;\n"
         "    }\n\n"
+
         "    switch (command) {\n",
 
         base_snake,
@@ -11008,11 +10559,12 @@ static bool emit_local_api_source(
         }
 
 
+
         fputs(
-            "        ctx->scratch_position = scratch_mark;\n"
             "        return status;\n"
             "    }\n\n",
             output);
+
     }
 
     free(effective);
@@ -11449,10 +11001,12 @@ static bool emit_decode_struct_fields_recursive_ctx(
             }
         }
 
+
         fprintf(
             output,
-            "        %s *_meta_tmp_%u = (%s *)aether_meta_scratch_alloc(ctx, sizeof(%s), _Alignof(%s));\n"
-            "        if (_meta_tmp_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
+            "        if (in->scratch_alloc == NULL) return false;\n"
+            "        %s *_meta_tmp_%u = (%s *)in->scratch_alloc(in->scratch_ctx, sizeof(%s), _Alignof(%s));\n"
+            "        if (_meta_tmp_%u == NULL) return false;\n"
             "        memset(_meta_tmp_%u, 0, sizeof(*_meta_tmp_%u));\n",
             ctype,
             depth,
@@ -11462,6 +11016,7 @@ static bool emit_decode_struct_fields_recursive_ctx(
             depth,
             depth,
             depth);
+
 
         char nullable_target[768];
 
@@ -11573,16 +11128,18 @@ static bool emit_decode_struct_fields_ctx(
             output,
             "    uint64_t _meta_nullable_mask = UINT64_C(0);\n");
 
+
         for (size_t b = 0u; b < mask_width; ++b) {
             fprintf(
                 output,
                 "    {\n"
-                "        uint8_t _meta_mask_byte = 0u;\n"
-                "        if (!aether_meta_read_u8(&ctx->reader, &_meta_mask_byte)) return AETHER_ERR_PROTOCOL;\n"
+                "        uint8_t _meta_mask_byte = aether_data_in_read_ubyte(in);\n"
+                "        if (in->error) return false;\n"
                 "        _meta_nullable_mask |= ((uint64_t)_meta_mask_byte) << %zuu;\n"
                 "    }\n",
                 b * 8u);
         }
+
     }
 
     size_t bit_index = 0u;
@@ -11654,13 +11211,16 @@ static bool emit_decode_array_expression_ctx(
         return false;
     }
 
+
     if (dynamic &&
         strcmp(element, "byte") == 0) {
+
         fprintf(
             output,
-            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n",
+            "    if (!aether_data_in_read_view(in, (const uint8_t **)&(%s).data, &(%s).length)) return false;\n",
             target,
             target);
+
         return true;
     }
 
@@ -11668,16 +11228,12 @@ static bool emit_decode_array_expression_ctx(
         strcmp(element, "byte") == 0) {
         fprintf(
             output,
-            "    if (ctx->reader.position > ctx->reader.length ||\n"
-            "        %zuu > ctx->reader.length - ctx->reader.position) return AETHER_ERR_PROTOCOL;\n"
-            "    memcpy((%s).data, ctx->reader.data + ctx->reader.position, %zuu);\n"
-            "    ctx->reader.position += %zuu;\n",
-            static_size,
+            "    if (!aether_data_in_read(in, (uint8_t *)(%s).data, 0u, %zuu)) return false;\n",
             target,
-            static_size,
             static_size);
         return true;
     }
+
 
     if (!dynamic) {
         fprintf(
@@ -11789,22 +11345,26 @@ static bool emit_decode_array_expression_ctx(
         }
     }
 
+
+
     fprintf(
         output,
         "    {\n"
-        "        uint64_t _meta_len64_%u = 0u;\n"
-        "        if (!aether_meta_read_pack(&ctx->reader, &_meta_len64_%u)) return AETHER_ERR_PROTOCOL;\n"
-        "        if (_meta_len64_%u > (uint64_t)SIZE_MAX) return AETHER_ERR_PROTOCOL;\n"
+        "        uint64_t _meta_len64_%u = aether_data_in_read_pack(in);\n"
+        "        if (in->error) return false;\n"
+        "        if (_meta_len64_%u > (uint64_t)SIZE_MAX) return false;\n"
         "        size_t _meta_len_%u = (size_t)_meta_len64_%u;\n"
         "        %s *_meta_buf_%u = NULL;\n"
         "        if (_meta_len_%u > 0u) {\n"
-        "            if (_meta_len_%u > SIZE_MAX / sizeof(%s)) return AETHER_ERR_PROTOCOL;\n"
-        "            _meta_buf_%u = (%s *)aether_meta_scratch_alloc(ctx, _meta_len_%u * sizeof(%s), _Alignof(%s));\n"
-        "            if (_meta_buf_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
+        "            if (in->scratch_alloc == NULL) return false;\n"
+        "            if (_meta_len_%u > SIZE_MAX / sizeof(%s)) return false;\n"
+        "            _meta_buf_%u = (%s *)in->scratch_alloc(in->scratch_ctx, _meta_len_%u * sizeof(%s), _Alignof(%s));\n"
+        "            if (_meta_buf_%u == NULL) return false;\n"
         "            memset(_meta_buf_%u, 0, _meta_len_%u * sizeof(%s));\n"
         "        }\n"
         "        for (size_t _meta_i_%u = 0u; _meta_i_%u < _meta_len_%u; ++_meta_i_%u) {\n",
-        depth, depth, depth, depth, depth,
+        depth, depth,
+        depth, depth,
         ctype, depth,
         depth,
         depth, ctype,
@@ -11856,6 +11416,8 @@ static bool emit_decode_array_expression_ctx(
         target,
         depth);
 
+
+
     return true;
 }
 
@@ -11886,15 +11448,18 @@ static bool emit_decode_hierarchy_expression_ctx(
         return false;
     }
 
+
     fprintf(
         output,
         "    {\n"
-        "        uint8_t _meta_type_id_%u = 0u;\n"
-        "        if (!aether_meta_read_u8(&ctx->reader, &_meta_type_id_%u)) return AETHER_ERR_PROTOCOL;\n"
+        "        uint8_t _meta_type_id_%u = aether_data_in_read_ubyte(in);\n"
+        "        if (in->error) return false;\n"
         "        switch (_meta_type_id_%u) {\n",
-        depth,
+
         depth,
         depth);
+
+
 
     size_t hierarchy_count = ctx_hierarchy_type_count(ctx);
 
@@ -11929,9 +11494,11 @@ static bool emit_decode_hierarchy_expression_ctx(
         fprintf(
             output,
             "        case %uu: {\n"
-            "            %s_t *_meta_child_%u = (%s_t *)aether_meta_scratch_alloc(ctx, sizeof(%s_t), _Alignof(%s_t));\n"
-            "            if (_meta_child_%u == NULL) return AETHER_ERR_OVERFLOW;\n"
+
+"            %s_t *_meta_child_%u = (%s_t *)in->scratch_alloc(in->scratch_ctx, sizeof(%s_t), _Alignof(%s_t));\n"
+            "            if (_meta_child_%u == NULL) return false;\n"
             "            memset(_meta_child_%u, 0, sizeof(*_meta_child_%u));\n",
+
             (unsigned int)candidate->id,
             candidate_name, depth,
             candidate_name, candidate_name, candidate_name,
@@ -11986,7 +11553,7 @@ static bool emit_decode_hierarchy_expression_ctx(
     fprintf(
         output,
         "        default:\n"
-        "            return AETHER_ERR_PROTOCOL;\n"
+            "            return false;\n"
         "        }\n"
         "        (%s).type_id = _meta_type_id_%u;\n"
         "    }\n",
@@ -12066,15 +11633,13 @@ static bool emit_decode_value_expression_ctx(
         return false;
     }
 
+
     if (strcmp(base, "bool") == 0 ||
         strcmp(base, "boolean") == 0) {
         fprintf(
             output,
-            "    {\n"
-            "        uint8_t _meta_bool = 0u;\n"
-            "        if (!aether_meta_read_u8(&ctx->reader, &_meta_bool)) return AETHER_ERR_PROTOCOL;\n"
-            "        (%s) = ((int8_t)_meta_bool > 0) ? true : false;\n"
-            "    }\n",
+            "    (%s) = aether_data_in_read_boolean(in) ? true : false;\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12082,11 +11647,8 @@ static bool emit_decode_value_expression_ctx(
     if (strcmp(base, "byte") == 0) {
         fprintf(
             output,
-            "    {\n"
-            "        uint8_t _meta_byte = 0u;\n"
-            "        if (!aether_meta_read_u8(&ctx->reader, &_meta_byte)) return AETHER_ERR_PROTOCOL;\n"
-            "        (%s) = (int8_t)_meta_byte;\n"
-            "    }\n",
+            "    (%s) = aether_data_in_read_byte(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12094,7 +11656,8 @@ static bool emit_decode_value_expression_ctx(
     if (strcmp(base, "short") == 0) {
         fprintf(
             output,
-            "    if (!aether_meta_read_i16le(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            "    (%s) = aether_data_in_read_short(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12102,7 +11665,8 @@ static bool emit_decode_value_expression_ctx(
     if (strcmp(base, "int") == 0) {
         fprintf(
             output,
-            "    if (!aether_meta_read_i32le(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            "    (%s) = aether_data_in_read_int(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12111,7 +11675,8 @@ static bool emit_decode_value_expression_ctx(
         strcmp(base, "date") == 0) {
         fprintf(
             output,
-            "    if (!aether_meta_read_i64le(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            "    (%s) = aether_data_in_read_long(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12119,11 +11684,8 @@ static bool emit_decode_value_expression_ctx(
     if (strcmp(base, "float") == 0) {
         fprintf(
             output,
-            "    {\n"
-            "        uint32_t _meta_bits = 0u;\n"
-            "        if (!aether_meta_read_u32le(&ctx->reader, &_meta_bits)) return AETHER_ERR_PROTOCOL;\n"
-            "        memcpy(&(%s), &_meta_bits, sizeof(_meta_bits));\n"
-            "    }\n",
+            "    (%s) = aether_data_in_read_float(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12131,11 +11693,8 @@ static bool emit_decode_value_expression_ctx(
     if (strcmp(base, "double") == 0) {
         fprintf(
             output,
-            "    {\n"
-            "        uint64_t _meta_bits = 0u;\n"
-            "        if (!aether_meta_read_u64le(&ctx->reader, &_meta_bits)) return AETHER_ERR_PROTOCOL;\n"
-            "        memcpy(&(%s), &_meta_bits, sizeof(_meta_bits));\n"
-            "    }\n",
+            "    (%s) = aether_data_in_read_double(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12143,7 +11702,8 @@ static bool emit_decode_value_expression_ctx(
     if (strcmp(base, "uuid") == 0) {
         fprintf(
             output,
-            "    if (!aether_meta_read_uuid(&ctx->reader, &(%s))) return AETHER_ERR_PROTOCOL;\n",
+            "    (%s) = aether_data_in_read_uuid(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
@@ -12152,23 +11712,23 @@ static bool emit_decode_value_expression_ctx(
         strcmp(base, "uri") == 0) {
         fprintf(
             output,
-            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n",
+            "    if (!aether_data_in_read_view(in, (const uint8_t **)&(%s).data, &(%s).length)) return false;\n",
+
             target,
             target);
+
         return true;
     }
 
     if (strcmp(base, "intpack") == 0) {
         fprintf(
             output,
-            "    {\n"
-            "        uint64_t _meta_pack = 0u;\n"
-            "        if (!aether_meta_read_pack(&ctx->reader, &_meta_pack)) return AETHER_ERR_PROTOCOL;\n"
-            "        (%s) = (int64_t)_meta_pack;\n"
-            "    }\n",
+            "    (%s) = (int64_t)aether_data_in_read_pack(in);\n"
+            "    if (in->error) return false;\n",
             target);
         return true;
     }
+
 
     const adsl_type_t *declared_type =
         find_declared_type_ctx(ctx, base);
@@ -12195,17 +11755,18 @@ static bool emit_decode_value_expression_ctx(
         }
 
 
+
         fprintf(
             output,
             "    {\n"
             "        uint64_t _meta_tiered_int = 0u;\n"
-            "        if (!aether_meta_read_tiered_int(\n"
-            "                &ctx->reader,\n"
+            "        if (!aether_data_in_read_tiered_int(\n"
+            "                in,\n"
             "                &_meta_tiered_int,\n"
             "                %uu,\n"
             "                %s_tiered_int_limits,\n"
             "                %zuu)) {\n"
-            "            return AETHER_ERR_PROTOCOL;\n"
+            "            return false;\n"
             "        }\n"
             "        (%s) = (%s_t)_meta_tiered_int;\n"
             "    }\n",
@@ -12219,20 +11780,13 @@ static bool emit_decode_value_expression_ctx(
     }
 
     if (declared_type->stream != NULL) {
-        /*
-         * Incoming stream borrows the immutable RX frame. The historical
-         * stream_t representation uses uint8_t* because it is also used as
-         * an outgoing builder, but data passed by the decoder is read-only
-         * and must not outlive the RX buffer.
-         */
+
         fprintf(
             output,
-            "    if (!aether_meta_read_view(&ctx->reader, &(%s).data, &(%s).length)) return AETHER_ERR_PROTOCOL;\n"
-            "    (%s).capacity = (%s).length;\n",
-            target,
-            target,
+            "    if (!aether_data_in_read_view(in, (const uint8_t **)&(%s).data, &(%s).length)) return false;\n",
             target,
             target);
+
         return true;
     }
 
@@ -12249,13 +11803,12 @@ static bool emit_decode_value_expression_ctx(
             return false;
         }
 
-
         fprintf(
             output,
             "    {\n"
-            "        uint8_t _meta_enum = 0u;\n"
-            "        if (!aether_meta_read_u8(&ctx->reader, &_meta_enum)) return AETHER_ERR_PROTOCOL;\n"
-            "        if (_meta_enum >= %zuu) return AETHER_ERR_PROTOCOL;\n"
+            "        uint8_t _meta_enum = aether_data_in_read_ubyte(in);\n"
+            "        if (in->error) return false;\n"
+            "        if (_meta_enum >= %zuu) return false;\n"
             "        (%s) = (%s_t)_meta_enum;\n"
             "    }\n",
             declared_type->enum_count,
@@ -12263,6 +11816,7 @@ static bool emit_decode_value_expression_ctx(
             enum_name);
         return true;
     }
+
 
     if (type_is_polymorphic_reference_ctx(ctx, declared_type)) {
         return emit_decode_hierarchy_expression_ctx(
@@ -12293,33 +11847,7 @@ static bool emit_decode_value_expression_ctx(
         nested_name,
         sizeof(nested_name));
 
-    /*
-     * See emit_value_expression_ctx: the nested type's decode symbols are
-     * prefixed by its own declaring file, not by the caller's base_snake.
-     */
-    char nested_prefix[32];
 
-    if (!type_effective_prefix_ctx(
-            ctx,
-            declared_type,
-            nested_prefix,
-            sizeof(nested_prefix),
-            error,
-            error_capacity)) {
-        return false;
-    }
-
-
-
-
-
-
-    /*
-     * Standalone wrappers sometimes construct a context without
-     * module_abbr. Snapshot the context and fill it from the caller's
-     * authoritative prefix before calling the strict owner helper.
-     * In project mode module_abbr is already set, so this is a no-op.
-     */
     emitter_ctx_t effective_ctx = *ctx;
 
     if (effective_ctx.module_abbr[0] == '\0' && base_snake != NULL) {
@@ -12337,7 +11865,6 @@ static bool emit_decode_value_expression_ctx(
             base_snake);
     }
 
-
     char nested_owner[256];
 
     if (!type_owner_base_snake(
@@ -12346,62 +11873,29 @@ static bool emit_decode_value_expression_ctx(
         return false;
     }
 
-    /* See emit_value_expression_ctx: unified mode is always a local call. */
-    bool nested_in_same_tu =
-        ctx->resolver == NULL ||
-        strcmp(nested_owner, effective_ctx.base_snake) == 0;
-
-
-
+    /*
+     * The nested named codec is called through its owner prefix. With the
+     * unified dataio ABI there is a single deserialize symbol per type:
+     *   bool <owner>_deserialize_<type>(aether_data_in_t*, void*, unsigned int)
+     * No *_impl and no *_with_depth variants exist.
+     */
     if (runtime_depth != NULL) {
-        /*
-         * See emit_value_expression_ctx for the rationale: local types
-         * keep calling the static impl, external types go through the
-         * owner's *_with_depth entry point, and the caller adds one to
-         * the recursion depth in both cases.
-         */
-        if (nested_in_same_tu) {
-            fprintf(
-                output,
-                "    {\n"
-                "        aether_status_t meta_status = %s_deserialize_%s_impl(\n"
-                "            ctx,\n"
-                "            &(%s),\n"
-                "            %s + 1u);\n"
-                "        if (meta_status != AETHER_OK) return meta_status;\n"
-                "    }\n",
-                nested_prefix,
-                nested_name,
-                target,
-                runtime_depth);
-        } else {
-            fprintf(
-                output,
-                "    {\n"
-                "        aether_status_t meta_status = %s_deserialize_%s_with_depth(\n"
-                "            ctx,\n"
-                "            &(%s),\n"
-                "            %s + 1u);\n"
-                "        if (meta_status != AETHER_OK) return meta_status;\n"
-                "    }\n",
-                nested_owner,
-                nested_name,
-                target,
-                runtime_depth);
-        }
+        fprintf(
+            output,
+            "    if (!%s_deserialize_%s(in, &(%s), %s + 1u)) return false;\n",
+            nested_owner,
+            nested_name,
+            target,
+            runtime_depth);
     } else {
         fprintf(
             output,
-            "    {\n"
-            "        aether_status_t meta_status = %s_deserialize_%s(\n"
-            "            ctx,\n"
-            "            &(%s));\n"
-            "        if (meta_status != AETHER_OK) return meta_status;\n"
-            "    }\n",
+            "    if (!%s_deserialize_%s(in, &(%s), 0u)) return false;\n",
             nested_owner,
             nested_name,
             target);
     }
+
 
 
     return true;

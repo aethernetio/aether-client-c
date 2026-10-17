@@ -34,11 +34,12 @@ aether_status_t aether_peer_frame_encode(
     size_t *length,
     const peer_frame_t *frame);
 
+
 aether_status_t aether_peer_frame_decode(
     const uint8_t *data,
     size_t length,
-    aether_meta_read_context_t *context,
     peer_frame_t *frame);
+
 
 #ifdef __cplusplus
 }

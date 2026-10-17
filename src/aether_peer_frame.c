@@ -7,7 +7,7 @@
  */
 
 #include "aether_api.h"
-#include "aether_meta_runtime.h"
+#include "aether_dataio.h"
 
 #include <string.h>
 
@@ -17,6 +17,7 @@ static const uint8_t AETHER_PEER_FRAME_DOMAIN[AETHER_PEER_FRAME_DOMAIN_SIZE] = {
     'A','E','T','H','E','R','_','P','E','E','R','_',
     'F','R','A','M','E','_','V','1',0
 };
+
 
 aether_status_t aether_peer_frame_encode(
     uint8_t *out,
@@ -35,30 +36,26 @@ aether_status_t aether_peer_frame_encode(
     memcpy(out, AETHER_PEER_FRAME_DOMAIN,
            AETHER_PEER_FRAME_DOMAIN_SIZE);
 
-    size_t position = AETHER_PEER_FRAME_DOMAIN_SIZE;
+    aether_data_out_t stream;
+    aether_data_out_init(&stream, out, capacity);
+    stream.pos = AETHER_PEER_FRAME_DOMAIN_SIZE;
 
-    aether_status_t status =
-        peer_api_serialize_peer_frame(
-            out,
-            capacity,
-            &position,
-            frame);
-
-    if (status != AETHER_OK) {
-        return status;
+    if (!peer_api_serialize_peer_frame(&stream, frame, 0u)) {
+        return AETHER_ERR_OVERFLOW;
     }
 
-    *length = position;
+    *length = stream.pos;
     return AETHER_OK;
 }
+
+
 
 aether_status_t aether_peer_frame_decode(
     const uint8_t *data,
     size_t length,
-    aether_meta_read_context_t *context,
     peer_frame_t *frame) {
 
-    if (data == NULL || context == NULL || frame == NULL) {
+    if (data == NULL || frame == NULL) {
         return AETHER_ERR_ARGUMENT;
     }
 
@@ -68,13 +65,12 @@ aether_status_t aether_peer_frame_decode(
         return AETHER_ERR_PROTOCOL;
     }
 
-    aether_status_t status =
-        peer_api_deserialize_peer_frame(
-            context,
-            frame);
+    aether_data_in_t stream;
+    aether_data_in_init(&stream, data, length);
+    stream.pos = AETHER_PEER_FRAME_DOMAIN_SIZE;
 
-    if (status != AETHER_OK) {
-        return status;
+    if (!peer_api_deserialize_peer_frame(&stream, frame, 0u)) {
+        return AETHER_ERR_PROTOCOL;
     }
 
     if (frame->payload.length == 0u) {
