@@ -8,14 +8,14 @@
   chat: {
     splitters: {
       historySplit: 835,
-      scriptAndLive: 330,
-      verticalSplit: 634
+      scriptAndLive: 351,
+      verticalSplit: 690
     },
     model: deepseek-v4-flash,
     fontSize: {
       input: 20,
       system: 13,
-      history: 19,
+      history: 15,
       script: 14
     },
     reasoningEffort: low
@@ -62,9 +62,9 @@
       validation: true
     },
     window: {
-      x: 231,
+      x: 44,
       width: 1200,
-      y: 1052,
+      y: 398,
       height: 950
     }
   },

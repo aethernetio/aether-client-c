@@ -302,3 +302,68 @@ Editing rules for future AI work
 16. Conversely, do not force an out-of-line helper for a single-use path if it increases linked firmware.
 17. Keep README user-facing; keep AI-specific architectural detail here.
 18. Replace obsolete facts in this file instead of appending a chronological log.
+
+
+## ========== ВАЖНЫЙ КОНТЕКСТ ДЛЯ НОВОГО ЧАТА ==========
+
+### Как запускать p2p-тест для C клиента (CClientP2PTest)
+Тест находится в Java-проекте aether:
+`/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java`
+
+Запуск:
+```
+cd /home/angel/projects/aether
+gradle :tests:test --tests io.aether.cloudClient.CClientP2PTest
+```
+
+Что делает тест:
+1. Запускает локальный Aether REG/WORK сервер (startAetherServerSide).
+2. Ищет репозиторий aether-client-c (sibling проекта aether).
+3. Запускает `cmake -S . -B build-p2p-e2e -DCMAKE_BUILD_TYPE=Debug` в aether-client-c.
+4. Собирает цель `aether_p2p_e2e` (`cmake --build build-p2p-e2e --target aether_p2p_e2e -j2`).
+5. Запускает исполняемый файл `build-p2p-e2e/aether_p2p_e2e` — два C-клиента регистрируются и обмениваются сообщениями.
+
+### Важные пояснения пользователя (обязательно учитывать)
+- Java-клиент и TypeScript-клиент полностью рабочие. C-клиент имеет свою специфику: noheap, предназначен для MCU. Но протокол с сервером один и тот же.
+- В последних итерациях был переработан генератор кода (aether-adslc). Много кода генерируется из ADSL-файлов. Новый генератор протестирован достаточно хорошо.
+- Для работы p2p-теста нужно сгенерировать новый код и использовать его. Сигнатуры могли измениться в сгенерированном коде — именно это сломало тест.
+- Дело может быть не в самом тесте, а в клиенте aether_client.c: код использует функции, которые раньше создавал генератор и которых теперь не существует.
+- PeerApi также был сильно переделан. Можно посмотреть, как он работает в Java-клиенте; нужно то же самое реализовать в C-клиенте.
+- **Полностью убрана поддержка методов с возвращаемым результатом из протокола.** Это осознанное архитектурное решение: упрощает C-клиент для MCU, не нужно хранить контекст запроса. Старые функции вида `*_with_result` больше не существуют.
+- Перед изменениями обязательно делать `commit` — чтобы можно было откатить изменения.
+- Очищать контекст только если ctx > 80%: сам факт изменения контекста ломает кеш и запрос становится дорогим.
+
+### Что уже выяснено технически
+- Проект aether-client-c собирается через CMake. Основные исходники: `src/*.c`, `include/*.h`, `platform/posix/`, `src/generated/`.
+- Сгенерированные файлы: `src/generated/aether_api.c`, `src/generated/aether_api.h` (обязательно), плюс `aether_reg_global.c`, `aether_reg_safe.c`, `aether_reg_root_key.c`, `aether_reg_root_enter.c`, `aether_reg_unsafe_local.c`.
+- CMakeLists.txt подключает `src/generated/aether_api.c` и все `aether_reg_*.c` в `aether_client`.
+- Генератор: `aether-adslc` (исходники в `tools/aether-protocol-c/`, собранный бинарь в `build-adsl-generator-release/aether-adslc`).
+- Новый генератор всегда выдаёт пару `aether_api.h` / `aether_api.c` в указанную output-директорию. Команда:
+  ```
+  aether-adslc --input <path> [--input <path>...] <output-dir>
+  ```
+  `<path>` — файл или директория; директория сканируется рекурсивно на `*.adsl.yaml`.
+  Пример из README:
+  ```
+  aether-adslc --input /path/to/ClientServerApi.adsl.yaml --input /path/to/common.adsl.yaml /tmp/out
+  ```
+- ADSL-файлы проекта aether:
+  - `client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml`
+  - `auth-service/src/main/resources/AuthDsl.adsl.yaml`
+  - `common-api/src/main/resources/common.adsl.yaml`
+  - `common-api/src/main/resources/aether_reflection.adsl.yaml`
+  - `core/src/main/resources/SyncMapApi.adsl.yaml`
+  - `server-cloud/src/main/resources/ServerCloud.adsl.yaml`
+  - `server-cloud/src/main/resources/WorkServerToWorkServerApi.adsl.yaml`
+  - и др.
+- Первая ошибка p2p-теста была в `src/aether_client.c` (строка ~5603): вызов `csa_authorized_api_send_message_with_result(&authorized, request_id, &message)`, а новая сигнатура — `(api, msg)`. Уже исправлено (убрали `request_id`).
+- Вторая ошибка — `src/generated/aether_reg_global.c` не компилируется: использует `csa_global_reg_server_api_remote_t`, `csa_global_reg_server_api_set_master_key`, `csa_global_reg_server_api_finish`, но этих типов/функций нет в новом `src/generated/aether_api.h`. Это указывает на то, что `aether_reg_*.c` сгенерированы старым генератором и должны быть перегенерированы (или заменены новым подходом).
+- В `aether_client.c` используются функции `aether_generated_reg_root_build_get_key`, `aether_generated_reg_root_build_enter`, `aether_generated_reg_safe_build_pow`, `aether_generated_reg_safe_build_registration_direct`, `aether_generated_reg_safe_build_recovery`, `aether_generated_reg_safe_build_resolve_with_return_key`, `aether_generated_reg_unsafe_decode` (строки ~2428–3824). Это точки интеграции регистрационного кода.
+- В CMakeLists.txt есть комментарий: `# peer temporarily disabled: PeerApi.adsl.yaml was rewritten` — peer-функциональность отключена.
+
+### Рекомендуемый план для следующего чата
+1. Разобраться, как правильно сгенерировать `aether_api.h/.c` для aether-client-c (какие ADSL-файлы подавать на вход aether-adslc).
+2. Перегенерировать код в `src/generated/`.
+3. Адаптировать `aether_client.c` и `aether_reg_*.c` под новые сигнатуры (методы без возвращаемого результата).
+4. Убедиться, что `aether_p2p_e2e` собирается, и прогнать `CClientP2PTest`.
+
