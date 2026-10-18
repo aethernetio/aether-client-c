@@ -735,7 +735,6 @@ endif()
 
 
 target_sources(aether_client PRIVATE
-    src/generated/aether_reg_global.c
 )
 
 

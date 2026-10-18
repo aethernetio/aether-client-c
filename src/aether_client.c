@@ -26,7 +26,6 @@
 #include "aether_registration.h"
 #include "aether_credentials.h"
 #include "aether_api.h"
-#include "generated/aether_reg_global.h"
 #include "generated/aether_reg_root_enter.h"
 #include "generated/aether_reg_root_key.h"
 #include "generated/aether_reg_safe.h"
@@ -2429,7 +2428,6 @@ static aether_status_t send_get_server_key(
             client->tx_plain,
             sizeof(client->tx_plain),
             &packet_length,
-            client->req_server_key,
             client->config.crypto
                 ->profile.crypto_lib);
 
@@ -2589,7 +2587,6 @@ static aether_status_t send_pow_request(
             client->temp_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
-            client->registration->req_pow,
             client->config.parent_uid);
 
     if (status != AETHER_OK) {
@@ -2641,7 +2638,6 @@ static aether_status_t send_registration_payload(
             client->config.crypto
                 ->profile.symmetric_key_bytes,
 
-            client->registration->req_finish,
             client->registration->pow_salt,
             client->registration->pow_salt_len,
             client->registration->pow_suffix,
@@ -2707,7 +2703,6 @@ static aether_status_t send_recovery_request(
             client->pending_recovery_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
-            client->req_resolve,
             client->uid);
 
 
@@ -2762,7 +2757,6 @@ static aether_status_t send_resolve_servers(
             client->temp_key,
             client->config.crypto
                 ->profile.symmetric_key_bytes,
-            client->req_resolve,
             client->cloud_sids,
             client->cloud_count);
 
@@ -3268,19 +3262,6 @@ static aether_status_t handle_reg_safe_plain(
 }
 
 
-static aether_status_t handle_global_plain(
-    aether_client_t *client,
-    const uint8_t *data,
-    size_t length) {
-
-    (void)data;
-    (void)length;
-
-    return
-        fail(
-            client,
-            AETHER_ERR_PROTOCOL);
-}
 
 
 static aether_status_t handle_registration_rx(
@@ -3524,12 +3505,6 @@ aether_reg_unsafe_frame_t frame = {
             key =
                 client->temp_key;
 
-        } else if (
-            frame.kind ==
-            AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL) {
-
-            key =
-                client->master_key;
 
         } else {
             return
@@ -3557,17 +3532,13 @@ aether_reg_unsafe_frame_t frame = {
                     AETHER_ERR_CRYPTO);
         }
 
+
         aether_status_t status =
-            frame.kind ==
-                AETHER_REG_UNSAFE_FRAME_ENTER
-                ? handle_reg_safe_plain(
-                      client,
-                      client->tx_crypto,
-                      plain_len)
-                : handle_global_plain(
-                      client,
-                      client->tx_crypto,
-                      plain_len);
+            handle_reg_safe_plain(
+                client,
+                client->tx_crypto,
+                plain_len);
+
 
         if (status != AETHER_OK) {
             return status;
