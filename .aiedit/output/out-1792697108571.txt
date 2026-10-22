@@ -1,0 +1,519 @@
+>>> bash
+
+>>> bash
+                 UINT32_C(0x80000000)) !=
+                0u) {
+
+                /*
+                 * Preserve the compatibility diagnostic for mandatory
+                 * internal traffic, but do not publish a send-future result.
+                 */
+                emit_error(
+                    client,
+                    AETHER_ERR_REMOTE,
+                    AETHER_ERROR_ORIGIN_REMOTE,
+                    client->state,
+                    request_id);
+
+                continue;
+            }
+
+            if (client->ingress.kind !=
+                AETHER_INGRESS_NONE) {
+
+                return AETHER_ERR_BUSY;
+            }
+
+            client->ingress.kind =
+                AETHER_INGRESS_REQUEST_RESULT;
+
+            client->ingress.as.request_result.request_id =
+                request_id;
+
+            client->ingress.as.request_result.status =
+                AETHER_ERR_REMOTE;
+
+            emit_error(
+                client,
+                AETHER_ERR_REMOTE,
+                AETHER_ERROR_ORIGIN_REMOTE,
+                client->state,
+                request_id);
+
+            client->rx_plain_pos =
+                reader.pos;
+
+            return AETHER_OK;
+        }
+
+        if (command ==
+            CLIENT_SAFE_SEND_MESSAGE) {
+
+            aether_status_t status =
+                yield_message(
+>>> [elapsed: 2ms]
+
+>>> bash
+            reader,
+            &payload,
+            &length) ||
+        reader->failed) {
+
+        return AETHER_ERR_PROTOCOL;
+    }
+
+    client->ingress.kind =
+        AETHER_INGRESS_MESSAGE;
+
+    client->ingress.as.message.from =
+        from;
+
+    client->ingress.as.message.payload.data =
+        payload;
+
+    client->ingress.as.message.payload.length =
+        length;
+
+    return AETHER_OK;
+}
+
+
+/*
+ * Resume one decrypted ClientApiSafe stream from tx_crypto.
+ *
+ * The function stops immediately after yielding one message.
+ */
+static aether_status_t resume_client_safe_plain(
+    aether_client_t *client) {
+
+    reader_t reader = {
+        client->tx_crypto,
+        client->rx_plain_length,
+        client->rx_plain_pos,
+        false
+    };
+
+    if (client->rx_messages_remaining !=
+        0u) {
+
+        aether_status_t status =
+            yield_message(
+                client,
+                &reader);
+
+        if (status != AETHER_OK) {
+            return status;
+        }
+>>> [elapsed: 2ms]
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2015:r         return AETHER_ERR_UNSUPPORTED;
+    4537:r         return AETHER_ERR_UNSUPPORTED;
+    4635:r             return AETHER_ERR_UNSUPPORTED;
+>>> (всего найдено строк: 3)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4620 to 4645
+    4620:}         };
+    4621:  
+    4622:u         uint8_t command =
+    4623:r             r_u8(&outer);
+    4624:  
+    4625:i         if (command ==
+    4626:C             CLIENT_UNSAFE_SAFE_DATA_MULTI) {
+    4627:  
+    4628:(             (void)r_u8(
+    4629:&                 &outer);
+    4630:  
+    4631:}         } else if (
+    4632:c             command !=
+    4633:C             CLIENT_UNSAFE_SAFE_DATA) {
+    4634:  
+    4635:r             return AETHER_ERR_UNSUPPORTED;
+    4636:}         }
+    4637:  
+    4638:c         const uint8_t *cipher;
+    4639:s         size_t cipher_len;
+    4640:  
+    4641:i         if (!r_view(
+    4642:&                 &outer,
+    4643:&                 &cipher,
+    4644:&                 &cipher_len)) {
+    4645:  
+>>> (показано строк: 26 из 5731)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2010 to 2018
+    2010:p         profile->signature_bytes ==
+    2011:0             0u ||
+    2012:p         profile->signature_bytes >
+    2013:A             AETHER_MAX_CRYPTO_SIGNATURE_BYTES) {
+    2014:  
+    2015:r         return AETHER_ERR_UNSUPPORTED;
+    2016:}     }
+    2017:  
+    2018:i     if (client->config.trusted_sign_keys ==
+>>> (показано строк: 9 из 5731)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      4534:r             return AETHER_OK;
+      4535:}         }
+    + 4536:  
+    + 4537:  
+    + 4538:f             fprintf(stderr, "DBG unsupported cmd safe=%u pos=%u\r\n", (unsigned)command, (unsigned)reader.pos);
+      4539:  
+      4540:r         return AETHER_ERR_UNSUPPORTED;
+    ...
+      4635:c             command !=
+      4636:C             CLIENT_UNSAFE_SAFE_DATA) {
+    + 4637:  
+    + 4638:  
+    + 4639:f             fprintf(stderr, "DBG unsupported cmd unsafe=%u\r\n", (unsigned)command);
+      4640:  
+      4641:r             return AETHER_ERR_UNSUPPORTED;
+
+>>> bash
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 273ms]
+>>> bash
+EXIT=1
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG send_reg_enter: after asym encrypt cipher_len=144
+DBG send_reg_enter: after build_enter packet_len=147 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG send_reg_enter: after asym encrypt cipher_len=144
+DBG send_reg_enter: after build_enter packet_len=147 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG send_reg_enter: after asym encrypt cipher_len=296
+DBG send_reg_enter: after build_enter packet_len=300 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG send_reg_enter: after asym encrypt cipher_len=296
+DBG send_reg_enter: after build_enter packet_len=300 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=e658ecefd48441e493bbfc18bbdd42bb uid=8f50542dce95462a83dae8f4cfe9f2bc pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+DBG send_reg_enter: after asym encrypt cipher_len=130
+DBG send_reg_enter: after build_enter packet_len=133 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=171b65d5c59d49dfada2df382b1bb6de uid=b3505dd8a15f470b98e8ed02db24850b pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+>>> [elapsed: 22788ms]
+
+>>> bash
+DBG send_reg_enter: after build_enter packet_len=133 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG unsupported cmd safe=24 pos=1
+c-client-b Aether error code=-8 origin=1
+Failed while establishing UAP window
+
+> Task :tests:test
+
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+    org.opentest4j.AssertionFailedError: Process failed: /home/angel/projects/aether-client-c/build-p2p-e2e/aether_p2p_e2e ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:560)
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+
+1 test completed, 1 failed
+
+> Task :tests:test FAILED
+
+[Incubating] Problems report is available at: file:///home/angel/projects/aether/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':tests:test'.
+> There were failing tests. See the report at: file:///home/angel/projects/aether/tests/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 22s
+89 actionable tasks: 89 executed
+>>> [elapsed: 9ms]
+
+>>> bash
+8745:    if (!aether_data_out_write_byte(out, 24u)) {
+9871:    if (!aether_data_out_write_byte(out, 24u)) {
+>>> [elapsed: 2ms]
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 8735 to 8760
+    8735:a aether_status_t csa_client_api_safe_send_ping_ack(
+    8736:c     csa_client_api_safe_remote_t *api) {
+    8737:  
+    8738:i     if (api == NULL ||
+    8739:a         api->send == NULL ||
+    8740:a         api->out == NULL) {
+    8741:r         return AETHER_ERR_ARGUMENT;
+    8742:}     }
+    8743:  
+    8744:a     aether_data_out_t *out = api->out;
+    8745:i     if (!aether_data_out_write_byte(out, 24u)) {
+    8746:r         return AETHER_ERR_OVERFLOW;
+    8747:}     }
+    8748:  
+    8749:r     return api->send(
+    8750:a         api->send_ctx,
+    8751:a         api->out->data,
+    8752:a         api->out->pos);
+    8753:} }
+    8754:  
+    8755:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:288 api.ClientApiSafe.methods.sendAddToAccessGroupResult */
+    8756:a aether_status_t csa_client_api_safe_send_add_to_access_group_result(
+    8757:c     csa_client_api_safe_remote_t *api,
+    8758:a     aether_uuid_t groupId,
+    8759:a     aether_uuid_t uid,
+    8760:b     bool ok) {
+>>> (показано строк: 26 из 16984)
+>>> bash
+>>> [elapsed: 4ms]
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4430 to 4560
+    4430:C             CMD_ERROR) {
+    4431:  
+    4432:u             uint32_t request_id =
+    4433:r                 r_u32le(&reader);
+    4434:  
+    4435:i             if (reader.failed) {
+    4436:r                 return AETHER_ERR_PROTOCOL;
+    4437:}             }
+    4438:  
+    4439:i             if ((request_id &
+    4440:U                  UINT32_C(0x80000000)) !=
+    4441:0                 0u) {
+    4442:  
+    4443:/                 /*
+    4444:*                  * Preserve the compatibility diagnostic for mandatory
+    4445:*                  * internal traffic, but do not publish a send-future result.
+    4446:*                  */
+    4447:e                 emit_error(
+    4448:c                     client,
+    4449:A                     AETHER_ERR_REMOTE,
+    4450:A                     AETHER_ERROR_ORIGIN_REMOTE,
+    4451:c                     client->state,
+    4452:r                     request_id);
+    4453:  
+    4454:c                 continue;
+    4455:}             }
+    4456:  
+    4457:i             if (client->ingress.kind !=
+    4458:A                 AETHER_INGRESS_NONE) {
+    4459:  
+    4460:r                 return AETHER_ERR_BUSY;
+    4461:}             }
+    4462:  
+    4463:c             client->ingress.kind =
+    4464:A                 AETHER_INGRESS_REQUEST_RESULT;
+    4465:  
+    4466:c             client->ingress.as.request_result.request_id =
+    4467:r                 request_id;
+    4468:  
+    4469:c             client->ingress.as.request_result.status =
+    4470:A                 AETHER_ERR_REMOTE;
+    4471:  
+    4472:e             emit_error(
+    4473:c                 client,
+    4474:A                 AETHER_ERR_REMOTE,
+    4475:A                 AETHER_ERROR_ORIGIN_REMOTE,
+    4476:c                 client->state,
+    4477:r                 request_id);
+    4478:  
+    4479:c             client->rx_plain_pos =
+>>> (показано строк: 131 из 5737)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4380 to 4430
+    4380:r            reader.pos <
+    4381:r                reader.length) {
+    4382:  
+    4383:u         uint8_t command =
+    4384:r             r_u8(&reader);
+    4385:  
+    4386:i         if (command ==
+    4387:C             CMD_RESULT) {
+    4388:  
+    4389:u             uint32_t request_id =
+    4390:r                 r_u32le(&reader);
+    4391:  
+    4392:i             if (reader.failed) {
+    4393:r                 return AETHER_ERR_PROTOCOL;
+    4394:}             }
+    4395:  
+    4396:/             /*
+    4397:*              * High-bit request ids are mandatory internal work traffic.
+    4398:*              * A delayed ping acknowledgement is therefore harmless even after
+    4399:*              * many later application requests have been issued.
+    4400:*              */
+    4401:i             if ((request_id &
+    4402:U                  UINT32_C(0x80000000)) !=
+    4403:0                 0u) {
+    4404:  
+    4405:c                 continue;
+    4406:}             }
+    4407:  
+    4408:i             if (client->ingress.kind !=
+    4409:A                 AETHER_INGRESS_NONE) {
+    4410:  
+    4411:r                 return AETHER_ERR_BUSY;
+    4412:}             }
+    4413:  
+    4414:c             client->ingress.kind =
+    4415:A                 AETHER_INGRESS_REQUEST_RESULT;
+    4416:  
+    4417:c             client->ingress.as.request_result.request_id =
+    4418:r                 request_id;
+    4419:  
+    4420:c             client->ingress.as.request_result.status =
+    4421:A                 AETHER_OK;
+    4422:  
+    4423:c             client->rx_plain_pos =
+    4424:r                 reader.pos;
+    4425:  
+    4426:r             return AETHER_OK;
+    4427:}         }
+    4428:  
+    4429:i         if (command ==
+>>> (показано строк: 51 из 5737)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      4533:  
+      4534:r             return AETHER_OK;
+    + 4535:}         }
+    + 4536:  
+    + 4537:  
+    + 4538:  
+    + 4539:i         if (command == 24u) {
+    + 4540:c             continue;
+      4541:}         }
+      4542:  
+
+>>> bash
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 279ms]
+>>> bash
+=== LOG ===
+f09680f wip: handle cmd=67 workProofData (subtask checkpoint)
+e0daf58 wip: allow subtask to continue fixing client B (cmd=67 workProofData)
+281e51b protocol: accept ENTER_GLOBAL push frame in registration rx
+ff195bd checkpoint before adding push-opcode debug
+3d9aedf checkpoint: before finalizing protocol fix for client B
+=== STATUS ===
+ M aiedit_context.yaml
+ M src/aether_client.c
+?? .aiedit/output/out-1792696288167.txt
+?? .aiedit/output/out-1792696399496.txt
+?? .aiedit/output/out-1792696417864.txt
+?? .aiedit/output/out-1792696512856.txt
+?? .aiedit/output/out-1792696673442.txt
+?? .aiedit/output/out-1792696876181.txt
+=== TEST ===
+EXIT=0
+DBG send_reg_enter: after build_enter packet_len=147 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG send_reg_enter: after asym encrypt cipher_len=144
+DBG send_reg_enter: after build_enter packet_len=147 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG send_reg_enter: after asym encrypt cipher_len=296
+DBG send_reg_enter: after build_enter packet_len=300 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG send_reg_enter: after asym encrypt cipher_len=296
+DBG send_reg_enter: after build_enter packet_len=300 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=5f81af5f8f46410dac6dfff80acd5379 uid=8c5e6ea918ec47bfb79ed3a1e47dc29c pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+DBG send_reg_enter: after asym encrypt cipher_len=130
+DBG send_reg_enter: after build_enter packet_len=133 status=0
+DBG send_reg_enter: after transport_send status=0
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=6e1119958f5b4bb891b921695d31c914 uid=e1f8d820cda44c65b5c511600e6ee06c pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+DBG send_reg_enter: after asym encrypt cipher_len=130
+>>> [elapsed: 27084ms]
+
+>>> bash
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() PASSED
+BUILD SUCCESSFUL in 26s
+>>> [elapsed: 5ms]
+
+>>> bash
+ create mode 100644 .aiedit/output/out-1792696399496.txt
+ create mode 100644 .aiedit/output/out-1792696417864.txt
+ create mode 100644 .aiedit/output/out-1792696512856.txt
+ create mode 100644 .aiedit/output/out-1792696673442.txt
+ create mode 100644 .aiedit/output/out-1792696876181.txt
+>>> [elapsed: 32ms]
+>>> bash
+941480d fix: complete push-model registration for both C clients
+f09680f wip: handle cmd=67 workProofData (subtask checkpoint)
+e0daf58 wip: allow subtask to continue fixing client B (cmd=67 workProofData)
+>>> [elapsed: 3ms]
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() PASSED
+BUILD SUCCESSFUL in 42s
+>>> [elapsed: 222593ms]
