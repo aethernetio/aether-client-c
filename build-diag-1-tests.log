@@ -1,0 +1,96 @@
+[  6%] Built target aether_hydrogen_vendor
+[ 16%] Built target aether_hydrogen_test_support
+[ 93%] Built target aether_client
+[ 96%] Building C object CMakeFiles/aether_client_test.dir/tests/test_client.c.o
+In file included from /home/angel/projects/aether-client-c/tests/test_client.c:18:
+/home/angel/projects/aether-client-c/tests/test_client.c: In function ‘test_recovery_builder_matches_canonical’:
+/home/angel/projects/aether-client-c/tests/test_client.c:3268:9: error: incompatible type for argument 12 of ‘aether_generated_reg_safe_build_recovery’
+ 3268 |         request_id,
+      |         ^~~~~~~~~~
+      |         |
+      |         uint32_t {aka unsigned int}
+In file included from /home/angel/projects/aether-client-c/tests/test_client.c:7:
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h:52:19: note: expected ‘aether_uuid_t’ but argument is of type ‘uint32_t’ {aka ‘unsigned int’}
+   52 |     aether_uuid_t uid);
+      |     ~~~~~~~~~~~~~~^~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3256:12: error: too many arguments to function ‘aether_generated_reg_safe_build_recovery’; expected 12, have 13
+ 3256 |     assert(aether_generated_reg_safe_build_recovery(
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+......
+ 3269 |         uid) == AETHER_OK);
+      |         ~~~ 
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h:40:17: note: declared here
+   40 | aether_status_t aether_generated_reg_safe_build_recovery(
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3268:9: error: incompatible type for argument 12 of ‘aether_generated_reg_safe_build_recovery’
+ 3268 |         request_id,
+      |         ^~~~~~~~~~
+      |         |
+      |         uint32_t {aka unsigned int}
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h:52:19: note: expected ‘aether_uuid_t’ but argument is of type ‘uint32_t’ {aka ‘unsigned int’}
+   52 |     aether_uuid_t uid);
+      |     ~~~~~~~~~~~~~~^~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3256:12: error: too many arguments to function ‘aether_generated_reg_safe_build_recovery’; expected 12, have 13
+ 3256 |     assert(aether_generated_reg_safe_build_recovery(
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+......
+ 3269 |         uid) == AETHER_OK);
+      |         ~~~ 
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h:40:17: note: declared here
+   40 | aether_status_t aether_generated_reg_safe_build_recovery(
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3317:9: error: incompatible type for argument 2 of ‘csa_server_registration_api_recovery’
+ 3317 |         request_id,
+      |         ^~~~~~~~~~
+      |         |
+      |         uint32_t {aka unsigned int}
+In file included from /home/angel/projects/aether-client-c/tests/test_client.c:8:
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:2610:19: note: expected ‘aether_uuid_t’ but argument is of type ‘uint32_t’ {aka ‘unsigned int’}
+ 2610 |     aether_uuid_t uid,
+      |     ~~~~~~~~~~~~~~^~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3318:9: error: incompatible type for argument 3 of ‘csa_server_registration_api_recovery’
+ 3318 |         uid,
+      |         ^~~
+      |         |
+      |         aether_uuid_t
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:2611:30: note: expected ‘const common_key_ref_t *’ but argument is of type ‘aether_uuid_t’
+ 2611 |     const common_key_ref_t * oldMasterKey,
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3315:12: error: too many arguments to function ‘csa_server_registration_api_recovery’; expected 4, have 5
+ 3315 |     assert(csa_server_registration_api_recovery(
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+......
+ 3320 |         &new_master_ref) == AETHER_OK);
+      |         ~~~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:2608:17: note: declared here
+ 2608 | aether_status_t csa_server_registration_api_recovery(
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3317:9: error: incompatible type for argument 2 of ‘csa_server_registration_api_recovery’
+ 3317 |         request_id,
+      |         ^~~~~~~~~~
+      |         |
+      |         uint32_t {aka unsigned int}
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:2610:19: note: expected ‘aether_uuid_t’ but argument is of type ‘uint32_t’ {aka ‘unsigned int’}
+ 2610 |     aether_uuid_t uid,
+      |     ~~~~~~~~~~~~~~^~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3318:9: error: incompatible type for argument 3 of ‘csa_server_registration_api_recovery’
+ 3318 |         uid,
+      |         ^~~
+      |         |
+      |         aether_uuid_t
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:2611:30: note: expected ‘const common_key_ref_t *’ but argument is of type ‘aether_uuid_t’
+ 2611 |     const common_key_ref_t * oldMasterKey,
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+/home/angel/projects/aether-client-c/tests/test_client.c:3315:12: error: too many arguments to function ‘csa_server_registration_api_recovery’; expected 4, have 5
+ 3315 |     assert(csa_server_registration_api_recovery(
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+......
+ 3320 |         &new_master_ref) == AETHER_OK);
+      |         ~~~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:2608:17: note: declared here
+ 2608 | aether_status_t csa_server_registration_api_recovery(
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gmake[3]: *** [CMakeFiles/aether_client_test.dir/build.make:79: CMakeFiles/aether_client_test.dir/tests/test_client.c.o] Ошибка 1
+gmake[2]: *** [CMakeFiles/Makefile2:503: CMakeFiles/aether_client_test.dir/all] Ошибка 2
+gmake[1]: *** [CMakeFiles/Makefile2:510: CMakeFiles/aether_client_test.dir/rule] Ошибка 2
+gmake: *** [Makefile:277: aether_client_test] Ошибка 2

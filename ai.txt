@@ -356,14 +356,30 @@ gradle :tests:test --tests io.aether.cloudClient.CClientP2PTest
   - `server-cloud/src/main/resources/ServerCloud.adsl.yaml`
   - `server-cloud/src/main/resources/WorkServerToWorkServerApi.adsl.yaml`
   - и др.
-- Первая ошибка p2p-теста была в `src/aether_client.c` (строка ~5603): вызов `csa_authorized_api_send_message_with_result(&authorized, request_id, &message)`, а новая сигнатура — `(api, msg)`. Уже исправлено (убрали `request_id`).
-- Вторая ошибка — `src/generated/aether_reg_global.c` не компилируется: использует `csa_global_reg_server_api_remote_t`, `csa_global_reg_server_api_set_master_key`, `csa_global_reg_server_api_finish`, но этих типов/функций нет в новом `src/generated/aether_api.h`. Это указывает на то, что `aether_reg_*.c` сгенерированы старым генератором и должны быть перегенерированы (или заменены новым подходом).
-- В `aether_client.c` используются функции `aether_generated_reg_root_build_get_key`, `aether_generated_reg_root_build_enter`, `aether_generated_reg_safe_build_pow`, `aether_generated_reg_safe_build_registration_direct`, `aether_generated_reg_safe_build_recovery`, `aether_generated_reg_safe_build_resolve_with_return_key`, `aether_generated_reg_unsafe_decode` (строки ~2428–3824). Это точки интеграции регистрационного кода.
+
+- - Сборка src/generated/ + aether_client.c + aether_reg_*.c сейчас зелёная.
+- - В host-сборке (CMakeLists.txt) src/generated/aether_reg_global.c больше не участвует: собираются только aether_reg_safe.c, aether_reg_root_key.c, aether_reg_root_enter.c, aether_reg_unsafe_local.c, плюс единый aether_api.c.
+- - tests/test_client.c отстаёт от нового API: aether_generated_reg_safe_build_recovery теперь принимает 12 аргументов (последний - aether_uuid_t uid), а csa_server_registration_api_recovery - 4 аргумента (api, uid, oldMasterKey, newMasterKey). Это единственный известный источник падения build-diag-1-tests.log.
+
 - В CMakeLists.txt есть комментарий: `# peer temporarily disabled: PeerApi.adsl.yaml was rewritten` — peer-функциональность отключена.
 
-### Рекомендуемый план для следующего чата
-1. Разобраться, как правильно сгенерировать `aether_api.h/.c` для aether-client-c (какие ADSL-файлы подавать на вход aether-adslc).
-2. Перегенерировать код в `src/generated/`.
-3. Адаптировать `aether_client.c` и `aether_reg_*.c` под новые сигнатуры (методы без возвращаемого результата).
-4. Убедиться, что `aether_p2p_e2e` собирается, и прогнать `CClientP2PTest`.
 
+# ### Текущий статус и следующий шаг
+1 1. ВЫПОЛНЕНО: aether_api.h/.c для aether-client-c сгенерированы; aether_client.c и aether_reg_*.c совместимы с новым API.
+2 2. ВЫПОЛНЕНО: aether_p2p_e2e собирается без ошибок.
+3 3. НЕ ВЫПОЛНЕНО: прогнать CClientP2PTest.twoCClientsRegisterAndExchangeMessages — актуальный статус E2E протокола пока неизвестен.
+4 4. НЕ ВЫПОЛНЕНО: привести tests/test_client.c к новым сигнатурам (блокирует локальный тест-сьют, но не p2p_e2e).
+
+
+AETHER C CLIENT (aether-client-c) — архитектура:
+- Проект: /home/angel/projects/aether-client-c. CMakeLists.txt в корне. Тестовый харнесс живёт в /home/angel/projects/aether (gradle), он собирает C-клиент в aether-client-c/build-p2p-e2e и запускает два экземпляра.
+- Тест: io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages. Запуск: gradle :tests:test --tests ... --rerun-tasks из /home/angel/projects/aether.
+- Исходники: src/aether_client.c (монолит state machine ~5500 строк), src/aether_client_app.c, src/aether_meta_runtime.c, src/aether_transport*.c, src/aether_messages.c, src/aether_lan*.c, src/aether_registration.c, src/aether_credentials.c, platform/posix/aether_posix_transport.c.
+- include/: публичные заголовки (aether_client.h). Каналы: AETHER_CHANNEL_REGISTRATION=0, AETHER_CHANNEL_WORK=1.
+- src/generated/: ТОЛЬКО aether_api.h + aether_api.c (единая пара, генерируется новым aether-adslc). Старые per-module файлы (aether_reg_*, client_server_*, peer_api_*) — удалены/устарели.
+- Генератор: tools/aether-protocol-c/build-tz1/aether-adslc --input <adsl.yaml>... <output-dir>. Входные схемы: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml + /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml (+ aether_reflection.adsl.yaml при необходимости).
+- aether_reflection.adsl.yaml не поддерживает поле 'constants:' в типах — при генерации оно удаляется (yamlDelete types.<Type>.constants). Если генератор ругается 'unsupported type property constants' — удалить все constants: блоки.
+- Сгенерированный код использует типы aether_data_out_t / aether_data_in_t из aether_meta_runtime.c — при проблемах совместимости генерируемого aether_api.c с runtime, это баг генератора или runtime, не править генерируемый файл вручную.
+- ПРОТОКОЛ: request_id из протокола УДАЛЕНЫ намеренно (упрощение для MCU, меньше памяти). Сервер отвечает на запросы ПУШ-сообщениями без обёртки CMD_RESULT. Пример: getAsymmetricPublicKey (client → opcode=3) получает ответ sendAsymmetricPublicKey (server → opcode=70, SignedKey) БЕЗ request_id. Рабочие реализации: Java-клиент /home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java и TypeScript-клиент — смотреть их для семантики протокола, а не сервер.
+- В aether_client.c устаревшая request/response-модель с req_server_key/req_pow/req_finish — она не соответствует новому протоколу. handle_registration_rx обрабатывает только CMD_RESULT(0)/CMD_ERROR(1) и fallback unsafe_decode, а push-фрейм cmd=70 уходит в fail(PROTOCOL). Это и есть причина падения P2P-теста.
+- CMD_RESULT = 0u, CMD_ERROR = 1u (aether_client.c:59-60). Опкоды ответов сервера: 70 = ClientApiUnsafe.sendAsymmetricPublicKey, 6 = RegistrationRootApi.getMyIp, 4 = RegistrationRootApi.enter.

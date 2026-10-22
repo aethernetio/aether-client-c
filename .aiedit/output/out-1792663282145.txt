@@ -1,0 +1,1097 @@
+>>> findFiles
+aether /home/angel/projects/aether
+[FILE] tests/src/test/java/io/aether/cloudClient/AbstractTypeScriptTestExecutor.java
+[FILE] tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/CliMessageTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/ClientRemoteTests.java
+[FILE] tests/src/test/java/io/aether/cloudClient/ClientTests.java
+[FILE] tests/src/test/java/io/aether/cloudClient/EchoTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/OfflineMessagingTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/ProxyExternalInboundEndToEndTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/ProxyExternalMessagingEndToEndTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/ProxyLocalMessagingEndToEndTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/ServerRecoveryTests.java
+[FILE] tests/src/test/java/io/aether/cloudClient/SmartHubTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/StreamApiNetTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/TypeScriptIntegrationTests.java
+[FILE] tests/src/test/java/io/aether/cloudClient/WorkProxyEndToEndTest.java
+[FILE] tests/src/test/java/io/aether/cloudClient/WorkServerResilienceTests.java
+[DIR]  tests
+[DIR]  tests/src
+[DIR]  tests/src/test
+[DIR]  tests/src/test/java
+[DIR]  tests/src/test/java/io
+[DIR]  tests/src/test/java/io/aether
+[DIR]  tests/src/test/java/io/aether/cloudClient
+>>> (итог: 7 директорий, 16 файлов)
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/*.java
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 9: token recognition error at: '(' @ line 9, column 11.    for f in $(grep -rl 'CClient\\|cRepo' /home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/ --include='*.java'); do              ^  1 error 
+````
+
+>>> findRegexp
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/CliMessageTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/TypeScriptIntegrationTests.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/EchoTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/SmartHubTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/OfflineMessagingTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java
+    12:c class CClientP2PTest extends AbstractTestStarter {
+    15:v     void twoCClientsRegisterAndExchangeMessages() throws Exception {
+    23:F             File cRepo = findCClientRepository();
+    26:c                     cRepo,
+    37:c                     cRepo,
+    48:c                     cRepo,
+    51:c                             cRepo,
+    60:p     private static File findCClientRepository()
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/WorkServerResilienceTests.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/ServerRecoveryTests.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/WorkProxyEndToEndTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/ProxyLocalMessagingEndToEndTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/ProxyExternalMessagingEndToEndTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/ProxyExternalInboundEndToEndTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/ClientRemoteTests.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/ClientTests.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/StreamApiNetTest.java
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/AbstractTypeScriptTestExecutor.java
+/home/angel/projects/client-ts/tests/src/test/java/io/aether/cloudClient/TestSmartDeviceEmulator.java
+>>> Found 8 matches.
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+===== tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java =====
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+>>> [elapsed: 6ms]
+>>> bash
+===== src/generated/aether_api.h =====
+#ifndef AETHER_API_H
+#define AETHER_API_H
+
+#include "aether_dataio.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_interaction_client_stream_t;
+
+
+===== src/generated/aether_api.c =====
+#include "aether_api.h"
+#include "aether_meta_runtime.h"
+
+#include <string.h>
+
+>>> [elapsed: 7ms]
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/tests/CMakeLists.txt>>> bash
+>>> [elapsed: 1ms]
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/src/**/*stream*>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 2 директорий, 2 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 16 директорий, 75 файлов)
+>>> bash
+>>> [elapsed: 97ms]
+
+>>> bash
+===== tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java =====
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+>>> [elapsed: 19ms]
+>>> bash
+===== src/generated/aether_api.c =====
+#include "aether_api.h"
+#include "aether_meta_runtime.h"
+
+#include <string.h>
+
+bool csa_serialize_telemetry(
+    aether_data_out_t *out,
+    const void *value,
+    unsigned int depth) {
+
+    if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    if (out == NULL || value == NULL) return false;
+    const csa_telemetry_ref_t *v = (const csa_telemetry_ref_t *)value;
+    if (v == NULL) return false;
+    if (!aether_data_out_write_byte(out, (uint8_t)(*v).type_id)) return false;
+    switch ((*v).type_id) {
+    case 1u:
+        if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    if (!aether_data_out_write_uint(out, (uint32_t)(*v).as.csa_telemetry_c_p_p->utm_id)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->blob.data, (*v).as.csa_telemetry_c_p_p->blob.length)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->lib_version.data, (*v).as.csa_telemetry_c_p_p->lib_version.length)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->os.data, (*v).as.csa_telemetry_c_p_p->os.length)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->compiler.data, (*v).as.csa_telemetry_c_p_p->compiler.length)) return false;
+        break;
+    default:
+        return false;
+    }
+
+    (void)v;
+
+===== src/generated/aether_api.h =====
+#ifndef AETHER_API_H
+#define AETHER_API_H
+
+#include "aether_dataio.h"
+#include <stdbool.h>
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 8ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 166ms]
+
+>>> bash
+--- В tests/ ---
+--- В корне ---
+./build-release/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-release/CMakeFiles/Makefile.cmake
+./build-release/cmake_install.cmake
+./build-release/CTestTestfile.cmake
+./build-stack-noinline/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-stack-noinline/CMakeFiles/Makefile.cmake
+./build-stack-noinline/cmake_install.cmake
+./build-stack-noinline/CTestTestfile.cmake
+./build-stack/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-stack/CMakeFiles/Makefile.cmake
+./build-stack/cmake_install.cmake
+./build-stack/CTestTestfile.cmake
+./build-esp32-size/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-esp32-size/CMakeFiles/Makefile.cmake
+./build-esp32-size/cmake_install.cmake
+./esp32-size/src/CMakeLists.txt
+./esp32-size/CMakeLists.txt
+./build-vla/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-vla/CMakeFiles/Makefile.cmake
+./build-vla/cmake_install.cmake
+./build-size/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-size/CMakeFiles/Makefile.cmake
+./build-size/cmake_install.cmake
+./build-size/CTestTestfile.cmake
+./platform/esp32/CMakeLists.txt
+./build-p2p-dev/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-p2p-dev/CMakeFiles/Makefile.cmake
+./build-p2p-dev/cmake_install.cmake
+./build-p2p-dev/CTestTestfile.cmake
+./build-p2p-e2e/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-p2p-e2e/CMakeFiles/Makefile.cmake
+./build-p2p-e2e/cmake_install.cmake
+./build-p2p-e2e/CTestTestfile.cmake
+./build-refactor/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-refactor/CMakeFiles/Makefile.cmake
+./build-refactor/cmake_install.cmake
+./build-refactor/CTestTestfile.cmake
+./build-api-debug/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-api-debug/CMakeFiles/Makefile.cmake
+./build-api-debug/cmake_install.cmake
+./build-api-debug/CTestTestfile.cmake
+./build-api-release/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-api-release/CMakeFiles/Makefile.cmake
+./build-api-release/cmake_install.cmake
+./build-git-checkpoint/CMakeFiles/CMakeDirectoryInformation.cmake
+./build-git-checkpoint/CMakeFiles/Makefile.cmake
+./build-git-checkpoint/cmake_install.cmake
+./build-git-checkpoint/CTestTestfile.cmake
+>>> [elapsed: 15ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 183ms]
+>>> bash
+>>> [elapsed: 5ms]
+
+>>> bash
+=== Файлы с CClient|cRepo и их первые 10 строк ===
+--- tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java ---
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+>>> [elapsed: 18ms]
+>>> bash
+=== Все файлы в src (рекурсивно) ===
+src/generated/aether_api.h
+src/generated/aether_api.c
+src/aether_rx_first.c
+src/aether_rx_all.c
+src/aether_rx_adaptive.c
+src/aether_send_future.c
+src/aether_messages.c
+src/aether_credentials.c
+src/aether_registration.c
+src/aether_lan_codec.h
+src/aether_internal.c
+src/aether_lan_codec.c
+src/aether_lan_cert.h
+src/aether_lan.c
+src/aether_transport.c
+src/aether.c
+src/aether_internal.h
+src/aether_transport_server.c
+src/aether_meta_runtime.c
+src/aether_client_app.c
+src/aether_client_internal.h
+src/aether_hydrogen.c
+src/aether_hydrogen.h
+src/aether_peer_uap.c
+src/aether_peer_identity.c
+src/aether_peer_identity_verify.c
+src/aether_crypto_registry.c
+src/aether_dataio.c
+src/aether_peer_frame.c
+src/aether_client.c
+=== Файлы с 'api' или 'stream' ===
+src/generated/aether_api.h
+src/generated/aether_api.c
+>>> [elapsed: 4ms]
+>>> bash
+=== .adsl.yaml в fixtures ===
+--- tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml ---
+
+>>> [elapsed: 193ms]
+>>> bash
+>>> [elapsed: 5ms]
+
+>>> bash
+>>> [elapsed: 20ms]
+>>> bash
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 3ms]
+>>> bash
+>>> [elapsed: 171ms]
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+>>> [elapsed: 21ms]
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 11ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 177ms]
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+=== CMakeLists.txt (корневой) ===
+cmake_minimum_required(VERSION 3.16)
+project(aether_client_c C)
+
+
+
+
+
+
+add_library(aether_hydrogen_vendor STATIC
+    third_party/libhydrogen/hydrogen.c
+)
+
+target_include_directories(aether_hydrogen_vendor
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+)
+
+target_compile_features(
+    aether_hydrogen_vendor
+    PUBLIC
+        c_std_11
+)
+
+
+add_library(aether_client STATIC
+
+
+    src/aether_client.c
+    src/aether_crypto_registry.c
+    src/aether_meta_runtime.c
+
+    src/aether_client_app.c
+
+    src/aether_rx_first.c
+    src/aether_rx_all.c
+    src/aether_rx_adaptive.c
+
+    src/aether_send_future.c
+    src/aether_messages.c
+    src/aether_transport.c
+    src/aether_transport_server.c
+
+# peer temporarily disabled: PeerApi.adsl.yaml was rewritten
+
+    platform/posix/aether_posix_transport.c
+
+
+    src/aether_registration.c
+    src/aether_credentials.c
+>>> [elapsed: 9ms]
+>>> bash
+>>> [elapsed: 3ms]
+
+>>> bash
+=== Тесты с CClient|cRepo (первые 10 строк) ===
+--- tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java ---
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+>>> [elapsed: 20ms]
+>>> bash
+=== Содержимое tests/ ===
+total 280
+drwxr-xr-x 1 angel angel   856 Oct 13 02:41 .
+drwxrwxr-x 1 angel angel  2336 Oct 22 17:33 ..
+-rw-rw-r-- 1 angel angel  4331 Oct  7 16:22 aether_test_crypto_hydrogen.c
+-rw-rw-r-- 1 angel angel   178 Oct  5 22:45 aether_test_crypto_hydrogen.h
+-rwx--x--x 1 angel angel  5918 Oct  2 02:44 cmake_helpers_check.sh
+-rw-rw-r-- 1 angel angel  8361 Oct 13 02:41 p2p_e2e.c
+-rw------- 1 angel angel  8889 Oct 10 20:42 p2p_test_support.c
+-rw------- 1 angel angel   131 Oct  5 22:45 p2p_test_support.h
+-rw-rw-r-- 1 angel angel  3133 Oct  5 22:45 test_aether.c
+-rw-rw-r-- 1 angel angel  1248 Oct  5 22:45 test_app.c
+-rw------- 1 angel angel 86600 Oct 12 02:19 test_client.c
+-rw------- 1 angel angel 22034 Oct  5 22:47 test_components.c
+-rw-rw-r-- 1 angel angel  1155 Oct  5 22:45 test_credentials.c
+-rw------- 1 angel angel  5969 Oct  5 22:47 test_facade_lifecycle.c
+-rw------- 1 angel angel 14743 Oct  6 00:32 test_facade_scheduler.c
+-rw-rw-r-- 1 angel angel  4028 Oct  5 22:45 test_hydrogen.c
+-rw------- 1 angel angel 12947 Oct  5 22:47 test_lan_cert.c
+-rw------- 1 angel angel  7176 Oct  5 22:45 test_lan_codec.c
+-rw------- 1 angel angel  6618 Oct  5 22:47 test_lan_component.c
+-rw-rw-r-- 1 angel angel  6009 Oct  5 22:45 test_messages.c
+-rw-rw-r-- 1 angel angel  1099 Oct  7 16:56 test_peer_identity.c
+-rw-rw-r-- 1 angel angel   430 Oct  7 17:01 test_peer_identity_verify.c
+-rw-rw-r-- 1 angel angel  1365 Oct  7 16:53 test_peer_uap.c
+-rw-rw-r-- 1 angel angel  6229 Oct  5 22:45 test_rx.c
+-rw-rw-r-- 1 angel angel  5157 Oct  5 22:45 test_send_future.c
+-rw-rw-r-- 1 angel angel 10467 Oct  6 00:37 test_transport.c
+=== Найденные CMakeLists.txt в tests (исключая build) ===
+=== Если нет, покажем содержимое корневого CMakeLists.txt полностью ===
+cmake_minimum_required(VERSION 3.16)
+project(aether_client_c C)
+
+
+
+
+
+>>> [elapsed: 8ms]
+>>> bash
+>>> [elapsed: 3ms]
+>>> bash
+>>> [elapsed: 3ms]
+
+>>> bash
+===== tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java =====
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+>>> [elapsed: 19ms]
+>>> bash
+===== TemperatureSensor.adsl.yaml =====
+
+api:
+  TemperatureSensorApi:
+    methods:
+      reportTemperature:
+        params:
+          temperature: float
+
+===== Список .adsl.yaml файлов =====
+tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/IncludeRoot.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/CycleA.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/CycleB.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/SiblingRoot/Root.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/SiblingCommon/SiblingCommon.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/EnumTypes.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/IntPack.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/NestedStruct.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/Arrays.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/Hierarchy.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/ResultRpc.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/SearchRoot/Root.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/SearchPath/shared.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/ValueTypes.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/NullableStruct.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/ResponseMethod.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/LocalStreamDispatch.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/StaticStructArray.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/NullableApiParams.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/TypedThrows.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/TieredInt.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/RecursiveStruct.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/InvalidDirectByValueCycle.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/InvalidMutualByValueCycle.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/InvalidFixedArrayByValueCycle.adsl.yaml
+tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleResponse.adsl.yaml
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 4ms]
+
+>>> bash
+=== [1] Тесты с CClient|cRepo ===
+--- tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java ---
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+>>> [elapsed: 19ms]
+>>> bash
+=== [2] Корневой CMakeLists.txt (первые 200 строк) ===
+cmake_minimum_required(VERSION 3.16)
+project(aether_client_c C)
+
+
+
+
+
+
+add_library(aether_hydrogen_vendor STATIC
+    third_party/libhydrogen/hydrogen.c
+)
+
+target_include_directories(aether_hydrogen_vendor
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+)
+
+target_compile_features(
+    aether_hydrogen_vendor
+    PUBLIC
+        c_std_11
+)
+
+
+add_library(aether_client STATIC
+
+
+    src/aether_client.c
+    src/aether_crypto_registry.c
+    src/aether_meta_runtime.c
+
+    src/aether_client_app.c
+
+    src/aether_rx_first.c
+    src/aether_rx_all.c
+    src/aether_rx_adaptive.c
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 90ms]
+>>> bash
+>>> [elapsed: 3ms]
+
+>>> bash
+=== [1] Тесты с CClient|cRepo ===
+--- tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java ---
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+>>> [elapsed: 20ms]
+>>> bash
+=== [2] src/generated/aether_api.h (первые 100 строк) ===
+#ifndef AETHER_API_H
+#define AETHER_API_H
+
+#include "aether_dataio.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_interaction_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_api_stream_t;
+
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 16ms]
+>>> bash
+>>> [elapsed: 3ms]
+
+>>> bash
+{
+  echo "=== [1] Тесты с CClient|cRepo в cloudClient ==="
+  for f in tests/src/test/java/io/aether/cloudClient/*.java; do
+    if grep -qE 'CClient|cRepo' "$f"; then
+      echo "--- $f ---"
+      head -n 10 "$f"
+      echo
+    fi
+  done
+} > /tmp/aether_report.txt
+>>> [elapsed: 18ms]
+>>> bash
+{
+  echo "=== [2] Файлы в src/generated ==="
+  for f in src/generated/*; do
+    [ -f "$f" ] || continue
+    echo "--- $f ---"
+    head -n 30 "$f"
+    echo
+  done
+
+  echo "=== [3] CMakeLists.txt (корневой, первые 100 строк) ==="
+  head -n 100 CMakeLists.txt
+
+  echo "=== [4] Файлы с 'stream' или 'api' в src ==="
+  find src -type f | grep -iE 'api|stream'
+
+  echo "=== [5] .adsl.yaml файлы в fixtures ==="
+  find tools/aether-protocol-c/tests/fixtures -name '*.adsl.yaml' -type f | while read -r file; do
+    echo "--- $file ---"
+    head -n 30 "$file"
+    echo
+  done
+} >> /tmp/aether_report.txt
+>>> [elapsed: 167ms]
+>>> (отфильтровано: из 1203 строк оставлено 300)
+>>> view
+/tmp/aether_report.txt
+    1:= === [1] Тесты с CClient|cRepo в cloudClient ===
+    2:- --- tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java ---
+    3:  
+    4:p package io.aether.cloudClient;
+    5:  
+    6:i import io.aether.AbstractTestStarter;
+    7:i import org.junit.jupiter.api.Assertions;
+    8:i import org.junit.jupiter.api.Test;
+    9:  
+    10:i import java.io.File;
+    11:i import java.io.IOException;
+    12:i import java.util.concurrent.TimeUnit;
+    13:  
+    14:= === [2] Файлы в src/generated ===
+    15:- --- src/generated/aether_api.c ---
+    16:# #include "aether_api.h"
+    17:# #include "aether_meta_runtime.h"
+    18:  
+    19:# #include <string.h>
+    20:  
+    21:b bool csa_serialize_telemetry(
+    22:a     aether_data_out_t *out,
+    23:c     const void *value,
+    24:u     unsigned int depth) {
+    25:  
+    26:i     if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    27:i     if (out == NULL || value == NULL) return false;
+    28:c     const csa_telemetry_ref_t *v = (const csa_telemetry_ref_t *)value;
+    29:i     if (v == NULL) return false;
+    30:i     if (!aether_data_out_write_byte(out, (uint8_t)(*v).type_id)) return false;
+    31:s     switch ((*v).type_id) {
+    32:c     case 1u:
+    33:i         if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    34:i     if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    35:i     if (!aether_data_out_write_uint(out, (uint32_t)(*v).as.csa_telemetry_c_p_p->utm_id)) return false;
+    36:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->blob.data, (*v).as.csa_telemetry_c_p_p->blob.length)) return false;
+    37:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->lib_version.data, (*v).as.csa_telemetry_c_p_p->lib_version.length)) return false;
+    38:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->os.data, (*v).as.csa_telemetry_c_p_p->os.length)) return false;
+    39:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->compiler.data, (*v).as.csa_telemetry_c_p_p->compiler.length)) return false;
+    40:b         break;
+    41:d     default:
+    42:r         return false;
+    43:}     }
+    44:  
+    45:(     (void)v;
+    46:  
+    47:- --- src/generated/aether_api.h ---
+    48:# #ifndef AETHER_API_H
+    49:# #define AETHER_API_H
+    50:  
+    51:# #include "aether_dataio.h"
+    52:# #include <stdbool.h>
+    53:# #include <stddef.h>
+    54:# #include <stdint.h>
+    55:  
+    56:# #ifdef __cplusplus
+    57:e extern "C" {
+    58:# #endif
+    59:  
+    60:t typedef struct {
+    61:u     uint8_t *data;
+    62:s     size_t capacity;
+    63:s     size_t length;
+    64:} } csa_login_stream_t;
+    65:  
+    66:t typedef struct {
+    67:u     uint8_t *data;
+    68:s     size_t capacity;
+    69:s     size_t length;
+    70:} } csa_login_client_stream_t;
+    71:  
+    72:t typedef struct {
+    73:u     uint8_t *data;
+    74:s     size_t capacity;
+    75:s     size_t length;
+    76:} } csa_client_interaction_client_stream_t;
+    77:  
+    78:  
+    79:= === [3] CMakeLists.txt (корневой, первые 100 строк) ===
+    80:c cmake_minimum_required(VERSION 3.16)
+    81:p project(aether_client_c C)
+    82:  
+    83:  
+    84:  
+    85:  
+    86:  
+    87:  
+    88:a add_library(aether_hydrogen_vendor STATIC
+    89:t     third_party/libhydrogen/hydrogen.c
+    90:) )
+    91:  
+    92:t target_include_directories(aether_hydrogen_vendor
+    93:P     PUBLIC
+    94:$         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    95:) )
+    96:  
+    97:t target_compile_features(
+    98:a     aether_hydrogen_vendor
+    99:P     PUBLIC
+    100:c         c_std_11
+    101:) )
+    102:  
+    103:  
+    104:a add_library(aether_client STATIC
+    105:  
+    106:  
+    107:s     src/aether_client.c
+    108:s     src/aether_crypto_registry.c
+    109:s     src/aether_meta_runtime.c
+    110:  
+    111:s     src/aether_client_app.c
+    112:  
+    113:s     src/aether_rx_first.c
+    114:s     src/aether_rx_all.c
+    115:s     src/aether_rx_adaptive.c
+    116:  
+    117:s     src/aether_send_future.c
+    118:s     src/aether_messages.c
+    119:s     src/aether_transport.c
+    120:s     src/aether_transport_server.c
+    121:  
+    122:# # peer temporarily disabled: PeerApi.adsl.yaml was rewritten
+    123:  
+    124:p     platform/posix/aether_posix_transport.c
+    125:  
+    126:  
+    127:s     src/aether_registration.c
+    128:s     src/aether_credentials.c
+    129:  
+    130:  
+    131:  
+    132:s     src/generated/aether_api.c
+    133:  
+    134:  
+    135:  
+    136:  
+    137:s     src/aether_internal.c
+    138:  
+    139:  
+    140:  
+    141:  
+    142:s     src/aether_lan.c
+    143:s     src/aether_lan_codec.c
+    144:  
+    145:s     src/aether.c
+    146:) )
+    147:  
+    148:  
+    149:  
+    150:  
+    151:  
+    152:t target_include_directories(aether_client
+    153:P     PUBLIC
+    154:$         ${CMAKE_CURRENT_SOURCE_DIR}/include
+    155:$         ${CMAKE_CURRENT_SOURCE_DIR}/platform/posix
+    156:$         ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    157:P     PRIVATE
+    158:$         ${CMAKE_CURRENT_SOURCE_DIR}/src
+    159:) )
+    160:  
+    161:t target_include_directories(aether_client
+    162:P     PRIVATE
+    163:$         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    164:) )
+    165:t target_link_libraries(aether_client
+    166:P     PUBLIC
+    167:a         aether_hydrogen_vendor
+    168:) )
+    169:  
+    170:  
+    171:t target_compile_features(aether_client PUBLIC c_std_11)
+    172:  
+    173:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    174:t     target_compile_options(
+    175:a         aether_client
+    176:P         PRIVATE
+    177:-             -Wall
+    178:-             -Wextra
+    179:-             -Wpedantic
+    180:= === [4] Файлы с 'stream' или 'api' в src ===
+    181:s src/generated/aether_api.h
+    182:s src/generated/aether_api.c
+    183:= === [5] .adsl.yaml файлы в fixtures ===
+    184:- --- tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml ---
+    185:  
+    186:a api:
+    187:T   TemperatureSensorApi:
+    188:m     methods:
+    189:r       reportTemperature:
+    190:p         params:
+    191:t           temperature: float
+    192:  
+    193:- --- tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml ---
+    194:  
+    195:t types:
+    196:S   SensorReading:
+    197:f     fields:
+    198:t       temperature: float
+    199:  
+    200:- --- tools/aether-protocol-c/tests/fixtures/IncludeRoot.adsl.yaml ---
+    201:  
+    202:i include:
+    203:-   - CommonTypes
+    204:  
+    205:a api:
+    206:S   SensorApi:
+    207:m     methods:
+    208:p       publish:
+    209:p         params:
+    210:r           reading: SensorReading
+    211:  
+    212:- --- tools/aether-protocol-c/tests/fixtures/CycleA.adsl.yaml ---
+    213:  
+    214:i include:
+    215:-   - CycleB
+    216:  
+    217:t types:
+    218:C   CycleTypeA:
+    219:f     fields:
+    220:v       value: int
+    221:  
+    222:- --- tools/aether-protocol-c/tests/fixtures/CycleB.adsl.yaml ---
+    223:  
+    224:i includes:
+    225:-   - CycleA
+    226:  
+    227:t types:
+    228:C   CycleTypeB:
+    229:f     fields:
+    230:v       value: long
+    231:  
+    232:- --- tools/aether-protocol-c/tests/fixtures/SiblingRoot/Root.adsl.yaml ---
+    233:  
+    234:i include:
+    235:-   - SiblingCommon
+    236:  
+    237:a api:
+    238:S   SiblingApi:
+    239:m     methods:
+    240:p       ping:
+    241:p         params:
+    242:v           value: SiblingValue
+    243:  
+    244:- --- tools/aether-protocol-c/tests/fixtures/SiblingCommon/SiblingCommon.adsl.yaml ---
+    245:  
+    246:t types:
+    247:S   SiblingValue:
+    248:f     fields:
+    249:v       value: int
+    250:  
+    251:- --- tools/aether-protocol-c/tests/fixtures/EnumTypes.adsl.yaml ---
+    252:  
+    253:t types:
+    254:M   Mode:
+    255:e     enum:
+    256:-       - OFF
+    257:-       - ON
+    258:-       - AUTO
+    259:  
+    260:D   DeviceState:
+    261:f     fields:
+    262:m       mode: Mode
+    263:v       value: short
+    264:  
+    265:a api:
+    266:E   EnumApi:
+    267:m     methods:
+    268:s       setMode:
+    269:p         params:
+    270:m           mode: Mode
+    271:s       sendState:
+    272:p         params:
+    273:s           state: DeviceState
+    274:  
+    275:- --- tools/aether-protocol-c/tests/fixtures/IntPack.adsl.yaml ---
+    276:  
+    277:t types:
+    278:P   PackHolder:
+    279:f     fields:
+    280:v       value: intpack
+    281:  
+    282:a api:
+    283:P   PackApi:
+    284:m     methods:
+    285:s       sendValue:
+    286:p         params:
+    287:v           value: intpack
+    288:s       sendHolder:
+    289:p         params:
+    290:h           holder: PackHolder
+    291:  
+    292:- --- tools/aether-protocol-c/tests/fixtures/NestedStruct.adsl.yaml ---
+    293:  
+    294:t types:
+    295:O   Outer:
+    296:f     fields:
+    297:m       middle: Middle
+    298:n       name: String
+
+[subtask findCClientTestAndGenerics] === [1] Тесты с CClient|cRepo в cloudClient ===
+--- tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java ---
+
+package io.aether.cloudClient;
+
+import io.aether.AbstractTestStarter;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+=== [2] Файлы в src/generated ===
+--- src/generated/aether_api.c ---
+#include "aether_api.h"
+#include "aether_meta_runtime.h"
+
+#include <string.h>
+
+bool csa_serialize_telemetry(
+    aether_data_out_t *out,
+    const void *value,
+    unsigned int depth) {
+
+    if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    if (out == NULL || value == NULL) return false;
+    const csa_telemetry_ref_t *v = (const csa_telemetry_ref_t *)value;
+    if (v == NULL) return false;
+    if (!aether_data_out_write_byte(out, (uint8_t)(*v).type_id)) return false;
+    switch ((*v).type_id) {
+    case 1u:
+        if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    if (!aether_data_out_write_uint(out, (uint32_t)(*v).as.csa_telemetry_c_p_p->utm_id)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->blob.data, (*v).as.csa_telemetry_c_p_p->blob.length)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->lib_version.data, (*v).as.csa_telemetry_c_p_p->lib_version.length)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->os.data, (*v).as.csa_telemetry_c_p_p->os.length)) return false;
+    if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->compiler.data, (*v).as.csa_telemetry_c_p_p->compiler.length)) return false;
+        break;
+    default:
+        return false;
+    }
+
+    (void)v;
+
+--- src/generated/aether_api.h ---
+#ifndef AETHER_API_H
+#define AETHER_API_H
+
+#include "aether_dataio.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_interaction_client_stream_t;
+
+
+=== [3] CMakeLists.txt (корневой, первые 100 строк) ===
+cmake_minimum_required(VERSION 3.16)
+project(aether_client_c C)
+
+
+
+
+
+
+add_library(aether_hydrogen_vendor STATIC
+    third_party/libhydrogen/hydrogen.c
+)
+
+target_include_directories(aether_hydrogen_vendor
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+)
+
+target_compile_features(
+    aether_hydrogen_vendor
+    PUBLIC
+        c_std_11
+... (вывод обрезан лимитом 100 строк)

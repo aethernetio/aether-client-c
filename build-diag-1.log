@@ -1,0 +1,36 @@
+[  3%] Building C object CMakeFiles/aether_hydrogen_vendor.dir/third_party/libhydrogen/hydrogen.c.o
+[  6%] Linking C static library libaether_hydrogen_vendor.a
+[  6%] Built target aether_hydrogen_vendor
+[  9%] Building C object CMakeFiles/aether_hydrogen_test_support.dir/src/aether_hydrogen.c.o
+[ 12%] Building C object CMakeFiles/aether_client.dir/src/aether_client.c.o
+[ 15%] Building C object CMakeFiles/aether_hydrogen_test_support.dir/tests/aether_test_crypto_hydrogen.c.o
+[ 18%] Linking C static library libaether_hydrogen_test_support.a
+[ 18%] Built target aether_hydrogen_test_support
+[ 21%] Building C object CMakeFiles/aether_client.dir/src/aether_crypto_registry.c.o
+[ 25%] Building C object CMakeFiles/aether_client.dir/src/aether_meta_runtime.c.o
+[ 28%] Building C object CMakeFiles/aether_client.dir/src/aether_client_app.c.o
+[ 31%] Building C object CMakeFiles/aether_client.dir/src/aether_rx_first.c.o
+[ 34%] Building C object CMakeFiles/aether_client.dir/src/aether_rx_all.c.o
+[ 37%] Building C object CMakeFiles/aether_client.dir/src/aether_rx_adaptive.c.o
+[ 40%] Building C object CMakeFiles/aether_client.dir/src/aether_send_future.c.o
+[ 43%] Building C object CMakeFiles/aether_client.dir/src/aether_messages.c.o
+[ 46%] Building C object CMakeFiles/aether_client.dir/src/aether_transport.c.o
+[ 50%] Building C object CMakeFiles/aether_client.dir/src/aether_transport_server.c.o
+[ 53%] Building C object CMakeFiles/aether_client.dir/platform/posix/aether_posix_transport.c.o
+[ 56%] Building C object CMakeFiles/aether_client.dir/src/aether_registration.c.o
+[ 59%] Building C object CMakeFiles/aether_client.dir/src/aether_credentials.c.o
+[ 62%] Building C object CMakeFiles/aether_client.dir/src/generated/aether_api.c.o
+[ 65%] Building C object CMakeFiles/aether_client.dir/src/aether_internal.c.o
+[ 68%] Building C object CMakeFiles/aether_client.dir/src/aether_lan.c.o
+[ 71%] Building C object CMakeFiles/aether_client.dir/src/aether_lan_codec.c.o
+[ 75%] Building C object CMakeFiles/aether_client.dir/src/aether.c.o
+[ 78%] Building C object CMakeFiles/aether_client.dir/src/generated/aether_reg_safe.c.o
+[ 81%] Building C object CMakeFiles/aether_client.dir/src/generated/aether_reg_root_key.c.o
+[ 84%] Building C object CMakeFiles/aether_client.dir/src/generated/aether_reg_root_enter.c.o
+[ 87%] Building C object CMakeFiles/aether_client.dir/src/generated/aether_reg_unsafe_local.c.o
+[ 90%] Linking C static library libaether_client.a
+[ 90%] Built target aether_client
+[ 93%] Building C object CMakeFiles/aether_p2p_e2e.dir/tests/p2p_e2e.c.o
+[ 96%] Building C object CMakeFiles/aether_p2p_e2e.dir/tests/p2p_test_support.c.o
+[100%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e

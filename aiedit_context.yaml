@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 1033,
+      historySplit: 812,
       scriptAndLive: 287,
-      verticalSplit: 603
+      verticalSplit: 1102
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -18,7 +18,41 @@
       history: 15,
       script: 14
     },
-    reasoningEffort: low
+    reasoningEffort: low,
+    autoRun: true,
+    autoSend: true,
+    selected: {
+      root: restoreDeletedAdapters
+    },
+    subtasks: {
+      root: [
+        scanProject,
+        studyEmitter,
+        studyJavaGen,
+        studyTsGen,
+        studyEmitterStream,
+        studyEmitterStreams,
+        studyEmitterStreams2,
+        extractStreamBuilderCode,
+        inspectGeneratedCode,
+        findCClientTestAndGenerics,
+        inspectCGeneratedStreamImpl,
+        runCClientTest,
+        inspectTestRunner,
+        studyEmitterMethodGeneration,
+        inspectP2PE2E,
+        inspectStreamFixture,
+        generateAndTestC,
+        analyzeEmitterStreamCode,
+        studyCGeneration,
+        studyCClientGenerationProcess,
+        traceGeneration,
+        diagnoseGeneratedState,
+        analyzeOldRegUsage,
+        restoreDeletedAdapters
+      ]
+      
+    }
   },
   provod: {
     },
@@ -54,7 +88,7 @@
   ,
   gui: {
     toggles: {
-      bashSafeMode: true,
+      bashSafeMode: false,
       completionSound: true,
       methodLengthValidation: false,
       bracketValidation: false,
@@ -62,10 +96,10 @@
       validation: true
     },
     window: {
-      x: 94,
-      width: 1323,
-      y: 904,
-      height: 1005
+      x: 1810,
+      width: 1649,
+      y: 706,
+      height: 1280
     }
   },
   roots: [

@@ -1,0 +1,1293 @@
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+    1:  
+    2:a api:
+    3:S   StreamApi:
+    4:m     methods:
+    5:e       enter:
+    6:i         id: 3
+    7:p         params:
+    8:s           stream:
+    9:n             name: TestStream?
+    10:s             stream:
+    11:a               api: InnerApi
+    12:I   InnerApi:
+    13:m     methods:
+    14:p       ping:
+    15:i         id: 3
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+    1:  
+    2:# #!/usr/bin/env bash
+    3:s set -euo pipefail
+    4:  
+    5:G GEN="${ADSL_TEST_GENERATOR:?generator binary not provided}"
+    6:F FIXTURES="${ADSL_TEST_FIXTURES:?fixture directory not provided}"
+    7:R RUNTIME_INCLUDE="${ADSL_TEST_RUNTIME_INCLUDE:?runtime include directory not provided}"
+    8:C CC="${ADSL_TEST_CC:?C compiler not provided}"
+    9:  
+    10:f fail() {
+    11:e     echo "EMITTER NULLABLE-STREAM TEST FAILED: $*" >&2
+    12:e     exit 1
+    13:} }
+    14:  
+    15:F FIXTURE="$FIXTURES/EmitterNullableStream.adsl.yaml"
+    16:[ [[ -f "$FIXTURE" ]] || fail "fixture not found: $FIXTURE"
+    17:  
+    18:T TMP="$(mktemp -d /tmp/aether-emitter-nullable-stream.XXXXXX)"
+    19:t trap 'rm -rf "$TMP"' EXIT
+    20:  
+    21:O OUT="$TMP/out"
+    22:m mkdir -p "$OUT"
+    23:  
+    24:  
+    25:# # EMIT-A3, REGRESSION.
+    26:# #
+    27:# # A nullable inline stream parameter (`name: TestStream?`) must produce a
+    28:# # self-consistent C type name: the stream typedef in the generated header
+    29:# # and every reference in the generated translation unit must agree.
+    30:" "$GEN" --input "$FIXTURE" "$OUT" \
+    31:>     >/dev/null 2>"$TMP/gen.err" ||
+    32:f     fail "generation failed: $(cat "$TMP/gen.err")"
+    33:  
+    34:A API_C="$OUT/aether_api.c"
+    35:[ [[ -f "$API_C" ]] || fail "generated source not produced"
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/*>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt
+
+>>> (отфильтровано: из 1546 строк оставлено 500)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt
+    1:  
+    2:c cmake_minimum_required(VERSION 3.16)
+    3:p project(aether_protocol_c_generator C)
+    4:  
+    5:  
+    6:a add_library(aether_adslc_core STATIC
+    7:s     src/adsl.c
+    8:s     src/emitter.c
+    9:) )
+    10:  
+    11:a add_library(aether_meta_runtime_test STATIC
+    12:.     ../../src/aether_meta_runtime.c
+    13:) )
+    14:  
+    15:t target_include_directories(aether_meta_runtime_test
+    16:P     PUBLIC
+    17:$         ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+    18:) )
+    19:  
+    20:t target_compile_features(aether_meta_runtime_test PUBLIC c_std_11)
+    21:  
+    22:  
+    23:  
+    24:t target_include_directories(aether_adslc_core
+    25:P     PUBLIC
+    26:$         ${CMAKE_CURRENT_SOURCE_DIR}/include
+    27:P     PRIVATE
+    28:$         ${CMAKE_CURRENT_SOURCE_DIR}/src
+    29:) )
+    30:  
+    31:  
+    32:t target_compile_features(aether_adslc_core PUBLIC c_std_11)
+    33:  
+    34:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    35:t     target_compile_options(aether_adslc_core PRIVATE
+    36:-         -Wall
+    37:-         -Wextra
+    38:-         -Wpedantic
+    39:-         -Werror
+    40:)     )
+    41:e endif()
+    42:  
+    43:a add_executable(aether-adslc
+    44:s     src/main.c
+    45:) )
+    46:  
+    47:t target_link_libraries(aether-adslc
+    48:P     PRIVATE
+    49:a         aether_adslc_core
+    50:) )
+    51:  
+    52:t target_compile_features(aether-adslc PRIVATE c_std_11)
+    53:  
+    54:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    55:t     target_compile_options(aether-adslc PRIVATE
+    56:-         -Wall
+    57:-         -Wextra
+    58:-         -Wpedantic
+    59:-         -Werror
+    60:)     )
+    61:e endif()
+    62:  
+    63:e enable_testing()
+    64:  
+    65:a add_executable(aether_adslc_test
+    66:t     tests/test_adsl.c
+    67:) )
+    68:  
+    69:t target_link_libraries(aether_adslc_test
+    70:P     PRIVATE
+    71:a         aether_adslc_core
+    72:) )
+    73:  
+    74:t target_compile_definitions(aether_adslc_test
+    75:P     PRIVATE
+    76:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    77:) )
+    78:  
+    79:  
+    80:f file(MAKE_DIRECTORY
+    81:"     "${CMAKE_CURRENT_BINARY_DIR}/test-adsl-output"
+    82:) )
+    83:  
+    84:t target_compile_definitions(aether_adslc_test
+    85:P     PRIVATE
+    86:A         ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-adsl-output"
+    87:) )
+    88:  
+    89:  
+    90:t target_compile_features(aether_adslc_test PRIVATE c_std_11)
+    91:  
+    92:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    93:t     target_compile_options(aether_adslc_test PRIVATE
+    94:-         -Wall
+    95:-         -Wextra
+    96:-         -Wpedantic
+    97:-         -Werror
+    98:)     )
+    99:e endif()
+    100:  
+    101:a add_test(
+    102:N     NAME aether_adslc_test
+    103:C     COMMAND aether_adslc_test
+    104:) )
+    105:  
+    106:  
+    107:s set(AETHER_ADSLC_GENERATED_DIR
+    108:"     "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    109:) )
+    110:  
+    111:f file(MAKE_DIRECTORY
+    112:"     "${AETHER_ADSLC_GENERATED_DIR}"
+    113:) )
+    114:  
+    115:  
+    116:a add_custom_command(
+    117:O     OUTPUT
+    118:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.h"
+    119:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.c"
+    120:C     COMMAND
+    121:a         aether-adslc
+    122:-         --input
+    123:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TemperatureSensor.adsl.yaml"
+    124:"         "${AETHER_ADSLC_GENERATED_DIR}"
+    125:D     DEPENDS
+    126:a         aether-adslc
+    127:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TemperatureSensor.adsl.yaml"
+    128:V     VERBATIM
+    129:) )
+    130:  
+    131:a add_executable(aether_generated_temperature_test
+    132:t     tests/test_generated_temperature.c
+    133:"     "${AETHER_ADSLC_GENERATED_DIR}/aether_api.c"
+    134:) )
+    135:  
+    136:t target_include_directories(aether_generated_temperature_test
+    137:P     PRIVATE
+    138:"         "${AETHER_ADSLC_GENERATED_DIR}"
+    139:"         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    140:) )
+    141:  
+    142:t target_compile_features(
+    143:a     aether_generated_temperature_test
+    144:P     PRIVATE
+    145:c         c_std_11
+    146:) )
+    147:  
+    148:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    149:t     target_compile_options(
+    150:a         aether_generated_temperature_test
+    151:P         PRIVATE
+    152:-             -Wall
+    153:-             -Wextra
+    154:-             -Wpedantic
+    155:-             -Werror
+    156:)     )
+    157:e endif()
+    158:  
+    159:a add_test(
+    160:N     NAME aether_generated_temperature_test
+    161:C     COMMAND aether_generated_temperature_test
+    162:) )
+    163:  
+    164:  
+    165:  
+    166:a add_executable(aether_adslc_include_test
+    167:t     tests/test_include.c
+    168:) )
+    169:  
+    170:t target_link_libraries(aether_adslc_include_test
+    171:P     PRIVATE
+    172:a         aether_adslc_core
+    173:) )
+    174:  
+    175:t target_compile_definitions(aether_adslc_include_test
+    176:P     PRIVATE
+    177:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    178:) )
+    179:  
+    180:t target_compile_features(
+    181:a     aether_adslc_include_test
+    182:P     PRIVATE
+    183:c         c_std_11
+    184:) )
+    185:  
+    186:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    187:t     target_compile_options(
+    188:a         aether_adslc_include_test
+    189:P         PRIVATE
+    190:-             -Wall
+    191:-             -Wextra
+    192:-             -Wpedantic
+    193:-             -Werror
+    194:)     )
+    195:e endif()
+    196:  
+    197:a add_test(
+    198:N     NAME aether_adslc_include_test
+    199:C     COMMAND aether_adslc_include_test
+    200:) )
+    201:  
+    202:  
+    203:a add_executable(aether_adslc_project_test
+    204:t     tests/test_project.c
+    205:) )
+    206:  
+    207:t target_link_libraries(aether_adslc_project_test
+    208:P     PRIVATE
+    209:a         aether_adslc_core
+    210:) )
+    211:  
+    212:t target_compile_definitions(aether_adslc_project_test
+    213:P     PRIVATE
+    214:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    215:) )
+    216:  
+    217:t target_compile_features(
+    218:a     aether_adslc_project_test
+    219:P     PRIVATE
+    220:c         c_std_11
+    221:) )
+    222:  
+    223:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    224:t     target_compile_options(
+    225:a         aether_adslc_project_test
+    226:P         PRIVATE
+    227:-             -Wall
+    228:-             -Wextra
+    229:-             -Wpedantic
+    230:-             -Werror
+    231:-             -UNDEBUG
+    232:)     )
+    233:e endif()
+    234:  
+    235:a add_test(
+    236:N     NAME aether_adslc_project_test
+    237:C     COMMAND aether_adslc_project_test
+    238:) )
+    239:  
+    240:  
+    241:a add_executable(aether_adslc_project_scan_test
+    242:t     tests/test_project_scan.c
+    243:) )
+    244:  
+    245:t target_link_libraries(aether_adslc_project_scan_test
+    246:P     PRIVATE
+    247:a         aether_adslc_core
+    248:) )
+    249:  
+    250:t target_compile_definitions(aether_adslc_project_scan_test
+    251:P     PRIVATE
+    252:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    253:) )
+    254:  
+    255:t target_compile_features(
+    256:a     aether_adslc_project_scan_test
+    257:P     PRIVATE
+    258:c         c_std_11
+    259:) )
+    260:  
+    261:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    262:t     target_compile_options(
+    263:a         aether_adslc_project_scan_test
+    264:P         PRIVATE
+    265:-             -Wall
+    266:-             -Wextra
+    267:-             -Wpedantic
+    268:-             -Werror
+    269:-             -UNDEBUG
+    270:)     )
+    271:e endif()
+    272:  
+    273:a add_test(
+    274:N     NAME aether_adslc_project_scan_test
+    275:C     COMMAND aether_adslc_project_scan_test
+    276:) )
+    277:  
+    278:  
+    279:a add_executable(aether_adslc_unified_merge_test
+    280:t     tests/test_unified_merge.c
+    281:) )
+    282:  
+    283:t target_link_libraries(aether_adslc_unified_merge_test
+    284:P     PRIVATE
+    285:a         aether_adslc_core
+    286:) )
+    287:  
+    288:t target_compile_definitions(aether_adslc_unified_merge_test
+    289:P     PRIVATE
+    290:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    291:) )
+    292:  
+    293:t target_compile_features(
+    294:a     aether_adslc_unified_merge_test
+    295:P     PRIVATE
+    296:c         c_std_11
+    297:) )
+    298:  
+    299:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    300:t     target_compile_options(
+    301:a         aether_adslc_unified_merge_test
+    302:P         PRIVATE
+    303:-             -Wall
+    304:-             -Wextra
+    305:-             -Wpedantic
+    306:-             -Werror
+    307:-             -UNDEBUG
+    308:)     )
+    309:e endif()
+    310:  
+    311:a add_test(
+    312:N     NAME aether_adslc_unified_merge_test
+    313:C     COMMAND aether_adslc_unified_merge_test
+    314:) )
+    315:  
+    316:  
+    317:a add_executable(aether_adslc_unified_types_test
+    318:t     tests/test_unified_types.c
+    319:) )
+    320:  
+    321:t target_link_libraries(aether_adslc_unified_types_test
+    322:P     PRIVATE
+    323:a         aether_adslc_core
+    324:) )
+    325:  
+    326:t target_compile_definitions(aether_adslc_unified_types_test
+    327:P     PRIVATE
+    328:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    329:A         ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-unified-types-output"
+    330:A         AETHER_RUNTIME_INC="${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    331:A         AETHER_RUNTIME_SRC="${CMAKE_CURRENT_SOURCE_DIR}/../../src/aether_meta_runtime.c"
+    332:A         ADSL_CC="${CMAKE_C_COMPILER}"
+    333:) )
+    334:  
+    335:t target_compile_features(
+    336:a     aether_adslc_unified_types_test
+    337:P     PRIVATE
+    338:c         c_std_11
+    339:) )
+    340:  
+    341:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    342:t     target_compile_options(
+    343:a         aether_adslc_unified_types_test
+    344:P         PRIVATE
+    345:-             -Wall
+    346:-             -Wextra
+    347:-             -Wpedantic
+    348:-             -Werror
+    349:-             -UNDEBUG
+    350:)     )
+    351:e endif()
+    352:  
+    353:a add_test(
+    354:N     NAME aether_adslc_unified_types_test
+    355:C     COMMAND aether_adslc_unified_types_test
+    356:) )
+    357:  
+    358:  
+    359:  
+    360:  
+    361:  
+    362:a add_executable(aether_adslc_type_registry_test
+    363:t     tests/test_type_registry.c
+    364:) )
+    365:  
+    366:t target_link_libraries(aether_adslc_type_registry_test
+    367:P     PRIVATE
+    368:a         aether_adslc_core
+    369:) )
+    370:  
+    371:t target_compile_definitions(aether_adslc_type_registry_test
+    372:P     PRIVATE
+    373:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    374:) )
+    375:  
+    376:t target_compile_features(
+    377:a     aether_adslc_type_registry_test
+    378:P     PRIVATE
+    379:c         c_std_11
+    380:) )
+    381:  
+    382:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    383:t     target_compile_options(
+    384:a         aether_adslc_type_registry_test
+    385:P         PRIVATE
+    386:-             -Wall
+    387:-             -Wextra
+    388:-             -Wpedantic
+    389:-             -Werror
+    390:-             -UNDEBUG
+    391:)     )
+    392:e endif()
+    393:  
+    394:a add_test(
+    395:N     NAME aether_adslc_type_registry_test
+    396:C     COMMAND aether_adslc_type_registry_test
+    397:) )
+    398:  
+    399:  
+    400:a add_executable(aether_adslc_cross_module_pending_test
+    401:t     tests/test_cross_module_pending.c
+    402:) )
+    403:  
+    404:t target_link_libraries(aether_adslc_cross_module_pending_test
+    405:P     PRIVATE
+    406:a         aether_adslc_core
+    407:) )
+    408:  
+    409:t target_include_directories(aether_adslc_cross_module_pending_test
+    410:P     PRIVATE
+    411:$         ${CMAKE_CURRENT_SOURCE_DIR}/src
+    412:) )
+    413:  
+    414:  
+    415:t target_compile_definitions(aether_adslc_cross_module_pending_test
+    416:P     PRIVATE
+    417:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    418:A         ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output"
+    419:) )
+    420:  
+    421:t target_compile_features(
+    422:a     aether_adslc_cross_module_pending_test
+    423:P     PRIVATE
+    424:c         c_std_11
+    425:) )
+    426:  
+    427:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    428:t     target_compile_options(
+    429:a         aether_adslc_cross_module_pending_test
+    430:P         PRIVATE
+    431:-             -Wall
+    432:-             -Wextra
+    433:-             -Wpedantic
+    434:-             -Werror
+    435:-             -UNDEBUG
+    436:)     )
+    437:e endif()
+    438:  
+    439:f file(MAKE_DIRECTORY
+    440:"     "${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-pending-output"
+    441:) )
+    442:  
+    443:  
+    444:a add_test(
+    445:N     NAME aether_adslc_cross_module_pending_test
+    446:C     COMMAND aether_adslc_cross_module_pending_test
+    447:) )
+    448:  
+    449:  
+    450:  
+    451:  
+    452:  
+    453:  
+    454:  
+    455:  
+    456:  
+    457:a add_executable(aether_adslc_cross_module_test
+    458:t     tests/test_cross_module.c
+    459:) )
+    460:  
+    461:t target_link_libraries(aether_adslc_cross_module_test
+    462:P     PRIVATE
+    463:a         aether_adslc_core
+    464:) )
+    465:  
+    466:t target_compile_definitions(aether_adslc_cross_module_test
+    467:P     PRIVATE
+    468:A         ADSL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    469:A         ADSL_TEST_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-output"
+    470:) )
+    471:  
+    472:t target_compile_features(
+    473:a     aether_adslc_cross_module_test
+    474:P     PRIVATE
+    475:c         c_std_11
+    476:) )
+    477:  
+    478:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    479:t     target_compile_options(
+    480:a         aether_adslc_cross_module_test
+    481:P         PRIVATE
+    482:-             -Wall
+    483:-             -Wextra
+    484:-             -Wpedantic
+    485:-             -Werror
+    486:-             -UNDEBUG
+    487:)     )
+    488:e endif()
+    489:  
+    490:f file(MAKE_DIRECTORY
+    491:"     "${CMAKE_CURRENT_BINARY_DIR}/test-cross-module-output"
+    492:) )
+    493:  
+    494:a add_test(
+    495:N     NAME aether_adslc_cross_module_test
+    496:C     COMMAND aether_adslc_cross_module_test
+    497:) )
+    498:  
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tools/aether-protocol-c/tests/fixtures/A.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Arrays.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/B.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CollapsibleFields.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeChild.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterInvalidNullableMid.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EnumTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Hierarchy.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflict.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflictRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IntPack.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidAllCollapsibleMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleArrayKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleResponse.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleStructKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleUriKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidDirectByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidFixedArrayByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidMutualByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/LocalStreamDispatch.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NestedStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableApiParams.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/RecursiveStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResponseMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResultRpc.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchPath/shared.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingCommon/SiblingCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StaticStructArray.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StreamBuilder.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TieredInt.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TypedThrows.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ValueTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_includes_b.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_long_reference.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item_array_nullable.adsl.yaml
+>>> (итог: 16 директорий, 113 файлов)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/*timestamp: 1792663699696
+>>> findFilesAll
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tools/aether-protocol-c/tests/fixtures/A.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Arrays.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/B.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CollapsibleFields.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeChild.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterInvalidNullableMid.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EnumTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Hierarchy.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflict.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflictRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IntPack.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidAllCollapsibleMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleArrayKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleResponse.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleStructKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleUriKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidDirectByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidFixedArrayByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidMutualByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/LocalStreamDispatch.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NestedStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableApiParams.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/RecursiveStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResponseMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResultRpc.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchPath/shared.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingCommon/SiblingCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StaticStructArray.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StreamBuilder.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TieredInt.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TypedThrows.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ValueTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_includes_b.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_long_reference.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item_array_nullable.adsl.yaml
+>>> (итог: 16 директорий, 113 файлов)
+>>> (отфильтровано: из 504 строк оставлено 300)
+    702:"         "${AETHER_ADSLC_ENUM_GENERATED_DIR}"
+    703:D     DEPENDS
+    704:a         aether-adslc
+    705:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/EnumTypes.adsl.yaml"
+    706:V     VERBATIM
+    707:) )
+    708:  
+    709:a add_executable(aether_generated_enum_test
+    710:t     tests/test_generated_enum.c
+    711:"     "${AETHER_ADSLC_ENUM_GENERATED_DIR}/aether_api.c"
+    712:) )
+    713:  
+    714:t target_include_directories(aether_generated_enum_test
+    715:P     PRIVATE
+    716:"         "${AETHER_ADSLC_ENUM_GENERATED_DIR}"
+    717:"         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    718:) )
+    719:  
+    720:t target_compile_features(
+    721:a     aether_generated_enum_test
+    722:P     PRIVATE
+    723:c         c_std_11
+    724:) )
+    725:  
+    726:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    727:t     target_compile_options(
+    728:a         aether_generated_enum_test
+    729:P         PRIVATE
+    730:-             -Wall
+    731:-             -Wextra
+    732:-             -Wpedantic
+    733:-             -Werror
+    734:)     )
+    735:e endif()
+    736:  
+    737:a add_test(
+    738:N     NAME aether_generated_enum_test
+    739:C     COMMAND aether_generated_enum_test
+    740:) )
+    741:  
+    742:  
+    743:  
+    744:# # Test assertions must remain active in Release builds.  CMake's Release
+    745:# # flags define NDEBUG, which otherwise compiles assert()-based regressions
+    746:# # away completely and makes the tests both ineffective and -Werror-unsafe.
+    747:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    748:f     foreach(AETHER_ADSLC_TEST_TARGET IN ITEMS
+    749:a         aether_adslc_test
+    750:a         aether_adslc_include_test
+    751:a         aether_generated_temperature_test
+    752:a         aether_generated_struct_test
+    753:a         aether_generated_value_types_test
+    754:a         aether_generated_enum_test
+    755:)     )
+    756:t         target_compile_options(
+    757:$             ${AETHER_ADSLC_TEST_TARGET}
+    758:P             PRIVATE
+    759:-                 -UNDEBUG
+    760:)         )
+    761:e     endforeach()
+    762:e endif()
+    763:  
+    764:  
+    765:s set(AETHER_ADSLC_INTPACK_GENERATED_DIR
+    766:"     "${CMAKE_CURRENT_BINARY_DIR}/generated-intpack"
+    767:) )
+    768:  
+    769:f file(MAKE_DIRECTORY
+    770:"     "${AETHER_ADSLC_INTPACK_GENERATED_DIR}"
+    771:) )
+    772:  
+    773:  
+    774:a add_custom_command(
+    775:O     OUTPUT
+    776:"         "${AETHER_ADSLC_INTPACK_GENERATED_DIR}/aether_api.h"
+    777:"         "${AETHER_ADSLC_INTPACK_GENERATED_DIR}/aether_api.c"
+    778:C     COMMAND
+    779:a         aether-adslc
+    780:-         --input
+    781:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/IntPack.adsl.yaml"
+    782:"         "${AETHER_ADSLC_INTPACK_GENERATED_DIR}"
+    783:D     DEPENDS
+    784:a         aether-adslc
+    785:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/IntPack.adsl.yaml"
+    786:V     VERBATIM
+    787:) )
+    788:  
+    789:a add_executable(aether_generated_intpack_test
+    790:t     tests/test_generated_intpack.c
+    791:"     "${AETHER_ADSLC_INTPACK_GENERATED_DIR}/aether_api.c"
+    792:) )
+    793:  
+    794:t target_include_directories(aether_generated_intpack_test
+    795:P     PRIVATE
+    796:"         "${AETHER_ADSLC_INTPACK_GENERATED_DIR}"
+    797:"         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    798:) )
+    799:  
+    800:t target_compile_features(
+    801:a     aether_generated_intpack_test
+    802:P     PRIVATE
+    803:c         c_std_11
+    804:) )
+    805:  
+    806:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    807:t     target_compile_options(
+    808:a         aether_generated_intpack_test
+    809:P         PRIVATE
+    810:-             -Wall
+    811:-             -Wextra
+    812:-             -Wpedantic
+    813:-             -Werror
+    814:-             -UNDEBUG
+    815:)     )
+    816:e endif()
+    817:  
+    818:a add_test(
+    819:N     NAME aether_generated_intpack_test
+    820:C     COMMAND aether_generated_intpack_test
+    821:) )
+    822:  
+    823:  
+    824:  
+    825:s set(AETHER_ADSLC_NESTED_GENERATED_DIR
+    826:"     "${CMAKE_CURRENT_BINARY_DIR}/generated-nested"
+    827:) )
+    828:  
+    829:f file(MAKE_DIRECTORY
+    830:"     "${AETHER_ADSLC_NESTED_GENERATED_DIR}"
+    831:) )
+    832:  
+    833:  
+    834:a add_custom_command(
+    835:O     OUTPUT
+    836:"         "${AETHER_ADSLC_NESTED_GENERATED_DIR}/aether_api.h"
+    837:"         "${AETHER_ADSLC_NESTED_GENERATED_DIR}/aether_api.c"
+    838:C     COMMAND
+    839:a         aether-adslc
+    840:-         --input
+    841:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/NestedStruct.adsl.yaml"
+    842:"         "${AETHER_ADSLC_NESTED_GENERATED_DIR}"
+    843:D     DEPENDS
+    844:a         aether-adslc
+    845:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/NestedStruct.adsl.yaml"
+    846:V     VERBATIM
+    847:) )
+    848:  
+    849:a add_executable(aether_generated_nested_struct_test
+    850:t     tests/test_generated_nested_struct.c
+    851:"     "${AETHER_ADSLC_NESTED_GENERATED_DIR}/aether_api.c"
+    852:) )
+    853:  
+    854:t target_include_directories(aether_generated_nested_struct_test
+    855:P     PRIVATE
+    856:"         "${AETHER_ADSLC_NESTED_GENERATED_DIR}"
+    857:"         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    858:) )
+    859:  
+    860:t target_compile_features(
+    861:a     aether_generated_nested_struct_test
+    862:P     PRIVATE
+    863:c         c_std_11
+    864:) )
+    865:  
+    866:  
+    867:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    868:t     target_compile_options(
+    869:a         aether_generated_nested_struct_test
+    870:P         PRIVATE
+    871:-             -Wall
+    872:-             -Wextra
+    873:-             -Wpedantic
+    874:-             -Werror
+    875:-             -UNDEBUG
+    876:)     )
+    877:e endif()
+    878:  
+    879:  
+    880:a add_test(
+    881:N     NAME aether_generated_nested_struct_test
+    882:C     COMMAND aether_generated_nested_struct_test
+    883:) )
+    884:  
+    885:  
+    886:  
+    887:s set(AETHER_ADSLC_NULLABLE_GENERATED_DIR
+    888:"     "${CMAKE_CURRENT_BINARY_DIR}/generated-nullable"
+    889:) )
+    890:  
+    891:f file(MAKE_DIRECTORY
+    892:"     "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}"
+    893:) )
+    894:  
+    895:  
+    896:a add_custom_command(
+    897:O     OUTPUT
+    898:"         "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}/aether_api.h"
+    899:"         "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}/aether_api.c"
+    900:C     COMMAND
+    901:a         aether-adslc
+    902:-         --input
+    903:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/NullableStruct.adsl.yaml"
+    904:"         "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}"
+    905:D     DEPENDS
+    906:a         aether-adslc
+    907:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/NullableStruct.adsl.yaml"
+    908:V     VERBATIM
+    909:) )
+    910:  
+    911:a add_executable(aether_generated_nullable_struct_test
+    912:t     tests/test_generated_nullable_struct.c
+    913:"     "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}/aether_api.c"
+    914:) )
+    915:  
+    916:t target_include_directories(aether_generated_nullable_struct_test
+    917:P     PRIVATE
+    918:"         "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}"
+    919:"         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    920:) )
+    921:  
+    922:t target_compile_features(
+    923:a     aether_generated_nullable_struct_test
+    924:P     PRIVATE
+    925:c         c_std_11
+    926:) )
+    927:  
+    928:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    929:t     target_compile_options(
+    930:a         aether_generated_nullable_struct_test
+    931:P         PRIVATE
+    932:-             -Wall
+    933:-             -Wextra
+    934:-             -Wpedantic
+    935:-             -Werror
+    936:-             -UNDEBUG
+    937:)     )
+    938:e endif()
+    939:  
+    940:a add_test(
+    941:N     NAME aether_generated_nullable_struct_test
+    942:C     COMMAND aether_generated_nullable_struct_test
+    943:) )
+    944:  
+    945:  
+    946:  
+    947:s set(AETHER_ADSLC_ARRAYS_GENERATED_DIR
+    948:"     "${CMAKE_CURRENT_BINARY_DIR}/generated-arrays"
+    949:) )
+    950:  
+    951:f file(MAKE_DIRECTORY
+    952:"     "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}"
+    953:) )
+    954:  
+    955:  
+    956:a add_custom_command(
+    957:O     OUTPUT
+    958:"         "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}/aether_api.h"
+    959:"         "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}/aether_api.c"
+    960:C     COMMAND
+    961:a         aether-adslc
+    962:-         --input
+    963:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/Arrays.adsl.yaml"
+    964:"         "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}"
+    965:D     DEPENDS
+    966:a         aether-adslc
+    967:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/Arrays.adsl.yaml"
+    968:V     VERBATIM
+    969:) )
+    970:  
+    971:a add_executable(aether_generated_arrays_test
+    972:t     tests/test_generated_arrays.c
+    973:"     "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}/aether_api.c"
+    974:) )
+    975:  
+    976:t target_include_directories(aether_generated_arrays_test
+    977:P     PRIVATE
+    978:"         "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}"
+    979:"         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    980:) )
+    981:  
+    982:t target_compile_features(
+    983:a     aether_generated_arrays_test
+    984:P     PRIVATE
+    985:c         c_std_11
+    986:) )
+    987:  
+    988:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    989:t     target_compile_options(
+    990:a         aether_generated_arrays_test
+    991:P         PRIVATE
+    992:-             -Wall
+    993:-             -Wextra
+    994:-             -Wpedantic
+    995:-             -Werror
+    996:-             -UNDEBUG
+    997:)     )
+    998:e endif()
+    999:  
+    1000:a add_test(
+>>> (показано строк: 501 из 1544)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_local_dispatch.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_tiered_int_runtime.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project_scan.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_merge.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_types.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_type_registry.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_api_params.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_calculate.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_notify.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_ping.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_method.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_describe.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_enum.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_values.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_intpack.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_arrays.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_hierarchy.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nested_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_collapsible.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_result_rpc.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_static_struct_array.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_tiered_int.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_recursive_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_stream_builder.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_include.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module_pending.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_hardening.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_temperature.c
+>>> (всего найдено строк: 84)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_java_c_api_semantic_parity.sh
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_java_c_parent_context_auto_id.sh
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_java_c_shadowed_method_validation.sh
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_java_c_inherited_aux_emitters.sh
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+>>> (всего найдено строк: 14)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/IncludeRoot.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/CycleA.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/CycleB.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/SiblingRoot/Root.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/SiblingCommon/SiblingCommon.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EnumTypes.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/IntPack.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/NestedStruct.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/Arrays.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/Hierarchy.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/ResultRpc.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/SearchRoot/Root.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/SearchPath/shared.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/ValueTypes.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/NullableStruct.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/ResponseMethod.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/LocalStreamDispatch.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/StaticStructArray.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/NullableApiParams.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/TypedThrows.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/TieredInt.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/RecursiveStruct.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidDirectByValueCycle.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidMutualByValueCycle.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidFixedArrayByValueCycle.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleResponse.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidAllCollapsibleMethod.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/StreamBuilder.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/CollapsibleFields.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleUriKey.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleArrayKey.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleStructKey.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/DuplicateIncludeCommon.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/DuplicateIncludeChild.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/DuplicateIncludeRoot.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/A.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/B.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/project_scan/common.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/project_scan/client.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/registry_project/common.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/registry_project/ClientServerApi.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/registry_dup_a/common.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/registry_dup_b/common.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/registry_project_include/common.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/registry_project_include/ClientServerApi.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/IncludeApiA.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/IncludeApiB.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/IncludeApiRoot.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/IncludeApiConflict.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/IncludeApiConflictRoot.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EmitterInvalidNullableMid.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/A_includes_b.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/C_defines_item_too.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/case_upper.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/case_lower.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/B_defines_item.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item_array_nullable.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/B_defines_item_stream.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/A_long_reference.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/D_defines_base_api.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/E_inherits_base_api.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/F_duplicate_api_name.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/G_defines_base.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/H_extends_base.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/I_holds_external.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/cross_module/J_uses_external_array.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/unified_merge/Common.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/unified_merge/FirstApi.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/unified_merge/SecondApi.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/unified_types/A_defines_holder.adsl.yaml
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/unified_types/B_defines_item.adsl.yaml
+>>> (всего найдено строк: 8)
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_local_dispatch.c
+    26:c     const uint8_t *last_stream_data;
+    27:s     size_t last_stream_length;
+    62:c     const safe_stream_t *stream) {
+    66:a     assert(stream != NULL);
+    68:c     capture->last_stream_data = stream->data;
+    69:c     capture->last_stream_length = stream->length;
+    76:c     const global_stream_t *stream) {
+    80:a     assert(stream != NULL);
+    82:c     capture->last_stream_data = stream->data;
+    83:c     capture->last_stream_length = stream->length;
+    437:s static void test_stream_zero_copy(void) {
+    454:a     assert(capture.last_stream_data == frame + 2u);
+    455:a     assert(capture.last_stream_length == 3u);
+    459:s static void test_stream_two_byte_pack(void) {
+    478:a     assert(capture.last_stream_data == frame + 3u);
+    479:a     assert(capture.last_stream_length == 251u);
+    666:a     assert(capture.last_stream_length == 2u);
+    685:a     assert(capture.last_stream_length == 1u);
+    699:t     test_stream_zero_copy();
+    700:t     test_stream_two_byte_pack();
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_tiered_int_runtime.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project_scan.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_merge.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_types.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_type_registry.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_api_params.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_calculate.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_notify.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_ping.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_method.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_describe.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_enum.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_values.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_intpack.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_arrays.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_hierarchy.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nested_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_collapsible.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_result_rpc.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_static_struct_array.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_tiered_int.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_recursive_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_stream_builder.c
+    12:s     sb_command_stream_t stream = {
+    19:s         sb_command_stream_stream_api_append_value(
+    20:&             &stream,
+    24:a     assert(stream.length == 5u);
+    41:s         sb_command_stream_stream_api_query(
+    42:&             &stream,
+    63:a     assert(stream.length == sizeof(expected));
+    75:s     sb_command_stream_t stream = {
+    82:s         sb_command_stream_stream_api_append_value(
+    83:&             &stream,
+    87:a     assert(stream.length == 5u);
+    90:s         sb_command_stream_stream_api_query(
+    91:&             &stream,
+    96:a     assert(stream.length == 5u);
+    113:s static void test_first_command_overflow_keeps_empty_stream(void) {
+    116:s     sb_command_stream_t stream = {
+    123:s         sb_command_stream_stream_api_append_value(
+    124:&             &stream,
+    128:a     assert(stream.length == 0u);
+    131:s static void test_stream_arguments(void) {
+    133:s         sb_command_stream_stream_api_append_value(
+    138:s     sb_command_stream_t invalid_length = {
+    145:s         sb_command_stream_stream_api_append_value(
+    150:s     sb_command_stream_t null_storage = {
+    157:s         sb_command_stream_stream_api_append_value(
+    162:s     sb_command_stream_t empty = {
+    169:s         sb_command_stream_stream_api_append_value(
+    176:s static void test_collapsible_method_is_deferred_until_stream_flush(void) {
+    179:s     sb_command_stream_t stream = {
+    186:s         sb_command_stream_stream_api_append_value(
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_include.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module_pending.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_hardening.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_temperature.c
+>>> Found 84 matches.
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_hardening.c
+>>> No matches found for: stream
+>>> findRegexp
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_temperature.c
+>>> No matches found for: stream
+>>> findRegexp
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_api_params.c
+>>> No matches found for: stream
+>>> findRegexp
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt
+    545:# # EMIT-A3: generated local dispatcher must compile for a nullable stream
+    549:N     NAME aether_emitter_nullable_stream_test
+    555:b         bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_emitter_nullable_stream.sh
+    559:s set_tests_properties(aether_emitter_nullable_stream_test PROPERTIES TIMEOUT 60)
+    1128:"     "${CMAKE_CURRENT_BINARY_DIR}/generated-stream-builder"
+    1151:a add_executable(aether_generated_stream_builder_test
+    1152:t     tests/test_generated_stream_builder.c
+    1156:t target_include_directories(aether_generated_stream_builder_test
+    1163:a     aether_generated_stream_builder_test
+    1170:a         aether_generated_stream_builder_test
+    1181:N     NAME aether_generated_stream_builder_test
+    1182:C     COMMAND aether_generated_stream_builder_test
+    1204:a     aether_generated_stream_builder_test
+>>> Found 13 matches.
+
+[subtask inspectStreamFixture] 
+<h3>Отчёт по stream-тестам C-генератора</h3>
+
+<b>1. Фикстура EmitterNullableStream.adsl.yaml</b>
+<pre>
+a api:
+  StreamApi:
+    methods:
+      enter:
+        id: 3
+        params:
+          stream:
+            name: TestStream?
+            stream:
+              api: InnerApi
+  InnerApi:
+    methods:
+      ping:
+        id: 3
+</pre>
+
+<b>2. Тестовый скрипт test_emitter_nullable_stream.sh</b>
+<pre>
+set -euo pipefail
+GEN="${ADSL_TEST_GENERATOR:?generator binary not provided}"
+FIXTURES="${ADSL_TEST_FIXTURES:?fixture directory not provided}"
+RUNTIME_INCLUDE="${ADSL_TEST_RUNTIME_INCLUDE:?runtime include directory not provided}"
+CC="${ADSL_TEST_CC:?C compiler not provided}"
+
+fail() {
+    echo "EMITTER NULLABLE-STREAM TEST FAILED: $*" >&2
+    exit 1
+}
+
+FIXTURE="$FIXTURES/EmitterNullableStream.adsl.yaml"
+[[ -f "$FIXTURE" ]] || fail "fixture not found: $FIXTURE"
+
+TMP="$(mktemp -d /tmp/aether-emitter-nullable-stream.XXXXXX)"
+trap 'rm -rf "$TMP"' EXIT
+
+OUT="$TMP/out"
+mkdir -p "$OUT"
+
+# EMIT-A3, REGRESSION.
+# A nullable inline stream parameter (`name: TestStream?`) must produce a
+# self-consistent C type name: the stream typedef in the generated header
+# and every reference in the generated translation unit must agree.
+"$GEN" --input "$FIXTURE" "$OUT" \
+    >/dev/null 2>"$TMP/gen.err" ||
+    fail "generation failed: $(cat "$TMP/gen.err")"
+
+API_C="$OUT/aether_api.c"
+[[ -f "$API_C" ]] || fail "generated source not produced"
+</pre>
+
+<b>3. Другие файлы, содержащие "stream"</b>
+<ul>
+<li><code>test_generated_local_dispatch.c</code> — тесты stream-копирования и zero-copy:</li>
+</ul>
+<pre>
+static void test_stream_zero_copy(void) { ... }
+static void test_stream_two_byte_pack(void) { ... }
+assert(capture.last_stream_data == frame + 2u);
+assert(capture.last_stream_length == 3u);
+</pre>
+<ul>
+<li><code>test_generated_stream_builder.c</code> — тесты StreamBuilder API:</li>
+</ul>
+<pre>
+sb_command_stream_t stream = { ... };
+sb_command_stream_stream_api_append_value(&stream, ...);
+assert(stream.length == 5u);
+</pre>
+<p>Прочие файлы (например, <code>test_project.c</code>, <code>test_unified_merge.c</code>, <code>test_cross_module.c</code>) также содержат упоминания stream, но без специализированных тестов.</p>
+
+<b>4. Сборка в CMakeLists.txt</b>
+<ul>
+<li><b>aether_emitter_nullable_stream_test</b> — запускает <code>test_emitter_nullable_stream.sh</code> через bash (строки 545–559 CMakeLists.txt).</li>
+<li><b>aether_generated_stream_builder_test</b> — собирает и запускает <code>test_generated_stream_builder.c</code> (строки 1128–1182).</li>
+</ul>
+<pre>
+# EMIT-A3: generated local dispatcher must compile for a nullable stream
+add_test(NAME aether_emitter_nullable_stream_test
+         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_emitter_nullable_stream.sh)
+set_tests_properties(aether_emitter_nullable_stream_test PROPERTIES TIMEOUT 60)
+</pre>
+<pre>
+add_executable(aether_generated_stream_builder_test
+               tests/test_generated_stream_builder.c
+               "${AETHER_ADSLC_STREAM_BUILDER_GENERATED_DIR}/aether_api.c")
+add_test(NAME aether_generated_stream_builder_test
+         COMMAND aether_generated_stream_builder_test)
+</pre>

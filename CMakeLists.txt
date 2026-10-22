@@ -738,17 +738,3 @@ target_sources(aether_client PRIVATE
 )
 
 
-target_sources(aether_client PRIVATE
-    src/generated/aether_reg_safe.c
-)
-
-
-target_sources(aether_client PRIVATE
-    src/generated/aether_reg_root_key.c
-    src/generated/aether_reg_root_enter.c
-)
-
-
-target_sources(aether_client PRIVATE
-    src/generated/aether_reg_unsafe_local.c
-)

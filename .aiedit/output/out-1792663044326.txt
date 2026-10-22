@@ -1,0 +1,175 @@
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 3987 to 4195
+    3987:s static bool emit_stream_builder_declarations_for_api_ctx(
+    3988:F     FILE *output,
+    3989:c     const emitter_ctx_t *ctx,
+    3990:c     const char *stream_abbr,
+    3991:c     const char *stream_name,
+    3992:c     const char *api_reference,
+    3993:c     char *error,
+    3994:s     size_t error_capacity) {
+    3995:  
+    3996:c     const adsl_api_t *api =
+    3997:f         find_api_definition_ctx(ctx, api_reference);
+    3998:  
+    3999:i     if (api == NULL) {
+    4000:s         set_error(error, error_capacity,
+    4001:"             "stream api does not resolve to a declared API");
+    4002:r         return false;
+    4003:}     }
+    4004:  
+    4005:  
+    4006:c     char stream_c_name[256];
+    4007:c     char api_name[256];
+    4008:c     char api_abbr[32];
+    4009:  
+    4010:d     declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
+    4011:s     snake_name(api->name, api_name, sizeof(api_name));
+    4012:  
+    4013:i     if (!api_effective_prefix_ctx(
+    4014:c             ctx, api, api_abbr, sizeof(api_abbr),
+    4015:e             error, error_capacity)) {
+    4016:r         return false;
+    4017:}     }
+    4018:  
+    4019:  
+    4020:a     adsl_effective_method_t *effective = NULL;
+    4021:s     size_t effective_count = 0u;
+    4022:  
+    4023:i     if (!emitter_collect_effective_ctx(
+    4024:c             ctx, api, &effective, &effective_count,
+    4025:e             error, error_capacity)) {
+    4026:r         return false;
+    4027:}     }
+    4028:  
+    4029:f     for (size_t m = 0u; m < effective_count; ++m) {
+    4030:  
+    4031:c         const adsl_method_t *method = effective[m].method;
+    4032:  
+    4033:  
+    4034:  
+    4035:c         char method_name[256];
+    4036:s         snake_name(method->name, method_name, sizeof(method_name));
+>>> (показано строк: 209 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4196 to 4240
+>>> (показано строк: 45 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4241 to 4300
+>>> (показано строк: 60 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4346 to 4582
+>>> (показано строк: 237 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4637 to 4699
+>>> (показано строк: 63 из 11902)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: encodeAsHTML for class: java.lang.String is applicable for argument types: () values: []
+````
+
+[subtask extractStreamBuilderCode] <pre style='font-size:12px; line-height:1.4;'>// ===== emit_stream_builder_declarations_for_api_ctx =====
+static bool emit_stream_builder_declarations_for_api_ctx(
+    FILE *output,
+    const emitter_ctx_t *ctx,
+    const char *stream_abbr,
+    const char *stream_name,
+    const char *api_reference,
+    char *error,
+    size_t error_capacity) {
+
+    const adsl_api_t *api =
+        find_api_definition_ctx(ctx, api_reference);
+
+    if (api == NULL) {
+        set_error(error, error_capacity,
+            &quot;stream api does not resolve to a declared API&quot;);
+        return false;
+    }
+
+
+    char stream_c_name[256];
+    char api_name[256];
+    char api_abbr[32];
+
+    declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
+    snake_name(api-&gt;name, api_name, sizeof(api_name));
+
+    if (!api_effective_prefix_ctx(
+            ctx, api, api_abbr, sizeof(api_abbr),
+            error, error_capacity)) {
+        return false;
+    }
+
+
+    adsl_effective_method_t *effective = NULL;
+    size_t effective_count = 0u;
+
+    if (!emitter_collect_effective_ctx(
+            ctx, api, &amp;effective, &amp;effective_count,
+            error, error_capacity)) {
+        return false;
+    }
+
+    for (size_t m = 0u; m &lt; effective_count; ++m) {
+
+        const adsl_method_t *method = effective[m].method;
+
+
+
+        char method_name[256];
+        snake_name(method-&gt;name, method_name, sizeof(method_name));
+
+        bool collapsible =
+            method_has_collapsible_params(method);
+
+        emit_method_origin(output, effective[m].owner, method);
+
+        /*
+         * The builder entry point is namespaced by the stream *type* name
+         * (e.g. csa_login_stream) so that the module prefix (csa_) still
+         * leads the symbol, while the builder cannot collide with the plain
+         * API function that shares {api_prefix}_{api_name}_{method_name}.
+         */
+        fprintf(
+            output,
+            &quot;aether_status_t %s_%s_%s(\n&quot;
+            &quot;    %s_t *builder_stream&quot;,
+            stream_c_name, api_name, method_name, stream_c_name);
+
+        if (collapsible) {
+
+
+            fprintf(output, &quot;,\n    %s_%s_%s_context_t *collapse&quot;,
+                api_abbr, api_name, method_name);
+
+
+        }
+
+
+
+        for (size_t p = 0u; p &lt; method-&gt;param_count; ++p) {
+
+            fputs(&quot;,\n    &quot;, output);
+
+            if (!emit_parameter_type_ctx(
+                    output, ctx, &amp;method-&gt;params[p],
+                    error, error_capacity)) {
+                free(effective);
+                return false;
+            }
+
+            fprintf(output, &quot; %s&quot;, method-&gt;params[p].name);
+        }
+
+        fputs(&quot;);\n\n&quot;, output);
+
+        if (collapsible) {
+            emit_method_origin(output, effective[m].owner, method);
+
+            fprintf(
+... (вывод обрезан лимитом 100 строк)

@@ -1,0 +1,905 @@
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/generated/aether_api.c
+[FILE] src/generated/aether_api.h
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 2 файлов)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    11709:a aether_status_t csa_login_stream_authorized_api_client(
+>>> (всего найдено строк: 1)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    6732:i         if ((*v).as.ar_aether_stream_type == NULL) return false;
+    6733:i     if ((*v).as.ar_aether_stream_type == NULL) return false;
+    6734:u     uint64_t value_ar_aether_stream_type_nullable_mask = UINT64_C(0);
+    6735:i     if ((*v).as.ar_aether_stream_type->docId == NULL) value_ar_aether_stream_type_nullable_mask |= (UINT64_C(1) << 0u);
+    6736:i     if (!aether_data_out_write_byte(out, (uint8_t)((value_ar_aether_stream_type_nullable_mask >> 0u) & UINT64_C(0xff)))) return false;
+    6737:i     if ((*v).as.ar_aether_stream_type->id < 0) return false;
+    6738:i     if (!aether_data_out_write_pack(out, (uint64_t)(*v).as.ar_aether_stream_type->id)) return false;
+    6739:i     if ((*v).as.ar_aether_stream_type->docId != NULL) {
+    6740:i     if ((*(*v).as.ar_aether_stream_type->docId) < 0) return false;
+    6741:i     if (!aether_data_out_write_pack(out, (uint64_t)(*(*v).as.ar_aether_stream_type->docId))) return false;
+    6743:i     if ((*v).as.ar_aether_stream_type->apiId < 0) return false;
+    6744:i     if (!aether_data_out_write_pack(out, (uint64_t)(*v).as.ar_aether_stream_type->apiId)) return false;
+    6745:i     if (!aether_data_out_write_byte(out, (uint8_t)(*v).as.ar_aether_stream_type->isCrypto)) return false;
+    6844:a             ar_aether_stream_type_t *_meta_child_0 = (ar_aether_stream_type_t *)in->scratch_alloc(in->scratch_ctx, sizeof(ar_aether_stream_type_t), _Alignof(ar_aether_stream_type_t));
+    6872:(             ((*v)).as.ar_aether_stream_type = _meta_child_0;
+    7036:b bool ar_serialize_aether_stream_type(
+    7043:c     const ar_aether_stream_type_t *v = (const ar_aether_stream_type_t *)value;
+    7062:b bool ar_deserialize_aether_stream_type(
+    7069:a     ar_aether_stream_type_t *v = (ar_aether_stream_type_t *)value;
+    7600:i         if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type == NULL) return false;
+    7601:i     if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type == NULL) return false;
+    7602:u     uint64_t value_typeRegistry_element_ar_aether_stream_type_nullable_mask = UINT64_C(0);
+    7603:i     if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId == NULL) value_typeRegistry_element_ar_aether_stream_type_nullable_mask |= (UINT64_C(1) << 0u);
+    7604:i     if (!aether_data_out_write_byte(out, (uint8_t)((value_typeRegistry_element_ar_aether_stream_type_nullable_mask >> 0u) & UINT64_C(0xff)))) return false;
+    7605:i     if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->id < 0) return false;
+    7606:i     if (!aether_data_out_write_pack(out, (uint64_t)v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->id)) return false;
+    7607:i     if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId != NULL) {
+    7608:i     if ((*v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId) < 0) return false;
+    7609:i     if (!aether_data_out_write_pack(out, (uint64_t)(*v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId))) return false;
+    7611:i     if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->apiId < 0) return false;
+    7612:i     if (!aether_data_out_write_pack(out, (uint64_t)v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->apiId)) return false;
+    7613:i     if (!aether_data_out_write_byte(out, (uint8_t)v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->isCrypto)) return false;
+    7757:a             ar_aether_stream_type_t *_meta_child_2 = (ar_aether_stream_type_t *)in->scratch_alloc(in->scratch_ctx, sizeof(ar_aether_stream_type_t), _Alignof(ar_aether_stream_type_t));
+    7785:(             (_meta_buf_1[_meta_i_1]).as.ar_aether_stream_type = _meta_child_2;
+    7874:c     const csa_login_client_stream_t * data) {
+    7900:c     const csa_login_client_stream_t * data) {
+    7971:c     const csa_client_api_reg_safe_stream_t * stream) {
+    8617:c     const csa_client_interaction_client_stream_t * stream) {
+    9321:c     const csa_client_api_stream_t * stream) {
+    10506:c     const csa_login_stream_t * data) {
+    10533:c     const csa_login_stream_t * data) {
+    10582:c     const csa_login_stream_t * data) {
+    10611:c     const csa_login_stream_t * data) {
+    11555:c     const csa_server_registration_api_stream_t * stream) {
+    11602:} } csa_stream_commit_t;
+    11604:s static aether_status_t csa_stream_commit(
+    11611:c     csa_stream_commit_t *commit =
+    11629:a aether_status_t csa_login_stream_authorized_api_back_id(
+    11630:c     csa_login_stream_t *builder_stream,
+    11650:c     csa_stream_commit_t commit = {
+>>> (всего найдено строк: 565)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 11690 to 11780
+    11690:c     csa_stream_commit_t commit = {
+    11691:&         &builder_stream->length,
+    11692:r         remaining
+    11693:}     };
+    11694:  
+    11695:c     csa_authorized_api_remote_t remote = {
+    11696:&         &commit,
+    11697:c         csa_stream_commit,
+    11698:b         builder_stream->data + builder_stream->length,
+    11699:r         remaining
+    11700:}     };
+    11701:  
+    11702:r     return csa_authorized_api_ping(
+    11703:&         &remote,
+    11704:n         nextConnectMsDuration,
+    11705:r         rxWindowMs);
+    11706:} }
+    11707:  
+    11708:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:392 api.AuthorizedApi.methods.client */
+    11709:a aether_status_t csa_login_stream_authorized_api_client(
+    11710:c     csa_login_stream_t *builder_stream,
+    11711:a     aether_uuid_t uid,
+    11712:c     const csa_client_api_stream_t * stream) {
+    11713:  
+    11714:i     if (builder_stream == NULL ||
+    11715:b         builder_stream->length > builder_stream->capacity) {
+    11716:r         return AETHER_ERR_ARGUMENT;
+    11717:}     }
+    11718:  
+    11719:i     if (builder_stream->capacity > 0u &&
+    11720:b         builder_stream->data == NULL) {
+    11721:r         return AETHER_ERR_ARGUMENT;
+    11722:}     }
+    11723:  
+    11724:s     size_t remaining =
+    11725:b         builder_stream->capacity - builder_stream->length;
+    11726:  
+    11727:i     if (remaining == 0u) {
+    11728:r         return AETHER_ERR_OVERFLOW;
+    11729:}     }
+    11730:  
+    11731:c     csa_stream_commit_t commit = {
+    11732:&         &builder_stream->length,
+    11733:r         remaining
+    11734:}     };
+    11735:  
+    11736:c     csa_authorized_api_remote_t remote = {
+    11737:&         &commit,
+    11738:c         csa_stream_commit,
+    11739:b         builder_stream->data + builder_stream->length,
+>>> (показано строк: 91 из 16726)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 11709 to 11770
+    11709:a aether_status_t csa_login_stream_authorized_api_client(
+    11710:c     csa_login_stream_t *builder_stream,
+    11711:a     aether_uuid_t uid,
+    11712:c     const csa_client_api_stream_t * stream) {
+    11713:  
+    11714:i     if (builder_stream == NULL ||
+    11715:b         builder_stream->length > builder_stream->capacity) {
+    11716:r         return AETHER_ERR_ARGUMENT;
+    11717:}     }
+    11718:  
+    11719:i     if (builder_stream->capacity > 0u &&
+    11720:b         builder_stream->data == NULL) {
+    11721:r         return AETHER_ERR_ARGUMENT;
+    11722:}     }
+    11723:  
+    11724:s     size_t remaining =
+    11725:b         builder_stream->capacity - builder_stream->length;
+    11726:  
+    11727:i     if (remaining == 0u) {
+    11728:r         return AETHER_ERR_OVERFLOW;
+    11729:}     }
+    11730:  
+    11731:c     csa_stream_commit_t commit = {
+    11732:&         &builder_stream->length,
+    11733:r         remaining
+    11734:}     };
+    11735:  
+    11736:c     csa_authorized_api_remote_t remote = {
+    11737:&         &commit,
+    11738:c         csa_stream_commit,
+    11739:b         builder_stream->data + builder_stream->length,
+    11740:r         remaining
+    11741:}     };
+    11742:  
+    11743:r     return csa_authorized_api_client(
+    11744:&         &remote,
+    11745:u         uid,
+    11746:s         stream);
+    11747:} }
+    11748:  
+    11749:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:397 api.AuthorizedApi.methods.sendMessage */
+    11750:a aether_status_t csa_login_stream_authorized_api_send_message(
+    11751:c     csa_login_stream_t *builder_stream,
+    11752:c     const csa_message_t * msg) {
+    11753:  
+    11754:i     if (builder_stream == NULL ||
+    11755:b         builder_stream->length > builder_stream->capacity) {
+    11756:r         return AETHER_ERR_ARGUMENT;
+    11757:}     }
+    11758:  
+>>> (показано строк: 62 из 16726)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    11552:a aether_status_t csa_registration_root_api_enter(
+>>> (всего найдено строк: 1)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 11555 to 11630
+    11555:c     const csa_server_registration_api_stream_t * stream) {
+    11556:  
+    11557:i     if (api == NULL ||
+    11558:a         api->send == NULL ||
+    11559:a         api->out == NULL) {
+    11560:r         return AETHER_ERR_ARGUMENT;
+    11561:}     }
+    11562:  
+    11563:a     aether_data_out_t *out = api->out;
+    11564:i     if (!aether_data_out_write_byte(out, 4u)) {
+    11565:r         return AETHER_ERR_OVERFLOW;
+    11566:}     }
+    11567:i     if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    11568:i     if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    11569:i     if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    11570:i     if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+    11571:  
+    11572:r     return api->send(
+    11573:a         api->send_ctx,
+    11574:a         api->out->data,
+    11575:a         api->out->pos);
+    11576:} }
+    11577:  
+    11578:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:792 api.RegistrationRootApi.methods.getMyIp */
+    11579:a aether_status_t csa_registration_root_api_get_my_ip(
+    11580:c     csa_registration_root_api_remote_t *api) {
+    11581:  
+    11582:i     if (api == NULL ||
+    11583:a         api->send == NULL ||
+    11584:a         api->out == NULL) {
+    11585:r         return AETHER_ERR_ARGUMENT;
+    11586:}     }
+    11587:  
+    11588:a     aether_data_out_t *out = api->out;
+    11589:i     if (!aether_data_out_write_byte(out, 6u)) {
+    11590:r         return AETHER_ERR_OVERFLOW;
+    11591:}     }
+    11592:  
+    11593:r     return api->send(
+    11594:a         api->send_ctx,
+    11595:a         api->out->data,
+    11596:a         api->out->pos);
+    11597:} }
+    11598:  
+    11599:t typedef struct {
+    11600:s     size_t *length;
+    11601:s     size_t remaining;
+    11602:} } csa_stream_commit_t;
+    11603:  
+    11604:s static aether_status_t csa_stream_commit(
+>>> (показано строк: 76 из 16726)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 11552 to 11576
+    11552:a aether_status_t csa_registration_root_api_enter(
+    11553:c     csa_registration_root_api_remote_t *api,
+    11554:c     common_crypto_lib_t cryptoLib,
+    11555:c     const csa_server_registration_api_stream_t * stream) {
+    11556:  
+    11557:i     if (api == NULL ||
+    11558:a         api->send == NULL ||
+    11559:a         api->out == NULL) {
+    11560:r         return AETHER_ERR_ARGUMENT;
+    11561:}     }
+    11562:  
+    11563:a     aether_data_out_t *out = api->out;
+    11564:i     if (!aether_data_out_write_byte(out, 4u)) {
+    11565:r         return AETHER_ERR_OVERFLOW;
+    11566:}     }
+    11567:i     if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    11568:i     if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    11569:i     if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    11570:i     if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+    11571:  
+    11572:r     return api->send(
+    11573:a         api->send_ctx,
+    11574:a         api->out->data,
+    11575:a         api->out->pos);
+    11576:} }
+>>> (показано строк: 25 из 16726)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+>>> (совпадений не найдено)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    11630:c     csa_login_stream_t *builder_stream,
+    11633:i     if (builder_stream == NULL ||
+    11634:b         builder_stream->length > builder_stream->capacity) {
+    11638:i     if (builder_stream->capacity > 0u &&
+    11639:b         builder_stream->data == NULL) {
+    11644:b         builder_stream->capacity - builder_stream->length;
+    11651:&         &builder_stream->length,
+    11658:b         builder_stream->data + builder_stream->length,
+    11669:c     csa_login_stream_t *builder_stream,
+    11673:i     if (builder_stream == NULL ||
+    11674:b         builder_stream->length > builder_stream->capacity) {
+    11678:i     if (builder_stream->capacity > 0u &&
+    11679:b         builder_stream->data == NULL) {
+    11684:b         builder_stream->capacity - builder_stream->length;
+    11691:&         &builder_stream->length,
+    11698:b         builder_stream->data + builder_stream->length,
+    11710:c     csa_login_stream_t *builder_stream,
+    11714:i     if (builder_stream == NULL ||
+    11715:b         builder_stream->length > builder_stream->capacity) {
+    11719:i     if (builder_stream->capacity > 0u &&
+    11720:b         builder_stream->data == NULL) {
+    11725:b         builder_stream->capacity - builder_stream->length;
+    11732:&         &builder_stream->length,
+    11739:b         builder_stream->data + builder_stream->length,
+    11751:c     csa_login_stream_t *builder_stream,
+    11754:i     if (builder_stream == NULL ||
+    11755:b         builder_stream->length > builder_stream->capacity) {
+    11759:i     if (builder_stream->capacity > 0u &&
+    11760:b         builder_stream->data == NULL) {
+    11765:b         builder_stream->capacity - builder_stream->length;
+    11772:&         &builder_stream->length,
+    11779:b         builder_stream->data + builder_stream->length,
+    11790:c     csa_login_stream_t *builder_stream,
+    11793:i     if (builder_stream == NULL ||
+    11794:b         builder_stream->length > builder_stream->capacity) {
+    11798:i     if (builder_stream->capacity > 0u &&
+    11799:b         builder_stream->data == NULL) {
+    11804:b         builder_stream->capacity - builder_stream->length;
+    11811:&         &builder_stream->length,
+    11818:b         builder_stream->data + builder_stream->length,
+    11829:c     csa_login_stream_t *builder_stream,
+    11833:i     if (builder_stream == NULL ||
+    11834:b         builder_stream->length > builder_stream->capacity) {
+    11838:i     if (builder_stream->capacity > 0u &&
+    11839:b         builder_stream->data == NULL) {
+    11844:b         builder_stream->capacity - builder_stream->length;
+    11851:&         &builder_stream->length,
+    11858:b         builder_stream->data + builder_stream->length,
+    11870:c     csa_login_stream_t *builder_stream,
+    11873:i     if (builder_stream == NULL ||
+>>> (всего найдено строк: 1032)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 11626 to 11747
+    11626:} }
+    11627:  
+    11628:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:381 api.AuthorizedApi.methods.backId */
+    11629:a aether_status_t csa_login_stream_authorized_api_back_id(
+    11630:c     csa_login_stream_t *builder_stream,
+    11631:i     int16_t id) {
+    11632:  
+    11633:i     if (builder_stream == NULL ||
+    11634:b         builder_stream->length > builder_stream->capacity) {
+    11635:r         return AETHER_ERR_ARGUMENT;
+    11636:}     }
+    11637:  
+    11638:i     if (builder_stream->capacity > 0u &&
+    11639:b         builder_stream->data == NULL) {
+    11640:r         return AETHER_ERR_ARGUMENT;
+    11641:}     }
+    11642:  
+    11643:s     size_t remaining =
+    11644:b         builder_stream->capacity - builder_stream->length;
+    11645:  
+    11646:i     if (remaining == 0u) {
+    11647:r         return AETHER_ERR_OVERFLOW;
+    11648:}     }
+    11649:  
+    11650:c     csa_stream_commit_t commit = {
+    11651:&         &builder_stream->length,
+    11652:r         remaining
+    11653:}     };
+    11654:  
+    11655:c     csa_authorized_api_remote_t remote = {
+    11656:&         &commit,
+    11657:c         csa_stream_commit,
+    11658:b         builder_stream->data + builder_stream->length,
+    11659:r         remaining
+    11660:}     };
+    11661:  
+    11662:r     return csa_authorized_api_back_id(
+    11663:&         &remote,
+    11664:i         id);
+    11665:} }
+    11666:  
+    11667:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:386 api.AuthorizedApi.methods.ping */
+    11668:a aether_status_t csa_login_stream_authorized_api_ping(
+    11669:c     csa_login_stream_t *builder_stream,
+    11670:i     int64_t nextConnectMsDuration,
+    11671:i     int64_t rxWindowMs) {
+    11672:  
+    11673:i     if (builder_stream == NULL ||
+    11674:b         builder_stream->length > builder_stream->capacity) {
+    11675:r         return AETHER_ERR_ARGUMENT;
+>>> (показано строк: 122 из 16726)
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tests/aether_test_crypto_hydrogen.c
+[FILE] tests/aether_test_crypto_hydrogen.h
+[FILE] tests/cmake_helpers_check.sh
+[FILE] tests/p2p_e2e.c
+[FILE] tests/p2p_test_support.c
+[FILE] tests/p2p_test_support.h
+[FILE] tests/test_aether.c
+[FILE] tests/test_app.c
+[FILE] tests/test_client.c
+[FILE] tests/test_components.c
+[FILE] tests/test_credentials.c
+[FILE] tests/test_facade_lifecycle.c
+[FILE] tests/test_facade_scheduler.c
+[FILE] tests/test_hydrogen.c
+[FILE] tests/test_lan_cert.c
+[FILE] tests/test_lan_codec.c
+[FILE] tests/test_lan_component.c
+[FILE] tests/test_messages.c
+[FILE] tests/test_peer_identity.c
+[FILE] tests/test_peer_identity_verify.c
+[FILE] tests/test_peer_uap.c
+[FILE] tests/test_rx.c
+[FILE] tests/test_send_future.c
+[FILE] tests/test_transport.c
+[DIR]  tests
+>>> (итог: 1 директорий, 24 файлов)
+
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/tests/*.ctimestamp: 1792663334375
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/tests/timestamp: 1792663336491
+>>> findText
+/home/angel/projects/aether-client-c/tests/test_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_aether.c
+/home/angel/projects/aether-client-c/tests/test_rx.c
+/home/angel/projects/aether-client-c/tests/test_send_future.c
+/home/angel/projects/aether-client-c/tests/test_app.c
+/home/angel/projects/aether-client-c/tests/test_messages.c
+/home/angel/projects/aether-client-c/tests/test_credentials.c
+/home/angel/projects/aether-client-c/tests/test_lan_codec.c
+/home/angel/projects/aether-client-c/tests/test_facade_lifecycle.c
+/home/angel/projects/aether-client-c/tests/test_components.c
+/home/angel/projects/aether-client-c/tests/test_lan_cert.c
+/home/angel/projects/aether-client-c/tests/test_lan_component.c
+/home/angel/projects/aether-client-c/tests/test_facade_scheduler.c
+/home/angel/projects/aether-client-c/tests/test_transport.c
+/home/angel/projects/aether-client-c/tests/aether_test_crypto_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_peer_uap.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity_verify.c
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+/home/angel/projects/aether-client-c/tests/test_client.c
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_local_dispatch.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_tiered_int_runtime.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project_scan.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_merge.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_types.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_type_registry.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_api_params.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_calculate.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_notify.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_ping.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_method.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_describe.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_enum.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_values.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_intpack.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_arrays.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_hierarchy.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nested_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_collapsible.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_result_rpc.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_static_struct_array.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_tiered_int.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_recursive_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_stream_builder.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_include.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module_pending.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_hardening.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_temperature.c
+>>> (совпадений не найдено)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/test_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_aether.c
+/home/angel/projects/aether-client-c/tests/test_rx.c
+/home/angel/projects/aether-client-c/tests/test_send_future.c
+/home/angel/projects/aether-client-c/tests/test_app.c
+/home/angel/projects/aether-client-c/tests/test_messages.c
+/home/angel/projects/aether-client-c/tests/test_credentials.c
+/home/angel/projects/aether-client-c/tests/test_lan_codec.c
+/home/angel/projects/aether-client-c/tests/test_facade_lifecycle.c
+/home/angel/projects/aether-client-c/tests/test_components.c
+/home/angel/projects/aether-client-c/tests/test_lan_cert.c
+/home/angel/projects/aether-client-c/tests/test_lan_component.c
+/home/angel/projects/aether-client-c/tests/test_facade_scheduler.c
+/home/angel/projects/aether-client-c/tests/test_transport.c
+/home/angel/projects/aether-client-c/tests/aether_test_crypto_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_peer_uap.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity_verify.c
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+/home/angel/projects/aether-client-c/tests/test_client.c
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_local_dispatch.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_tiered_int_runtime.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project_scan.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_merge.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_types.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_type_registry.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_api_params.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_calculate.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_notify.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_ping.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_method.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_describe.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_enum.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_values.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_intpack.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_arrays.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_hierarchy.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nested_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_collapsible.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_result_rpc.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_static_struct_array.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_tiered_int.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_recursive_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_stream_builder.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_include.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module_pending.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_hardening.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_temperature.c
+>>> (совпадений не найдено)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/test_client.c
+>>> (совпадений не найдено)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/test_client.c
+>>> (совпадений не найдено)
+
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_stream_builder.c lines 0 to 100
+    1:  
+    2:# #include "aether_api.h"
+    3:  
+    4:# #include <assert.h>
+    5:# #include <stddef.h>
+    6:# #include <stdint.h>
+    7:# #include <string.h>
+    8:  
+    9:s static void test_multiple_commands_append_in_place(void) {
+    10:u     uint8_t storage[32] = {0};
+    11:  
+    12:s     sb_command_stream_t stream = {
+    13:s         storage,
+    14:s         sizeof(storage),
+    15:0         0u
+    16:}     };
+    17:  
+    18:a     assert(
+    19:s         sb_command_stream_stream_api_append_value(
+    20:&             &stream,
+    21:I             INT32_C(0x01020304)) ==
+    22:A         AETHER_OK);
+    23:  
+    24:a     assert(stream.length == 5u);
+    25:  
+    26:s     static const uint8_t first_expected[] = {
+    27:0         0x03u,
+    28:0         0x04u,
+    29:0         0x03u,
+    30:0         0x02u,
+    31:0         0x01u
+    32:}     };
+    33:  
+    34:a     assert(
+    35:m         memcmp(
+    36:s             storage,
+    37:f             first_expected,
+    38:s             sizeof(first_expected)) == 0);
+    39:  
+    40:a     assert(
+    41:s         sb_command_stream_stream_api_query(
+    42:&             &stream,
+    43:U             UINT32_C(0xa1b2c3d4),
+    44:I             INT16_C(0x1234)) ==
+    45:A         AETHER_OK);
+    46:  
+    47:s     static const uint8_t expected[] = {
+    48:0         0x03u,
+    49:0         0x04u,
+    50:0         0x03u,
+>>> (показано строк: 100 из 318)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    11709:a aether_status_t csa_login_stream_authorized_api_client(
+/home/angel/projects/aether-client-c/src/aether_rx_first.c
+/home/angel/projects/aether-client-c/src/aether_rx_all.c
+/home/angel/projects/aether-client-c/src/aether_rx_adaptive.c
+/home/angel/projects/aether-client-c/src/aether_send_future.c
+/home/angel/projects/aether-client-c/src/aether_messages.c
+/home/angel/projects/aether-client-c/src/aether_credentials.c
+/home/angel/projects/aether-client-c/src/aether_registration.c
+/home/angel/projects/aether-client-c/src/aether_internal.c
+/home/angel/projects/aether-client-c/src/aether_lan_codec.c
+/home/angel/projects/aether-client-c/src/aether_lan.c
+/home/angel/projects/aether-client-c/src/aether_transport.c
+/home/angel/projects/aether-client-c/src/aether.c
+/home/angel/projects/aether-client-c/src/aether_transport_server.c
+/home/angel/projects/aether-client-c/src/aether_meta_runtime.c
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+/home/angel/projects/aether-client-c/src/aether_hydrogen.c
+/home/angel/projects/aether-client-c/src/aether_peer_uap.c
+/home/angel/projects/aether-client-c/src/aether_peer_identity.c
+/home/angel/projects/aether-client-c/src/aether_peer_identity_verify.c
+/home/angel/projects/aether-client-c/src/aether_crypto_registry.c
+/home/angel/projects/aether-client-c/src/aether_dataio.c
+/home/angel/projects/aether-client-c/src/aether_peer_frame.c
+/home/angel/projects/aether-client-c/src/aether_client.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_hydrogen_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/hydrogen_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/psa_api_probe.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_p256_backend_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/p256_vector_test.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_app_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_platform_esp32_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_rx_all_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_send_future_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/esp_aes_cbc_disabled_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_meta_runtime_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/main.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_client_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_global_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_root_enter_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_root_key_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_safe_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_unsafe_local_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_finish_response_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/client_server_reg_safe_types_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_transport_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_transport_server_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_crypto_registry_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_internal_wrap.c
+/home/angel/projects/aether-client-c/platform/esp32/contract/src/wifi_api_contract.c
+/home/angel/projects/aether-client-c/platform/esp32/contract/src/main.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/main.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+/home/angel/projects/aether-client-c/examples/thermometer/src/main.c
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+>>> (всего найдено строк: 1)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/test_client.c
+    1911:s     size_t authorized_pos=0u;
+    1912:a     assert(take8(outbound_plain,outbound_plain_len,&authorized_pos)==39u);
+    1913:a     assert(take32(outbound_plain,outbound_plain_len,&authorized_pos)==send_req);
+    1914:e     expect_uuid(outbound_plain,outbound_plain_len,&authorized_pos,dest);
+    1921:&             &authorized_pos,
+    1926:a     assert(authorized_pos==outbound_plain_len);
+>>> (всего найдено строк: 6)
+
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-ctimestamp: 1792663357349
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    10506:c     const csa_login_stream_t * data) {
+    10533:c     const csa_login_stream_t * data) {
+    10582:c     const csa_login_stream_t * data) {
+    10611:c     const csa_login_stream_t * data) {
+    11629:a aether_status_t csa_login_stream_authorized_api_back_id(
+    11630:c     csa_login_stream_t *builder_stream,
+    11668:a aether_status_t csa_login_stream_authorized_api_ping(
+    11669:c     csa_login_stream_t *builder_stream,
+    11709:a aether_status_t csa_login_stream_authorized_api_client(
+    11710:c     csa_login_stream_t *builder_stream,
+    11750:a aether_status_t csa_login_stream_authorized_api_send_message(
+    11751:c     csa_login_stream_t *builder_stream,
+    11789:a aether_status_t csa_login_stream_authorized_api_send_messages(
+    11790:c     csa_login_stream_t *builder_stream,
+    11828:a aether_status_t csa_login_stream_authorized_api_send_multicast(
+    11829:c     csa_login_stream_t *builder_stream,
+    11869:a aether_status_t csa_login_stream_authorized_api_send_message_with_result(
+    11870:c     csa_login_stream_t *builder_stream,
+    11908:a aether_status_t csa_login_stream_authorized_api_create_access_group(
+    11909:c     csa_login_stream_t *builder_stream,
+    11949:a aether_status_t csa_login_stream_authorized_api_add_to_access_group(
+    11950:c     csa_login_stream_t *builder_stream,
+    11990:a aether_status_t csa_login_stream_authorized_api_remove_from_access_group(
+    11991:c     csa_login_stream_t *builder_stream,
+    12031:a aether_status_t csa_login_stream_authorized_api_check_access_for_send_message(
+    12032:c     csa_login_stream_t *builder_stream,
+    12070:a aether_status_t csa_login_stream_authorized_api_resolver_servers(
+    12071:c     csa_login_stream_t *builder_stream,
+    12109:a aether_status_t csa_login_stream_authorized_api_resolve_clouds(
+    12110:c     csa_login_stream_t *builder_stream,
+    12148:a aether_status_t csa_login_stream_authorized_api_report_applied_config(
+    12149:c     csa_login_stream_t *builder_stream,
+    12187:a aether_status_t csa_login_stream_authorized_api_get_access_groups(
+    12188:c     csa_login_stream_t *builder_stream,
+    12226:a aether_status_t csa_login_stream_authorized_api_get_access_group(
+    12227:c     csa_login_stream_t *builder_stream,
+    12265:a aether_status_t csa_login_stream_authorized_api_get_all_accessed_clients(
+    12266:c     csa_login_stream_t *builder_stream,
+    12304:a aether_status_t csa_login_stream_authorized_api_check_access_for_send_message2(
+    12305:c     csa_login_stream_t *builder_stream,
+    12345:a aether_status_t csa_login_stream_authorized_api_send_telemetry(
+    12346:c     csa_login_stream_t *builder_stream,
+    12384:a aether_status_t csa_login_stream_authorized_api_request_access_groups_for_clients(
+    12385:c     csa_login_stream_t *builder_stream,
+    12423:a aether_status_t csa_login_stream_authorized_api_request_access_groups_items(
+    12424:c     csa_login_stream_t *builder_stream,
+    12462:a aether_status_t csa_login_stream_authorized_api_send_access_group_for_client(
+    12463:c     csa_login_stream_t *builder_stream,
+    12503:a aether_status_t csa_login_stream_authorized_api_add_items_to_access_group(
+    12504:c     csa_login_stream_t *builder_stream,
+/home/angel/projects/aether-client-c/src/aether_rx_first.c
+/home/angel/projects/aether-client-c/src/aether_rx_all.c
+/home/angel/projects/aether-client-c/src/aether_rx_adaptive.c
+/home/angel/projects/aether-client-c/src/aether_send_future.c
+/home/angel/projects/aether-client-c/src/aether_messages.c
+/home/angel/projects/aether-client-c/src/aether_credentials.c
+/home/angel/projects/aether-client-c/src/aether_registration.c
+/home/angel/projects/aether-client-c/src/aether_internal.c
+/home/angel/projects/aether-client-c/src/aether_lan_codec.c
+/home/angel/projects/aether-client-c/src/aether_lan.c
+/home/angel/projects/aether-client-c/src/aether_transport.c
+/home/angel/projects/aether-client-c/src/aether.c
+/home/angel/projects/aether-client-c/src/aether_transport_server.c
+/home/angel/projects/aether-client-c/src/aether_meta_runtime.c
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+/home/angel/projects/aether-client-c/src/aether_hydrogen.c
+/home/angel/projects/aether-client-c/src/aether_peer_uap.c
+/home/angel/projects/aether-client-c/src/aether_peer_identity.c
+/home/angel/projects/aether-client-c/src/aether_peer_identity_verify.c
+/home/angel/projects/aether-client-c/src/aether_crypto_registry.c
+/home/angel/projects/aether-client-c/src/aether_dataio.c
+/home/angel/projects/aether-client-c/src/aether_peer_frame.c
+/home/angel/projects/aether-client-c/src/aether_client.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_hydrogen_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/hydrogen_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/psa_api_probe.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_p256_backend_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/p256_vector_test.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_app_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_platform_esp32_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_rx_all_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_send_future_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/esp_aes_cbc_disabled_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_meta_runtime_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/main.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_client_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_global_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_root_enter_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_root_key_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_safe_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_unsafe_local_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_reg_finish_response_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/client_server_reg_safe_types_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_transport_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_transport_server_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_crypto_registry_wrap.c
+/home/angel/projects/aether-client-c/esp32-size/src/aether_internal_wrap.c
+/home/angel/projects/aether-client-c/platform/esp32/contract/src/wifi_api_contract.c
+/home/angel/projects/aether-client-c/platform/esp32/contract/src/main.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/main.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+/home/angel/projects/aether-client-c/examples/thermometer/src/main.c
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+>>> (всего найдено строк: 98)
+
+>>> findText
+/home/angel/projects/aether-client-c/examples/thermometer/src/main.c
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+>>> (совпадений не найдено)
+
+>>> findText
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+>>> (совпадений не найдено)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 11599 to 11626
+    11599:t typedef struct {
+    11600:s     size_t *length;
+    11601:s     size_t remaining;
+    11602:} } csa_stream_commit_t;
+    11603:  
+    11604:s static aether_status_t csa_stream_commit(
+    11605:v     void *ctx,
+    11606:c     const uint8_t *data,
+    11607:s     size_t length) {
+    11608:  
+    11609:(     (void)data;
+    11610:  
+    11611:c     csa_stream_commit_t *commit =
+    11612:c         ctx;
+    11613:  
+    11614:i     if (commit == NULL ||
+    11615:c         commit->length == NULL) {
+    11616:r         return AETHER_ERR_ARGUMENT;
+    11617:}     }
+    11618:  
+    11619:i     if (length > commit->remaining) {
+    11620:r         return AETHER_ERR_OVERFLOW;
+    11621:}     }
+    11622:  
+    11623:*     *commit->length += length;
+    11624:  
+    11625:r     return AETHER_OK;
+    11626:} }
+>>> (показано строк: 28 из 16726)
+
+[subtask inspectCGeneratedStreamImpl] 
+<h3>Отчёт по сгенерированному C-коду</h3>
+<p><b>1. Stream-методы</b> — используют <code>csa_login_stream_t *builder_stream</code> для инкрементальной записи, оборачивая вызов через <code>csa_stream_commit_t</code> и <code>csa_authorized_api_remote_t</code>.</p>
+<pre>// csa_login_stream_authorized_api_client (строки 11709-11747)
+aether_status_t csa_login_stream_authorized_api_client(
+    csa_login_stream_t *builder_stream,
+    aether_uuid_t uid,
+    const csa_client_api_stream_t * stream) {
+
+    if (builder_stream == NULL ||
+        builder_stream->length > builder_stream->capacity) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (builder_stream->capacity > 0u &&
+        builder_stream->data == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    size_t remaining =
+        builder_stream->capacity - builder_stream->length;
+
+    if (remaining == 0u) {
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    csa_stream_commit_t commit = {
+        &builder_stream->length,
+        remaining
+    };
+
+    csa_authorized_api_remote_t remote = {
+        &commit,
+        csa_stream_commit,
+        builder_stream->data + builder_stream->length,
+        remaining
+    };
+
+    return csa_authorized_api_client(
+        &remote,
+        uid,
+        stream);
+}</pre>
+<pre>// csa_login_stream_authorized_api_back_id (11629-11665)
+aether_status_t csa_login_stream_authorized_api_back_id(
+    csa_login_stream_t *builder_stream,
+    int16_t id) {
+    // аналогичная проверка и создание commit/remote
+    ...
+    return csa_authorized_api_back_id(&remote, id);
+}</pre>
+
+<p><b>2. Обычные методы</b> — используют <code>aether_data_out_t *out</code> напрямую и вызывают <code>api->send</code>.</p>
+<pre>// csa_registration_root_api_enter (11552-11576)
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}</pre>
+<pre>// csa_registration_root_api_get_my_ip (11579-11597)
+aether_status_t csa_registration_root_api_get_my_ip(
+    csa_registration_root_api_remote_t *api) {
+    if (api == NULL || api->send == NULL || api->out == NULL)
+        return AETHER_ERR_ARGUMENT;
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 6u))
+        return AETHER_ERR_OVERFLOW;
+    return api->send(api->send_ctx, api->out->data, api->out->pos);
+}</pre>
+
+<p><b>3. Сравнение:</b><br>
+- Обычные методы пишут прямо в <code>api->out</code> (aether_data_out_t) и затем отправляют через <code>api->send</code>.<br>
+- Stream-методы вместо этого получают <code>builder_stream</code> (csa_login_stream_t), резервируют буфер и используют <code>csa_authorized_api_remote_t</code> с колбэком <code>csa_stream_commit</code>, который увеличивает <code>builder_stream->length</code> на записанный объём. Это позволяет добавлять несколько команд в один буфер без копирования.</p>
+
+<p><b>4. Использование builder_stream</b> — найдено только в aether_api.c, во всех функциях, начинающихся с <code>csa_login_stream_authorized_api_*</code>. Пример вызова <code>csa_stream_commit</code> выше.</p>
+
+<p><b>5. Вызовы stream-методов из тестов/примеров</b> — в файлах <code>tests/*.c</code> и <code>examples/*/main.c</code> не найдено прямых вызовов <code>csa_login_stream_*</code>. Однако есть тест <code>tools/aether-protocol-c/tests/test_generated_stream_builder.c</code>, который использует другой stream-API (<code>sb_command_stream_stream_api_append_value</code>):</p>
+<pre>// test_generated_stream_builder.c (фрагмент)
+sb_command_stream_t stream = { storage, sizeof(storage), 0u };
+assert(sb_command_stream_stream_api_append_value(&stream, INT32_C(0x01020304)) == AETHER_OK);
+... (вывод обрезан лимитом 100 строк)

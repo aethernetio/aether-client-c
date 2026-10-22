@@ -1,0 +1,252 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [120000, Script1$_run_closure1@1cdfbe7d]
+````
+
+>>> bash
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/angel/projects/aether-client-c/tools/aether-protocol-c/build-test
+>>> [elapsed: 188ms]
+>>> bash
+gmake: *** Нет правила для сборки цели «aether_adslc».  Останов.
+>>> [elapsed: 13ms]
+>>> bash
+EMITTER NULLABLE-STREAM TEST FAILED: generation failed: tests/test_emitter_nullable_stream.sh: строка 30: build-test/aether_adslc: Нет такого файла или каталога
+>>> [elapsed: 13ms]
+
+>>> bash
+... aether-adslc
+... aether_adslc_core
+... aether_adslc_cross_module_pending_test
+... aether_adslc_cross_module_test
+... aether_adslc_emitter_hardening_test
+... aether_adslc_include_test
+... aether_adslc_project_scan_test
+... aether_adslc_project_test
+... aether_adslc_test
+... aether_adslc_type_registry_test
+... aether_adslc_unified_merge_test
+... aether_adslc_unified_types_test
+... aether_generated_arrays_test
+... aether_generated_collapsible_test
+... aether_generated_enum_test
+... aether_generated_hierarchy_test
+... aether_generated_intpack_test
+... aether_generated_nested_struct_test
+... aether_generated_nullable_struct_test
+... aether_generated_recursive_struct_test
+... aether_generated_result_rpc_test
+... aether_generated_static_struct_array_test
+... aether_generated_stream_builder_test
+... aether_generated_struct_test
+... aether_generated_temperature_test
+... aether_generated_tiered_int_test
+... aether_generated_value_types_test
+... aether_meta_runtime_test
+... aether_tiered_int_runtime_test
+... generated-arrays/aether_api.o
+... generated-arrays/aether_api.i
+... generated-arrays/aether_api.s
+... generated-collapsible/aether_api.o
+... generated-collapsible/aether_api.i
+... generated-collapsible/aether_api.s
+... generated-enum/aether_api.o
+... generated-enum/aether_api.i
+... generated-enum/aether_api.s
+... generated-hierarchy/aether_api.o
+... generated-hierarchy/aether_api.i
+... generated-hierarchy/aether_api.s
+... generated-intpack/aether_api.o
+... generated-intpack/aether_api.i
+... generated-intpack/aether_api.s
+... generated-nested/aether_api.o
+... generated-nested/aether_api.i
+... generated-nested/aether_api.s
+... generated-nullable/aether_api.o
+... generated-nullable/aether_api.i
+... generated-nullable/aether_api.s
+>>> [elapsed: 100ms]
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt lines 1 to 50
+>>> (показано строк: 50 из 1544)
+
+>>> bash
+[ 20%] Building C object CMakeFiles/aether_adslc_core.dir/src/adsl.c.o
+[ 40%] Building C object CMakeFiles/aether_adslc_core.dir/src/emitter.c.o
+[ 60%] Linking C static library libaether_adslc_core.a
+[ 60%] Built target aether_adslc_core
+[ 80%] Building C object CMakeFiles/aether-adslc.dir/src/main.c.o
+[100%] Linking C executable aether-adslc
+[100%] Built target aether-adslc
+>>> [elapsed: 1445ms]
+
+>>> bash
+-rwxrwxr-x 1 angel angel 209016 Oct 22 18:08 build-test/aether-adslc
+>>> [elapsed: 7ms]
+
+>>> bash
+>>> [elapsed: 22ms]
+
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+    1:  
+    2:# #!/usr/bin/env bash
+    3:s set -euo pipefail
+    4:  
+    5:G GEN="${ADSL_TEST_GENERATOR:?generator binary not provided}"
+    6:F FIXTURES="${ADSL_TEST_FIXTURES:?fixture directory not provided}"
+    7:R RUNTIME_INCLUDE="${ADSL_TEST_RUNTIME_INCLUDE:?runtime include directory not provided}"
+    8:C CC="${ADSL_TEST_CC:?C compiler not provided}"
+    9:  
+    10:f fail() {
+    11:e     echo "EMITTER NULLABLE-STREAM TEST FAILED: $*" >&2
+    12:e     exit 1
+    13:} }
+    14:  
+    15:F FIXTURE="$FIXTURES/EmitterNullableStream.adsl.yaml"
+    16:[ [[ -f "$FIXTURE" ]] || fail "fixture not found: $FIXTURE"
+    17:  
+    18:T TMP="$(mktemp -d /tmp/aether-emitter-nullable-stream.XXXXXX)"
+    19:t trap 'rm -rf "$TMP"' EXIT
+    20:  
+    21:O OUT="$TMP/out"
+    22:m mkdir -p "$OUT"
+    23:  
+    24:  
+    25:# # EMIT-A3, REGRESSION.
+    26:# #
+    27:# # A nullable inline stream parameter (`name: TestStream?`) must produce a
+    28:# # self-consistent C type name: the stream typedef in the generated header
+    29:# # and every reference in the generated translation unit must agree.
+    30:" "$GEN" --input "$FIXTURE" "$OUT" \
+    31:>     >/dev/null 2>"$TMP/gen.err" ||
+    32:f     fail "generation failed: $(cat "$TMP/gen.err")"
+    33:  
+    34:A API_C="$OUT/aether_api.c"
+    35:[ [[ -f "$API_C" ]] || fail "generated source not produced"
+    36:  
+    37:# # Compile the generated translation unit against the shared runtime
+    38:# # headers. This is a one-translation-unit syntax/type check; it is
+    39:# # sufficient to catch a mismatch between 'test_stream__t' and
+    40:# # 'test_stream_t'.
+    41:" "$CC" -fsyntax-only \
+    42:-     -I"$OUT" \
+    43:-     -I"$RUNTIME_INCLUDE" \
+    44:"     "$API_C" \
+    45:2     2>"$TMP/cc.err" ||
+    46:f     fail "generated source does not compile: $(cat "$TMP/cc.err")"
+    47:  
+    48:  
+    49:e exit 0
+
+>>> bash
+EXIT_CODE=0
+>>> [elapsed: 23ms]
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/B_defines_item_stream.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+[FILE] tools/aether-protocol-c/tests/test_generated_stream_builder.c
+[DIR]  tools
+[DIR]  tools/aether-protocol-c
+[DIR]  tools/aether-protocol-c/tests
+[DIR]  tools/aether-protocol-c/tests/fixtures
+[DIR]  tools/aether-protocol-c/tests/fixtures/cross_module
+>>> (итог: 5 директорий, 3 файлов)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [60000, Script1$_run_closure1@5860658]
+````
+
+>>> bash
+test-adsl-output
+test-cross-module-output
+test-cross-module-pending-output
+test-emitter-hardening-output
+>>> [elapsed: 4ms]
+
+>>> (отфильтровано: из 41 строк оставлено 4)
+Looked in the following places:
+0% tests passed, 1 tests failed out of 1
+The following tests FAILED:
+Errors while running CTest
+
+>>> bash
+build-test/aether-adslc
+>>> [elapsed: 4ms]
+
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt
+    502:a add_executable(aether_adslc_emitter_hardening_test
+    506:t target_link_libraries(aether_adslc_emitter_hardening_test
+    511:t target_compile_definitions(aether_adslc_emitter_hardening_test
+    518:a     aether_adslc_emitter_hardening_test
+    525:a         aether_adslc_emitter_hardening_test
+    540:N     NAME aether_adslc_emitter_hardening_test
+    541:C     COMMAND aether_adslc_emitter_hardening_test
+>>> (всего найдено строк: 7)
+
+>>> bash
+[ 60%] Built target aether_adslc_core
+[ 80%] Building C object CMakeFiles/aether_adslc_emitter_hardening_test.dir/tests/test_emitter_hardening.c.o
+[100%] Linking C executable aether_adslc_emitter_hardening_test
+[100%] Built target aether_adslc_emitter_hardening_test
+>>> [elapsed: 165ms]
+
+>>> bash
+>>> [elapsed: 5ms]
+
+>>> bash
+EXIT_CODE=0
+>>> [elapsed: 5ms]
+
+>>> bash
+[ 27%] Built target aether_adslc_core
+[ 36%] Building C object CMakeFiles/aether_meta_runtime_test.dir/home/angel/projects/aether-client-c/src/aether_meta_runtime.c.o
+[ 54%] Built target aether-adslc
+[ 63%] Linking C static library libaether_meta_runtime_test.a
+[ 63%] Built target aether_meta_runtime_test
+[ 72%] Generating generated-stream-builder/aether_api.h, generated-stream-builder/aether_api.c
+ADSL load error: line 17: unsupported method property 'returns'
+gmake[3]: *** [CMakeFiles/aether_generated_stream_builder_test.dir/build.make:75: generated-stream-builder/aether_api.h] Ошибка 1
+gmake[2]: *** [CMakeFiles/Makefile2:917: CMakeFiles/aether_generated_stream_builder_test.dir/all] Ошибка 2
+gmake[1]: *** [CMakeFiles/Makefile2:925: CMakeFiles/aether_generated_stream_builder_test.dir/rule] Ошибка 2
+gmake: *** [Makefile:433: aether_generated_stream_builder_test] Ошибка 2
+>>> [elapsed: 222ms]
+
+>>> bash
+build-test/aether-adslc
+build-test/aether_adslc_emitter_hardening_test
+>>> [elapsed: 4ms]
+
+[subtask generateAndTestC] 
+<b>Отчёт по тестированию C-генератора</b><br><br>
+<b>1. Сборка генератора</b><br>
+✅ <code>aether-adslc</code> собран успешно (цель <code>aether-adslc</code>, не <code>aether_adslc</code>).<br><br>
+
+<b>2. Тесты</b><br>
+✅ <code>test_emitter_nullable_stream.sh</code> — <b>PASSED</b> (exit code 0)<br>
+✅ <code>aether_adslc_emitter_hardening_test</code> — <b>PASSED</b> (exit code 0)<br><br>
+
+<b>3. Дополнительные stream-тесты</b><br>
+❌ <code>aether_generated_stream_builder_test</code> — не собирается.<br>
+Ошибка генерации:<br>
+<pre>ADSL load error: line 17: unsupported method property 'returns'</pre>
+Это ошибка генератора: в фикстуре для stream-builder используется свойство метода <code>returns</code>, которое генератор не поддерживает.<br><br>
+
+<b>Итог:</b> 2 из 3 тестов прошли, один не собирается из-за неподдерживаемого свойства <code>returns</code> в ADSL-фикстуре.

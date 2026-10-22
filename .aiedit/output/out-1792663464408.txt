@@ -1,0 +1,557 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [300000, Script1$_run_closure1@4a0887ef]
+````
+
+
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> (отфильтровано: из 172 строк оставлено 18)
+Build file '/home/angel/projects/aether/aether-gradle-plugin/build.gradle': line 37
+	at build_dcq35pf1whvohdjjza8puj4m2$_run_closure2$_closure4$_closure6$_closure8$_closure9$_closure10.doCall$original(/home/angel/projects/aether/aether-gradle-plugin/build.gradle:37)
+Build file '/home/angel/projects/aether/aether-gradle-plugin/build.gradle': line 38
+	at build_dcq35pf1whvohdjjza8puj4m2$_run_closure2$_closure4$_closure6$_closure8$_closure9$_closure10.doCall$original(/home/angel/projects/aether/aether-gradle-plugin/build.gradle:38)
+Build file '/home/angel/projects/aether/build.gradle': line 145
+	at build_154fw38gu5ax3alrfttpx1aub$_run_closure3$_closure19$_closure28$_closure29$_closure30$_closure31.doCall$original(/home/angel/projects/aether/build.gradle:145)
+Build file '/home/angel/projects/aether/build.gradle': line 146
+	at build_154fw38gu5ax3alrfttpx1aub$_run_closure3$_closure19$_closure28$_closure29$_closure30$_closure31.doCall$original(/home/angel/projects/aether/build.gradle:146)
+Build file '/home/angel/projects/aether-client-java/work-proxy/build.gradle': line 38
+Properties should be assigned using the 'propName = value' syntax. Setting a property via the Gradle-generated 'propName value' or 'propName(value)' syntax in Groovy DSL has been deprecated. This is scheduled to be removed in Gradle 10. Use assignment ('exceptionFormat = <value>') instead. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_8.html#groovy_space_assignment_syntax
+	at build_78un18gegj871sjechsu0zn1s$_run_closure2$_closure4.doCall$original(/home/angel/projects/aether-client-java/work-proxy/build.gradle:38)
+	at build_78un18gegj871sjechsu0zn1s$_run_closure2.doCall$original(/home/angel/projects/aether-client-java/work-proxy/build.gradle:36)
+> Task :common-api:test FAILED
+[Incubating] Problems report is available at: file:///home/angel/projects/aether/build/reports/problems/problems-report.html
+FAILURE: Build failed with an exception.
+Execution failed for task ':common-api:test'.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+BUILD FAILED in 15s
+
+>>> (отфильтровано: из 171 строк оставлено 171)
+>>> bash
+> Configure project :aether-plugin:aether-protocol
+Build file '/home/angel/projects/aether/aether-gradle-plugin/build.gradle': line 37
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_dcq35pf1whvohdjjza8puj4m2$_run_closure2$_closure4$_closure6$_closure8$_closure9$_closure10.doCall$original(/home/angel/projects/aether/aether-gradle-plugin/build.gradle:37)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+Build file '/home/angel/projects/aether/aether-gradle-plugin/build.gradle': line 38
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_dcq35pf1whvohdjjza8puj4m2$_run_closure2$_closure4$_closure6$_closure8$_closure9$_closure10.doCall$original(/home/angel/projects/aether/aether-gradle-plugin/build.gradle:38)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+> Task :aether-plugin:aether-protocol:compileJava NO-SOURCE
+> Task :aether-plugin:aether-protocol:compileGroovy UP-TO-DATE
+> Task :aether-plugin:aether-protocol:pluginDescriptors UP-TO-DATE
+> Task :aether-plugin:aether-protocol:processResources UP-TO-DATE
+> Task :aether-plugin:aether-protocol:classes UP-TO-DATE
+> Task :aether-plugin:aether-protocol:jar UP-TO-DATE
+> Configure project :clickhouse-logger
+Build file '/home/angel/projects/aether/build.gradle': line 145
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_154fw38gu5ax3alrfttpx1aub$_run_closure3$_closure19$_closure28$_closure29$_closure30$_closure31.doCall$original(/home/angel/projects/aether/build.gradle:145)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+Build file '/home/angel/projects/aether/build.gradle': line 146
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_154fw38gu5ax3alrfttpx1aub$_run_closure3$_closure19$_closure28$_closure29$_closure30$_closure31.doCall$original(/home/angel/projects/aether/build.gradle:146)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+> Task :aether-plugin:native-lib:compileJava NO-SOURCE
+> Task :aether-plugin:native-lib:compileGroovy UP-TO-DATE
+> Task :aether-plugin:native-lib:pluginDescriptors UP-TO-DATE
+> Task :aether-plugin:native-lib:processResources UP-TO-DATE
+> Task :aether-plugin:native-lib:classes UP-TO-DATE
+> Task :aether-plugin:native-lib:jar UP-TO-DATE
+> Task :aether-plugin:db-support-utils:compileJava UP-TO-DATE
+> Task :aether-plugin:db-support-utils:processResources NO-SOURCE
+> Task :aether-plugin:db-support-utils:classes UP-TO-DATE
+> Task :aether-plugin:db-support-utils:jar UP-TO-DATE
+> Task :aether-plugin:db-support:compileJava NO-SOURCE
+> Task :aether-plugin:db-support:compileGroovy UP-TO-DATE
+> Task :aether-plugin:db-support:pluginDescriptors UP-TO-DATE
+> Task :aether-plugin:db-support:processResources UP-TO-DATE
+> Task :aether-plugin:db-support:classes UP-TO-DATE
+> Task :aether-plugin:db-support:jar UP-TO-DATE
+> Configure project :cloud-client:work-proxy
+Build file '/home/angel/projects/aether-client-java/work-proxy/build.gradle': line 38
+Properties should be assigned using the 'propName = value' syntax. Setting a property via the Gradle-generated 'propName value' or 'propName(value)' syntax in Groovy DSL has been deprecated. This is scheduled to be removed in Gradle 10. Use assignment ('exceptionFormat = <value>') instead. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_8.html#groovy_space_assignment_syntax
+	at build_78un18gegj871sjechsu0zn1s$_run_closure2$_closure4.doCall$original(/home/angel/projects/aether-client-java/work-proxy/build.gradle:38)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+	at build_78un18gegj871sjechsu0zn1s$_run_closure2.doCall$original(/home/angel/projects/aether-client-java/work-proxy/build.gradle:36)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+> Task :cloud-client:pointToPoint:processResources NO-SOURCE
+> Task :auth-service:generateDbSupport UP-TO-DATE
+> Task :cloud-client:smarthub:processResources UP-TO-DATE
+> Task :auth-service:processResources UP-TO-DATE
+> Task :clickhouse-logger:compileJava UP-TO-DATE
+> Task :cloud-client:client:processResources UP-TO-DATE
+> Task :cloud-client:chat:processResources UP-TO-DATE
+> Task :utils:compileJava UP-TO-DATE
+> Task :cloud-client:cli:updateVersion
+> Task :fast-meta:compileJava UP-TO-DATE
+> Task :cloud-client:cli:processResources UP-TO-DATE
+> Task :fast-meta:processResources NO-SOURCE
+> Task :fast-meta:classes UP-TO-DATE
+> Task :cloud-client:work-proxy:processResources NO-SOURCE
+> Task :fast-meta:jar UP-TO-DATE
+> Task :utils:processResources NO-SOURCE
+> Task :cloud-client:echo:processResources NO-SOURCE
+> Task :utils:classes UP-TO-DATE
+> Task :utils:jar UP-TO-DATE
+> Task :common-api:aetherProtocol UP-TO-DATE
+> Task :common-api:compileJava UP-TO-DATE
+> Task :common-api:processResources UP-TO-DATE
+> Task :common-api:classes UP-TO-DATE
+> Task :common-api:jar UP-TO-DATE
+> Task :core:aetherProtocol UP-TO-DATE
+> Task :core:compileJava UP-TO-DATE
+> Task :crypto-hydrogen-fast:aetherNativeLib UP-TO-DATE
+> Task :crypto-hydrogen-fast:compileJava UP-TO-DATE
+> Task :crypto-p256-aes-gcm:compileJava UP-TO-DATE
+> Task :crypto-sodium:compileJava UP-TO-DATE
+> Task :net-virtual:compileJava UP-TO-DATE
+> Task :client-server-work-api:aetherProtocol UP-TO-DATE
+> Task :client-server-work-api:compileJava UP-TO-DATE
+> Task :client-server-work-api:processResources UP-TO-DATE
+> Task :client-server-work-api:classes UP-TO-DATE
+> Task :client-server-work-api:jar UP-TO-DATE
+> Task :core:processResources UP-TO-DATE
+> Task :core:classes UP-TO-DATE
+> Task :core:jar UP-TO-DATE
+> Task :crypto-hydrogen-fast:processResources UP-TO-DATE
+> Task :crypto-hydrogen-fast:classes UP-TO-DATE
+> Task :crypto-hydrogen-fast:jar UP-TO-DATE
+> Task :crypto-p256-aes-gcm:processResources UP-TO-DATE
+> Task :crypto-p256-aes-gcm:classes UP-TO-DATE
+> Task :crypto-p256-aes-gcm:jar UP-TO-DATE
+> Task :crypto-sodium:processResources UP-TO-DATE
+> Task :crypto-sodium:classes UP-TO-DATE
+> Task :crypto-sodium:jar UP-TO-DATE
+> Task :net-virtual:processResources UP-TO-DATE
+> Task :net-virtual:classes UP-TO-DATE
+> Task :net-virtual:jar UP-TO-DATE
+> Task :server-core:compileJava UP-TO-DATE
+> Task :server-core:processResources UP-TO-DATE
+> Task :server-core:classes UP-TO-DATE
+> Task :server-core:jar UP-TO-DATE
+> Task :server-cloud:aetherProtocol UP-TO-DATE
+> Task :server-cloud:generateDbSupport UP-TO-DATE
+> Task :server-cloud:compileJava UP-TO-DATE
+> Task :server-cloud:processResources UP-TO-DATE
+> Task :server-cloud:classes UP-TO-DATE
+> Task :server-cloud:jar UP-TO-DATE
+> Task :admin-shell:compileJava UP-TO-DATE
+> Task :admin-shell:processResources UP-TO-DATE
+> Task :admin-shell:classes UP-TO-DATE
+> Task :admin-shell:jar UP-TO-DATE
+> Task :admin-shell:processTestResources NO-SOURCE
+> Task :clickhouse-logger:processResources NO-SOURCE
+> Task :clickhouse-logger:classes UP-TO-DATE
+> Task :clickhouse-logger:jar UP-TO-DATE
+> Task :clickhouse-logger:compileTestJava NO-SOURCE
+> Task :clickhouse-logger:processTestResources NO-SOURCE
+> Task :clickhouse-logger:testClasses UP-TO-DATE
+> Task :clickhouse-logger:test NO-SOURCE
+> Task :client-server-work-api:aetherTestProtocol UP-TO-DATE
+> Task :client-server-work-api:compileTestJava NO-SOURCE
+> Task :client-server-work-api:processTestResources NO-SOURCE
+> Task :client-server-work-api:testClasses UP-TO-DATE
+> Task :client-server-work-api:test NO-SOURCE
+> Task :common-api:aetherTestProtocol UP-TO-DATE
+> Task :common-api:compileTestJava UP-TO-DATE
+> Task :common-api:processTestResources NO-SOURCE
+> Task :common-api:testClasses UP-TO-DATE
+> Task :common-api:test FAILED
+> Task :cloud-client:client:aetherProtocol UP-TO-DATE
+> Task :cloud-client:client:compileJava UP-TO-DATE
+> Task :cloud-client:pointToPoint:compileJava UP-TO-DATE
+> Task :cloud-client:pointToPoint:classes UP-TO-DATE
+> Task :cloud-client:pointToPoint:jar UP-TO-DATE
+> Task :cloud-client:client:classes UP-TO-DATE
+> Task :cloud-client:client:jar UP-TO-DATE
+> Task :cloud-client:chat:aetherProtocol UP-TO-DATE
+> Task :cloud-client:smarthub:aetherProtocol UP-TO-DATE
+> Task :cloud-client:smarthub:compileJava UP-TO-DATE
+> Task :cloud-client:chat:compileJava UP-TO-DATE
+> Task :cloud-client:smarthub:classes UP-TO-DATE
+> Task :cloud-client:chat:classes UP-TO-DATE
+> Task :cloud-client:smarthub:jar UP-TO-DATE
+> Task :cloud-client:chat:jar UP-TO-DATE
+> Task :cloud-client:cli:compileJava UP-TO-DATE
+> Task :cloud-client:cli:classes UP-TO-DATE
+> Task :cloud-client:cli:jar UP-TO-DATE
+> Task :auth-service:aetherProtocol UP-TO-DATE
+> Task :auth-service:compileJava UP-TO-DATE
+> Task :cloud-client:work-proxy:compileJava UP-TO-DATE
+> Task :auth-service:classes UP-TO-DATE
+> Task :cloud-client:work-proxy:classes UP-TO-DATE
+> Task :auth-service:jar UP-TO-DATE
+> Task :cloud-client:work-proxy:jar UP-TO-DATE
+> Task :cloud-client:echo:compileJava UP-TO-DATE
+> Task :cloud-client:echo:classes UP-TO-DATE
+> Task :cloud-client:echo:jar UP-TO-DATE
+[Incubating] Problems report is available at: file:///home/angel/projects/aether/build/reports/problems/problems-report.html
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':common-api:test'.
+> No tests found for given includes: [io.aether.cloudClient.CClientP2PTest](--tests filter)
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+BUILD FAILED in 3s
+87 actionable tasks: 2 executed, 85 up-to-date
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 3260ms]
+
+>>> findFiles
+aether /home/angel/projects/aether
+[FILE] tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java
+[DIR]  tests
+[DIR]  tests/src
+[DIR]  tests/src/test
+[DIR]  tests/src/test/java
+[DIR]  tests/src/test/java/io
+[DIR]  tests/src/test/java/io/aether
+[DIR]  tests/src/test/java/io/aether/cloudClient
+>>> (итог: 7 директорий, 1 файлов)
+
+>>> bash
+
+> Configure project :aether-plugin:aether-protocol
+Build file '/home/angel/projects/aether/aether-gradle-plugin/build.gradle': line 37
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_dcq35pf1whvohdjjza8puj4m2$_run_closure2$_closure4$_closure6$_closure8$_closure9$_closure10.doCall$original(/home/angel/projects/aether/aether-gradle-plugin/build.gradle:37)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+Build file '/home/angel/projects/aether/aether-gradle-plugin/build.gradle': line 38
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_dcq35pf1whvohdjjza8puj4m2$_run_closure2$_closure4$_closure6$_closure8$_closure9$_closure10.doCall$original(/home/angel/projects/aether/aether-gradle-plugin/build.gradle:38)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+
+> Task :aether-plugin:aether-protocol:compileJava NO-SOURCE
+> Task :aether-plugin:aether-protocol:compileGroovy UP-TO-DATE
+> Task :aether-plugin:aether-protocol:pluginDescriptors UP-TO-DATE
+> Task :aether-plugin:aether-protocol:processResources UP-TO-DATE
+> Task :aether-plugin:aether-protocol:classes UP-TO-DATE
+> Task :aether-plugin:aether-protocol:jar UP-TO-DATE
+
+> Configure project :clickhouse-logger
+Build file '/home/angel/projects/aether/build.gradle': line 145
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_154fw38gu5ax3alrfttpx1aub$_run_closure3$_closure19$_closure28$_closure29$_closure30$_closure31.doCall$original(/home/angel/projects/aether/build.gradle:145)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+Build file '/home/angel/projects/aether/build.gradle': line 146
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+	at build_154fw38gu5ax3alrfttpx1aub$_run_closure3$_closure19$_closure28$_closure29$_closure30$_closure31.doCall$original(/home/angel/projects/aether/build.gradle:146)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+
+> Task :aether-plugin:native-lib:compileJava NO-SOURCE
+> Task :aether-plugin:native-lib:compileGroovy UP-TO-DATE
+> Task :aether-plugin:native-lib:pluginDescriptors UP-TO-DATE
+> Task :aether-plugin:native-lib:processResources UP-TO-DATE
+> Task :aether-plugin:native-lib:classes UP-TO-DATE
+> Task :aether-plugin:native-lib:jar UP-TO-DATE
+> Task :aether-plugin:db-support-utils:compileJava UP-TO-DATE
+> Task :aether-plugin:db-support-utils:processResources NO-SOURCE
+> Task :aether-plugin:db-support-utils:classes UP-TO-DATE
+> Task :aether-plugin:db-support-utils:jar UP-TO-DATE
+> Task :aether-plugin:db-support:compileJava NO-SOURCE
+> Task :aether-plugin:db-support:compileGroovy UP-TO-DATE
+> Task :aether-plugin:db-support:pluginDescriptors UP-TO-DATE
+> Task :aether-plugin:db-support:processResources UP-TO-DATE
+> Task :aether-plugin:db-support:classes UP-TO-DATE
+> Task :aether-plugin:db-support:jar UP-TO-DATE
+
+> Configure project :cloud-client:work-proxy
+Build file '/home/angel/projects/aether-client-java/work-proxy/build.gradle': line 38
+Properties should be assigned using the 'propName = value' syntax. Setting a property via the Gradle-generated 'propName value' or 'propName(value)' syntax in Groovy DSL has been deprecated. This is scheduled to be removed in Gradle 10. Use assignment ('exceptionFormat = <value>') instead. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_8.html#groovy_space_assignment_syntax
+	at build_78un18gegj871sjechsu0zn1s$_run_closure2$_closure4.doCall$original(/home/angel/projects/aether-client-java/work-proxy/build.gradle:38)
+	(Run with --stacktrace to get the full stack trace of this deprecation warning.)
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 3315ms]
+
+>>> bash
+TEST-io.aether.cloudClient.CClientP2PTest.xml
+binary
+>>> [elapsed: 4ms]
+
+>>> view
+>>> [API ERROR]: Path not found: /home/angel/projects/aether/tests/build/test-results/test/TEST-io.aether.cloudClient.CClientP2PTest.xmltimestamp: 1792663437395
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether/tests/build/test-results/test/TEST-io.aether.cloudClient.CClientP2PTest.xmltimestamp: 1792663439240
+>>> findFiles
+>>> [API ERROR]: Path not found: */TEST-io.aether.cloudClient.CClientP2PTest.xmltimestamp: 1792663442101
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+./tests/build/test-results/test/TEST-io.aether.cloudClient.CClientP2PTest.xml
+>>> [elapsed: 35ms]
+
+>>> view
+>>> [API ERROR]: Path not found: tests/build/test-results/test/TEST-io.aether.cloudClient.CClientP2PTest.xmltimestamp: 1792663449178
+>>> view
+/home/angel/projects/aether/tests/build/test-results/test/TEST-io.aether.cloudClient.CClientP2PTest.xml
+    1:< <?xml version="1.0" encoding="UTF-8"?>
+    2:< <testsuite name="io.aether.cloudClient.CClientP2PTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-22T10:03:47.411Z" hostname="angel-comp" time="1.485">
+    3:<   <properties/>
+    4:<   <testcase name="twoCClientsRegisterAndExchangeMessages()" classname="io.aether.cloudClient.CClientP2PTest" time="1.269">
+    5:<     <failure message="org.opentest4j.AssertionFailedError: Process failed: cmake --build build-p2p-e2e --target aether_p2p_e2e -j2 ==&gt; expected: &lt;0&gt; but was: &lt;2&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Process failed: cmake --build build-p2p-e2e --target aether_p2p_e2e -j2 ==&gt; expected: &lt;0&gt; but was: &lt;2&gt;
+    6:a 	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+    7:a 	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+    8:a 	at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+    9:a 	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+    10:a 	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:560)
+    11:a 	at io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+    12:a 	at io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:36)
+    13:a 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+    14:a 	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+    15:a 	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:727)
+    16:a 	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+    17:a 	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+    18:a 	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+    19:a 	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+    20:a 	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+    21:a 	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+    22:a 	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+    23:a 	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+    24:a 	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+    25:a 	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+    26:a 	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+    27:a 	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+    28:a 	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+    29:a 	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:217)
+    30:a 	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    31:a 	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:213)
+    32:a 	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:138)
+    33:a 	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:68)
+    34:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+    35:a 	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    36:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+    37:a 	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+    38:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+    39:a 	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    40:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+    41:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+    42:a 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+    43:a 	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+    44:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+    45:a 	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    46:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+    47:a 	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+    48:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+    49:a 	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    50:a 	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+
+>>> view
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java lines 90 to 130
+    90:"                 "Cannot locate sibling aether-client-c from "
+    91:+                         + cwd
+    92:)         );
+    93:}     }
+    94:  
+    95:p     private static void run(
+    96:F             File directory,
+    97:l             long timeoutSeconds,
+    98:S             String... command) throws Exception {
+    99:  
+    100:P         Process process =
+    101:n                 new ProcessBuilder(command)
+    102:.                         .directory(directory)
+    103:.                         .inheritIO()
+    104:.                         .start();
+    105:  
+    106:b         boolean completed =
+    107:p                 process.waitFor(
+    108:t                         timeoutSeconds,
+    109:T                         TimeUnit.SECONDS
+    110:)                 );
+    111:  
+    112:i         if (!completed) {
+    113:p             process.destroyForcibly();
+    114:p             process.waitFor();
+    115:  
+    116:A             Assertions.fail(
+    117:"                     "Process timed out: "
+    118:+                             + String.join(" ", command)
+    119:)             );
+    120:}         }
+    121:  
+    122:A         Assertions.assertEquals(
+    123:0                 0,
+    124:p                 process.exitValue(),
+    125:"                 "Process failed: "
+    126:+                         + String.join(" ", command)
+    127:)         );
+    128:}     }
+    129:} }
+>>> (показано строк: 40 из 129)
+
+>>> view
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java lines 30 to 90
+    30:"                     ".",
+    31:"                     "-B",
+    32:"                     "build-p2p-e2e",
+    33:"                     "-DCMAKE_BUILD_TYPE=Debug"
+    34:)             );
+    35:  
+    36:r             run(
+    37:c                     cRepo,
+    38:3                     30,
+    39:"                     "cmake",
+    40:"                     "--build",
+    41:"                     "build-p2p-e2e",
+    42:"                     "--target",
+    43:"                     "aether_p2p_e2e",
+    44:"                     "-j2"
+    45:)             );
+    46:  
+    47:r             run(
+    48:c                     cRepo,
+    49:3                     35,
+    50:n                     new File(
+    51:c                             cRepo,
+    52:"                             "build-p2p-e2e/aether_p2p_e2e"
+    53:)                     ).getAbsolutePath()
+    54:)             );
+    55:}         } finally {
+    56:d             destroy();
+    57:}         }
+    58:}     }
+    59:  
+    60:p     private static File findCClientRepository()
+    61:t             throws IOException {
+    62:  
+    63:F         File cwd =
+    64:n                 new File(
+    65:S                         System.getProperty("user.dir")
+    66:)                 ).getCanonicalFile();
+    67:  
+    68:F         File[] candidates = {
+    69:n                 new File(cwd, "../aether-client-c"),
+    70:n                 new File(cwd, "../../aether-client-c"),
+    71:n                 new File(
+    72:c                         cwd.getParentFile(),
+    73:"                         "aether-client-c"
+    74:)                 )
+    75:}         };
+    76:  
+    77:f         for (File candidate : candidates) {
+    78:F             File resolved =
+    79:c                     candidate.getCanonicalFile();
+>>> (показано строк: 61 из 129)
+
+>>> view
+/home/angel/projects/aether/tests/src/test/java/io/aether/cloudClient/CClientP2PTest.java lines 1 to 30
+    1:  
+    2:p package io.aether.cloudClient;
+    3:  
+    4:i import io.aether.AbstractTestStarter;
+    5:i import org.junit.jupiter.api.Assertions;
+    6:i import org.junit.jupiter.api.Test;
+    7:  
+    8:i import java.io.File;
+    9:i import java.io.IOException;
+    10:i import java.util.concurrent.TimeUnit;
+    11:  
+    12:c class CClientP2PTest extends AbstractTestStarter {
+    13:  
+    14:@     @Test
+    15:v     void twoCClientsRegisterAndExchangeMessages() throws Exception {
+    16:t         try {
+    17:A             Assertions.assertTrue(
+    18:s                     startAetherServerSide()
+    19:.                             .waitSuccessful(20_000),
+    20:"                     "Local Aether REG/WORK fixture did not start"
+    21:)             );
+    22:  
+    23:F             File cRepo = findCClientRepository();
+    24:  
+    25:r             run(
+    26:c                     cRepo,
+    27:3                     30,
+    28:"                     "cmake",
+    29:"                     "-S",
+    30:"                     ".",
+>>> (показано строк: 30 из 129)
+
+>>> bash
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16314:9: note: (near initialization for ‘remote.out’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16315:9: error: excess elements in struct initializer [-Werror]
+16315 |         remaining
+      |         ^~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16315:9: note: (near initialization for ‘remote’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c: In function ‘csa_client_api_stream_server_api_by_uid_remove_access_group’:
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16353:9: error: initialization of ‘aether_data_out_t *’ {aka ‘struct aether_data_out *’} from incompatible pointer type ‘uint8_t *’ {aka ‘unsigned char *’} [-Wincompatible-pointer-types]
+16353 |         builder_stream->data + builder_stream->length,
+      |         ^~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16353:9: note: (near initialization for ‘remote.out’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16354:9: error: excess elements in struct initializer [-Werror]
+16354 |         remaining
+      |         ^~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16354:9: note: (near initialization for ‘remote’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c: In function ‘csa_client_api_stream_server_api_by_uid_set_msg_queue_limit’:
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16392:9: error: initialization of ‘aether_data_out_t *’ {aka ‘struct aether_data_out *’} from incompatible pointer type ‘uint8_t *’ {aka ‘unsigned char *’} [-Wincompatible-pointer-types]
+16392 |         builder_stream->data + builder_stream->length,
+      |         ^~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16392:9: note: (near initialization for ‘remote.out’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16393:9: error: excess elements in struct initializer [-Werror]
+16393 |         remaining
+      |         ^~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16393:9: note: (near initialization for ‘remote’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c: In function ‘csa_client_api_stream_server_api_by_uid_set_msg_time_limit’:
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16431:9: error: initialization of ‘aether_data_out_t *’ {aka ‘struct aether_data_out *’} from incompatible pointer type ‘uint8_t *’ {aka ‘unsigned char *’} [-Wincompatible-pointer-types]
+16431 |         builder_stream->data + builder_stream->length,
+      |         ^~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16431:9: note: (near initialization for ‘remote.out’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16432:9: error: excess elements in struct initializer [-Werror]
+16432 |         remaining
+      |         ^~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16432:9: note: (near initialization for ‘remote’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c: In function ‘csa_client_api_stream_server_api_by_uid_add_servers_to_cloud’:
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16470:9: error: initialization of ‘aether_data_out_t *’ {aka ‘struct aether_data_out *’} from incompatible pointer type ‘uint8_t *’ {aka ‘unsigned char *’} [-Wincompatible-pointer-types]
+16470 |         builder_stream->data + builder_stream->length,
+      |         ^~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16470:9: note: (near initialization for ‘remote.out’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16471:9: error: excess elements in struct initializer [-Werror]
+16471 |         remaining
+      |         ^~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16471:9: note: (near initialization for ‘remote’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c: In function ‘csa_client_api_stream_server_api_by_uid_remove_servers_from_cloud’:
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16509:9: error: initialization of ‘aether_data_out_t *’ {aka ‘struct aether_data_out *’} from incompatible pointer type ‘uint8_t *’ {aka ‘unsigned char *’} [-Wincompatible-pointer-types]
+16509 |         builder_stream->data + builder_stream->length,
+      |         ^~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16509:9: note: (near initialization for ‘remote.out’)
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16510:9: error: excess elements in struct initializer [-Werror]
+16510 |         remaining
+      |         ^~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_api.c:16510:9: note: (near initialization for ‘remote’)
+>>> [elapsed: 137ms]
+
+[subtask runCClientTest] 
+<b>Тест CClientP2PTest не прошёл.</b><br>
+<b>BUILD FAILED</b> — сборка C-клиента завершилась с ошибкой (код возврата 2).<br><br>
+<b>Ключевая ошибка:</b><br>
+<pre>Process failed: cmake --build build-p2p-e2e --target aether_p2p_e2e -j2 ==> expected: &lt;0&gt; but was: &lt;2&gt;</pre><br>
+<b>Что это означает:</b><br>
+Ошибка возникает на этапе компиляции сгенерированного C-кода <code>aether_api.c</code>. При инициализации структур в stream-функциях (например, <code>csa_client_api_stream_server_api_by_uid_add_access_group</code> и др.) поле <code>remote.out</code> ожидает указатель на <code>aether_data_out_t*</code>, а в коде передаётся <code>builder_stream->data + builder_stream->length</code> (тип <code>uint8_t*</code>). Это несовместимость типов, также присутствуют лишние элементы в инициализаторе структуры.<br><br>
+<b>Вывод:</b><br>
+Проблема связана с генерацией stream-кода в C-клиенте — сгенерированные инициализаторы структур не соответствуют текущему определению <code>aether_data_out_t</code>. Нужно исправить кодогенератор или обновить сгенерированные файлы, чтобы они совпадали с объявлением структур.

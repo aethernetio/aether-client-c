@@ -1,0 +1,990 @@
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/DependInfo.cmake
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/build.make
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/cmake_clean.cmake
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.make
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.ts
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/depend.make
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/flags.make
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/link.txt
+[FILE] build-adsl-core-check/CMakeFiles/aether_p2p_e2e.dir/progress.make
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/DependInfo.cmake
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/build.make
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/cmake_clean.cmake
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.make
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.ts
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/depend.make
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/flags.make
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/link.d
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/link.txt
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/progress.make
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/tests/host_posix_transport.c.o
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/tests/host_posix_transport.c.o.d
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_e2e.c.o
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_e2e.c.o.d
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_test_support.c.o
+[FILE] build-adsl-core-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_test_support.c.o.d
+[FILE] build-adsl-core-debug/aether_p2p_e2e
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/DependInfo.cmake
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/build.make
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/cmake_clean.cmake
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.internal
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.make
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.ts
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/depend.make
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/flags.make
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/link.d
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/link.txt
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/progress.make
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/tests/host_posix_transport.c.o
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/tests/host_posix_transport.c.o.d
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_e2e.c.o
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_e2e.c.o.d
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_test_support.c.o
+[FILE] build-api-debug/CMakeFiles/aether_p2p_e2e.dir/tests/p2p_test_support.c.o.d
+[FILE] build-api-debug/aether_p2p_e2e
+[FILE] build-check/CMakeFiles/aether_p2p_e2e.dir/DependInfo.cmake
+[FILE] build-check/CMakeFiles/aether_p2p_e2e.dir/build.make
+[FILE] build-check/CMakeFiles/aether_p2p_e2e.dir/cmake_clean.cmake
+[FILE] build-check/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.make
+[FILE] build-check/CMakeFiles/aether_p2p_e2e.dir/compiler_depend.ts
+[FILE] build-check/CMakeFiles/aether_p2p_e2e.dir/depend.make
+>>> (итог: 91 директорий, 358 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 34 директорий, 15 файлов)
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 0 to 100
+    1:  
+    2:# #include "aether.h"
+    3:# #include "aether_registration.h"
+    4:# #include "p2p_test_support.h"
+    5:  
+    6:# #include <stdbool.h>
+    7:# #include <stddef.h>
+    8:# #include <stdint.h>
+    9:# #include <stdio.h>
+    10:# #include <string.h>
+    11:  
+    12:  
+    13:t typedef struct {
+    14:u     unsigned count;
+    15:a     aether_uuid_t from;
+    16:u     uint8_t data[AETHER_MAX_PACKET];
+    17:s     size_t size;
+    18:} } received_message_t;
+    19:  
+    20:  
+    21:s static aether_t client_a;
+    22:s static aether_t client_b;
+    23:  
+    24:s static aether_registration_t registration_a;
+    25:s static aether_registration_t registration_b;
+    26:  
+    27:s static aether_component_t components_a[2];
+    28:s static aether_component_t components_b[2];
+    29:  
+    30:  
+    31:  
+    32:s static received_message_t received_a;
+    33:s static received_message_t received_b;
+    34:  
+    35:s static unsigned errors;
+    36:  
+    37:  
+    38:s static bool uuid_equal(
+    39:a     aether_uuid_t a,
+    40:a     aether_uuid_t b) {
+    41:  
+    42:r     return
+    43:a         a.msb == b.msb &&
+    44:a         a.lsb == b.lsb;
+    45:} }
+    46:  
+    47:  
+    48:s static void on_message(
+    49:a     aether_t *client,
+    50:a     aether_uuid_t from,
+>>> (показано строк: 100 из 443)
+
+>>> findText
+/home/angel/projects/aether-client-c/CMakeLists.txt
+    145:a         aether_p2p_e2e
+    151:a         aether_p2p_e2e
+    158:a         aether_p2p_e2e
+    165:a             aether_p2p_e2e
+>>> (всего найдено строк: 4)
+
+>>> viewBlock
+>>> Context for /home/angel/projects/aether-client-c/CMakeLists.txt around line 145:    107:i if(AETHER_BUILD_TESTS)
+    108:e     enable_testing()
+    109:  
+    110:  
+    111:a     add_library(aether_hydrogen_test_support STATIC
+    112:s         src/aether_hydrogen.c
+    113:t         tests/aether_test_crypto_hydrogen.c
+    114:)     )
+    115:  
+    116:t     target_include_directories(aether_hydrogen_test_support
+    117:P         PUBLIC
+    118:$             ${CMAKE_CURRENT_SOURCE_DIR}/include
+    119:$             ${CMAKE_CURRENT_SOURCE_DIR}/src
+    120:$             ${CMAKE_CURRENT_SOURCE_DIR}/tests
+    121:$             ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    122:)     )
+    123:  
+    124:t     target_link_libraries(
+    125:a         aether_hydrogen_test_support
+    126:P         PUBLIC
+    127:a             aether_hydrogen_vendor
+    128:)     )
+    129:  
+    130:t     target_compile_features(
+    131:a         aether_hydrogen_test_support
+    132:P         PUBLIC
+    133:c             c_std_11
+    134:)     )
+    135:  
+    136:  
+    137:  
+    138:#     # peer tests temporarily disabled: PeerApi.adsl.yaml was rewritten
+    139:  
+    140:  
+    141:  
+    142:  
+    143:  
+    144:a     add_executable(
+ >> 145:a         aether_p2p_e2e
+    146:t         tests/p2p_e2e.c
+    147:t         tests/p2p_test_support.c
+    148:)     )
+
+>>> view
+/home/angel/projects/aether-client-c/CMakeLists.txt lines 144 to 175
+    144:a     add_executable(
+    145:a         aether_p2p_e2e
+    146:t         tests/p2p_e2e.c
+    147:t         tests/p2p_test_support.c
+    148:)     )
+    149:  
+    150:t target_link_libraries(
+    151:a         aether_p2p_e2e
+    152:P         PRIVATE
+    153:a             aether_client
+    154:a             aether_hydrogen_test_support
+    155:)     )
+    156:  
+    157:t     target_compile_features(
+    158:a         aether_p2p_e2e
+    159:P         PRIVATE
+    160:c             c_std_11
+    161:)     )
+    162:  
+    163:i     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    164:t         target_compile_options(
+    165:a             aether_p2p_e2e
+    166:P             PRIVATE
+    167:-                 -Wall
+    168:-                 -Wextra
+    169:-                 -Wpedantic
+    170:-                 -Werror
+    171:)         )
+    172:e     endif()
+    173:  
+    174:  
+    175:  
+>>> (показано строк: 32 из 740)
+
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/tests/*.ctimestamp: 1792663640869
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.ctimestamp: 1792663642875
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected character: '`' @ line 1, column 1.    ```groovy    ^  1 error 
+````
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/test_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_aether.c
+/home/angel/projects/aether-client-c/tests/test_rx.c
+/home/angel/projects/aether-client-c/tests/test_send_future.c
+/home/angel/projects/aether-client-c/tests/test_app.c
+/home/angel/projects/aether-client-c/tests/test_messages.c
+/home/angel/projects/aether-client-c/tests/test_credentials.c
+/home/angel/projects/aether-client-c/tests/test_lan_codec.c
+/home/angel/projects/aether-client-c/tests/test_facade_lifecycle.c
+/home/angel/projects/aether-client-c/tests/test_components.c
+/home/angel/projects/aether-client-c/tests/test_lan_cert.c
+/home/angel/projects/aether-client-c/tests/test_lan_component.c
+/home/angel/projects/aether-client-c/tests/test_facade_scheduler.c
+/home/angel/projects/aether-client-c/tests/test_transport.c
+/home/angel/projects/aether-client-c/tests/aether_test_crypto_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_peer_uap.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity_verify.c
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+/home/angel/projects/aether-client-c/tests/test_client.c
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_local_dispatch.c
+    26:c     const uint8_t *last_stream_data;
+    27:s     size_t last_stream_length;
+    62:c     const safe_stream_t *stream) {
+    66:a     assert(stream != NULL);
+    68:c     capture->last_stream_data = stream->data;
+    69:c     capture->last_stream_length = stream->length;
+    76:c     const global_stream_t *stream) {
+    80:a     assert(stream != NULL);
+    82:c     capture->last_stream_data = stream->data;
+    83:c     capture->last_stream_length = stream->length;
+    437:s static void test_stream_zero_copy(void) {
+    454:a     assert(capture.last_stream_data == frame + 2u);
+    455:a     assert(capture.last_stream_length == 3u);
+    459:s static void test_stream_two_byte_pack(void) {
+    478:a     assert(capture.last_stream_data == frame + 3u);
+    479:a     assert(capture.last_stream_length == 251u);
+    666:a     assert(capture.last_stream_length == 2u);
+    685:a     assert(capture.last_stream_length == 1u);
+    699:t     test_stream_zero_copy();
+    700:t     test_stream_two_byte_pack();
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_tiered_int_runtime.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project_scan.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_merge.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_types.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_type_registry.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_api_params.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_calculate.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_notify.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_ping.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_method.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_describe.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_enum.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_values.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_intpack.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_arrays.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_hierarchy.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nested_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_collapsible.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_result_rpc.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_static_struct_array.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_tiered_int.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_recursive_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_stream_builder.c
+    12:s     sb_command_stream_t stream = {
+    19:s         sb_command_stream_stream_api_append_value(
+    20:&             &stream,
+    24:a     assert(stream.length == 5u);
+    41:s         sb_command_stream_stream_api_query(
+    42:&             &stream,
+    63:a     assert(stream.length == sizeof(expected));
+    75:s     sb_command_stream_t stream = {
+    82:s         sb_command_stream_stream_api_append_value(
+    83:&             &stream,
+    87:a     assert(stream.length == 5u);
+    90:s         sb_command_stream_stream_api_query(
+    91:&             &stream,
+    96:a     assert(stream.length == 5u);
+    113:s static void test_first_command_overflow_keeps_empty_stream(void) {
+    116:s     sb_command_stream_t stream = {
+    123:s         sb_command_stream_stream_api_append_value(
+    124:&             &stream,
+    128:a     assert(stream.length == 0u);
+    131:s static void test_stream_arguments(void) {
+    133:s         sb_command_stream_stream_api_append_value(
+    138:s     sb_command_stream_t invalid_length = {
+    145:s         sb_command_stream_stream_api_append_value(
+    150:s     sb_command_stream_t null_storage = {
+    157:s         sb_command_stream_stream_api_append_value(
+    162:s     sb_command_stream_t empty = {
+    169:s         sb_command_stream_stream_api_append_value(
+    176:s static void test_collapsible_method_is_deferred_until_stream_flush(void) {
+    179:s     sb_command_stream_t stream = {
+    186:s         sb_command_stream_stream_api_append_value(
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_include.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module_pending.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_hardening.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_temperature.c
+>>> (всего найдено строк: 84)
+
+>>> findText
+/home/angel/projects/aether-client-c/include/aether_platform.h
+/home/angel/projects/aether-client-c/include/aether_rx.h
+/home/angel/projects/aether-client-c/include/aether_send_future.h
+/home/angel/projects/aether-client-c/include/aether_messages.h
+/home/angel/projects/aether-client-c/include/aether_credentials.h
+/home/angel/projects/aether-client-c/include/aether_lan.h
+/home/angel/projects/aether-client-c/include/aether_transport_server.h
+/home/angel/projects/aether-client-c/include/aether_transport.h
+/home/angel/projects/aether-client-c/include/aether_meta_runtime.h
+/home/angel/projects/aether-client-c/include/aether_client_app.h
+    117:*      * Optional receive/future/stream component state is never stored here.
+/home/angel/projects/aether-client-c/include/aether_registration.h
+/home/angel/projects/aether-client-c/include/aether_peer_uap.h
+/home/angel/projects/aether-client-c/include/aether_client.h
+/home/angel/projects/aether-client-c/include/aether_crypto_registry.h
+/home/angel/projects/aether-client-c/include/aether_peer_identity.h
+/home/angel/projects/aether-client-c/include/aether.h
+/home/angel/projects/aether-client-c/include/aether_dataio.h
+    116:*  *   2) streaming: PackNumberStreamParser.nextByte(byte) -> boolean
+    120:*  *   - aether_pack_parser_feed + aether_pack_parser_value       (stream)
+    201:*  *   out / in   : dataio stream; the function advances the cursor itself.
+    208:*  * Returns false on any error; the dataio stream carries the sticky error
+/home/angel/projects/aether-client-c/include/aether_peer.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/include/adslc.h
+    43:} } adsl_stream_api_t;
+    52:a     adsl_stream_api_t *apis;
+    57:} } adsl_stream_t;
+    65:*  * root, stream declaration, or named scalar such as tieredInt. parent names
+    106:a     adsl_stream_t *stream;
+    112:a     adsl_stream_t *stream;
+    590:*  *     structured return fields, parent chains and stream keys are checked
+/home/angel/projects/aether-client-c/examples/thermometer/include/thermometer_secrets.example.h
+/home/angel/projects/aether-client-c/examples/thermometer/include/thermometer_secrets.h
+/home/angel/projects/aether-client-c/examples/echo/include/echo_secrets.example.h
+/home/angel/projects/aether-client-c/examples/echo/include/echo_secrets.h
+>>> (всего найдено строк: 12)
+
+>>> findText
+/home/angel/projects/aether-client-c/include/aether_platform.h
+/home/angel/projects/aether-client-c/include/aether_rx.h
+/home/angel/projects/aether-client-c/include/aether_send_future.h
+/home/angel/projects/aether-client-c/include/aether_messages.h
+/home/angel/projects/aether-client-c/include/aether_credentials.h
+/home/angel/projects/aether-client-c/include/aether_lan.h
+/home/angel/projects/aether-client-c/include/aether_transport_server.h
+/home/angel/projects/aether-client-c/include/aether_transport.h
+/home/angel/projects/aether-client-c/include/aether_meta_runtime.h
+/home/angel/projects/aether-client-c/include/aether_client_app.h
+/home/angel/projects/aether-client-c/include/aether_registration.h
+/home/angel/projects/aether-client-c/include/aether_peer_uap.h
+/home/angel/projects/aether-client-c/include/aether_client.h
+/home/angel/projects/aether-client-c/include/aether_crypto_registry.h
+/home/angel/projects/aether-client-c/include/aether_peer_identity.h
+/home/angel/projects/aether-client-c/include/aether.h
+/home/angel/projects/aether-client-c/include/aether_dataio.h
+/home/angel/projects/aether-client-c/include/aether_peer.h
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+    17:} } csa_login_stream_t;
+    23:} } csa_login_client_stream_t;
+    1934:c     const csa_login_client_stream_t * data);
+    1939:c     const csa_login_client_stream_t * data);
+    2493:} } csa_login_api_remote_t;
+    2496:a aether_status_t csa_login_api_get_time_u_t_c(
+    2497:c     csa_login_api_remote_t *api);
+    2500:a aether_status_t csa_login_api_login_by_u_i_d(
+    2501:c     csa_login_api_remote_t *api,
+    2503:c     const csa_login_stream_t * data);
+    2506:a aether_status_t csa_login_api_login_by_alias(
+    2507:c     csa_login_api_remote_t *api,
+    2509:c     const csa_login_stream_t * data);
+    2512:a aether_status_t csa_login_api_get_my_ip(
+    2513:c     csa_login_api_remote_t *api);
+    2516:a aether_status_t csa_login_api_login_by_u_i_d_multi(
+    2517:c     csa_login_api_remote_t *api,
+    2520:c     const csa_login_stream_t * data);
+    2523:a aether_status_t csa_login_api_login_by_alias_multi(
+    2524:c     csa_login_api_remote_t *api,
+    2527:c     const csa_login_stream_t * data);
+    2767:a aether_status_t csa_login_stream_authorized_api_back_id(
+    2768:c     csa_login_stream_t *builder_stream,
+    2772:a aether_status_t csa_login_stream_authorized_api_ping(
+    2773:c     csa_login_stream_t *builder_stream,
+    2778:a aether_status_t csa_login_stream_authorized_api_client(
+    2779:c     csa_login_stream_t *builder_stream,
+    2784:a aether_status_t csa_login_stream_authorized_api_send_message(
+    2785:c     csa_login_stream_t *builder_stream,
+    2789:a aether_status_t csa_login_stream_authorized_api_send_messages(
+    2790:c     csa_login_stream_t *builder_stream,
+    2794:a aether_status_t csa_login_stream_authorized_api_send_multicast(
+    2795:c     csa_login_stream_t *builder_stream,
+    2800:a aether_status_t csa_login_stream_authorized_api_send_message_with_result(
+    2801:c     csa_login_stream_t *builder_stream,
+    2805:a aether_status_t csa_login_stream_authorized_api_create_access_group(
+    2806:c     csa_login_stream_t *builder_stream,
+    2811:a aether_status_t csa_login_stream_authorized_api_add_to_access_group(
+    2812:c     csa_login_stream_t *builder_stream,
+    2817:a aether_status_t csa_login_stream_authorized_api_remove_from_access_group(
+    2818:c     csa_login_stream_t *builder_stream,
+    2823:a aether_status_t csa_login_stream_authorized_api_check_access_for_send_message(
+    2824:c     csa_login_stream_t *builder_stream,
+    2828:a aether_status_t csa_login_stream_authorized_api_resolver_servers(
+    2829:c     csa_login_stream_t *builder_stream,
+    2833:a aether_status_t csa_login_stream_authorized_api_resolve_clouds(
+    2834:c     csa_login_stream_t *builder_stream,
+    2838:a aether_status_t csa_login_stream_authorized_api_report_applied_config(
+    2839:c     csa_login_stream_t *builder_stream,
+    2843:a aether_status_t csa_login_stream_authorized_api_get_access_groups(
+/home/angel/projects/aether-client-c/src/aether_lan_codec.h
+/home/angel/projects/aether-client-c/src/aether_lan_cert.h
+/home/angel/projects/aether-client-c/src/aether_internal.h
+/home/angel/projects/aether-client-c/src/aether_client_internal.h
+/home/angel/projects/aether-client-c/src/aether_hydrogen.h
+/home/angel/projects/aether-client-c/tests/aether_test_crypto_hydrogen.h
+/home/angel/projects/aether-client-c/tests/p2p_test_support.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/hydrogen.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/gimli-core/portable.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/gimli-core/sse2.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/avr.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/ch32.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/chibios.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/esp32.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/linux_kernel.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/mbed.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/nrf52832.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/particle.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/riot.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/rtthread.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/stm32.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/unix.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/wasi.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/windows.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/zephyr.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/common.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/core.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/gimli-core.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/hash.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/hydrogen_p.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/kdf.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/kx.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/pwhash.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/secretbox.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/sign.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/x25519.h
+/home/angel/projects/aether-client-c/esp32-size/aether_psa_crypto_config.h
+/home/angel/projects/aether-client-c/platform/esp32/aether_crypto_p256_aes_gcm.h
+/home/angel/projects/aether-client-c/platform/esp32/aether_platform_esp32.h
+/home/angel/projects/aether-client-c/platform/esp32/aether_esp32_wifi.h
+/home/angel/projects/aether-client-c/platform/posix/aether_posix_transport.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/include/adslc.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/adsl_project_internal.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-struct/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-values/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-enum/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-intpack/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nested/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-arrays/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-hierarchy/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-result-rpc/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-stream-builder/stream_builder_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-stream-builder/stream_builder_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-stream-builder/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-method/response_method_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-method/response_method_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-ping/response_method_ping_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-ping/response_method_ping_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-describe/response_method_describe_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-describe/response_method_describe_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-collapsible/collapsible_fields_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-collapsible/collapsible_fields_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-collapsible/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-static-struct-array/static_struct_array_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-static-struct-array/static_struct_array_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-static-struct-array/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/nullable_api_params_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/nullable_api_params_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/nullable_api_params_local.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-calculate/typed_throws_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-calculate/typed_throws_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-notify/typed_throws_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-notify/typed_throws_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-tiered-int/tiered_int_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-tiered-int/tiered_int_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-tiered-int/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-recursive-struct/recursive_struct_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-recursive-struct/recursive_struct_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-recursive-struct/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-emitter-hardening-output/boundary-ok/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_001_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_001_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_002_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_002_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/pending_res_001_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/pending_res_001_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/a_uses_item_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/a_uses_item_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/b_defines_item_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/b_defines_item_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/g_defines_base_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/g_defines_base_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/h_extends_base_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/h_extends_base_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/i_holds_external_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/i_holds_external_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/d_defines_base_api_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/d_defines_base_api_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/e_inherits_base_api_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/e_inherits_base_api_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/j_uses_external_array_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/j_uses_external_array_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-unified-types-output/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-include-output/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-include-output/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-stream-builder/stream_builder_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-stream-builder/stream_builder_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-stream-builder/stream_builder_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-stream-builder/stream_builder_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-method/response_method_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-method/response_method_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/test-adsl-output/invalid_direct_by_value_cycle_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/test-adsl-output/invalid_mutual_by_value_cycle_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/test-adsl-output/invalid_fixed_array_by_value_cycle_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-ping/response_method_ping_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-ping/response_method_ping_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-describe/response_method_describe_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-describe/response_method_describe_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-collapsible/collapsible_fields_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-collapsible/collapsible_fields_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-static-struct-array/static_struct_array_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-static-struct-array/static_struct_array_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable-api/nullable_api_params_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable-api/nullable_api_params_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable-api/nullable_api_params_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-calculate/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-calculate/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-notify/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-notify/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-tiered-int/tiered_int_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-tiered-int/tiered_int_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-recursive-struct/recursive_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-recursive-struct/recursive_struct_api.h
+/home/angel/projects/aether-client-c/examples/thermometer/include/thermometer_secrets.example.h
+/home/angel/projects/aether-client-c/examples/thermometer/include/thermometer_secrets.h
+/home/angel/projects/aether-client-c/examples/echo/include/echo_secrets.example.h
+/home/angel/projects/aether-client-c/examples/echo/include/echo_secrets.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-struct/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-values/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-enum/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-intpack/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nested/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-arrays/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-hierarchy/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-result-rpc/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-stream-builder/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-method/response_method_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-method/response_method_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-ping/response_method_ping_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-ping/response_method_ping_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-describe/response_method_describe_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-describe/response_method_describe_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-adsl-output/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-collapsible/collapsible_fields_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-collapsible/collapsible_fields_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-collapsible/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-static-struct-array/static_struct_array_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-static-struct-array/static_struct_array_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-static-struct-array/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/nullable_api_params_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/nullable_api_params_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/nullable_api_params_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-calculate/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-calculate/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-notify/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-notify/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-tiered-int/tiered_int_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-tiered-int/tiered_int_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-tiered-int/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-recursive-struct/recursive_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-recursive-struct/recursive_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-recursive-struct/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/a_uses_item_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/a_uses_item_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/b_defines_item_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/b_defines_item_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/g_defines_base_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/g_defines_base_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/h_extends_base_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/h_extends_base_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/i_holds_external_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/i_holds_external_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/d_defines_base_api_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/d_defines_base_api_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/e_inherits_base_api_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/e_inherits_base_api_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/j_uses_external_array_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/j_uses_external_array_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-output/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-unified-types-output/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/TemperatureSensor/aether_api.h
+>>> (всего найдено строк: 201)
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 100 to 443
+    100:  
+    101:i     if (aether_work(&client_a) != AETHER_OK) {
+    102:r         return -1;
+    103:}     }
+    104:  
+    105:i     if (aether_work(&client_b) != AETHER_OK) {
+    106:r         return -1;
+    107:}     }
+    108:  
+    109:/     /*
+    110:*      * aether_work() itself returning OK does not mean the clients did
+    111:*      * not report an application-level error through on_error() during
+    112:*      * the tick. Preserve that signal as before the migration.
+    113:*      */
+    114:r     return
+    115:e         errors == 0u
+    116:?             ? 0
+    117::             : -1;
+    118:} }
+    119:  
+    120:  
+    121:s static int wait_ready(
+    122:u     uint64_t timeout_ms) {
+    123:  
+    124:u     uint64_t deadline =
+    125:p         p2p_test_now_ms() + timeout_ms;
+    126:  
+    127:w     while (p2p_test_now_ms() <
+    128:d            deadline) {
+    129:  
+    130:i         if (aether_is_ready(&client_a) &&
+    131:a             aether_is_ready(&client_b) &&
+    132:a             aether_is_registered(&client_a) &&
+    133:a             aether_is_registered(&client_b)) {
+    134:  
+    135:r             return 0;
+    136:}         }
+    137:  
+    138:i         if (poll_pair() != 0) {
+    139:r             return -1;
+    140:}         }
+    141:}     }
+    142:  
+    143:r     return -1;
+    144:} }
+    145:  
+    146:  
+    147:s static int pump_for(
+    148:u     uint64_t duration_ms) {
+    149:  
+>>> (показано строк: 344 из 443)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/test_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_aether.c
+/home/angel/projects/aether-client-c/tests/test_rx.c
+/home/angel/projects/aether-client-c/tests/test_send_future.c
+/home/angel/projects/aether-client-c/tests/test_app.c
+/home/angel/projects/aether-client-c/tests/test_messages.c
+/home/angel/projects/aether-client-c/tests/test_credentials.c
+/home/angel/projects/aether-client-c/tests/test_lan_codec.c
+/home/angel/projects/aether-client-c/tests/test_facade_lifecycle.c
+/home/angel/projects/aether-client-c/tests/test_components.c
+/home/angel/projects/aether-client-c/tests/test_lan_cert.c
+/home/angel/projects/aether-client-c/tests/test_lan_component.c
+/home/angel/projects/aether-client-c/tests/test_facade_scheduler.c
+/home/angel/projects/aether-client-c/tests/test_transport.c
+/home/angel/projects/aether-client-c/tests/aether_test_crypto_hydrogen.c
+/home/angel/projects/aether-client-c/tests/test_peer_uap.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity.c
+/home/angel/projects/aether-client-c/tests/test_peer_identity_verify.c
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+/home/angel/projects/aether-client-c/tests/test_client.c
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_local_dispatch.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_tiered_int_runtime.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_project_scan.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_merge.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_unified_types.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_type_registry.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_api_params.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_calculate.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_typed_throws_notify.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_ping.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_method.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_response_describe.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_enum.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_values.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_intpack.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_arrays.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_hierarchy.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nested_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_nullable_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_collapsible.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_result_rpc.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_static_struct_array.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_tiered_int.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_recursive_struct.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_stream_builder.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_include.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_cross_module_pending.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_hardening.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_adsl.c
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_generated_temperature.c
+>>> (совпадений не найдено)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.h lines 2760 to 2850
+    2760:v     void *send_ctx;
+    2761:c     csa_send_fn send;
+    2762:a     aether_data_out_t *out;
+    2763:  
+    2764:} } csa_client_api_reg_safe_remote_t;
+    2765:  
+    2766:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:381 api.AuthorizedApi.methods.backId */
+    2767:a aether_status_t csa_login_stream_authorized_api_back_id(
+    2768:c     csa_login_stream_t *builder_stream,
+    2769:i     int16_t id);
+    2770:  
+    2771:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:386 api.AuthorizedApi.methods.ping */
+    2772:a aether_status_t csa_login_stream_authorized_api_ping(
+    2773:c     csa_login_stream_t *builder_stream,
+    2774:i     int64_t nextConnectMsDuration,
+    2775:i     int64_t rxWindowMs);
+    2776:  
+    2777:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:392 api.AuthorizedApi.methods.client */
+    2778:a aether_status_t csa_login_stream_authorized_api_client(
+    2779:c     csa_login_stream_t *builder_stream,
+    2780:a     aether_uuid_t uid,
+    2781:c     const csa_client_api_stream_t * stream);
+    2782:  
+    2783:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:397 api.AuthorizedApi.methods.sendMessage */
+    2784:a aether_status_t csa_login_stream_authorized_api_send_message(
+    2785:c     csa_login_stream_t *builder_stream,
+    2786:c     const csa_message_t * msg);
+    2787:  
+    2788:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:401 api.AuthorizedApi.methods.sendMessages */
+    2789:a aether_status_t csa_login_stream_authorized_api_send_messages(
+    2790:c     csa_login_stream_t *builder_stream,
+    2791:c     csa_message_array_view_t msg);
+    2792:  
+    2793:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:406 api.AuthorizedApi.methods.sendMulticast */
+    2794:a aether_status_t csa_login_stream_authorized_api_send_multicast(
+    2795:c     csa_login_stream_t *builder_stream,
+    2796:u     uuid_array_view_t uids,
+    2797:a     aether_bytes_view_t data);
+    2798:  
+    2799:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:412 api.AuthorizedApi.methods.sendMessageWithResult */
+    2800:a aether_status_t csa_login_stream_authorized_api_send_message_with_result(
+    2801:c     csa_login_stream_t *builder_stream,
+    2802:c     const csa_message_t * msg);
+    2803:  
+    2804:/ /* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:416 api.AuthorizedApi.methods.createAccessGroup */
+    2805:a aether_status_t csa_login_stream_authorized_api_create_access_group(
+    2806:c     csa_login_stream_t *builder_stream,
+    2807:a     aether_uuid_t owner,
+    2808:u     uuid_array_view_t uids);
+    2809:  
+>>> (показано строк: 91 из 3449)
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c lines 0 to 200
+    1:  
+    2:# #include "p2p_test_support.h"
+    3:  
+    4:# #include "aether_platform.h"
+    5:  
+    6:# #include "aether_test_crypto_hydrogen.h"
+    7:# #include "aether_crypto_registry.h"
+    8:# #include "aether_posix_transport.h"
+    9:  
+    10:  
+    11:# #include <inttypes.h>
+    12:# #include <limits.h>
+    13:# #include <stdbool.h>
+    14:# #include <stddef.h>
+    15:# #include <stdint.h>
+    16:# #include <stdio.h>
+    17:# #include <string.h>
+    18:# #include <sys/time.h>
+    19:  
+    20:  
+    21:# #define P2P_TEST_STORAGE_SLOTS 2u
+    22:  
+    23:  
+    24:t typedef struct {
+    25:v     void *owner;
+    26:  
+    27:a     aether_posix_transport_t transport;
+    28:  
+    29:u     uint8_t flash[AETHER_MAX_PACKET * 2u];
+    30:s     size_t flash_len;
+    31:} } p2p_platform_context_t;
+    32:  
+    33:/ /*
+    34:*  * The transport vtable is handed &p2p_platform_context_t.transport as its
+    35:*  * context pointer. Recover the enclosing platform context so callbacks can
+    36:*  * reach transport, flash and crypto storage.
+    37:*  */
+    38:s static p2p_platform_context_t *p2p_platform_from_transport(
+    39:v     void *transport_ctx) {
+    40:  
+    41:i     if (transport_ctx == NULL) {
+    42:r         return NULL;
+    43:}     }
+    44:  
+    45:r     return
+    46:(         (p2p_platform_context_t *)(
+    47:(             (uint8_t *)transport_ctx -
+    48:o             offsetof(p2p_platform_context_t, transport));
+    49:  
+    50:} }
+>>> (показано строк: 200 из 503)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (совпадений не найдено)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+[subtask inspectP2PE2E] 
+<h3>Отчёт: таргет aether_p2p_e2e в C-клиенте</h3>
+<p><b>1. Файлы таргета.</b><br>
+Собираются два файла:<br>
+<code>tests/p2p_e2e.c</code> — основной e2e-сценарий<br>
+<code>tests/p2p_test_support.c</code> — вспомогательный код (платформа, транспорт, крипто)</p>
+
+<p><b>2. CMakeLists.txt.</b><br>
+<pre>
+add_executable(aether_p2p_e2e
+    tests/p2p_e2e.c
+    tests/p2p_test_support.c
+)
+target_link_libraries(aether_p2p_e2e
+    PRIVATE aether_client aether_hydrogen_test_support
+)
+target_compile_features(... c_std_11 ...)
+</pre></p>
+
+<p><b>3. Использование stream в тестах C-клиента.</b><br>
+В <code>tests/</code> есть упоминания <code>stream</code>, но <b>не</b> <code>csa_login_stream</code>.<br>
+Примеры — <code>test_generated_local_dispatch.c</code> использует <code>safe_stream_t</code>, <code>global_stream_t</code>; <code>test_generated_stream_builder.c</code> использует <code>sb_command_stream_t</code> и <code>sb_command_stream_stream_api_*</code>.<br>
+В <code>p2p_e2e.c</code> stream-методы <b>отсутствуют</b> полностью.</p>
+
+<p><b>4. Stream-API в <code>src/generated/aether_api.h</code>.</b><br>
+Экспортируются методы вида <code>csa_login_stream_authorized_api_*</code> (строки 2767–2843):
+<pre>
+csa_login_stream_authorized_api_back_id(...)
+csa_login_stream_authorized_api_ping(...)
+csa_login_stream_authorized_api_client(...)
+csa_login_stream_authorized_api_send_message(...)
+csa_login_stream_authorized_api_send_messages(...)
+csa_login_stream_authorized_api_send_multicast(...)
+csa_login_stream_authorized_api_send_message_with_result(...)
+...
+</pre></p>
+
+<p><b>5. Вывод.</b><br>
+Текущие C-тесты (включая <code>aether_p2p_e2e</code>) <b>не вызывают</b> <code>csa_login_stream_*</code>. Причины:<br>
+— <code>csa_login_stream_authorized_api_*</code> — сгенерированный API для работы с потоком авторизованных команд (backId, ping, sendMessage и т.д.);<br>
+— e2e-тест работает напрямую с базовыми примитивами <code>aether_*</code> (регистрация, обработка через <code>aether_work</code>) и проверяет peer-to-peer взаимодействие без сервера, поэтому stream-методы не используются.</p>

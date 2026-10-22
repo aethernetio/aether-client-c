@@ -1,0 +1,414 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> struct
+/home/angel/projects/aether-client-c/src/aether_client.c
+    7:/ /*
+    8:*  * Low-level Aether protocol state machine.
+    9:*  *
+    10:*  * This monolithic embedded core owns protocol sequencing, registration/work
+    11:*  * state, persistent Aether identity serialization, request tracking, crypto
+    12:*  * orchestration, bounded parsing and message transmission.
+    13:*  *
+    14:*  * It deliberately does not own physical sockets, platform persistence,
+    15:*  * cryptographic primitive implementations, application scheduling or
+    16:*  * heap-backed queues.
+    17:*  *
+    18:*  * Registration wire construction/decoding is delegated to protocol bindings and
+    19:*  * maintained registration adapters under src/generated/.
+    20:*  *
+    21:*  * Work RX can pin a borrowed platform frame while one application ingress item
+    22:*  * is exposed. The platform must preserve that frame until the ingress is
+    23:*  * consumed and aether_client_rx_active() becomes false.
+    24:*  */
+    25:# #include "aether_client.h"
+    26:# #include "aether_registration.h"
+    27:# #include "aether_credentials.h"
+    28:# #include "aether_api.h"
+    29:# #include "generated/aether_reg_root_enter.h"
+    30:# #include "generated/aether_reg_root_key.h"
+    31:# #include "generated/aether_reg_safe.h"
+    32:# #include "generated/aether_reg_unsafe_local.h"
+    34:/ /* aggregate aether_api.h already included */
+    35:# #include "aether_crypto_registry.h"
+    38:# #include <string.h>
+    43:# #define AETHER_STATE_MAGIC0 ((uint8_t)'A')
+    44:# #define AETHER_STATE_MAGIC1 ((uint8_t)'E')
+    45:# #define AETHER_STATE_MAGIC2 ((uint8_t)'C')
+    46:# #define AETHER_STATE_MAGIC3 ((uint8_t)'1')
+    49:# #define AETHER_STATE_VERSION 3u
+    50:# #define AETHER_STATE_VERSION_RECOVERY_JOURNAL 2u
+    51:# #define AETHER_STATE_VERSION_LEGACY 1u
+    56:# #define CMD_RESULT 0u
+    57:# #define CMD_ERROR 1u
+    65:# #define LOGIN_BY_ALIAS 5u
+    66:# #define CLIENT_UNSAFE_SAFE_DATA_MULTI 3u
+    67:# #define CLIENT_UNSAFE_SAFE_DATA 4u
+    70:# #define AUTH_PING 4u
+    71:# #define AUTH_SET_RECEIVE_WINDOW 45u
+    74:# #define CLIENT_SAFE_SEND_MESSAGES 6u
+    75:# #define CLIENT_SAFE_SEND_MESSAGE 20u
+    80:/ /*
+    81:*  * Wire values understood only so unsupported server endpoints can be skipped.
+    82:*  */
+    83:# #define AETHER_CODEC_WS_WIRE 2u
+    84:# #define AETHER_CODEC_WSS_WIRE 3u
+>>> (показано строк: 1293 из 5607)
+>>> (отфильтровано: из 9 строк оставлено 9)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    29:# #include "generated/aether_reg_root_enter.h"
+    30:# #include "generated/aether_reg_root_key.h"
+    31:# #include "generated/aether_reg_safe.h"
+    32:# #include "generated/aether_reg_unsafe_local.h"
+    3472:a aether_reg_unsafe_frame_t frame = {
+    3787:a         aether_reg_unsafe_frame_t frame = {
+>>> Found 6 matches.
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> No matches found for: csa_reg_\w+
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> No matches found for: csa_registration_\w+
+>>> struct
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+>>> (показано строк: 349 из 1165)
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+>>> No matches found for: (aether_reg_|csa_reg_|csa_registration_)\w+
+>>> struct
+/home/angel/projects/aether-client-c/src/aether_registration.c
+>>> (показано строк: 55 из 162)
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_registration.c
+>>> No matches found for: (aether_reg_|csa_reg_|csa_registration_)\w+
+>>> struct
+/home/angel/projects/aether-client-c/src/aether_credentials.c
+>>> (показано строк: 30 из 82)
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_credentials.c
+>>> No matches found for: (aether_reg_|csa_reg_|csa_registration_)\w+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 82 директорий, 164 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 82 директорий, 66 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 82 директорий, 33 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 82 директорий, 33 файлов)
+
+>>> (отфильтровано: из 13 строк оставлено 13)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    26:# #include "aether_registration.h"
+    29:# #include "generated/aether_reg_root_enter.h"
+    30:# #include "generated/aether_reg_root_key.h"
+    31:# #include "generated/aether_reg_safe.h"
+    32:# #include "generated/aether_reg_unsafe_local.h"
+    3472:a aether_reg_unsafe_frame_t frame = {
+    3787:a         aether_reg_unsafe_frame_t frame = {
+    3867:s     struct aether_registration *registration,
+    3903:s     struct aether_registration *registration,
+    3940:s     struct aether_registration *registration,
+>>> Found 10 matches.
+>>> viewBlock
+>>> Context for /home/angel/projects/aether-client-c/src/aether_client.c around line 3472:    7:/ /*
+    8:*  * Low-level Aether protocol state machine.
+    9:*  *
+    10:*  * This monolithic embedded core owns protocol sequencing, registration/work
+    11:*  * state, persistent Aether identity serialization, request tracking, crypto
+    12:*  * orchestration, bounded parsing and message transmission.
+    13:*  *
+    14:*  * It deliberately does not own physical sockets, platform persistence,
+    15:*  * cryptographic primitive implementations, application scheduling or
+    16:*  * heap-backed queues.
+    17:*  *
+    18:*  * Registration wire construction/decoding is delegated to protocol bindings and
+    19:*  * maintained registration adapters under src/generated/.
+    20:*  *
+    21:*  * Work RX can pin a borrowed platform frame while one application ingress item
+    22:*  * is exposed. The platform must preserve that frame until the ingress is
+    23:*  * consumed and aether_client_rx_active() becomes false.
+    24:*  */
+    25:# #include "aether_client.h"
+    26:# #include "aether_registration.h"
+    27:# #include "aether_credentials.h"
+    28:# #include "aether_api.h"
+    29:# #include "generated/aether_reg_root_enter.h"
+    30:# #include "generated/aether_reg_root_key.h"
+    31:# #include "generated/aether_reg_safe.h"
+    32:# #include "generated/aether_reg_unsafe_local.h"
+    33:  
+    34:/ /* aggregate aether_api.h already included */
+    35:# #include "aether_crypto_registry.h"
+    36:  
+    37:  
+    38:# #include <string.h>
+    39:  
+    40:  
+    41:  
+    42:  
+    43:# #define AETHER_STATE_MAGIC0 ((uint8_t)'A')
+    44:# #define AETHER_STATE_MAGIC1 ((uint8_t)'E')
+    45:# #define AETHER_STATE_MAGIC2 ((uint8_t)'C')
+    46:# #define AETHER_STATE_MAGIC3 ((uint8_t)'1')
+    47:  
+    48:  
+    49:# #define AETHER_STATE_VERSION 3u
+    50:# #define AETHER_STATE_VERSION_RECOVERY_JOURNAL 2u
+    51:# #define AETHER_STATE_VERSION_LEGACY 1u
+    52:  
+    53:  
+    54:  
+    55:  
+    56:# #define CMD_RESULT 0u
+>>> viewBlock
+>>> Context for /home/angel/projects/aether-client-c/src/aether_client.c around line 3787:>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 1 директорий, 1 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 3 директорий, 7 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 51 директорий, 42 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 51 директорий, 42 файлов)
+>>> (отфильтровано: из 12 строк оставлено 12)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    730:c     const csa_registration_direct_result_t *v = (const csa_registration_direct_result_t *)value;
+    747:c     csa_registration_direct_result_t *v = (csa_registration_direct_result_t *)value;
+    8019:c     const csa_registration_direct_result_t * result) {
+    11529:a aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    11530:c     csa_registration_root_api_remote_t *api,
+    11552:a aether_status_t csa_registration_root_api_enter(
+    11553:c     csa_registration_root_api_remote_t *api,
+    11579:a aether_status_t csa_registration_root_api_get_my_ip(
+    11580:c     csa_registration_root_api_remote_t *api) {
+>>> Found 9 matches.
+>>> (отфильтровано: из 13 строк оставлено 13)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+    100:t typedef struct csa_registration_direct_result_t csa_registration_direct_result_t;
+    735:s struct csa_registration_direct_result_t {
+    1964:c     const csa_registration_direct_result_t * result);
+    2742:} } csa_registration_root_api_remote_t;
+    2745:a aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    2746:c     csa_registration_root_api_remote_t *api,
+    2750:a aether_status_t csa_registration_root_api_enter(
+    2751:c     csa_registration_root_api_remote_t *api,
+    2756:a aether_status_t csa_registration_root_api_get_my_ip(
+    2757:c     csa_registration_root_api_remote_t *api);
+>>> Found 10 matches.
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 2 директорий, 1 файлов)
+
+>>> (отфильтровано: из 19 строк оставлено 19)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2043:s         state == AETHER_STATE_REG_CONNECTING ||
+    2044:s         state == AETHER_STATE_REG_WAIT_SERVER_KEY ||
+    2045:s         state == AETHER_STATE_REG_WAIT_POW ||
+    2046:s         state == AETHER_STATE_REG_WAIT_FINISH;
+    2094:A         AETHER_STATE_REG_CONNECTING);
+    2482::                 : AETHER_STATE_REG_WAIT_SERVER_KEY);
+    2608:A             AETHER_STATE_REG_WAIT_POW);
+    2666:A             AETHER_STATE_REG_WAIT_FINISH);
+    2964:A                     AETHER_STATE_REG_WAIT_POW &&
+    2982:A                     AETHER_STATE_REG_WAIT_FINISH &&
+    3302:A                      AETHER_STATE_REG_WAIT_SERVER_KEY &&
+    3503:A             AETHER_REG_UNSAFE_FRAME_ENTER) {
+    3809:A                 AETHER_REG_UNSAFE_FRAME_ENTER) {
+    3883:A         AETHER_STATE_REG_CONNECTING) {
+    3931:A         AETHER_STATE_REG_CONNECTING) {
+    5349:A             AETHER_STATE_REG_CONNECTING) {
+>>> Found 16 matches.
+>>> (отфильтровано: из 9 строк оставлено 9)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    29:# #include "generated/aether_reg_root_enter.h"
+    30:# #include "generated/aether_reg_root_key.h"
+    31:# #include "generated/aether_reg_safe.h"
+    32:# #include "generated/aether_reg_unsafe_local.h"
+    3472:a aether_reg_unsafe_frame_t frame = {
+    3787:a         aether_reg_unsafe_frame_t frame = {
+>>> Found 6 matches.
+
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+>>> No matches found for: aether_reg_unsafe_frame_t|AETHER_REG_UNSAFE_FRAME_ENTER
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+>>> No matches found for: aether_reg_unsafe_frame_t|AETHER_REG_UNSAFE_FRAME_ENTER
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+>>> No matches found for: aether_reg_root_enter_t|aether_reg_root_key_t|aether_reg_safe_t
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3460 to 3520
+    3460:f                     fail(
+    3461:c                         client,
+    3462:A                         AETHER_ERR_PROTOCOL);
+    3463:}             }
+    3464:  
+    3465:r             return
+    3466:f                 fail_remote(
+    3467:c                     client,
+    3468:r                     request_id);
+    3469:}         }
+    3470:  
+    3471:  
+    3472:a aether_reg_unsafe_frame_t frame = {
+    3473:0             0
+    3474:}         };
+    3475:  
+    3476:s         size_t consumed =
+    3477:0             0u;
+    3478:  
+    3479:a         aether_status_t decode_status =
+    3480:a             aether_generated_reg_unsafe_decode(
+    3481:&                 &frame,
+    3482:r                 reader.data +
+    3483:f                     frame_start,
+    3484:r                 reader.length -
+    3485:f                     frame_start,
+    3486:&                 &consumed);
+    3487:  
+    3488:i         if (decode_status != AETHER_OK ||
+    3489:c             consumed == 0u ||
+    3490:c             consumed >
+    3491:r                 reader.length -
+    3492:f                     frame_start) {
+    3493:  
+    3494:r             return
+    3495:f                 fail(
+    3496:c                     client,
+    3497:A                     AETHER_ERR_PROTOCOL);
+    3498:}         }
+    3499:  
+    3500:c         const uint8_t *key;
+    3501:  
+    3502:i         if (frame.kind ==
+    3503:A             AETHER_REG_UNSAFE_FRAME_ENTER) {
+    3504:  
+    3505:k             key =
+    3506:c                 client->temp_key;
+    3507:  
+    3508:  
+    3509:}         } else {
+>>> (показано строк: 61 из 5607)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3775 to 3820
+>>> (показано строк: 46 из 5607)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3870 to 3950
+>>> (показано строк: 81 из 5607)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 84 директорий, 198 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 179 директорий, 398 файлов)
+aether /home/angel/projects/aether
+>>> (итог: 4 директорий, 6 файлов)
+aether-client-java /home/angel/projects/aether-client-java
+>>> (итог: 9 директорий, 6 файлов)
+client-ts /home/angel/projects/client-ts
+>>> (итог: 1 директорий, 2 файлов)
+
+>>> (отфильтровано: из 11 строк оставлено 11)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2427:a         aether_generated_reg_root_build_get_key(
+    2518:a         aether_generated_reg_root_build_enter(
+    2581:a         aether_generated_reg_safe_build_pow(
+    2628:a         aether_generated_reg_safe_build_registration_direct(
+    2691:a         aether_generated_reg_safe_build_recovery(
+    2751:a         aether_generated_reg_safe_build_resolve_with_return_key(
+    3480:a             aether_generated_reg_unsafe_decode(
+    3795:a             aether_generated_reg_unsafe_decode(
+>>> Found 8 matches.
+>>> (отфильтровано: из 5 строк оставлено 5)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    3472:a aether_reg_unsafe_frame_t frame = {
+    3787:a         aether_reg_unsafe_frame_t frame = {
+>>> Found 2 matches.
+>>> (отфильтровано: из 6 строк оставлено 6)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    5557:c     csa_message_t message = {
+    5565:c     csa_authorized_api_remote_t authorized = {
+    5574:c         csa_authorized_api_send_message_with_result(
+>>> Found 3 matches.
+>>> (отфильтровано: из 8 строк оставлено 8)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    32:# #include "generated/aether_reg_unsafe_local.h"
+    3472:a aether_reg_unsafe_frame_t frame = {
+    3480:a             aether_generated_reg_unsafe_decode(
+    3787:a         aether_reg_unsafe_frame_t frame = {
+    3795:a             aether_generated_reg_unsafe_decode(
+>>> Found 5 matches.
+
+[subtask analyzeOldRegUsage] 
+<b>Отчёт по использованию aether_reg_* в aether_client.c</b><br><br>
+
+<b>Функции, вызываемые из aether_client.c</b> (имена с префиксом aether_generated_*):<br>
+1. <code>aether_generated_reg_root_build_get_key</code> — построение wire-запроса "get_key" для root API.<br>
+   — Источник: вероятно, <code>generated/aether_reg_root_key.h</code><br>
+   — Строки: 2427<br><br>
+
+2. <code>aether_generated_reg_root_build_enter</code> — построение wire-запроса "enter" для root API.<br>
+   — Источник: вероятно, <code>generated/aether_reg_root_enter.h</code><br>
+   — Строки: 2518<br><br>
+
+3. <code>aether_generated_reg_safe_build_pow</code> — построение запроса proof-of-work для safe API.<br>
+   — Источник: вероятно, <code>generated/aether_reg_safe.h</code><br>
+   — Строки: 2581<br><br>
+
+4. <code>aether_generated_reg_safe_build_registration_direct</code> — построение запроса прямой регистрации.<br>
+   — Источник: <code>generated/aether_reg_safe.h</code><br>
+   — Строки: 2628<br><br>
+
+5. <code>aether_generated_reg_safe_build_recovery</code> — построение запроса восстановления.<br>
+   — Источник: <code>generated/aether_reg_safe.h</code><br>
+   — Строки: 2691<br><br>
+
+6. <code>aether_generated_reg_safe_build_resolve_with_return_key</code> — построение resolve-запроса с возвратом ключа.<br>
+   — Источник: <code>generated/aether_reg_safe.h</code><br>
+   — Строки: 2751<br><br>
+
+7. <code>aether_generated_reg_unsafe_decode</code> — декодирование входящего "unsafe" фрейма.<br>
+   — Источник: <code>generated/aether_reg_unsafe_local.h</code><br>
+   — Строки: 3480, 3795<br><br>
+
+<b>Типы и макросы из удалённых заголовков, используемые напрямую:</b><br>
+- <code>aether_reg_unsafe_frame_t</code> (тип) — строки 3472, 3787<br>
+- <code>AETHER_REG_UNSAFE_FRAME_ENTER</code> (макрос) — строки 3503, 3809<br><br>
+
+<b>Другие файлы:</b><br>
+- <code>aether_client_app.c</code> — вызовов aether_reg_*/csa_reg_* не найдено.<br>
+- <code>aether_registration.c</code> — вызовов aether_reg_* не найдено.<br>
+- <code>aether_credentials.c</code> — вызовов aether_reg_* не найдено.<br><br>
+
+<b>Рекомендация:</b> при восстановлении/замене aether_reg_*.h/c на новый <code>aether_api.h</code> необходимо объявить 8 перечисленных функций (префикс aether_generated_*), тип <code>aether_reg_unsafe_frame_t</code> и макрос <code>AETHER_REG_UNSAFE_FRAME_ENTER</code> в соответствующем заголовке, включённом в aether_client.c.

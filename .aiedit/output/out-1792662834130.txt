@@ -1,0 +1,1722 @@
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 2767 to 2830
+    2767:s static bool emit_stream_typedef(
+    2768:F     FILE *output,
+    2769:c     const char *abbr,
+    2770:c     const char *name,
+    2771:c     char *error,
+    2772:s     size_t error_capacity) {
+    2773:  
+    2774:i     if (name == NULL ||
+    2775:*         *name == '\0') {
+    2776:  
+    2777:s         set_error(
+    2778:e             error,
+    2779:e             error_capacity,
+    2780:"             "stream declaration is missing a generated name");
+    2781:  
+    2782:r         return false;
+    2783:}     }
+    2784:  
+    2785:c     char generated_name[256];
+    2786:  
+    2787:d     declared_c_name(
+    2788:a         abbr,
+    2789:n         name,
+    2790:g         generated_name,
+    2791:s         sizeof(generated_name));
+    2792:  
+    2793:f     fprintf(
+    2794:o         output,
+    2795:"         "typedef struct {\n"
+    2796:"         "    uint8_t *data;\n"
+    2797:"         "    size_t capacity;\n"
+    2798:"         "    size_t length;\n"
+    2799:"         "} %s_t;\n\n",
+    2800:g         generated_name);
+    2801:  
+    2802:i     if (ferror(output)) {
+    2803:s         set_error(
+    2804:e             error,
+    2805:e             error_capacity,
+    2806:"             "cannot write generated stream type");
+    2807:  
+    2808:r         return false;
+    2809:}     }
+    2810:  
+    2811:r     return true;
+    2812:} }
+    2813:  
+    2814:  
+    2815:/ /*
+    2816:*  * Growing list of distinct module base_names whose generated headers
+>>> (показано строк: 64 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 3987 to 4080
+>>> (показано строк: 94 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4346 to 4470
+>>> (показано строк: 125 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4637 to 4760
+>>> (показано строк: 124 из 11902)
+
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 2767 to 2812 : emit_stream_typedef
+    2767:s static bool emit_stream_typedef(
+    2768:F     FILE *output,
+    2769:c     const char *abbr,
+    2770:c     const char *name,
+    2771:c     char *error,
+    2772:s     size_t error_capacity) {
+    2773:  
+    2774:i     if (name == NULL ||
+    2775:*         *name == '\0') {
+    2776:  
+    2777:s         set_error(
+    2778:e             error,
+    2779:e             error_capacity,
+    2780:"             "stream declaration is missing a generated name");
+    2781:  
+    2782:r         return false;
+    2783:}     }
+    2784:  
+    2785:c     char generated_name[256];
+    2786:  
+    2787:d     declared_c_name(
+    2788:a         abbr,
+    2789:n         name,
+    2790:g         generated_name,
+    2791:s         sizeof(generated_name));
+    2792:  
+    2793:f     fprintf(
+    2794:o         output,
+    2795:"         "typedef struct {\n"
+    2796:"         "    uint8_t *data;\n"
+    2797:"         "    size_t capacity;\n"
+    2798:"         "    size_t length;\n"
+    2799:"         "} %s_t;\n\n",
+    2800:g         generated_name);
+    2801:  
+    2802:i     if (ferror(output)) {
+    2803:s         set_error(
+    2804:e             error,
+    2805:e             error_capacity,
+    2806:"             "cannot write generated stream type");
+    2807:  
+    2808:r         return false;
+    2809:}     }
+    2810:  
+    2811:r     return true;
+    2812:} }
+>>> (показано строк: 46 из 11902)
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 3987 to 4100 : emit_stream_builder_declarations_for_api_ctx
+    3987:s static bool emit_stream_builder_declarations_for_api_ctx(
+    3988:F     FILE *output,
+    3989:c     const emitter_ctx_t *ctx,
+    3990:c     const char *stream_abbr,
+>>> (показано строк: 114 из 11902)
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4346 to 4578 : emit_stream_builder_definitions_for_api_ctx
+>>> (показано строк: 233 из 11902)
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4637 to 4699 : emit_stream_commit_once_ctx
+>>> (показано строк: 63 из 11902)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+>>> (всего найдено строк: 16)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+>>> (всего найдено строк: 23)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+>>> (всего найдено строк: 9)
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 5834 to 6001 : emit_api_source_ctx
+>>> (показано строк: 168 из 11902)
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 5595 to 5823 : emit_api_header_ctx
+>>> (показано строк: 229 из 11902)
+
+>>> (отфильтровано: из 117 строк оставлено 117)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 3987 to 4100
+    3987:s static bool emit_stream_builder_declarations_for_api_ctx(
+    3988:F     FILE *output,
+    3989:c     const emitter_ctx_t *ctx,
+    3990:c     const char *stream_abbr,
+    3991:c     const char *stream_name,
+    3992:c     const char *api_reference,
+    3993:c     char *error,
+    3994:s     size_t error_capacity) {
+    3995:  
+    3996:c     const adsl_api_t *api =
+    3997:f         find_api_definition_ctx(ctx, api_reference);
+    3998:  
+    3999:i     if (api == NULL) {
+    4000:s         set_error(error, error_capacity,
+    4001:"             "stream api does not resolve to a declared API");
+    4002:r         return false;
+    4003:}     }
+    4004:  
+    4005:  
+    4006:c     char stream_c_name[256];
+    4007:c     char api_name[256];
+    4008:c     char api_abbr[32];
+    4009:  
+    4010:d     declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
+    4011:s     snake_name(api->name, api_name, sizeof(api_name));
+    4012:  
+    4013:i     if (!api_effective_prefix_ctx(
+    4014:c             ctx, api, api_abbr, sizeof(api_abbr),
+    4015:e             error, error_capacity)) {
+    4016:r         return false;
+    4017:}     }
+    4018:  
+    4019:  
+    4020:a     adsl_effective_method_t *effective = NULL;
+    4021:s     size_t effective_count = 0u;
+    4022:  
+    4023:i     if (!emitter_collect_effective_ctx(
+    4024:c             ctx, api, &effective, &effective_count,
+    4025:e             error, error_capacity)) {
+    4026:r         return false;
+    4027:}     }
+    4028:  
+    4029:f     for (size_t m = 0u; m < effective_count; ++m) {
+    4030:  
+    4031:c         const adsl_method_t *method = effective[m].method;
+    4032:  
+    4033:  
+    4034:  
+    4035:c         char method_name[256];
+    4036:s         snake_name(method->name, method_name, sizeof(method_name));
+    4037:  
+    4038:b         bool collapsible =
+    4039:m             method_has_collapsible_params(method);
+    4040:  
+    4041:e         emit_method_origin(output, effective[m].owner, method);
+    4042:  
+    4043:/         /*
+    4044:*          * The builder entry point is namespaced by the stream *type* name
+    4045:*          * (e.g. csa_login_stream) so that the module prefix (csa_) still
+    4046:*          * leads the symbol, while the builder cannot collide with the plain
+    4047:*          * API function that shares {api_prefix}_{api_name}_{method_name}.
+    4048:*          */
+    4049:f         fprintf(
+    4050:o             output,
+    4051:"             "aether_status_t %s_%s_%s(\n"
+    4052:"             "    %s_t *builder_stream",
+    4053:s             stream_c_name, api_name, method_name, stream_c_name);
+    4054:  
+    4055:i         if (collapsible) {
+    4056:  
+    4057:  
+    4058:f             fprintf(output, ",\n    %s_%s_%s_context_t *collapse",
+    4059:a                 api_abbr, api_name, method_name);
+    4060:  
+    4061:  
+    4062:}         }
+    4063:  
+    4064:  
+    4065:  
+    4066:f         for (size_t p = 0u; p < method->param_count; ++p) {
+    4067:  
+    4068:f             fputs(",\n    ", output);
+    4069:  
+    4070:i             if (!emit_parameter_type_ctx(
+    4071:o                     output, ctx, &method->params[p],
+    4072:e                     error, error_capacity)) {
+    4073:f                 free(effective);
+    4074:r                 return false;
+    4075:}             }
+    4076:  
+    4077:f             fprintf(output, " %s", method->params[p].name);
+    4078:}         }
+    4079:  
+    4080:f         fputs(");\n\n", output);
+    4081:  
+    4082:i         if (collapsible) {
+    4083:e             emit_method_origin(output, effective[m].owner, method);
+    4084:  
+    4085:f             fprintf(
+    4086:o                 output,
+    4087:"                 "aether_status_t %s_%s_%s_flush(\n"
+    4088:"                 "    %s_t *builder_stream,\n"
+    4089:"                 "    %s_%s_%s_context_t *collapse);\n\n",
+    4090:  
+    4091:s                 stream_c_name, api_name, method_name,
+    4092:s                 stream_c_name, api_abbr, api_name, method_name);
+    4093:  
+    4094:  
+    4095:}         }
+    4096:}     }
+    4097:  
+    4098:f     free(effective);
+    4099:r     return !ferror(output);
+    4100:} }
+>>> (показано строк: 114 из 11902)
+>>> (отфильтровано: из 236 строк оставлено 236)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4346 to 4578
+    4346:s static bool emit_stream_builder_definitions_for_api_ctx(
+    4347:F     FILE *output,
+    4348:c     const emitter_ctx_t *ctx,
+    4349:c     const char *stream_abbr,
+    4350:c     const char *stream_name,
+    4351:c     const char *api_reference,
+    4352:c     char *error,
+    4353:s     size_t error_capacity) {
+    4354:  
+    4355:c     const adsl_api_t *api =
+    4356:f         find_api_definition_ctx(ctx, api_reference);
+    4357:  
+    4358:i     if (api == NULL) {
+    4359:s         set_error(error, error_capacity,
+    4360:"             "stream api does not resolve to a declared API");
+    4361:r         return false;
+    4362:}     }
+    4363:  
+    4364:  
+    4365:c     char stream_c_name[256];
+    4366:c     char api_name[256];
+    4367:c     char api_abbr[32];
+    4368:  
+    4369:d     declared_c_name(stream_abbr, stream_name, stream_c_name, sizeof(stream_c_name));
+    4370:s     snake_name(api->name, api_name, sizeof(api_name));
+    4371:  
+    4372:i     if (!api_effective_prefix_ctx(
+    4373:c             ctx, api, api_abbr, sizeof(api_abbr),
+    4374:e             error, error_capacity)) {
+    4375:r         return false;
+    4376:}     }
+    4377:  
+    4378:  
+    4379:a     adsl_effective_method_t *effective = NULL;
+    4380:s     size_t effective_count = 0u;
+    4381:  
+    4382:i     if (!emitter_collect_effective_ctx(
+    4383:c             ctx, api, &effective, &effective_count,
+    4384:e             error, error_capacity)) {
+    4385:r         return false;
+    4386:}     }
+    4387:  
+    4388:f     for (size_t m = 0u; m < effective_count; ++m) {
+    4389:  
+    4390:c         const adsl_method_t *method = effective[m].method;
+    4391:  
+    4392:  
+    4393:  
+    4394:c         char method_name[256];
+    4395:s         snake_name(method->name, method_name, sizeof(method_name));
+    4396:  
+    4397:b         bool collapsible =
+    4398:m             method_has_collapsible_params(method);
+    4399:  
+    4400:e         emit_method_origin(output, effective[m].owner, method);
+    4401:  
+    4402:i         if (collapsible) {
+    4403:/             /*
+    4404:*              * The builder entry point is namespaced by the stream type name
+    4405:*              * (csa_login_stream) so that the module prefix still leads the
+    4406:*              * symbol and the builder cannot collide with the plain API
+    4407:*              * function that shares {api_prefix}_{api_name}_{method_name}.
+    4408:*              */
+    4409:f             fprintf(
+    4410:o                 output,
+    4411:"                 "aether_status_t %s_%s_%s(\n"
+    4412:"                 "    %s_t *builder_stream,\n"
+    4413:"                 "    %s_%s_%s_context_t *collapse",
+    4414:  
+    4415:s                 stream_c_name, api_name, method_name,
+    4416:s                 stream_c_name, api_abbr, api_name, method_name);
+    4417:  
+    4418:  
+    4419:f             for (size_t p = 0u; p < method->param_count; ++p) {
+    4420:  
+    4421:f                 fputs(",\n    ", output);
+    4422:  
+    4423:i                 if (!emit_parameter_type_ctx(
+    4424:o                         output, ctx, &method->params[p],
+    4425:e                         error, error_capacity)) {
+    4426:f                     free(effective);
+    4427:r                     return false;
+    4428:}                 }
+    4429:  
+    4430:f                 fprintf(output, " %s", method->params[p].name);
+    4431:}             }
+    4432:  
+    4433:f             fprintf(
+    4434:o                 output,
+    4435:"                 ") {\n\n"
+    4436:"                 "    if (builder_stream == NULL ||\n"
+    4437:"                 "        collapse == NULL ||\n"
+    4438:"                 "        builder_stream->length > builder_stream->capacity ||\n"
+    4439:"                 "        (builder_stream->capacity != 0u && "
+    4440:"                 "builder_stream->data == NULL)) {\n"
+    4441:"                 "        return AETHER_ERR_ARGUMENT;\n"
+    4442:"                 "    }\n\n"
+    4443:  
+    4444:"                 "    %s_%s_remote_t remote = {0};\n\n"
+    4445:"                 "    return %s_%s_%s(\n"
+    4446:"                 "        &remote,\n"
+    4447:"                 "        collapse",
+    4448:s                 stream_abbr, api_name, stream_abbr, api_name, method_name);
+    4449:  
+    4450:f             for (size_t p = 0u; p < method->param_count; ++p) {
+    4451:f                 fprintf(output, ",\n        %s",
+    4452:m                     method->params[p].name);
+    4453:}             }
+    4454:  
+    4455:f             fputs(");\n}\n\n", output);
+    4456:  
+    4457:e             emit_method_origin(output, effective[m].owner, method);
+    4458:  
+    4459:f             fprintf(
+    4460:o                 output,
+    4461:"                 "aether_status_t %s_%s_%s_flush(\n"
+    4462:"                 "    %s_t *builder_stream,\n"
+    4463:  
+    4464:"                 "    %s_%s_%s_context_t *collapse) {\n\n"
+    4465:"                 "    if (builder_stream == NULL ||\n"
+    4466:"                 "        collapse == NULL ||\n"
+    4467:"                 "        builder_stream->length > builder_stream->capacity ||\n"
+    4468:"                 "        (builder_stream->capacity != 0u && "
+    4469:"                 "builder_stream->data == NULL)) {\n"
+    4470:"                 "        return AETHER_ERR_ARGUMENT;\n"
+    4471:"                 "    }\n\n"
+    4472:"                 "    if (collapse->count == 0u &&\n"
+    4473:"                 "        (collapse->queue == NULL || collapse->queue->count == 0u)) {\n"
+    4474:"                 "        return AETHER_OK;\n"
+    4475:"                 "    }\n\n"
+    4476:"                 "    size_t remaining =\n"
+    4477:"                 "        builder_stream->capacity - builder_stream->length;\n\n"
+    4478:"                 "    if (remaining == 0u) {\n"
+    4479:"                 "        return AETHER_ERR_OVERFLOW;\n"
+    4480:"                 "    }\n\n"
+    4481:  
+    4482:" "    %s_stream_commit_t commit = {\n"
+    4483:"             "        &builder_stream->length,\n"
+    4484:"             "        remaining\n"
+    4485:"             "    };\n\n"
+    4486:"             "    aether_data_out_t out;\n"
+    4487:"             "    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);\n\n"
+    4488:"             "    %s_%s_remote_t remote = {\n"
+    4489:"             "        &commit,\n"
+    4490:"             "        %s_stream_commit,\n"
+    4491:"             "        &out\n"
+    4492:"             "    };\n\n"
+    4493:"             "    return %s_%s_%s_flush(\n"
+    4494:"             "        &remote,\n"
+    4495:"             "        collapse);\n"
+    4496:"             "}\n\n",
+    4497:  
+    4498:  
+    4499:  
+    4500:s                 stream_c_name, api_name, method_name,
+    4501:s                 stream_c_name,
+    4502:a                 api_abbr, api_name, method_name,
+    4503:s                 stream_abbr,
+    4504:s                 stream_abbr, api_name,
+    4505:s                 stream_abbr,
+    4506:a                 api_abbr, api_name, method_name);
+    4507:  
+    4508:  
+    4509:c             continue;
+    4510:}         }
+    4511:  
+    4512:f         fprintf(
+    4513:o             output,
+    4514:"             "aether_status_t %s_%s_%s(\n"
+    4515:"             "    %s_t *builder_stream",
+    4516:s             stream_c_name, api_name, method_name, stream_c_name);
+    4517:  
+    4518:  
+    4519:  
+    4520:f         for (size_t p = 0u; p < method->param_count; ++p) {
+    4521:  
+    4522:f             fputs(",\n    ", output);
+    4523:  
+    4524:i             if (!emit_parameter_type_ctx(
+    4525:o                     output, ctx, &method->params[p],
+    4526:e                     error, error_capacity)) {
+    4527:f                 free(effective);
+    4528:r                 return false;
+    4529:}             }
+    4530:  
+    4531:f             fprintf(output, " %s", method->params[p].name);
+    4532:}         }
+    4533:  
+    4534:f         fprintf(
+    4535:o             output,
+    4536:"             ") {\n\n"
+    4537:"             "    if (builder_stream == NULL ||\n"
+    4538:"             "        builder_stream->length > builder_stream->capacity) {\n"
+    4539:"             "        return AETHER_ERR_ARGUMENT;\n"
+    4540:"             "    }\n\n"
+    4541:"             "    if (builder_stream->capacity > 0u &&\n"
+    4542:"             "        builder_stream->data == NULL) {\n"
+    4543:"             "        return AETHER_ERR_ARGUMENT;\n"
+    4544:"             "    }\n\n"
+    4545:"             "    size_t remaining =\n"
+    4546:"             "        builder_stream->capacity - builder_stream->length;\n\n"
+    4547:  
+    4548:"             "    if (remaining == 0u) {\n"
+    4549:"             "        return AETHER_ERR_OVERFLOW;\n"
+    4550:"             "    }\n\n"
+    4551:"             "    %s_stream_commit_t commit = {\n"
+    4552:"             "        &builder_stream->length,\n"
+    4553:"             "        remaining\n"
+    4554:"             "    };\n\n"
+    4555:"             "    aether_data_out_t out;\n"
+    4556:"             "    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);\n\n"
+    4557:"             "    %s_%s_remote_t remote = {\n"
+    4558:"             "        &commit,\n"
+    4559:"             "        %s_stream_commit,\n"
+    4560:"             "        &out\n"
+    4561:"             "    };\n\n"
+    4562:"             "    return %s_%s_%s(\n"
+    4563:"             "        &remote",
+    4564:  
+    4565:s             stream_abbr, stream_abbr, api_name, stream_abbr, stream_abbr, api_name, method_name);
+    4566:  
+    4567:  
+    4568:  
+    4569:f         for (size_t p = 0u; p < method->param_count; ++p) {
+    4570:f             fprintf(output, ",\n        %s", method->params[p].name);
+    4571:}         }
+    4572:  
+    4573:f         fputs(");\n}\n\n", output);
+    4574:}     }
+    4575:  
+    4576:f     free(effective);
+    4577:r     return !ferror(output);
+    4578:} }
+>>> (показано строк: 233 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4637 to 4699
+    4637:s static bool emit_stream_commit_once_ctx(
+    4638:F     FILE *output,
+    4639:c     const char *abbr,
+    4640:c     char emitted[32][32],
+    4641:s     size_t *emitted_count,
+    4642:c     char *error,
+    4643:s     size_t error_capacity) {
+    4644:  
+    4645:i     if (abbr == NULL || abbr[0] == '\0') {
+    4646:s         set_error(
+    4647:e             error, error_capacity,
+    4648:"             "stream builder has no module prefix");
+    4649:r         return false;
+    4650:}     }
+    4651:  
+    4652:i     if (emitted == NULL || emitted_count == NULL) {
+    4653:s         set_error(error, error_capacity, "invalid stream commit state");
+    4654:r         return false;
+    4655:}     }
+    4656:  
+    4657:f     for (size_t i = 0u; i < *emitted_count; ++i) {
+    4658:i         if (strcmp(emitted[i], abbr) == 0) {
+    4659:r             return true;
+    4660:}         }
+    4661:}     }
+    4662:  
+    4663:i     if (*emitted_count >= 32u) {
+    4664:s         set_error(error, error_capacity, "too many stream prefixes");
+    4665:r         return false;
+    4666:}     }
+    4667:  
+    4668:(     (void)snprintf(
+    4669:e         emitted[*emitted_count], sizeof(emitted[0]), "%s", abbr);
+    4670:  
+    4671:*     *emitted_count += 1u;
+    4672:  
+    4673:f     fprintf(
+    4674:o         output,
+    4675:"         "typedef struct {\n"
+    4676:"         "    size_t *length;\n"
+    4677:"         "    size_t remaining;\n"
+    4678:"         "} %s_stream_commit_t;\n\n"
+    4679:"         "static aether_status_t %s_stream_commit(\n"
+    4680:"         "    void *ctx,\n"
+    4681:"         "    const uint8_t *data,\n"
+    4682:"         "    size_t length) {\n\n"
+    4683:"         "    (void)data;\n\n"
+    4684:"         "    %s_stream_commit_t *commit =\n"
+    4685:"         "        ctx;\n\n"
+    4686:"         "    if (commit == NULL ||\n"
+>>> (показано строк: 63 из 11902)
+>>> (отфильтровано: из 171 строк оставлено 171)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 5834 to 6001
+    5834:s static bool emit_api_source_ctx(
+    5835:F     FILE *output,
+    5836:c     const emitter_ctx_t *ctx,
+    5837:c     const char *base_name,
+    5838:c     const char *selected_api_name,
+    5839:c     const char *selected_method_name,
+    5840:c     char *error,
+    5841:s     size_t error_capacity) {
+    5842:  
+    5843:i     if (ctx == NULL || ctx->document == NULL) {
+    5844:s         set_error(error, error_capacity, "invalid API source context");
+    5845:r         return false;
+    5846:}     }
+    5847:  
+    5848:i     if (output == NULL) {
+    5849:s         set_error(error, error_capacity, "no output stream for API source");
+    5850:r         return false;
+    5851:}     }
+    5852:  
+    5853:(     (void)base_name;
+    5854:  
+    5855:s     size_t api_count = 0u;
+    5856:c     const adsl_api_t *apis = ctx_apis(ctx, &api_count);
+    5857:  
+    5858:  
+    5859:f     for (size_t a = 0u; a < api_count; ++a) {
+    5860:  
+    5861:c         const adsl_api_t *api = &apis[a];
+    5862:  
+    5863:i         if (selected_api_name != NULL &&
+    5864:s             strcmp(api->name, selected_api_name) != 0) {
+    5865:c             continue;
+    5866:}         }
+    5867:  
+    5868:c         char api_abbr[32];
+    5869:  
+    5870:i         if (!api_effective_prefix_ctx(
+    5871:c                 ctx, api, api_abbr, sizeof(api_abbr),
+    5872:e                 error, error_capacity)) {
+    5873:r             return false;
+    5874:}         }
+    5875:  
+    5876:c         char api_name[256];
+    5877:s         snake_name(api->name, api_name, sizeof(api_name));
+    5878:  
+    5879:a         adsl_effective_method_t *effective = NULL;
+    5880:s         size_t effective_count = 0u;
+    5881:  
+    5882:i         if (!emitter_collect_effective_ctx(
+    5883:c                 ctx, api, &effective, &effective_count,
+    5884:e                 error, error_capacity)) {
+    5885:r             return false;
+    5886:}         }
+    5887:  
+    5888:f         for (size_t m = 0u; m < effective_count; ++m) {
+    5889:  
+    5890:c             const adsl_method_t *method = effective[m].method;
+    5891:  
+    5892:i             if (selected_method_name != NULL &&
+    5893:s                 strcmp(method->name, selected_method_name) != 0) {
+    5894:c                 continue;
+    5895:}             }
+    5896:  
+    5897:  
+    5898:  
+    5899:c             char method_name[256];
+    5900:s             snake_name(method->name, method_name, sizeof(method_name));
+    5901:  
+    5902:e             emit_method_origin(output, effective[m].owner, method);
+    5903:  
+    5904:i             if (method_has_collapsible_params(method)) {
+    5905:i                 if (!emit_collapsible_method_source_ctx(
+    5906:o                         output, ctx, api_abbr, api_name, method_name,
+    5907:m                         method, effective[m].id, error, error_capacity)) {
+    5908:f                     free(effective);
+    5909:r                     return false;
+    5910:}                 }
+    5911:c                 continue;
+    5912:}             }
+    5913:  
+    5914:f             fprintf(
+    5915:o                 output,
+    5916:  
+    5917:"                 "aether_status_t %s_%s_%s(\n"
+    5918:"                 "    %s_%s_remote_t *api",
+    5919:a                 api_abbr, api_name, method_name,
+    5920:a                 api_abbr, api_name);
+    5921:  
+    5922:  
+    5923:  
+    5924:f             for (size_t p = 0u; p < method->param_count; ++p) {
+    5925:  
+    5926:f                 fputs(",\n    ", output);
+    5927:  
+    5928:i                 if (!emit_parameter_type_ctx(
+    5929:o                         output, ctx, &method->params[p],
+    5930:e                         error, error_capacity)) {
+    5931:f                     free(effective);
+    5932:r                     return false;
+    5933:}                 }
+    5934:  
+    5935:f                 fprintf(output, " %s", method->params[p].name);
+    5936:}             }
+    5937:  
+    5938:  
+    5939:  
+    5940:f             fprintf(
+    5941:o                 output,
+    5942:"                 ") {\n\n"
+    5943:"                 "    if (api == NULL ||\n"
+    5944:"                 "        api->send == NULL ||\n"
+    5945:"                 "        api->out == NULL) {\n"
+    5946:"                 "        return AETHER_ERR_ARGUMENT;\n"
+    5947:"                 "    }\n\n"
+    5948:"                 "    aether_data_out_t *out = api->out;\n"
+    5949:"                 "    if (!aether_data_out_write_byte(out, %uu)) {\n"
+    5950:"                 "        return AETHER_ERR_OVERFLOW;\n"
+    5951:"                 "    }\n",
+    5952:(                 (unsigned int)effective[m].id);
+    5953:  
+    5954:  
+    5955:  
+    5956:  
+    5957:  
+    5958:i             if (!emit_remote_nullable_param_mask(
+    5959:o                     output, method, "", error, error_capacity)) {
+    5960:f                 free(effective);
+    5961:r                 return false;
+    5962:}             }
+    5963:  
+    5964:f             for (size_t p = 0u; p < method->param_count; ++p) {
+    5965:i                 if (!emit_serialize_param_ctx(
+    5966:o                         output, ctx, api_abbr, &method->params[p],
+    5967:e                         error, error_capacity)) {
+    5968:f                     free(effective);
+    5969:r                     return false;
+    5970:}                 }
+    5971:}             }
+    5972:  
+    5973:  
+    5974:f             fprintf(
+    5975:o                 output,
+    5976:"                 "\n"
+    5977:"                 "    return api->send(\n"
+    5978:"                 "        api->send_ctx,\n"
+    5979:"                 "        api->out->data,\n"
+    5980:"                 "        api->out->pos);\n"
+    5981:"                 "}\n\n");
+    5982:  
+    5983:}         }
+    5984:  
+    5985:f         free(effective);
+    5986:}     }
+    5987:  
+    5988:i     if (selected_api_name == NULL &&
+    5989:s         selected_method_name == NULL &&
+    5990:!         !emit_all_stream_builder_definitions_ctx(
+    5991:o             output, ctx, error, error_capacity)) {
+    5992:r         return false;
+    5993:}     }
+    5994:  
+    5995:i     if (ferror(output)) {
+    5996:s         set_error(error, error_capacity, "cannot write generated API source");
+    5997:r         return false;
+    5998:}     }
+    5999:  
+    6000:r     return true;
+    6001:} }
+>>> (показано строк: 168 из 11902)
+>>> (отфильтровано: из 232 строк оставлено 232)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 5595 to 5823
+    5595:s static bool emit_api_header_ctx(
+    5596:F     FILE *output,
+    5597:c     const emitter_ctx_t *ctx,
+    5598:c     const char *base_name,
+    5599:c     const char *selected_api_name,
+    5600:c     const char *selected_method_name,
+    5601:c     char *error,
+    5602:s     size_t error_capacity) {
+    5603:  
+    5604:i     if (ctx == NULL || ctx->document == NULL) {
+    5605:s         set_error(error, error_capacity, "invalid API header context");
+    5606:r         return false;
+    5607:}     }
+    5608:  
+    5609:i     if (output == NULL) {
+    5610:s         set_error(error, error_capacity, "no output stream for API header");
+    5611:r         return false;
+    5612:}     }
+    5613:  
+    5614:(     (void)base_name;
+    5615:  
+    5616:s     size_t api_count = 0u;
+    5617:c     const adsl_api_t *apis = ctx_apis(ctx, &api_count);
+    5618:  
+    5619:  
+    5620:/     /*
+    5621:*      * The transport send-fn typedef is emitted once per distinct module
+    5622:*      * prefix. Every API's remote_t refers to its own module's send fn, so a
+    5623:*      * single global typedef keyed off the first API would break any output
+    5624:*      * where more than one document contributes APIs (project/unified mode).
+    5625:*      */
+    5626:  
+    5627:c     char send_abbrs[32][32];
+    5628:s     size_t send_abbr_count = 0u;
+    5629:  
+    5630:f     for (size_t a = 0u; a < api_count; ++a) {
+    5631:  
+    5632:c         const adsl_api_t *api = &apis[a];
+    5633:  
+    5634:i         if (selected_api_name != NULL &&
+    5635:s             strcmp(api->name, selected_api_name) != 0) {
+    5636:c             continue;
+    5637:}         }
+    5638:  
+    5639:c         char send_abbr[32];
+    5640:  
+    5641:i         if (!api_effective_prefix_ctx(
+    5642:c                 ctx, api, send_abbr, sizeof(send_abbr),
+    5643:e                 error, error_capacity)) {
+    5644:r             return false;
+    5645:}         }
+    5646:  
+    5647:b         bool already = false;
+    5648:  
+    5649:f         for (size_t s = 0u; s < send_abbr_count; ++s) {
+    5650:i             if (strcmp(send_abbrs[s], send_abbr) == 0) {
+    5651:a                 already = true;
+    5652:b                 break;
+    5653:}             }
+    5654:}         }
+    5655:  
+    5656:i         if (already) {
+    5657:c             continue;
+    5658:}         }
+    5659:  
+    5660:i         if (send_abbr_count >= 32u) {
+    5661:s             set_error(error, error_capacity, "too many API prefixes");
+    5662:r             return false;
+    5663:}         }
+    5664:  
+    5665:(         (void)snprintf(
+    5666:s             send_abbrs[send_abbr_count],
+    5667:s             sizeof(send_abbrs[0]),
+    5668:"             "%s",
+    5669:s             send_abbr);
+    5670:  
+    5671:s         send_abbr_count += 1u;
+    5672:  
+    5673:f         fprintf(
+    5674:o             output,
+    5675:"             "typedef aether_status_t (*%s_send_fn)(\n"
+    5676:"             "    void *ctx,\n"
+    5677:"             "    const uint8_t *data,\n"
+    5678:"             "    size_t length);\n\n",
+    5679:s             send_abbr);
+    5680:}     }
+    5681:  
+    5682:  
+    5683:/     /*
+    5684:*      * Project mode: API signatures may reference types owned by other
+    5685:*      * modules. Bring in only the owners of parameter, return, throws
+    5686:*      * and return-field types — not the full set of the current
+    5687:*      * module's own type dependencies. Standalone output remains one
+    5688:*      * self-contained translation unit and skips this branch.
+    5689:*      */
+    5690:  
+    5691:i     if (ctx->resolver != NULL) {
+    5692:  
+    5693:e         external_modules_t external_api = {0};
+    5694:  
+    5695:i         if (!collect_external_modules_api(
+    5696:c                 ctx, &external_api, error, error_capacity)) {
+    5697:e             external_modules_free(&external_api);
+    5698:r             return false;
+    5699:}         }
+    5700:  
+    5701:i         if (!emit_external_includes(output, &external_api)) {
+    5702:e             external_modules_free(&external_api);
+    5703:r             return false;
+    5704:}         }
+    5705:  
+    5706:i         if (external_api.count > 0u) {
+    5707:f             fputc('\n', output);
+    5708:}         }
+    5709:  
+    5710:e         external_modules_free(&external_api);
+    5711:}     }
+    5712:  
+    5713:f     for (size_t a = 0u; a < api_count; ++a) {
+    5714:  
+    5715:c         const adsl_api_t *api = &apis[a];
+    5716:  
+    5717:i         if (selected_api_name != NULL &&
+    5718:s             strcmp(api->name, selected_api_name) != 0) {
+    5719:c             continue;
+    5720:}         }
+    5721:  
+    5722:c         char api_abbr[32];
+    5723:  
+    5724:i         if (!api_effective_prefix_ctx(
+    5725:c                 ctx, api, api_abbr, sizeof(api_abbr),
+    5726:e                 error, error_capacity)) {
+    5727:r             return false;
+    5728:}         }
+    5729:  
+    5730:c         char api_name[256];
+    5731:s         snake_name(api->name, api_name, sizeof(api_name));
+    5732:  
+    5733:f         fprintf(
+    5734:o             output,
+    5735:  
+    5736:"             "typedef struct {\n"
+    5737:"             "    void *send_ctx;\n"
+    5738:"             "    %s_send_fn send;\n"
+    5739:"             "    aether_data_out_t *out;\n"
+    5740:"             "\n"
+    5741:"             "} %s_%s_remote_t;\n\n",
+    5742:  
+    5743:a             api_abbr, api_abbr, api_name);
+    5744:  
+    5745:a         adsl_effective_method_t *effective = NULL;
+    5746:s         size_t effective_count = 0u;
+    5747:  
+    5748:i         if (!emitter_collect_effective_ctx(
+    5749:c                 ctx, api, &effective, &effective_count,
+    5750:e                 error, error_capacity)) {
+    5751:r             return false;
+    5752:}         }
+    5753:  
+    5754:f         for (size_t m = 0u; m < effective_count; ++m) {
+    5755:  
+    5756:c             const adsl_method_t *method = effective[m].method;
+    5757:  
+    5758:i             if (selected_method_name != NULL &&
+    5759:s                 strcmp(method->name, selected_method_name) != 0) {
+    5760:c                 continue;
+    5761:}             }
+    5762:  
+    5763:  
+    5764:  
+    5765:c             char method_name[256];
+    5766:s             snake_name(method->name, method_name, sizeof(method_name));
+    5767:  
+    5768:e             emit_method_origin(output, effective[m].owner, method);
+    5769:  
+    5770:i             if (method_has_collapsible_params(method)) {
+    5771:i                 if (!emit_collapsible_method_declarations_ctx(
+    5772:o                         output, ctx, api_abbr, api_name, method_name, method,
+    5773:e                         error, error_capacity)) {
+    5774:f                     free(effective);
+    5775:r                     return false;
+    5776:}                 }
+    5777:c                 continue;
+    5778:}             }
+    5779:  
+    5780:f             fprintf(
+    5781:o                 output,
+    5782:  
+    5783:"                 "aether_status_t %s_%s_%s(\n"
+    5784:"                 "    %s_%s_remote_t *api",
+    5785:a                 api_abbr, api_name, method_name,
+    5786:a                 api_abbr, api_name);
+    5787:  
+    5788:  
+    5789:  
+    5790:f             for (size_t p = 0u; p < method->param_count; ++p) {
+    5791:  
+    5792:f                 fputs(",\n    ", output);
+    5793:  
+    5794:i                 if (!emit_parameter_type_ctx(
+    5795:o                         output, ctx, &method->params[p],
+    5796:e                         error, error_capacity)) {
+    5797:f                     free(effective);
+    5798:r                     return false;
+    5799:}                 }
+    5800:  
+    5801:f                 fprintf(output, " %s", method->params[p].name);
+    5802:}             }
+    5803:  
+    5804:f             fputs(");\n\n", output);
+    5805:}         }
+    5806:  
+    5807:f         free(effective);
+    5808:}     }
+    5809:  
+    5810:i     if (selected_api_name == NULL &&
+    5811:s         selected_method_name == NULL &&
+    5812:!         !emit_all_stream_builder_declarations_ctx(
+    5813:o             output, ctx, error, error_capacity)) {
+    5814:r         return false;
+    5815:}     }
+    5816:  
+    5817:i     if (ferror(output)) {
+    5818:s         set_error(error, error_capacity, "cannot write generated API header");
+    5819:r         return false;
+    5820:}     }
+    5821:  
+    5822:r     return true;
+    5823:} }
+>>> (показано строк: 229 из 11902)
+>>> (отфильтровано: из 11904 строк оставлено 16)
+    3987:s static bool emit_stream_builder_declarations_for_api_ctx(
+    4196:s static bool emit_stream_builder_declarations_ctx(
+    4213:! !emit_stream_builder_declarations_for_api_ctx(
+    4228:i if (!emit_stream_builder_declarations_for_api_ctx(
+    4241:s static bool emit_all_stream_builder_declarations_ctx(
+    4271:i         if (!emit_stream_builder_declarations_ctx(
+    4330:i                 if (!emit_stream_builder_declarations_ctx(
+    4346:s static bool emit_stream_builder_definitions_for_api_ctx(
+    4583:s static bool emit_stream_builder_definitions_ctx(
+    4600:! !emit_stream_builder_definitions_for_api_ctx(
+    4615:i if (!emit_stream_builder_definitions_for_api_ctx(
+    4703:s static bool emit_all_stream_builder_definitions_ctx(
+    4749:i         if (!emit_stream_builder_definitions_ctx(
+    4812:i                 if (!emit_stream_builder_definitions_ctx(
+    5812:!         !emit_all_stream_builder_declarations_ctx(
+    5990:!         !emit_all_stream_builder_definitions_ctx(
+>>> (отфильтровано: из 11904 строк оставлено 23)
+    4052:"             "    %s_t *builder_stream",
+    4088:"                 "    %s_t *builder_stream,\n"
+    4412:"                 "    %s_t *builder_stream,\n"
+    4436:"                 "    if (builder_stream == NULL ||\n"
+    4438:"                 "        builder_stream->length > builder_stream->capacity ||\n"
+    4439:"                 "        (builder_stream->capacity != 0u && "
+    4440:"                 "builder_stream->data == NULL)) {\n"
+    4462:"                 "    %s_t *builder_stream,\n"
+    4465:"                 "    if (builder_stream == NULL ||\n"
+    4467:"                 "        builder_stream->length > builder_stream->capacity ||\n"
+    4468:"                 "        (builder_stream->capacity != 0u && "
+    4469:"                 "builder_stream->data == NULL)) {\n"
+    4477:"                 "        builder_stream->capacity - builder_stream->length;\n\n"
+    4483:"             "        &builder_stream->length,\n"
+    4487:"             "    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);\n\n"
+    4515:"             "    %s_t *builder_stream",
+    4537:"             "    if (builder_stream == NULL ||\n"
+    4538:"             "        builder_stream->length > builder_stream->capacity) {\n"
+    4541:"             "    if (builder_stream->capacity > 0u &&\n"
+    4542:"             "        builder_stream->data == NULL) {\n"
+    4546:"             "        builder_stream->capacity - builder_stream->length;\n\n"
+    4552:"             "        &builder_stream->length,\n"
+    4556:"             "    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);\n\n"
+>>> (отфильтровано: из 11904 строк оставлено 9)
+    9858:"                 "                const uint8_t *_meta_stream_data = NULL;\n"
+    9862:"                 "                        &_meta_stream_data,\n"
+    9866:"                 "                %s->data = (uint8_t *)_meta_stream_data;\n"
+    10002:"             "            const uint8_t *_meta_stream_data = NULL;\n"
+    10005:"             "                    &_meta_stream_data,\n"
+    10009:"             "            (%s).data = (uint8_t *)_meta_stream_data;\n"
+    10193:"             "            const uint8_t *_meta_stream_data = NULL;\n"
+    10196:"             "                    &_meta_stream_data,\n"
+    10200:"             "            (%s).data = (uint8_t *)_meta_stream_data;\n"
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+
+>>> (отфильтровано: из 23 строк оставлено 20)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4699 to 4718
+    4699:} }
+    4700:  
+    4701:  
+    4702:  
+    4703:s static bool emit_all_stream_builder_definitions_ctx(
+    4704:F     FILE *output,
+    4705:c     const emitter_ctx_t *ctx,
+    4706:c     char *error,
+    4707:s     size_t error_capacity) {
+    4708:  
+    4709:/     /*
+    4710:*      * The stream commit helper is per-module: the struct type and the
+    4711:*      * static function are emitted once for each distinct stream prefix
+    4712:*      * that actually owns stream builders. Collect prefixes on the fly so
+    4713:*      * that csa_/pa_/etc. each get their own commit helper.
+    4714:*      */
+    4715:c     char emitted_abbrs[32][32];
+    4716:s     size_t emitted_count = 0u;
+>>> viewBlock
+>>> Context for /home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c around line 9858:    3:/ /*
+    4:*  * Static C emitter for a validated ADSL semantic document.
+    5:*  *
+    6:*  * Generated firmware is schema-free at runtime: inheritance, nullability,
+    7:*  * arrays, streams, local APIs and concrete wire expressions are resolved here
+    8:*  * ahead of time.
+    9:*  *
+    10:*  * MCU size is a design constraint. Share helpers only when linked measurements
+    11:*  * demonstrate a win; reducing generated source lines can increase firmware.
+    12:*  *
+    13:*  * Fix generated client_server_* defects here and add focused regression
+    14:*  * fixtures instead of manually patching generated bindings.
+    15:*  */
+    16:  
+    17:# #include "adslc.h"
+    18:# #include "adsl_project_internal.h"
+    19:  
+    20:# #include <ctype.h>
+    21:# #include <stdio.h>
+    22:# #include <stdlib.h>
+    23:# #include <string.h>
+    24:# #include <sys/stat.h>
+    25:# #include <sys/types.h>
+    26:  
+    27:  
+    28:  
+    29:  
+    30:s static void set_error(
+    31:c     char *error,
+    32:s     size_t capacity,
+    33:c     const char *message) {
+    34:  
+    35:i     if (error != NULL &&
+    36:c         capacity > 0u) {
+    37:  
+    38:(         (void)snprintf(
+    39:e             error,
+    40:c             capacity,
+    41:"             "%s",
+    42:m             message);
+    43:}     }
+    44:} }
+    45:  
+    46:  
+    47:/ /*
+    48:*  * Build "<directory>/<stem><suffix>" into a fixed buffer.
+    49:*  *
+    50:*  * The emitter writes every output file through a bounded path buffer. A
+    51:*  * silently truncated path is dangerous: fopen() may succeed on a prefix
+    52:*  * name and the caller never learns that the intended file was not
+>>> viewBlock
+>>> Context for /home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c around line 10002:>>> viewBlock
+>>> Context for /home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c around line 10193:>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tools/aether-protocol-c/tests/fixtures/A.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Arrays.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/B.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CollapsibleFields.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeChild.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterInvalidNullableMid.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EnumTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Hierarchy.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflict.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflictRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IntPack.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidAllCollapsibleMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleArrayKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleResponse.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleStructKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleUriKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidDirectByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidFixedArrayByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidMutualByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/LocalStreamDispatch.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NestedStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableApiParams.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/RecursiveStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResponseMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResultRpc.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchPath/shared.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingCommon/SiblingCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StaticStructArray.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StreamBuilder.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TieredInt.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TypedThrows.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ValueTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_includes_b.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_long_reference.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item_array_nullable.adsl.yaml
+>>> (итог: 16 директорий, 75 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 3 директорий, 5 файлов)
+>>> (отфильтровано: из 24 строк оставлено 24)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 9850 to 9870
+    9850:"                 "            if (in->scratch_alloc == NULL) return false;\n"
+    9851:"                 "            %s = (%s_t *)in->scratch_alloc(\n"
+    9852:"                 "                in->scratch_ctx,\n"
+    9853:"                 "                sizeof(%s_t),\n"
+    9854:"                 "                _Alignof(%s_t));\n"
+    9855:"                 "            if (%s == NULL) return false;\n"
+    9856:"                 "            memset(%s, 0, sizeof(*%s));\n"
+    9857:"                 "            {\n"
+    9858:"                 "                const uint8_t *_meta_stream_data = NULL;\n"
+    9859:"                 "                size_t _meta_stream_length = 0u;\n"
+    9860:"                 "                if (!aether_data_in_read_view(\n"
+    9861:"                 "                        in,\n"
+    9862:"                 "                        &_meta_stream_data,\n"
+    9863:"                 "                        &_meta_stream_length)) {\n"
+    9864:"                 "                    return false;\n"
+    9865:"                 "                }\n"
+    9866:"                 "                %s->data = (uint8_t *)_meta_stream_data;\n"
+    9867:"                 "                %s->capacity = _meta_stream_length;\n"
+    9868:"                 "                %s->length = _meta_stream_length;\n"
+    9869:"                 "            }\n"
+    9870:"                 "        }\n",
+>>> (показано строк: 21 из 11902)
+>>> (отфильтровано: из 24 строк оставлено 24)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 9995 to 10015
+    9995:  
+    9996:  
+    9997:  
+    9998:f         fprintf(
+    9999:o             output,
+    10000:"             "        %s_t %s = {0};\n"
+    10001:"             "        {\n"
+    10002:"             "            const uint8_t *_meta_stream_data = NULL;\n"
+    10003:"             "            size_t _meta_stream_length = 0u;\n"
+    10004:"             "            if (!aether_data_in_read_view(in,\n"
+    10005:"             "                    &_meta_stream_data,\n"
+    10006:"             "                    &_meta_stream_length)) {\n"
+    10007:"             "                return false;\n"
+    10008:"             "            }\n"
+    10009:"             "            (%s).data = (uint8_t *)_meta_stream_data;\n"
+    10010:"             "            (%s).capacity = _meta_stream_length;\n"
+    10011:"             "            (%s).length = _meta_stream_length;\n"
+    10012:"             "        }\n",
+    10013:s             stream_name,
+    10014:p             param->name,
+    10015:p             param->name,
+>>> (показано строк: 21 из 11902)
+>>> (отфильтровано: из 29 строк оставлено 29)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 10185 to 10210
+    10185:*          * struct's mutable `data` field (kept for the builder ABI) does not
+    10186:*          * violate the reader's const contract.
+    10187:*          */
+    10188:  
+    10189:f         fprintf(
+    10190:o             output,
+    10191:"             "        %s_t %s = {0};\n"
+    10192:"             "        {\n"
+    10193:"             "            const uint8_t *_meta_stream_data = NULL;\n"
+    10194:"             "            size_t _meta_stream_length = 0u;\n"
+    10195:"             "            if (!aether_data_in_read_view(in,\n"
+    10196:"             "                    &_meta_stream_data,\n"
+    10197:"             "                    &_meta_stream_length)) {\n"
+    10198:"             "                return false;\n"
+    10199:"             "            }\n"
+    10200:"             "            (%s).data = (uint8_t *)_meta_stream_data;\n"
+    10201:"             "            (%s).capacity = _meta_stream_length;\n"
+    10202:"             "            (%s).length = _meta_stream_length;\n"
+    10203:"             "        }\n",
+    10204:d             declared_name,
+    10205:p             param->name,
+    10206:p             param->name,
+    10207:p             param->name,
+    10208:p             param->name);
+    10209:  
+    10210:  
+>>> (показано строк: 26 из 11902)
+
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 4673 to 4699
+    4673:f     fprintf(
+    4674:o         output,
+    4675:"         "typedef struct {\n"
+    4676:"         "    size_t *length;\n"
+    4677:"         "    size_t remaining;\n"
+    4678:"         "} %s_stream_commit_t;\n\n"
+    4679:"         "static aether_status_t %s_stream_commit(\n"
+    4680:"         "    void *ctx,\n"
+    4681:"         "    const uint8_t *data,\n"
+    4682:"         "    size_t length) {\n\n"
+    4683:"         "    (void)data;\n\n"
+    4684:"         "    %s_stream_commit_t *commit =\n"
+    4685:"         "        ctx;\n\n"
+    4686:"         "    if (commit == NULL ||\n"
+    4687:"         "        commit->length == NULL) {\n"
+    4688:"         "        return AETHER_ERR_ARGUMENT;\n"
+    4689:"         "    }\n\n"
+    4690:"         "    if (length > commit->remaining) {\n"
+    4691:"         "        return AETHER_ERR_OVERFLOW;\n"
+    4692:"         "    }\n\n"
+    4693:"         "    *commit->length += length;\n\n"
+    4694:"         "    return AETHER_OK;\n"
+    4695:"         "}\n\n",
+    4696:a         abbr, abbr, abbr);
+    4697:  
+    4698:r     return true;
+    4699:} }
+>>> (показано строк: 27 из 11902)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+[DIR]  tools
+[DIR]  tools/aether-protocol-c
+[DIR]  tools/aether-protocol-c/tests
+[DIR]  tools/aether-protocol-c/tests/fixtures
+>>> (итог: 4 директорий, 1 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+[DIR]  tools
+[DIR]  tools/aether-protocol-c
+[DIR]  tools/aether-protocol-c/tests
+>>> (итог: 3 директорий, 1 файлов)
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+    5305:s static bool emit_collapsible_method_source_ctx(
+    5905:i                 if (!emit_collapsible_method_source_ctx(
+>>> (всего найдено строк: 2)
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 2441 to 2612 : emit_serialize_param_ctx
+    2441:s static bool emit_serialize_param_ctx(
+    2442:F     FILE *output,
+    2443:c     const emitter_ctx_t *ctx,
+    2444:c     const char *base_snake,
+    2445:c     const adsl_param_t *param,
+    2446:c     char *error,
+    2447:s     size_t error_capacity) {
+    2448:  
+    2449:i     if (param->stream != NULL) {
+    2450:i         if (param->type == NULL || *param->type == '\0') {
+    2451:s             set_error(error, error_capacity,
+    2452:"                 "stream parameter is missing a generated name");
+>>> (показано строк: 172 из 11902)
+
+>>> (отфильтровано: из 175 строк оставлено 175)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 2441 to 2612
+    2441:s static bool emit_serialize_param_ctx(
+    2442:F     FILE *output,
+    2443:c     const emitter_ctx_t *ctx,
+    2444:c     const char *base_snake,
+    2445:c     const adsl_param_t *param,
+    2446:c     char *error,
+    2447:s     size_t error_capacity) {
+    2448:  
+    2449:i     if (param->stream != NULL) {
+    2450:i         if (param->type == NULL || *param->type == '\0') {
+    2451:s             set_error(error, error_capacity,
+    2452:"                 "stream parameter is missing a generated name");
+    2453:r             return false;
+    2454:}         }
+    2455:  
+    2456:f         fprintf(
+    2457:o             output,
+    2458:"             "    if (%s == NULL) return AETHER_ERR_ARGUMENT;\n"
+    2459:"             "    if (%s->length > %s->capacity) return AETHER_ERR_ARGUMENT;\n",
+    2460:p             param->name, param->name, param->name);
+    2461:  
+    2462:c         char stream_expression[512];
+    2463:  
+    2464:i         int stream_expression_size = snprintf(
+    2465:s             stream_expression, sizeof(stream_expression),
+    2466:"             "(*%s)", param->name);
+    2467:  
+    2468:i         if (stream_expression_size < 0 ||
+    2469:(             (size_t)stream_expression_size >= sizeof(stream_expression)) {
+    2470:s             set_error(error, error_capacity,
+    2471:"                 "generated stream parameter expression is too long");
+    2472:r             return false;
+    2473:}         }
+    2474:  
+    2475:e         emit_bytes_view_expression(
+    2476:o             output, stream_expression, param->name);
+    2477:r         return true;
+    2478:}     }
+    2479:  
+    2480:i     if (strchr(param->type, '?') != NULL) {
+    2481:c         char cleaned[256];
+    2482:  
+    2483:i         if (!strip_nullable_suffix(
+    2484:p                 param->type, cleaned, sizeof(cleaned))) {
+    2485:s             set_error(error, error_capacity,
+    2486:"                 "nullable API parameter type is too long");
+    2487:r             return false;
+    2488:}         }
+    2489:  
+    2490:a         adsl_param_t underlying = *param;
+    2491:  
+    2492:i         if (strchr(cleaned, '?') != NULL ||
+    2493:s             strchr(cleaned, '~') != NULL) {
+    2494:s             set_error(error, error_capacity,
+    2495:"                 "malformed nullable API parameter type");
+    2496:r             return false;
+    2497:}         }
+    2498:  
+    2499:u         underlying.type = cleaned;
+    2500:  
+    2501:b         bool valid = false;
+    2502:c         c_param_kind_t kind =
+    2503:c             classify_param_kind_ctx(ctx, &underlying, &valid);
+    2504:  
+    2505:i         if (!valid) {
+    2506:s             set_error(error, error_capacity,
+    2507:"                 "unsupported nullable API parameter type");
+    2508:r             return false;
+    2509:}         }
+    2510:  
+    2511:c         char dereferenced_name[320];
+    2512:  
+    2513:i         if (kind == C_PARAM_KIND_SCALAR ||
+    2514:k             kind == C_PARAM_KIND_DYNAMIC_VIEW) {
+    2515:  
+    2516:i             int written = snprintf(
+    2517:d                 dereferenced_name, sizeof(dereferenced_name),
+    2518:"                 "(*%s)", param->name);
+    2519:  
+    2520:i             if (written < 0 ||
+    2521:(                 (size_t)written >= sizeof(dereferenced_name)) {
+    2522:s                 set_error(error, error_capacity,
+    2523:"                     "generated nullable parameter expression is too long");
+    2524:r                 return false;
+    2525:}             }
+    2526:  
+    2527:u             underlying.name = dereferenced_name;
+    2528:}         }
+    2529:  
+    2530:f         fprintf(output, "    if (%s != NULL) {\n", param->name);
+    2531:  
+    2532:i         if (!emit_serialize_param_ctx(
+    2533:o                 output, ctx, base_snake, &underlying,
+    2534:e                 error, error_capacity)) {
+    2535:r             return false;
+    2536:}         }
+    2537:  
+    2538:f         fputs("    }\n", output);
+    2539:r         return true;
+    2540:}     }
+    2541:  
+    2542:c     char array_element[128];
+    2543:b     bool array_dynamic;
+    2544:s     size_t array_static_size;
+    2545:  
+    2546:i     if (parse_array_type(
+    2547:p             param->type, array_element, sizeof(array_element),
+    2548:&             &array_dynamic, &array_static_size)) {
+    2549:(         (void)array_element;
+    2550:(         (void)array_static_size;
+    2551:  
+    2552:r         return emit_array_expression_ctx(
+    2553:o             output, ctx, base_snake,
+    2554:p             param->type, param->name, param->name,
+    2555:!             !array_dynamic, 0u, NULL,
+    2556:e             error, error_capacity);
+    2557:}     }
+    2558:  
+    2559:c     char base[128];
+    2560:  
+    2561:i     if (!scalar_type_name(
+    2562:p             param->type, base, sizeof(base))) {
+    2563:s         set_error(error, error_capacity,
+    2564:"             "milestone-2 emitter supports scalar or one-dimensional array parameters only");
+    2565:r         return false;
+    2566:}     }
+    2567:  
+    2568:c     const adsl_type_t *declared_type =
+    2569:f         find_declared_type_ctx(ctx, base);
+    2570:  
+    2571:i     if (declared_type != NULL &&
+    2572:t         type_is_polymorphic_reference_ctx(ctx, declared_type)) {
+    2573:  
+    2574:  
+    2575:  
+    2576:  
+    2577:c         char type_name[256];
+    2578:c         char type_abbr[32];
+    2579:  
+    2580:i         if (!type_effective_prefix_ctx(
+    2581:c                 ctx, declared_type, type_abbr, sizeof(type_abbr),
+    2582:e                 error, error_capacity)) {
+    2583:r             return false;
+    2584:}         }
+    2585:  
+    2586:  
+    2587:s         snake_name(
+    2588:d             declared_type->name, type_name, sizeof(type_name));
+    2589:  
+    2590:  
+    2591:  
+    2592:  
+    2593:f         fprintf(
+    2594:o             output,
+    2595:"             "    if (!%s_serialize_%s(out, %s, 0u)) return false;\n",
+    2596:t             type_abbr, type_name, param->name);
+    2597:  
+    2598:  
+    2599:r         return true;
+    2600:}     }
+    2601:  
+    2602:b     bool struct_pointer =
+    2603:d         declared_type != NULL &&
+    2604:d         declared_type->enum_count == 0u &&
+    2605:!         !declared_type->has_tiered_int;
+    2606:  
+    2607:r     return emit_value_expression_ctx(
+    2608:o         output, ctx, base_snake,
+    2609:p         param->type, param->name, param->name,
+    2610:s         struct_pointer, 0u, NULL,
+    2611:e         error, error_capacity);
+    2612:} }
+>>> (показано строк: 172 из 11902)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+    1:  
+    2:a api:
+    3:S   StreamApi:
+    4:m     methods:
+    5:e       enter:
+    6:i         id: 3
+    7:p         params:
+    8:s           stream:
+    9:n             name: TestStream?
+    10:s             stream:
+    11:a               api: InnerApi
+    12:I   InnerApi:
+    13:m     methods:
+    14:p       ping:
+    15:i         id: 3
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+    1:  
+    2:# #!/usr/bin/env bash
+    3:s set -euo pipefail
+    4:  
+    5:G GEN="${ADSL_TEST_GENERATOR:?generator binary not provided}"
+    6:F FIXTURES="${ADSL_TEST_FIXTURES:?fixture directory not provided}"
+    7:R RUNTIME_INCLUDE="${ADSL_TEST_RUNTIME_INCLUDE:?runtime include directory not provided}"
+    8:C CC="${ADSL_TEST_CC:?C compiler not provided}"
+    9:  
+    10:f fail() {
+    11:e     echo "EMITTER NULLABLE-STREAM TEST FAILED: $*" >&2
+    12:e     exit 1
+    13:} }
+    14:  
+    15:F FIXTURE="$FIXTURES/EmitterNullableStream.adsl.yaml"
+    16:[ [[ -f "$FIXTURE" ]] || fail "fixture not found: $FIXTURE"
+    17:  
+    18:T TMP="$(mktemp -d /tmp/aether-emitter-nullable-stream.XXXXXX)"
+    19:t trap 'rm -rf "$TMP"' EXIT
+    20:  
+    21:O OUT="$TMP/out"
+    22:m mkdir -p "$OUT"
+    23:  
+    24:  
+    25:# # EMIT-A3, REGRESSION.
+    26:# #
+    27:# # A nullable inline stream parameter (`name: TestStream?`) must produce a
+    28:# # self-consistent C type name: the stream typedef in the generated header
+    29:# # and every reference in the generated translation unit must agree.
+    30:" "$GEN" --input "$FIXTURE" "$OUT" \
+    31:>     >/dev/null 2>"$TMP/gen.err" ||
+    32:f     fail "generation failed: $(cat "$TMP/gen.err")"
+    33:  
+    34:A API_C="$OUT/aether_api.c"
+    35:[ [[ -f "$API_C" ]] || fail "generated source not produced"
+
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 5305 to 5587 : emit_collapsible_method_source_ctx
+    5305:s static bool emit_collapsible_method_source_ctx(
+    5306:F     FILE *output,
+    5307:c     const emitter_ctx_t *ctx,
+    5308:c     const char *api_abbr,
+    5309:c     const char *api_name,
+    5310:c     const char *method_name,
+    5311:c     const adsl_method_t *method,
+    5312:u     uint8_t command_id,
+    5313:c     char *error,
+    5314:s     size_t error_capacity) {
+    5315:  
+    5316:f     fprintf(
+    5317:o         output,
+    5318:  
+    5319:"         "static aether_status_t %s_%s_%s_collapse_serialize(\n"
+    5320:"         "    void *ctx,\n"
+    5321:"         "    uint8_t *tx,\n"
+    5322:"         "    size_t tx_capacity,\n"
+    5323:"         "    size_t *position);\n\n"
+    5324:"         "static void %s_%s_%s_collapse_commit(void *ctx);\n\n"
+    5325:"         "aether_status_t %s_%s_%s(\n"
+    5326:"         "    %s_%s_remote_t *api,\n"
+    5327:"         "    %s_%s_%s_context_t *collapse",
+    5328:  
+    5329:a         api_abbr, api_name, method_name,
+    5330:a         api_abbr, api_name, method_name,
+    5331:a         api_abbr, api_name, method_name,
+    5332:a         api_abbr, api_name,
+    5333:a         api_abbr, api_name, method_name);
+    5334:  
+    5335:f     for (size_t p = 0u; p < method->param_count; ++p) {
+    5336:  
+    5337:f         fputs(",\n    ", output);
+    5338:  
+    5339:i         if (!emit_parameter_type_ctx(
+    5340:o                 output, ctx, &method->params[p],
+    5341:e                 error, error_capacity)) {
+    5342:r             return false;
+    5343:}         }
+    5344:  
+    5345:f         fprintf(output, " %s", method->params[p].name);
+    5346:}     }
+    5347:  
+    5348:f     fprintf(
+    5349:o         output,
+    5350:"         ") {\n\n"
+    5351:"         "    if (api == NULL ||\n"
+    5352:"         "        collapse == NULL ||\n"
+    5353:"         "        collapse->count > collapse->capacity ||\n"
+    5354:"         "        (collapse->capacity != 0u && collapse->entries == NULL)) {\n"
+>>> (показано строк: 283 из 11902)
+>>> viewMethod
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 5233 to 5300 : emit_collapsible_method_declarations_ctx
+>>> (показано строк: 68 из 11902)
+>>> (отфильтровано: из 17 строк оставлено 17)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+    1:  
+    2:a api:
+    3:S   StreamApi:
+    4:m     methods:
+    5:e       enter:
+    6:i         id: 3
+    7:p         params:
+    8:s           stream:
+    9:n             name: TestStream?
+    10:s             stream:
+    11:a               api: InnerApi
+    12:I   InnerApi:
+    13:m     methods:
+    14:p       ping:
+    15:i         id: 3
+>>> (отфильтровано: из 51 строк оставлено 51)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+    1:  
+    2:# #!/usr/bin/env bash
+    3:s set -euo pipefail
+    4:  
+    5:G GEN="${ADSL_TEST_GENERATOR:?generator binary not provided}"
+    6:F FIXTURES="${ADSL_TEST_FIXTURES:?fixture directory not provided}"
+    7:R RUNTIME_INCLUDE="${ADSL_TEST_RUNTIME_INCLUDE:?runtime include directory not provided}"
+    8:C CC="${ADSL_TEST_CC:?C compiler not provided}"
+    9:  
+    10:f fail() {
+    11:e     echo "EMITTER NULLABLE-STREAM TEST FAILED: $*" >&2
+    12:e     exit 1
+    13:} }
+    14:  
+    15:F FIXTURE="$FIXTURES/EmitterNullableStream.adsl.yaml"
+    16:[ [[ -f "$FIXTURE" ]] || fail "fixture not found: $FIXTURE"
+    17:  
+    18:T TMP="$(mktemp -d /tmp/aether-emitter-nullable-stream.XXXXXX)"
+    19:t trap 'rm -rf "$TMP"' EXIT
+    20:  
+    21:O OUT="$TMP/out"
+    22:m mkdir -p "$OUT"
+    23:  
+    24:  
+    25:# # EMIT-A3, REGRESSION.
+    26:# #
+    27:# # A nullable inline stream parameter (`name: TestStream?`) must produce a
+    28:# # self-consistent C type name: the stream typedef in the generated header
+    29:# # and every reference in the generated translation unit must agree.
+    30:" "$GEN" --input "$FIXTURE" "$OUT" \
+    31:>     >/dev/null 2>"$TMP/gen.err" ||
+    32:f     fail "generation failed: $(cat "$TMP/gen.err")"
+    33:  
+    34:A API_C="$OUT/aether_api.c"
+    35:[ [[ -f "$API_C" ]] || fail "generated source not produced"
+    36:  
+    37:# # Compile the generated translation unit against the shared runtime
+    38:# # headers. This is a one-translation-unit syntax/type check; it is
+    39:# # sufficient to catch a mismatch between 'test_stream__t' and
+    40:# # 'test_stream_t'.
+    41:" "$CC" -fsyntax-only \
+    42:-     -I"$OUT" \
+    43:-     -I"$RUNTIME_INCLUDE" \
+    44:"     "$API_C" \
+    45:2     2>"$TMP/cc.err" ||
+    46:f     fail "generated source does not compile: $(cat "$TMP/cc.err")"
+    47:  
+    48:  
+    49:e exit 0
+
+[subtask studyEmitterStream] 
+<h3>Отчёт: stream-обработка в C-генераторе</h3>
+<p><b>Файл:</b> <code>/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c</code> (~12000 строк)</p>
+
+<h4>1. Ключевые функции stream-обработки</h4>
+<ul>
+<li><code>emit_stream_typedef</code> (2767): генерирует <code>typedef struct { uint8_t *data; size_t capacity; size_t length; } &lt;name&gt;_t;</code></li>
+<li><code>emit_stream_builder_declarations_for_api_ctx</code> (3987): генерирует прототипы builder-функций для каждого метода API, связанного со stream-типом. Сигнатура: <code>aether_status_t &lt;stream_c_name&gt;_&lt;api_name&gt;_&lt;method_name&gt;(&lt;stream_c_name&gt;_t *builder_stream, ...параметры);</code> Для collapsible-методов дополнительно <code>..._flush(&lt;stream_c_name&gt;_t *builder_stream, &lt;api&gt;_context_t *collapse);</code></li>
+<li><code>emit_stream_builder_definitions_for_api_ctx</code> (4346): генерирует реализации builder-функций. Они создают <code>aether_data_out_t</code> поверх буфера <code>builder_stream-&gt;data + builder_stream-&gt;length</code>, создают <code>remote_t</code> с commit-функцией и вызывают обычный метод API.</li>
+<li><code>emit_stream_commit_once_ctx</code> (4637): генерирует <code>typedef struct { size_t *length; size_t remaining; } &lt;prefix&gt;_stream_commit_t;</code> и static функцию <code>&lt;prefix&gt;_stream_commit</code>, которая увеличивает <code>*length</code> на записанную длину. Это механизм фиксации данных.</li>
+</ul>
+
+<h4>2. Stream в API-методах</h4>
+<p>В <code>emit_api_source_ctx</code> (5834) обычные методы генерируются с сигнатурой:</p>
+<pre>aether_status_t &lt;api_abbr&gt;_&lt;api_name&gt;_&lt;method_name&gt;(
+    &lt;api_abbr&gt;_&lt;api_name&gt;_remote_t *api, ...)</pre>
+<p>Внутри используется <code>api-&gt;out</code> (указатель на <code>aether_data_out_t</code>) для записи байтов. Stream-параметры в таких методах обрабатываются через <code>emit_serialize_param_ctx</code> (2441), который для stream-параметров проверяет <code>NULL</code>, валидность <code>length &lt;= capacity</code> и вызывает <code>emit_bytes_view_expression</code> для записи данных и длины.</p>
+<p>Stream-специфичные builder-функции генерируются отдельным блоком (в <code>emit_all_stream_builder_declarations_ctx</code> / <code>definitions</code>). Они называются <code>&lt;stream_c_name&gt;_&lt;api_name&gt;_&lt;method_name&gt;</code> и принимают <code>builder_stream</code> вместо <code>remote_t</code>.</p>
+
+<h4>3. Обычные методы и DataInOut</h4>
+<p>Обычные методы используют <code>aether_data_out_t</code> через поле <code>out</code> в <code>remote_t</code>. Типовой код:</p>
+<pre>aether_status_t csa_foo(csa_remote_t *api) {
+    if (api == NULL || api-&gt;send == NULL || api-&gt;out == NULL) return AETHER_ERR_ARGUMENT;
+    aether_data_out_t *out = api-&gt;out;
+    if (!aether_data_out_write_byte(out, 0x01)) return AETHER_ERR_OVERFLOW;
+    ...
+    return api-&gt;send(api-&gt;send_ctx, api-&gt;out-&gt;data, api-&gt;out-&gt;pos);
+}</pre>
+<p>Это соответствует DataInOut-подходу: данные пишутся в буфер <code>out</code>, затем отправляются.</p>
+
+<h4>4. Упоминания stream-сущностей</h4>
+<ul>
+<li><code>aether_stream_builder</code> — не найдено в файле. Используется параметр <code>builder_stream</code> в builder-функциях.</li>
+<li><code>stream_builder</code> — встречается в комментариях и как часть имён функций.</li>
+<li><code>builder_stream</code> — имя параметра в builder-функциях.</li>
+<li><code>_meta_stream_data</code> — внутренняя переменная для чтения stream-параметра из входящих данных (десериализация). Пример (строка 9858):</li>
+</ul>
+<pre>const uint8_t *_meta_stream_data = NULL;
+size_t _meta_stream_length = 0u;
+if (!aether_data_in_read_view(in, &_meta_stream_data, &_meta_stream_length)) return false;
+field.data = (uint8_t *)_meta_stream_data;
+field.capacity = _meta_stream_length;
+field.length = _meta_stream_length;</pre>
+
+<h4>5. Тест-фикстура EmitterNullableStream.adsl.yaml</h4>
+<p>Содержит API <code>StreamApi</code> с методом <code>enter</code> (id=3), параметр <code>stream</code> типа <code>TestStream?</code> (nullable inline stream), ссылающийся на API <code>InnerApi</code>. Также есть <code>InnerApi</code> с методом <code>ping</code>.</p>
+
+<h4>6. Shell-тест test_emitter_nullable_stream.sh</h4>
+<p>Запускает генератор с фикстурой, затем компилирует сгенерированный <code>aether_api.c</code> с <code>-fsyntax-only</code> против runtime-заголовков. Проверяет, что код корректен (особенно тип для nullable stream).</p>
+
+<h4>Анализ и выводы</h4>
+<ul>
+<li><b>Что работает:</b> builder-функции генерируются корректно, используют <code>aether_data_out_t</code> и commit-механизм для последовательной записи. Обычные API-методы используют тот же DataInOut подход. Stream-параметры корректно сериализуются (проверки NULL, запись view) и десериализуются через <code>aether_data_in_read_view</code>.</li>
+<li><b>Что выглядит недоделанным:</b> в <code>emit_serialize_param_ctx</code> обработка stream-параметра идёт до проверки nullable. Для nullable stream-параметра (<code>TestStream?</code>) не генерируется отдельный <code>if (param != NULL)</code> блок — код будет пытаться разыменовать NULL, если параметр пропущен. Возможно, это обрабатывается маской nullable на уровне метода, но прямого учёта nullable в stream-ветке нет.</li>
+<li>В builder-функциях не проверяется, что <code>builder_stream-&gt;data</code> не NULL при capacity &gt; 0 (для не-collapsible есть проверка, но в collapsible — тоже есть). В целом проверки есть.</li>
+<li>Возможно, stream-типы и builder-функции следовало бы вынести в отдельный модуль, но сейчас они генерируются в общем потоке API.</li>
+</ul>

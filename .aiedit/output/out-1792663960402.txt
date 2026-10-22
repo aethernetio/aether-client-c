@@ -1,0 +1,760 @@
+>>> view
+/home/angel/projects/aether-client-c/CMakeLists.txt
+    1:c cmake_minimum_required(VERSION 3.16)
+    2:p project(aether_client_c C)
+    3:  
+    4:  
+    5:  
+    6:  
+    7:  
+    8:  
+    9:a add_library(aether_hydrogen_vendor STATIC
+    10:t     third_party/libhydrogen/hydrogen.c
+    11:) )
+    12:  
+    13:t target_include_directories(aether_hydrogen_vendor
+    14:P     PUBLIC
+    15:$         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    16:) )
+    17:  
+    18:t target_compile_features(
+    19:a     aether_hydrogen_vendor
+    20:P     PUBLIC
+    21:c         c_std_11
+    22:) )
+    23:  
+    24:  
+    25:a add_library(aether_client STATIC
+    26:  
+    27:  
+    28:s     src/aether_client.c
+    29:s     src/aether_crypto_registry.c
+    30:s     src/aether_meta_runtime.c
+    31:  
+    32:s     src/aether_client_app.c
+    33:  
+    34:s     src/aether_rx_first.c
+    35:s     src/aether_rx_all.c
+    36:s     src/aether_rx_adaptive.c
+    37:  
+    38:s     src/aether_send_future.c
+    39:s     src/aether_messages.c
+    40:s     src/aether_transport.c
+    41:s     src/aether_transport_server.c
+    42:  
+    43:# # peer temporarily disabled: PeerApi.adsl.yaml was rewritten
+    44:  
+    45:p     platform/posix/aether_posix_transport.c
+    46:  
+    47:  
+    48:s     src/aether_registration.c
+    49:s     src/aether_credentials.c
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-c/CMakeLists.txt lines 50 to 200
+    50:  
+    51:  
+    52:  
+    53:s     src/generated/aether_api.c
+    54:  
+    55:  
+    56:  
+    57:  
+    58:s     src/aether_internal.c
+    59:  
+    60:  
+    61:  
+    62:  
+    63:s     src/aether_lan.c
+    64:s     src/aether_lan_codec.c
+    65:  
+    66:s     src/aether.c
+    67:) )
+    68:  
+    69:  
+    70:  
+    71:  
+    72:  
+    73:t target_include_directories(aether_client
+    74:P     PUBLIC
+    75:$         ${CMAKE_CURRENT_SOURCE_DIR}/include
+    76:$         ${CMAKE_CURRENT_SOURCE_DIR}/platform/posix
+    77:$         ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    78:P     PRIVATE
+    79:$         ${CMAKE_CURRENT_SOURCE_DIR}/src
+    80:) )
+    81:  
+    82:t target_include_directories(aether_client
+    83:P     PRIVATE
+    84:$         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libhydrogen
+    85:) )
+    86:t target_link_libraries(aether_client
+    87:P     PUBLIC
+    88:a         aether_hydrogen_vendor
+    89:) )
+    90:  
+    91:  
+    92:t target_compile_features(aether_client PUBLIC c_std_11)
+    93:  
+    94:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    95:t     target_compile_options(
+    96:a         aether_client
+    97:P         PRIVATE
+    98:-             -Wall
+    99:-             -Wextra
+>>> (показано строк: 151 из 740)
+
+>>> view
+/home/angel/projects/aether-client-c/CMakeLists.txt lines 200 to 400
+    200:-                 -Werror
+    201:)         )
+    202:e     endif()
+    203:  
+    204:  
+    205:a     add_test(
+    206:N         NAME aether_client_app_test
+    207:C         COMMAND aether_client_app_test
+    208:)     )
+    209:  
+    210:a     add_executable(
+    211:a         aether_api_test
+    212:t         tests/test_aether.c
+    213:)     )
+    214:  
+    215:t     target_link_libraries(
+    216:a         aether_api_test
+    217:P         PRIVATE
+    218:a             aether_client
+    219:)     )
+    220:  
+    221:t     target_compile_features(
+    222:a         aether_api_test
+    223:P         PRIVATE
+    224:c             c_std_11
+    225:)     )
+    226:  
+    227:i     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    228:t         target_compile_options(
+    229:a             aether_api_test
+    230:P             PRIVATE
+    231:-                 -Wall
+    232:-                 -Wextra
+    233:-                 -Wpedantic
+    234:-                 -Werror
+    235:)         )
+    236:e     endif()
+    237:  
+    238:a     add_test(
+    239:N         NAME aether_api_test
+    240:C         COMMAND aether_api_test
+    241:  
+    242:)     )
+    243:  
+    244:  
+    245:  
+    246:a     add_executable(
+    247:a         aether_components_test
+    248:t         tests/test_components.c
+    249:)     )
+>>> (показано строк: 201 из 740)
+
+>>> view
+/home/angel/projects/aether-client-c/CMakeLists.txt lines 400 to 600
+    400:i     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    401:t         target_compile_options(
+    402:a             aether_rx_test
+    403:P             PRIVATE
+    404:-                 -Wall
+    405:-                 -Wextra
+    406:-                 -Wpedantic
+    407:-                 -Werror
+    408:)         )
+    409:e     endif()
+    410:  
+    411:a     add_test(
+    412:N         NAME aether_rx_test
+    413:C         COMMAND aether_rx_test
+    414:)     )
+    415:  
+    416:  
+    417:a     add_executable(
+    418:a         aether_send_future_test
+    419:t         tests/test_send_future.c
+    420:)     )
+    421:  
+    422:t     target_link_libraries(
+    423:a         aether_send_future_test
+    424:P         PRIVATE
+    425:a             aether_client
+    426:)     )
+    427:  
+    428:t     target_compile_features(
+    429:a         aether_send_future_test
+    430:P         PRIVATE
+    431:c             c_std_11
+    432:)     )
+    433:  
+    434:i     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    435:t         target_compile_options(
+    436:a             aether_send_future_test
+    437:P             PRIVATE
+    438:-                 -Wall
+    439:-                 -Wextra
+    440:-                 -Wpedantic
+    441:-                 -Werror
+    442:)         )
+    443:e     endif()
+    444:  
+    445:a     add_test(
+    446:N         NAME aether_send_future_test
+    447:C         COMMAND aether_send_future_test
+    448:)     )
+    449:  
+>>> (показано строк: 201 из 740)
+
+>>> view
+/home/angel/projects/aether-client-c/CMakeLists.txt lines 600 to 740
+    600:  
+    601:t     target_include_directories(
+    602:a         aether_lan_codec_test
+    603:P         PRIVATE
+    604:$             ${CMAKE_CURRENT_SOURCE_DIR}/src
+    605:)     )
+    606:  
+    607:t     target_link_libraries(
+    608:a         aether_lan_codec_test
+    609:P         PRIVATE
+    610:a             aether_client
+    611:a             aether_hydrogen_vendor
+    612:)     )
+    613:  
+    614:t     target_compile_features(
+    615:a         aether_lan_codec_test
+    616:P         PRIVATE
+    617:c             c_std_11
+    618:)     )
+    619:  
+    620:i     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    621:t         target_compile_options(
+    622:a             aether_lan_codec_test
+    623:P             PRIVATE
+    624:-                 -Wall
+    625:-                 -Wextra
+    626:-                 -Wpedantic
+    627:-                 -Werror
+    628:-                 -UNDEBUG
+    629:)         )
+    630:e     endif()
+    631:  
+    632:a     add_test(
+    633:N         NAME aether_lan_codec_test
+    634:C         COMMAND aether_lan_codec_test
+    635:)     )
+    636:  
+    637:  
+    638:a     add_test(
+    639:N         NAME aether_hydrogen_test
+    640:C         COMMAND aether_hydrogen_test
+    641:)     )
+    642:  
+    643:a     add_test(
+    644:N         NAME cmake_helpers_check
+    645:C         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake_helpers_check.sh
+    646:)     )
+    647:  
+    648:  
+    649:  
+>>> (показано строк: 141 из 740)
+
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt
+    1:  
+    2:c cmake_minimum_required(VERSION 3.16)
+    3:p project(aether_protocol_c_generator C)
+    4:  
+    5:  
+    6:a add_library(aether_adslc_core STATIC
+    7:s     src/adsl.c
+    8:s     src/emitter.c
+    9:) )
+    10:  
+    11:a add_library(aether_meta_runtime_test STATIC
+    12:.     ../../src/aether_meta_runtime.c
+    13:) )
+    14:  
+    15:t target_include_directories(aether_meta_runtime_test
+    16:P     PUBLIC
+    17:$         ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+    18:) )
+    19:  
+    20:t target_compile_features(aether_meta_runtime_test PUBLIC c_std_11)
+    21:  
+    22:  
+    23:  
+    24:t target_include_directories(aether_adslc_core
+    25:P     PUBLIC
+    26:$         ${CMAKE_CURRENT_SOURCE_DIR}/include
+    27:P     PRIVATE
+    28:$         ${CMAKE_CURRENT_SOURCE_DIR}/src
+    29:) )
+    30:  
+    31:  
+    32:t target_compile_features(aether_adslc_core PUBLIC c_std_11)
+    33:  
+    34:i if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    35:t     target_compile_options(aether_adslc_core PRIVATE
+    36:-         -Wall
+    37:-         -Wextra
+    38:-         -Wpedantic
+    39:-         -Werror
+    40:)     )
+    41:e endif()
+    42:  
+    43:a add_executable(aether-adslc
+    44:s     src/main.c
+    45:) )
+    46:  
+    47:t target_link_libraries(aether-adslc
+    48:P     PRIVATE
+    49:a         aether_adslc_core
+    50:) )
+
+>>> findText
+/home/angel/projects/aether-client-c/CMakeLists.txt
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/CMakeLists.txt
+    53:s     src/generated/aether_api.c
+    77:$         ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    270:$             ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    315:$             ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+    468:$             ${CMAKE_CURRENT_SOURCE_DIR}/src/generated
+>>> (всего найдено строк: 5)
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tools/aether-protocol-c/tests/fixtures/A.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Arrays.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/B.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CollapsibleFields.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/CycleB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeChild.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/DuplicateIncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterInvalidNullableMid.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EmitterNullableStream.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/EnumTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/Hierarchy.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiA.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiB.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflict.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiConflictRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeApiRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IncludeRoot.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/IntPack.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidAllCollapsibleMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleArrayKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleResponse.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleStructKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidCollapsibleUriKey.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidDirectByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidFixedArrayByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/InvalidMutualByValueCycle.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/LocalStreamDispatch.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NestedStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableApiParams.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/NullableStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/RecursiveStruct.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResponseMethod.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ResultRpc.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchPath/shared.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SearchRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingCommon/SiblingCommon.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/SiblingRoot/Root.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StaticStructArray.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/StreamBuilder.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TemperatureSensor.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TieredInt.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/TypedThrows.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/ValueTypes.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_includes_b.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_long_reference.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item.adsl.yaml
+[FILE] tools/aether-protocol-c/tests/fixtures/cross_module/A_uses_item_array_nullable.adsl.yaml
+>>> (итог: 16 директорий, 75 файлов)
+
+>>> findText
+/home/angel/projects/aether-client-c/CMakeLists.txt
+>>> (совпадений не найдено)
+
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt
+    116:a add_custom_command(
+    575:a add_custom_command(
+    636:a add_custom_command(
+    694:a add_custom_command(
+    774:a add_custom_command(
+    834:a add_custom_command(
+    896:a add_custom_command(
+    956:a add_custom_command(
+    1016:a add_custom_command(
+    1076:a add_custom_command(
+    1136:a add_custom_command(
+    1227:a add_custom_command(
+    1296:a add_custom_command(
+    1414:a add_custom_command(
+    1483:a add_custom_command(
+>>> (всего найдено строк: 15)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] tests/cmake_helpers_check.sh
+[FILE] tools/aether-protocol-c/tests/test_emitter_nullable_stream.sh
+[FILE] tools/aether-protocol-c/tests/test_java_c_api_semantic_parity.sh
+[FILE] tools/aether-protocol-c/tests/test_java_c_inherited_aux_emitters.sh
+[FILE] tools/aether-protocol-c/tests/test_java_c_parent_context_auto_id.sh
+[FILE] tools/aether-protocol-c/tests/test_java_c_shadowed_method_validation.sh
+[DIR]  tests
+[DIR]  tools
+[DIR]  tools/aether-protocol-c
+[DIR]  tools/aether-protocol-c/tests
+>>> (итог: 4 директорий, 6 файлов)
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.pytimestamp: 1792663938953
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt lines 100 to 140
+    100:  
+    101:a add_test(
+    102:N     NAME aether_adslc_test
+    103:C     COMMAND aether_adslc_test
+    104:) )
+    105:  
+    106:  
+    107:s set(AETHER_ADSLC_GENERATED_DIR
+    108:"     "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    109:) )
+    110:  
+    111:f file(MAKE_DIRECTORY
+    112:"     "${AETHER_ADSLC_GENERATED_DIR}"
+    113:) )
+    114:  
+    115:  
+    116:a add_custom_command(
+    117:O     OUTPUT
+    118:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.h"
+    119:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.c"
+    120:C     COMMAND
+    121:a         aether-adslc
+    122:-         --input
+    123:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TemperatureSensor.adsl.yaml"
+    124:"         "${AETHER_ADSLC_GENERATED_DIR}"
+    125:D     DEPENDS
+    126:a         aether-adslc
+    127:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TemperatureSensor.adsl.yaml"
+    128:V     VERBATIM
+    129:) )
+    130:  
+    131:a add_executable(aether_generated_temperature_test
+    132:t     tests/test_generated_temperature.c
+    133:"     "${AETHER_ADSLC_GENERATED_DIR}/aether_api.c"
+    134:) )
+    135:  
+    136:t target_include_directories(aether_generated_temperature_test
+    137:P     PRIVATE
+    138:"         "${AETHER_ADSLC_GENERATED_DIR}"
+    139:"         "${CMAKE_CURRENT_SOURCE_DIR}/../../include"
+    140:) )
+>>> (показано строк: 41 из 1544)
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt lines 560 to 590
+    560:  
+    561:  
+    562:  
+    563:  
+    564:  
+    565:  
+    566:s set(AETHER_ADSLC_STRUCT_GENERATED_DIR
+    567:"     "${CMAKE_CURRENT_BINARY_DIR}/generated-struct"
+    568:) )
+>>> (показано строк: 31 из 1544)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 0 to 30
+    1:# #include "aether_api.h"
+    2:# #include "aether_meta_runtime.h"
+    3:  
+    4:# #include <string.h>
+    5:  
+    6:b bool csa_serialize_telemetry(
+    7:a     aether_data_out_t *out,
+    8:c     const void *value,
+    9:u     unsigned int depth) {
+    10:  
+    11:i     if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    12:i     if (out == NULL || value == NULL) return false;
+    13:c     const csa_telemetry_ref_t *v = (const csa_telemetry_ref_t *)value;
+    14:i     if (v == NULL) return false;
+    15:i     if (!aether_data_out_write_byte(out, (uint8_t)(*v).type_id)) return false;
+    16:s     switch ((*v).type_id) {
+    17:c     case 1u:
+    18:i         if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    19:i     if ((*v).as.csa_telemetry_c_p_p == NULL) return false;
+    20:i     if (!aether_data_out_write_uint(out, (uint32_t)(*v).as.csa_telemetry_c_p_p->utm_id)) return false;
+    21:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->blob.data, (*v).as.csa_telemetry_c_p_p->blob.length)) return false;
+    22:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->lib_version.data, (*v).as.csa_telemetry_c_p_p->lib_version.length)) return false;
+    23:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->os.data, (*v).as.csa_telemetry_c_p_p->os.length)) return false;
+    24:i     if (!aether_data_out_write_bytes(out, (*v).as.csa_telemetry_c_p_p->compiler.data, (*v).as.csa_telemetry_c_p_p->compiler.length)) return false;
+    25:b         break;
+    26:d     default:
+    27:r         return false;
+    28:}     }
+    29:  
+    30:(     (void)v;
+>>> (показано строк: 30 из 16726)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 0 to 5
+    1:# #include "aether_api.h"
+    2:# #include "aether_meta_runtime.h"
+    3:  
+    4:# #include <string.h>
+    5:  
+>>> (показано строк: 5 из 16726)
+>>> findFiles
+aether /home/angel/projects/aether
+[FILE] client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml
+[DIR]  client-server-work-api
+[DIR]  client-server-work-api/src
+[DIR]  client-server-work-api/src/main
+[DIR]  client-server-work-api/src/main/resources
+>>> (итог: 4 директорий, 1 файлов)
+
+>>> status
+ M CMakeLists.txt
+
+ M ai.txt
+
+ D aiedit-chat.bin
+
+ M aiedit_context.yaml
+
+?? .aiedit/
+
+?? build-diag-1-config.log
+
+?? build-diag-1-tests.log
+
+?? build-diag-1.log
+
+?? subtask-p2p-diag-trace.json
+
+?? subtask-p2p-e2e-run.json
+
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/main.c lines 0 to 60
+    1:  
+    2:  
+    3:/ /*
+    4:*  * Thin CLI front end for the development-time ADSL C compiler.
+    5:*  *
+    6:*  * Argument/selection handling belongs here. Parsing/loading belongs in adsl.c;
+    7:*  * generated C structure and wire policy belongs in emitter.c.
+    8:*  *
+    9:*  * The compiler executable is tooling and is never linked into client firmware.
+    10:*  */
+    11:# #include "adslc.h"
+    12:  
+    13:# #include <stdio.h>
+    14:# #include <string.h>
+    15:  
+    16:# #include <stdlib.h>
+    17:  
+    18:  
+    19:  
+    20:  
+    21:  
+    22:i int main(
+    23:i     int argc,
+    24:c     char **argv) {
+    25:  
+    26:/     /*
+    27:*      * Unified generation mode. The CLI accepts a list of files and
+    28:*      * directories via repeated --input (a bare positional input list is
+    29:*      * also accepted for convenience). Directories are scanned recursively
+    30:*      * for *.adsl.yaml; every document is loaded into a flat pool keyed by
+    31:*      * basename, and includes resolve by name inside that pool. The single
+    32:*      * positional argument is the output directory.
+    33:*      */
+    34:c     const char *inputs[128];
+    35:s     size_t input_count = 0u;
+    36:  
+    37:i     int argument = 1;
+    38:  
+    39:w     while (argument < argc &&
+    40:a            argv[argument][0] == '-') {
+    41:  
+    42:i         if (strcmp(
+    43:a                 argv[argument],
+    44:"                 "--input") == 0) {
+    45:  
+    46:i             if (argument + 1 >= argc ||
+    47:i                 input_count >=
+    48:s                     sizeof(inputs) / sizeof(inputs[0])) {
+    49:  
+    50:f                 fprintf(
+>>> (показано строк: 60 из 167)
+
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.txt>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.sh>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.mdtimestamp: 1792663951572
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] CMakeFiles/Makefile.cmake
+[FILE] CMakeFiles/Makefile2
+[FILE] build-adsl-core-check/CMakeFiles/Makefile.cmake
+[FILE] build-adsl-core-check/CMakeFiles/Makefile2
+[FILE] build-adsl-core-check/Makefile
+[FILE] build-adsl-core-debug/CMakeFiles/Makefile.cmake
+[FILE] build-adsl-core-debug/CMakeFiles/Makefile2
+[FILE] build-adsl-core-debug/Makefile
+[FILE] build-adsl-generator-release/CMakeFiles/Makefile.cmake
+[FILE] build-adsl-generator-release/CMakeFiles/Makefile2
+[FILE] build-adsl-generator-release/Makefile
+[FILE] build-adsl-generator-stage2-partial/CMakeFiles/Makefile.cmake
+[FILE] build-adsl-generator-stage2-partial/CMakeFiles/Makefile2
+[FILE] build-adsl-generator-stage2-partial/Makefile
+[FILE] build-adsl-generator/CMakeFiles/Makefile.cmake
+[FILE] build-adsl-generator/CMakeFiles/Makefile2
+[FILE] build-adsl-generator/Makefile
+[FILE] build-api-debug/CMakeFiles/Makefile.cmake
+[FILE] build-api-debug/CMakeFiles/Makefile2
+[FILE] build-api-debug/Makefile
+[FILE] build-api-release/CMakeFiles/Makefile.cmake
+[FILE] build-api-release/CMakeFiles/Makefile2
+[FILE] build-api-release/Makefile
+[FILE] build-check/CMakeFiles/Makefile.cmake
+[FILE] build-check/CMakeFiles/Makefile2
+[FILE] build-check/Makefile
+[FILE] build-component-app/CMakeFiles/Makefile.cmake
+[FILE] build-component-app/CMakeFiles/Makefile2
+[FILE] build-component-app/Makefile
+[FILE] build-component-ingress-release/CMakeFiles/Makefile.cmake
+[FILE] build-component-ingress-release/CMakeFiles/Makefile2
+[FILE] build-component-ingress-release/Makefile
+[FILE] build-component-ingress/CMakeFiles/Makefile.cmake
+[FILE] build-component-ingress/CMakeFiles/Makefile2
+[FILE] build-component-ingress/Makefile
+[FILE] build-component-release/CMakeFiles/Makefile.cmake
+[FILE] build-component-release/CMakeFiles/Makefile2
+[FILE] build-component-release/Makefile
+[FILE] build-component-rx-release/CMakeFiles/Makefile.cmake
+[FILE] build-component-rx-release/CMakeFiles/Makefile2
+[FILE] build-component-rx-release/Makefile
+[FILE] build-component-rx/CMakeFiles/Makefile.cmake
+[FILE] build-component-rx/CMakeFiles/Makefile2
+[FILE] build-component-rx/Makefile
+[FILE] build-components/CMakeFiles/Makefile.cmake
+[FILE] build-components/CMakeFiles/Makefile2
+[FILE] build-components/Makefile
+[FILE] build-debug/CMakeFiles/Makefile.cmake
+[FILE] build-debug/CMakeFiles/Makefile2
+[FILE] build-debug/Makefile
+>>> (итог: 91 директорий, 134 файлов)
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.mktimestamp: 1792663955169
+>>> findText
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/CMakeLists.txt
+    118:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.h"
+    119:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.c"
+    133:"     "${AETHER_ADSLC_GENERATED_DIR}/aether_api.c"
+    577:"         "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/aether_api.h"
+    578:"         "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/aether_api.c"
+    594:"     "${AETHER_ADSLC_STRUCT_GENERATED_DIR}/aether_api.c"
+    638:"         "${AETHER_ADSLC_VALUE_GENERATED_DIR}/aether_api.h"
+    639:"         "${AETHER_ADSLC_VALUE_GENERATED_DIR}/aether_api.c"
+    653:"     "${AETHER_ADSLC_VALUE_GENERATED_DIR}/aether_api.c"
+    696:"         "${AETHER_ADSLC_ENUM_GENERATED_DIR}/aether_api.h"
+    697:"         "${AETHER_ADSLC_ENUM_GENERATED_DIR}/aether_api.c"
+    711:"     "${AETHER_ADSLC_ENUM_GENERATED_DIR}/aether_api.c"
+    776:"         "${AETHER_ADSLC_INTPACK_GENERATED_DIR}/aether_api.h"
+    777:"         "${AETHER_ADSLC_INTPACK_GENERATED_DIR}/aether_api.c"
+    791:"     "${AETHER_ADSLC_INTPACK_GENERATED_DIR}/aether_api.c"
+    836:"         "${AETHER_ADSLC_NESTED_GENERATED_DIR}/aether_api.h"
+    837:"         "${AETHER_ADSLC_NESTED_GENERATED_DIR}/aether_api.c"
+    851:"     "${AETHER_ADSLC_NESTED_GENERATED_DIR}/aether_api.c"
+    898:"         "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}/aether_api.h"
+    899:"         "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}/aether_api.c"
+    913:"     "${AETHER_ADSLC_NULLABLE_GENERATED_DIR}/aether_api.c"
+    958:"         "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}/aether_api.h"
+    959:"         "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}/aether_api.c"
+    973:"     "${AETHER_ADSLC_ARRAYS_GENERATED_DIR}/aether_api.c"
+    1018:"         "${AETHER_ADSLC_HIERARCHY_GENERATED_DIR}/aether_api.h"
+    1019:"         "${AETHER_ADSLC_HIERARCHY_GENERATED_DIR}/aether_api.c"
+    1033:"     "${AETHER_ADSLC_HIERARCHY_GENERATED_DIR}/aether_api.c"
+    1078:"         "${AETHER_ADSLC_RESULT_RPC_GENERATED_DIR}/aether_api.h"
+    1079:"         "${AETHER_ADSLC_RESULT_RPC_GENERATED_DIR}/aether_api.c"
+    1093:"     "${AETHER_ADSLC_RESULT_RPC_GENERATED_DIR}/aether_api.c"
+    1138:"         "${AETHER_ADSLC_STREAM_BUILDER_GENERATED_DIR}/aether_api.h"
+    1139:"         "${AETHER_ADSLC_STREAM_BUILDER_GENERATED_DIR}/aether_api.c"
+    1153:"     "${AETHER_ADSLC_STREAM_BUILDER_GENERATED_DIR}/aether_api.c"
+    1229:"         "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/aether_api.h"
+    1230:"         "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/aether_api.c"
+    1244:"     "${AETHER_ADSLC_COLLAPSIBLE_GENERATED_DIR}/aether_api.c"
+    1298:"         "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/aether_api.h"
+    1299:"         "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/aether_api.c"
+    1313:"     "${AETHER_ADSLC_STATIC_STRUCT_ARRAY_GENERATED_DIR}/aether_api.c"
+    1416:"         "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/aether_api.h"
+    1417:"         "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/aether_api.c"
+    1431:"     "${AETHER_ADSLC_TIERED_INT_GENERATED_DIR}/aether_api.c"
+    1485:"         "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/aether_api.h"
+    1486:"         "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/aether_api.c"
+    1500:"     "${AETHER_ADSLC_RECURSIVE_STRUCT_GENERATED_DIR}/aether_api.c"
+>>> (всего найдено строк: 45)
+
+[subtask studyCGeneration] 
+<b>Отчёт: как C-клиент генерирует API-код</b><br><br>
+
+<b>1. Секции в корневом /home/angel/projects/aether-client-c/CMakeLists.txt:</b><br>
+- Генератор <b>не запускается</b> из корневого CMakeLists.txt. <code>aether-adslc</code> не упоминается (поиск по "adslc" — 0 совпадений).<br>
+- Нет ни <code>add_custom_command</code>, ни <code>add_custom_target</code> в корневом файле (поиск — 0 совпадений).<br>
+- Файл <code>src/generated/aether_api.c</code> просто указан как исходник библиотеки (строка 53):<br>
+<pre>  53:s     src/generated/aether_api.c</pre>
+- Папка <code>src/generated</code> добавлена в include dirs (строка 77):<br>
+<pre>  77:$         ${CMAKE_CURRENT_SOURCE_DIR}/src/generated</pre><br>
+
+<b>2. add_custom_command/add_custom_target:</b><br>
+В корневом CMakeLists.txt — <b>нет</b>. В tools/aether-protocol-c/CMakeLists.txt — есть 15 блоков <code>add_custom_command</code> для тестов генератора (пример, строки 116–129):<br>
+<pre>116:a add_custom_command(
+117:O     OUTPUT
+118:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.h"
+119:"         "${AETHER_ADSLC_GENERATED_DIR}/aether_api.c"
+120:C     COMMAND
+121:a         aether-adslc
+122:-         --input
+123:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TemperatureSensor.adsl.yaml"
+124:"         "${AETHER_ADSLC_GENERATED_DIR}"
+125:D     DEPENDS
+126:a         aether-adslc
+127:"         "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/TemperatureSensor.adsl.yaml"
+128:V     VERBATIM
+129:) )</pre><br>
+
+<b>3. Как работает генератор (tools/aether-protocol-c/CMakeLists.txt):</b><br>
+- Бинарник: <code>aether-adslc</code> собирается из <code>src/main.c</code> (строки 43–49). Комментарий в main.c: «generates C structure and wire policy»; CLI принимает список <code>--input</code> (повторяемый) и один позиционный аргумент — <b>выходную директорию</b>.<br>
+- Аргументы: <code>--input &lt;*.adsl.yaml&gt; &lt;output_dir&gt;</code>. Генерирует <code>aether_api.h</code> и <code>aether_api.c</code>.<br><br>
+
+<b>4. src/generated/aether_api.c — как попал:</b><br>
+Файл (16 726 строк) лежит в репозитории вручную, сгенерирован <b>вне CMake</b> (в корневом CMakeLists нет ни генерации, ни правила). CMake просто включает его в сборку статической библиотеки <code>aether_client</code>. Значит — сгенерирован вручную запуском <code>aether-adslc</code> и закоммичен.<br><br>
+
+<b>5. ClientServerApi.adsl.yaml:</b><br>
+Найден:<br>
+<code>/home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml</code><br><br>
+
+<b>Итог процесса генерации:</b><br>
+1. Разработчик запускает <code>aether-adslc --input ClientServerApi.adsl.yaml src/generated</code> вручную.<br>
+2. Генератор читает YAML, генерирует <code>src/generated/aether_api.c</code> и <code>src/generated/aether_api.h</code>.<br>
+3. CMake автоматически компилирует сгенерированный .c (он в списке исходников) и подключает src/generated к include dirs.<br>
+4. Автоматическая регенерация при сборке <b>не настроена</b> — если YAML меняется, файл надо перегенерировать вручную.

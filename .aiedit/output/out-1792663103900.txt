@@ -1,0 +1,612 @@
+>>> ls
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+
+>>> status
+>>> [ERROR] type: IllegalStateException
+>>> [ERROR] message: Multiple AIEdit roots configured: [/home/angel/projects/aether-client-c, /home/angel/projects/aether, /home/angel/projects/aether-client-java, /home/angel/projects/client-ts, /home/angel/projects/aiedit, /tmp/aether-c-client-server-generated, /tmp/aether-c-adsl-generated, /home/angel/projects/alipgroup]. Pass workDir explicitly.
+
+>>> view
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.h lines 1 to 100
+    1:# #ifndef AETHER_API_H
+    2:# #define AETHER_API_H
+    3:  
+    4:# #include "aether_meta_runtime.h"
+    5:# #include <stdbool.h>
+    6:# #include <stddef.h>
+    7:# #include <stdint.h>
+    8:  
+    9:# #ifdef __cplusplus
+    10:e extern "C" {
+    11:# #endif
+    12:  
+    13:t typedef struct ct_sensor_reading_t ct_sensor_reading_t;
+    14:  
+    15:s struct ct_sensor_reading_t {
+    16:f     float temperature;
+    17:} };
+    18:  
+    19:/ /* ADSL: /home/angel/projects/aether-client-c/tools/aether-protocol-c/tests/fixtures/CommonTypes.adsl.yaml:3 types.SensorReading */
+    20:a aether_status_t ct_serialize_sensor_reading(
+    21:u     uint8_t *tx,
+    22:s     size_t tx_capacity,
+    23:s     size_t *position,
+    24:c     const ct_sensor_reading_t *value);
+    25:  
+    26:a aether_status_t ct_deserialize_sensor_reading(
+    27:a     aether_meta_read_context_t *ctx,
+    28:c     ct_sensor_reading_t *value);
+    29:  
+    30:  
+    31:# #ifdef __cplusplus
+    32:} }
+    33:# #endif
+    34:# #endif
+>>> (показано строк: 34 из 34)
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: echo for class: Script1 is applicable for argument types: (String) values: [--- C файл: search stream_t] Possible solutions: each(groovy.lang.Closure), getAt(java.lang.String), wait(), run(), run(), any()
+````
+
+>>> view
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.c lines 1 to 200
+    1:# #include "aether_api.h"
+    2:# #include "aether_meta_runtime.h"
+    3:  
+    4:# #include <string.h>
+    5:  
+    6:s static aether_status_t ct_serialize_sensor_reading_impl(
+    7:u     uint8_t *tx,
+    8:s     size_t tx_capacity,
+    9:s     size_t *position,
+    10:c     const ct_sensor_reading_t *value,
+    11:u     unsigned int recursion_depth);
+    12:  
+    13:s static aether_status_t ct_deserialize_sensor_reading_impl(
+    14:a     aether_meta_read_context_t *ctx,
+    15:c     ct_sensor_reading_t *value,
+    16:u     unsigned int recursion_depth);
+    17:  
+    18:a aether_status_t ct_serialize_sensor_reading(
+    19:u     uint8_t *tx,
+    20:s     size_t tx_capacity,
+    21:s     size_t *position,
+    22:c     const ct_sensor_reading_t *value) {
+    23:  
+    24:r     return ct_serialize_sensor_reading_impl(
+    25:t         tx,
+    26:t         tx_capacity,
+    27:p         position,
+    28:v         value,
+    29:0         0u);
+    30:} }
+    31:  
+    32:s static aether_status_t ct_serialize_sensor_reading_impl(
+    33:u     uint8_t *tx,
+    34:s     size_t tx_capacity,
+    35:s     size_t *position,
+    36:c     const ct_sensor_reading_t *value,
+    37:u     unsigned int recursion_depth) {
+    38:  
+    39:i     if (recursion_depth >= AETHER_META_MAX_RECURSION_DEPTH) {
+    40:r         return AETHER_ERR_OVERFLOW;
+    41:}     }
+    42:  
+    43:i     if (position == NULL || value == NULL ||
+    44:(         (tx_capacity != 0u && tx == NULL)) {
+    45:r         return AETHER_ERR_ARGUMENT;
+    46:}     }
+    47:  
+    48:i     if (*position > tx_capacity) {
+    49:r         return AETHER_ERR_OVERFLOW;
+    50:}     }
+>>> (показано строк: 99 из 99)
+>>> findText
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.h
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.h
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.h
+>>> (совпадений не найдено)
+>>> ls
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+total 0
+drwxrwxr-x 1 angel angel  476 Oct 11 04:48 .
+drwxrwxr-x 1 angel angel 3668 Oct 16 01:07 ..
+drwxrwxr-x 1 angel angel  454 Oct 11 04:48 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+drwxrwxr-x 1 angel angel   48 Oct 12 01:00 boundary-ok
+>>> [elapsed: 5ms]
+>>> bash
+total 8
+drwxrwxr-x 1 angel angel   48 Oct 12 01:00 .
+drwxrwxr-x 1 angel angel  476 Oct 11 04:48 ..
+-rw-rw-r-- 1 angel angel 2435 Oct 12 01:00 aether_api.c
+-rw-rw-r-- 1 angel angel  725 Oct 12 01:00 aether_api.h
+>>> [elapsed: 5ms]
+>>> bash
+total 772
+drwxrwxr-x 1 angel angel     48 Oct 19 03:36 .
+drwxr-xr-x 1 angel angel   1056 Oct 19 03:28 ..
+-rw-rw-r-- 1 angel angel 641216 Oct 19 03:36 aether_api.c
+-rw-rw-r-- 1 angel angel 145998 Oct 19 03:36 aether_api.h
+>>> [elapsed: 4ms]
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/generated/aether_api.c
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 1 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/generated/aether_api.h
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 1 файлов)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/src/generated/*.c>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/src/generated/*.h>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/src/generated/*.c>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/src/generated/*.ctimestamp: 1792663081782
+>>> bash
+17:} csa_login_stream_t;
+23:} csa_login_client_stream_t;
+29:} csa_client_interaction_client_stream_t;
+35:} csa_client_api_stream_t;
+41:} csa_client_api_reg_safe_stream_t;
+47:} csa_server_registration_api_stream_t;
+146:typedef struct ar_aether_stream_type_t ar_aether_stream_type_t;
+364:        const ar_aether_stream_type_t *ar_aether_stream_type;
+963:struct ar_aether_stream_type_t {
+1831:bool ar_serialize_aether_stream_type(
+1836:bool ar_deserialize_aether_stream_type(
+1934:    const csa_login_client_stream_t * data);
+1939:    const csa_login_client_stream_t * data);
+1954:    const csa_client_api_reg_safe_stream_t * stream);
+2093:    const csa_client_interaction_client_stream_t * stream);
+2245:    const csa_client_api_stream_t * stream);
+2503:    const csa_login_stream_t * data);
+2509:    const csa_login_stream_t * data);
+2520:    const csa_login_stream_t * data);
+2527:    const csa_login_stream_t * data);
+2753:    const csa_server_registration_api_stream_t * stream);
+2767:aether_status_t csa_login_stream_authorized_api_back_id(
+2768:    csa_login_stream_t *builder_stream,
+2772:aether_status_t csa_login_stream_authorized_api_ping(
+2773:    csa_login_stream_t *builder_stream,
+2778:aether_status_t csa_login_stream_authorized_api_client(
+2779:    csa_login_stream_t *builder_stream,
+2781:    const csa_client_api_stream_t * stream);
+2784:aether_status_t csa_login_stream_authorized_api_send_message(
+2785:    csa_login_stream_t *builder_stream,
+2789:aether_status_t csa_login_stream_authorized_api_send_messages(
+2790:    csa_login_stream_t *builder_stream,
+2794:aether_status_t csa_login_stream_authorized_api_send_multicast(
+2795:    csa_login_stream_t *builder_stream,
+2800:aether_status_t csa_login_stream_authorized_api_send_message_with_result(
+2801:    csa_login_stream_t *builder_stream,
+2805:aether_status_t csa_login_stream_authorized_api_create_access_group(
+2806:    csa_login_stream_t *builder_stream,
+2811:aether_status_t csa_login_stream_authorized_api_add_to_access_group(
+2812:    csa_login_stream_t *builder_stream,
+2817:aether_status_t csa_login_stream_authorized_api_remove_from_access_group(
+2818:    csa_login_stream_t *builder_stream,
+2823:aether_status_t csa_login_stream_authorized_api_check_access_for_send_message(
+2824:    csa_login_stream_t *builder_stream,
+2828:aether_status_t csa_login_stream_authorized_api_resolver_servers(
+2829:    csa_login_stream_t *builder_stream,
+2833:aether_status_t csa_login_stream_authorized_api_resolve_clouds(
+2834:    csa_login_stream_t *builder_stream,
+2838:aether_status_t csa_login_stream_authorized_api_report_applied_config(
+2839:    csa_login_stream_t *builder_stream,
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 4ms]
+
+>>> bash
+146:typedef struct ar_aether_stream_type_t ar_aether_stream_type_t;
+>>> [elapsed: 4ms]
+>>> bash
+146:typedef struct ar_aether_stream_type_t ar_aether_stream_type_t;
+963:struct ar_aether_stream_type_t {
+>>> [elapsed: 3ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+11668:aether_status_t csa_login_stream_authorized_api_ping(
+>>> [elapsed: 4ms]
+
+>>> bash
+146:typedef struct ar_aether_stream_type_t ar_aether_stream_type_t;
+963:struct ar_aether_stream_type_t {
+>>> [elapsed: 4ms]
+>>> bash
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 2ms]
+>>> bash
+17:} csa_login_stream_t;
+2503:    const csa_login_stream_t * data);
+2509:    const csa_login_stream_t * data);
+2520:    const csa_login_stream_t * data);
+2527:    const csa_login_stream_t * data);
+2768:    csa_login_stream_t *builder_stream,
+2773:    csa_login_stream_t *builder_stream,
+2779:    csa_login_stream_t *builder_stream,
+2785:    csa_login_stream_t *builder_stream,
+2790:    csa_login_stream_t *builder_stream,
+2795:    csa_login_stream_t *builder_stream,
+2801:    csa_login_stream_t *builder_stream,
+2806:    csa_login_stream_t *builder_stream,
+2812:    csa_login_stream_t *builder_stream,
+2818:    csa_login_stream_t *builder_stream,
+2824:    csa_login_stream_t *builder_stream,
+2829:    csa_login_stream_t *builder_stream,
+2834:    csa_login_stream_t *builder_stream,
+2839:    csa_login_stream_t *builder_stream,
+2844:    csa_login_stream_t *builder_stream,
+>>> [elapsed: 4ms]
+>>> bash
+11668:aether_status_t csa_login_stream_authorized_api_ping(
+11669-    csa_login_stream_t *builder_stream,
+11670-    int64_t nextConnectMsDuration,
+11671-    int64_t rxWindowMs) {
+11672-
+11673-    if (builder_stream == NULL ||
+11674-        builder_stream->length > builder_stream->capacity) {
+11675-        return AETHER_ERR_ARGUMENT;
+11676-    }
+11677-
+11678-    if (builder_stream->capacity > 0u &&
+11679-        builder_stream->data == NULL) {
+11680-        return AETHER_ERR_ARGUMENT;
+11681-    }
+11682-
+11683-    size_t remaining =
+11684-        builder_stream->capacity - builder_stream->length;
+11685-
+11686-    if (remaining == 0u) {
+11687-        return AETHER_ERR_OVERFLOW;
+11688-    }
+11689-
+11690-    csa_stream_commit_t commit = {
+11691-        &builder_stream->length,
+11692-        remaining
+11693-    };
+11694-
+11695-    csa_authorized_api_remote_t remote = {
+>>> [elapsed: 3ms]
+>>> bash
+>>> [elapsed: 7ms]
+
+>>> (отфильтровано: из 22 строк оставлено 22)
+>>> bash
+17:} csa_login_stream_t;
+2503:    const csa_login_stream_t * data);
+2509:    const csa_login_stream_t * data);
+2520:    const csa_login_stream_t * data);
+2527:    const csa_login_stream_t * data);
+2768:    csa_login_stream_t *builder_stream,
+2773:    csa_login_stream_t *builder_stream,
+2779:    csa_login_stream_t *builder_stream,
+2785:    csa_login_stream_t *builder_stream,
+2790:    csa_login_stream_t *builder_stream,
+2795:    csa_login_stream_t *builder_stream,
+2801:    csa_login_stream_t *builder_stream,
+2806:    csa_login_stream_t *builder_stream,
+2812:    csa_login_stream_t *builder_stream,
+2818:    csa_login_stream_t *builder_stream,
+2824:    csa_login_stream_t *builder_stream,
+2829:    csa_login_stream_t *builder_stream,
+2834:    csa_login_stream_t *builder_stream,
+2839:    csa_login_stream_t *builder_stream,
+2844:    csa_login_stream_t *builder_stream,
+>>> [elapsed: 4ms]
+>>> bash
+#ifndef AETHER_API_H
+#define AETHER_API_H
+
+#include "aether_dataio.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_interaction_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_api_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_api_reg_safe_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_server_registration_api_stream_t;
+
+typedef enum {
+    csa_client_activity_type_CONNECT = 0,
+>>> [elapsed: 2ms]
+>>> bash
+>>> [elapsed: 2ms]
+>>> bash
+>>> [elapsed: 2ms]
+
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+6732:        if ((*v).as.ar_aether_stream_type == NULL) return false;
+6733:    if ((*v).as.ar_aether_stream_type == NULL) return false;
+6734:    uint64_t value_ar_aether_stream_type_nullable_mask = UINT64_C(0);
+6735:    if ((*v).as.ar_aether_stream_type->docId == NULL) value_ar_aether_stream_type_nullable_mask |= (UINT64_C(1) << 0u);
+6736:    if (!aether_data_out_write_byte(out, (uint8_t)((value_ar_aether_stream_type_nullable_mask >> 0u) & UINT64_C(0xff)))) return false;
+6737:    if ((*v).as.ar_aether_stream_type->id < 0) return false;
+6738:    if (!aether_data_out_write_pack(out, (uint64_t)(*v).as.ar_aether_stream_type->id)) return false;
+6739:    if ((*v).as.ar_aether_stream_type->docId != NULL) {
+6740:    if ((*(*v).as.ar_aether_stream_type->docId) < 0) return false;
+6741:    if (!aether_data_out_write_pack(out, (uint64_t)(*(*v).as.ar_aether_stream_type->docId))) return false;
+6743:    if ((*v).as.ar_aether_stream_type->apiId < 0) return false;
+6744:    if (!aether_data_out_write_pack(out, (uint64_t)(*v).as.ar_aether_stream_type->apiId)) return false;
+6745:    if (!aether_data_out_write_byte(out, (uint8_t)(*v).as.ar_aether_stream_type->isCrypto)) return false;
+6844:            ar_aether_stream_type_t *_meta_child_0 = (ar_aether_stream_type_t *)in->scratch_alloc(in->scratch_ctx, sizeof(ar_aether_stream_type_t), _Alignof(ar_aether_stream_type_t));
+6872:            ((*v)).as.ar_aether_stream_type = _meta_child_0;
+7036:bool ar_serialize_aether_stream_type(
+7043:    const ar_aether_stream_type_t *v = (const ar_aether_stream_type_t *)value;
+7062:bool ar_deserialize_aether_stream_type(
+7069:    ar_aether_stream_type_t *v = (ar_aether_stream_type_t *)value;
+7600:        if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type == NULL) return false;
+7601:    if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type == NULL) return false;
+7602:    uint64_t value_typeRegistry_element_ar_aether_stream_type_nullable_mask = UINT64_C(0);
+7603:    if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId == NULL) value_typeRegistry_element_ar_aether_stream_type_nullable_mask |= (UINT64_C(1) << 0u);
+7604:    if (!aether_data_out_write_byte(out, (uint8_t)((value_typeRegistry_element_ar_aether_stream_type_nullable_mask >> 0u) & UINT64_C(0xff)))) return false;
+7605:    if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->id < 0) return false;
+7606:    if (!aether_data_out_write_pack(out, (uint64_t)v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->id)) return false;
+7607:    if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId != NULL) {
+7608:    if ((*v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId) < 0) return false;
+7609:    if (!aether_data_out_write_pack(out, (uint64_t)(*v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->docId))) return false;
+7611:    if (v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->apiId < 0) return false;
+7612:    if (!aether_data_out_write_pack(out, (uint64_t)v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->apiId)) return false;
+7613:    if (!aether_data_out_write_byte(out, (uint8_t)v->typeRegistry.data[value_typeRegistry_index].as.ar_aether_stream_type->isCrypto)) return false;
+7757:            ar_aether_stream_type_t *_meta_child_2 = (ar_aether_stream_type_t *)in->scratch_alloc(in->scratch_ctx, sizeof(ar_aether_stream_type_t), _Alignof(ar_aether_stream_type_t));
+7785:            (_meta_buf_1[_meta_i_1]).as.ar_aether_stream_type = _meta_child_2;
+>>> [elapsed: 4ms]
+>>> bash
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1018:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1023:    aether_data_in_t *in,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1029:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1034:    aether_data_in_t *in,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1040:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1045:    aether_data_in_t *in,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1051:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1056:    aether_data_in_t *in,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1062:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1067:    aether_data_in_t *in,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1073:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1078:    aether_data_in_t *in,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1084:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1089:    aether_data_in_t *in,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1095:    aether_data_out_t *out,
+/home/angel/projects/aether-client-c/src/generated/aether_api.h:1100:    aether_data_in_t *in,
+>>> [elapsed: 4ms]
+
+>>> bash
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_interaction_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_api_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_api_reg_safe_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_server_registration_api_stream_t;
+
+typedef enum {
+    csa_client_activity_type_CONNECT = 0,
+>>> [elapsed: 2ms]
+>>> bash
+>>> [elapsed: 3ms]
+>>> bash
+aether_status_t csa_login_stream_authorized_api_ping(
+    csa_login_stream_t *builder_stream,
+    int64_t nextConnectMsDuration,
+    int64_t rxWindowMs) {
+
+    if (builder_stream == NULL ||
+        builder_stream->length > builder_stream->capacity) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (builder_stream->capacity > 0u &&
+>>> [elapsed: 3ms]
+>>> bash
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 2ms]
+
+[subtask inspectGeneratedCode] 
+<h3>Анализ сгенерированного C-кода: stream-параметры</h3>
+
+<h4>1. Папка <code>build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/</code></h4>
+<p>Файлы <code>aether_api.h</code> (34 строки) и <code>aether_api.c</code> (99 строк) не содержат stream-типов. Единственный тип — <code>ct_sensor_reading_t</code>. Сигнатуры методов — просто сериализация/десериализация:</p>
+<pre>
+aether_status_t ct_serialize_sensor_reading(
+    uint8_t *tx,
+    size_t tx_capacity,
+    size_t *position,
+    const ct_sensor_reading_t *value);
+</pre>
+<p>Stream-параметров здесь нет.</p>
+
+<h4>2. Папка <code>src/generated/</code> — большие файлы (145 КБ .h, 641 КБ .c)</h4>
+<p>Здесь есть stream-типы. Они определены как простые структуры с полями <code>data</code>, <code>capacity</code>, <code>length</code>:</p>
+<pre>
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_stream_t;
+// аналогично:
+// csa_login_client_stream_t,
+// csa_client_interaction_client_stream_t,
+// csa_client_api_stream_t,
+// csa_client_api_reg_safe_stream_t,
+// csa_server_registration_api_stream_t
+</pre>
+
+<h4>3. Сигнатуры методов, принимающих stream</h4>
+<p>Пример из <code>aether_api.h</code> (строки 2767-2772):</p>
+<pre>
+aether_status_t csa_login_stream_authorized_api_back_id(
+    csa_login_stream_t *builder_stream,
+    ...
+);
+aether_status_t csa_login_stream_authorized_api_ping(
+    csa_login_stream_t *builder_stream,
+    int64_t nextConnectMsDuration,
+    int64_t rxWindowMs);
+</pre>
+
+<h4>4. Реализация метода (из <code>aether_api.c</code>, строки 11668-11695)</h4>
+<pre>
+aether_status_t csa_login_stream_authorized_api_ping(
+    csa_login_stream_t *builder_stream,
+    int64_t nextConnectMsDuration,
+    int64_t rxWindowMs) {
+
+    if (builder_stream == NULL ||
+        builder_stream->length &gt; builder_stream->capacity) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (builder_stream->capacity &gt; 0u &amp;&amp;
+        builder_stream->data == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    size_t remaining =
+        builder_stream->capacity - builder_stream->length;
+
+    if (remaining == 0u) {
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    csa_stream_commit_t commit = {
+        &amp;builder_stream->length,
+        remaining
+    };
+
+    csa_authorized_api_remote_t remote = {
+        // ...
+    };
+    // ...
+}
+</pre>
+
+<h4>5. Использование <code>aether_data_out_t</code> / <code>aether_data_in_t</code></h4>
+<p>В <code>aether_api.h</code> есть функции сериализации, принимающие эти типы (строки 1018-1100):</p>
+<pre>
+bool ar_serialize_sensor_reading(
+    aether_data_out_t *out,
+    const ct_sensor_reading_t *value);
+bool ar_deserialize_sensor_reading(
+    aether_data_in_t *in,
+    ct_sensor_reading_t *value);
+</pre>
+<p>Эти типы определены в подключаемом заголовке <code>aether_dataio.h</code>. Они также представляют собой потоковые структуры для записи/чтения бинарных данных, но не являются «builder»-ами.</p>
+
+<h4>6. Вывод</h4>
+<p><b>В сгенерированном C-коде stream-параметр — это просто указатель на структуру с полями <code>data</code>, <code>capacity</code>, <code>length</code>.</b></p>
+<p>Никакого отдельного билдера (например, <code>aether_stream_builder</code>) в коде нет — поиск по всем исходникам не нашёл упоминаний. Несмотря на имя переменной <code>builder_stream</code>, это лишь название, а не требование к использованию специального билдера. Метод работает напрямую с полями структуры: проверяет корректность, вычисляет остаток, создаёт локальный <code>csa_stream_commit_t</code> для последующей записи. Пользователь должен сам заполнить <code>data</code>, <code>capacity</code> и <code>length</code> перед вызовом.</p>
