@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 657,
+      historySplit: 779,
       scriptAndLive: 287,
-      verticalSplit: 324
+      verticalSplit: 791
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -19,14 +19,15 @@
     },
     reasoningEffort: low,
     autoRun: true,
-    autoSend: true,
+    autoSend: false,
     selected: {
-      root: ''
+      root: polishCClient
     },
     subtasks: {
       root: [
         fixClientB,
-        rewriteRegRx
+        rewriteRegRx,
+        polishCClient
       ]
       
     }
@@ -73,10 +74,10 @@
       validation: true
     },
     window: {
-      x: 2461,
-      width: 1128,
-      y: 1580,
-      height: 502
+      x: 2215,
+      width: 1375,
+      y: 1002,
+      height: 1079
     }
   },
   roots: [
