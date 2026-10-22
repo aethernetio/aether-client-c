@@ -35,6 +35,9 @@
 #include "aether_crypto_registry.h"
 
 
+
+#include <stdio.h>
+
 #include <string.h>
 
 
@@ -2798,6 +2801,9 @@ static bool parse_work_proof(
         return false;
     }
 
+
+    fprintf(stderr, "DBG parse_work_proof: enter\r\n");
+
     const uint8_t *salt;
     size_t salt_len;
 
@@ -2869,6 +2875,9 @@ static aether_status_t handle_pow_response(
                 AETHER_ERR_PROTOCOL);
     }
 
+
+    fprintf(stderr, "DBG pow: salt_len=%u suffix_len=%u\r\n", (unsigned)client->registration->pow_salt_len, (unsigned)client->registration->pow_suffix_len);
+
     if (!verify_signed_key(
             client,
             &client->registration->global_key)) {
@@ -2882,6 +2891,9 @@ static aether_status_t handle_pow_response(
 
     size_t count =
         0u;
+
+
+    fprintf(stderr, "DBG pow resp: start\r\n");
 
     aether_status_t status =
         client->config.pow.generate(
@@ -3284,8 +3296,13 @@ static aether_status_t handle_registration_rx(
 size_t frame_start =
             reader.pos;
 
-        uint8_t command =
-            r_u8(&reader);
+
+
+
+        uint8_t command = r_u8(&reader);
+        fprintf(stderr, "DBG reg cmd=%u pos=%u len=%u state=%d\r\n",
+                (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+
 
 
 
@@ -3333,9 +3350,23 @@ size_t frame_start =
                             AETHER_ERR_CRYPTO);
                 }
 
+
+
+
+
+
+
+
                 return
                     send_resolve_servers(
                         client);
+
+
+
+
+
+
+
             }
 
 
@@ -3428,6 +3459,19 @@ size_t frame_start =
                     client);
 
         }
+
+
+        if (command == 67u) {
+            aether_status_t status = handle_pow_response(client, &reader);
+            if (status != AETHER_OK) {
+                return status;
+            }
+            continue;
+        }
+
+
+
+
 
         if (command ==
             CMD_ERROR) {
