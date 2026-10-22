@@ -7,22 +7,21 @@
     ],
   chat: {
     splitters: {
-      historySplit: 812,
+      historySplit: 890,
       scriptAndLive: 287,
-      verticalSplit: 1102
+      verticalSplit: 1982
     },
     model: deepseek-v4-flash,
     fontSize: {
       input: 20,
       system: 13,
-      history: 15,
-      script: 14
+      history: 19
     },
     reasoningEffort: low,
     autoRun: true,
     autoSend: true,
     selected: {
-      root: restoreDeletedAdapters
+      root: ''
     },
     subtasks: {
       root: [
@@ -49,7 +48,10 @@
         traceGeneration,
         diagnoseGeneratedState,
         analyzeOldRegUsage,
-        restoreDeletedAdapters
+        restoreDeletedAdapters,
+        regenApi,
+        inspectNewApi,
+        finalizeRegen
       ]
       
     }
@@ -96,10 +98,10 @@
       validation: true
     },
     window: {
-      x: 1810,
-      width: 1649,
-      y: 706,
-      height: 1280
+      x: 1921,
+      width: 1790,
+      y: 0,
+      height: 2160
     }
   },
   roots: [

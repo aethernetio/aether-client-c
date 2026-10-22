@@ -1,0 +1,316 @@
+>>> bash
+-- Generating done (0.0s)
+-- Build files have been written to: /home/angel/projects/aether-client-c/tools/aether-protocol-c/build-test
+[ 60%] Built target aether_adslc_core
+[100%] Built target aether-adslc
+>>> [elapsed: 134ms]
+>>> bash
+- `common.adsl.yaml` → `common_`
+- `clienttypes.adsl.yaml` → `clienttypes_`
+
+The prefix is applied to **all** symbols originating from that file:
+struct/enum/typedef names, serializer/deserializer functions, API remote
+structs and API entry points. Stream-builder entry points are additionally
+namespaced by the stream type name (for example
+`csa_login_stream_authorized_api_back_id(...)`) so that they cannot collide
+with the plain API function of the same method.
+
+## Command line
+aether-adslc --input <path> [--input <path>...] <output-dir>
+
+text
+
+- `--input <path>` may be repeated any number of times.
+- `<path>` may be a file or a directory.
+- `<output-dir>` is the last positional argument and is created if missing.
+
+Positional inputs are also accepted: every positional except the last is
+treated as an input path, and the last positional is the output directory.
+
+### Example
+
+```sh
+aether-adslc \
+  --input /path/to/client-server-work-api/ClientServerApi.adsl.yaml \
+  --input /path/to/aether-client-java/PeerApi.adsl.yaml \
+  --input /path/to/aether-client-java/clienttypes.adsl.yaml \
+  --input /path/to/common-api/common.adsl.yaml \
+  /tmp/aether-c-adsl-generated
+Successful output:
+
+text
+generated aether_api.h/.c from 4 documents
+Include resolution
+include: accepts only a basename without a path or extension:
+
+yaml
+include:
+  - common
+The generator looks up common in the pool of documents collected from
+the --input list. To make the include resolvable, pass either the
+directory that contains common.adsl.yaml or the file itself:
+
+sh
+>>> [elapsed: 2ms]
+>>> bash
+>>> [elapsed: 21ms]
+>>> bash
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+generated aether_api.h/.c from 2 documents
+>>> [elapsed: 9ms]
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+total 716
+drwxrwxr-x   2 angel angel     80 Oct 22 18:27 .
+drwxrwxrwt 736 root  root   17520 Oct 22 18:27 ..
+-rw-rw-r--   1 angel angel 593113 Oct 22 18:27 aether_api.c
+-rw-rw-r--   1 angel angel 137494 Oct 22 18:27 aether_api.h
+>>> [elapsed: 7ms]
+>>> bash
+OLD=277 NEW=277
+=== only OLD (first 40) ===
+>>> [elapsed: 37ms]
+>>> bash
+=== reg_root_build_get_key ===
+=== reg_root_build_enter ===
+=== reg_safe_build_pow ===
+=== reg_safe_build_registration_direct ===
+=== reg_safe_build_recovery ===
+=== reg_unsafe_decode ===
+>>> [elapsed: 29ms]
+>>> bash
+--- stream example ---
+10450:    csa_login_stream_t *builder_stream,
+10453:    if (builder_stream == NULL ||
+10454:        builder_stream->length > builder_stream->capacity) {
+--- data_out usage ---
+348
+>>> [elapsed: 11ms]
+>>> bash
+  15804 /tmp/regen/aether_api.c
+   3182 /tmp/regen/aether_api.h
+  16726 src/generated/aether_api.c
+   3449 src/generated/aether_api.h
+  39161 total
+>>> [elapsed: 5ms]
+
+>>> bash
+=== search reg_root_build ===
+=== search remote_t ===
+=== sample functions with data_out ===
+>>> [elapsed: 12ms]
+
+>>> bash
+=== new_funcs first 30 ===
+csa_authorized_api_add_access_groups_to_client
+csa_authorized_api_add_items_to_access_group
+csa_authorized_api_add_to_access_group
+csa_authorized_api_back_id
+csa_authorized_api_check_access_for_send_message
+csa_authorized_api_check_access_for_send_message2
+csa_authorized_api_client
+csa_authorized_api_create_access_group
+csa_authorized_api_get_access_group
+csa_authorized_api_get_access_groups
+csa_authorized_api_get_alias
+csa_authorized_api_get_all_accessed_clients
+csa_authorized_api_get_client_activity
+csa_authorized_api_get_client_connections
+csa_authorized_api_get_client_messages
+csa_authorized_api_get_client_timing
+csa_authorized_api_get_servers
+csa_authorized_api_get_uap
+csa_authorized_api_open_receive_window
+csa_authorized_api_ping
+csa_authorized_api_probe_packet
+csa_authorized_api_publish_web_rtc_session
+csa_authorized_api_remove_access_groups_from_client
+csa_authorized_api_remove_from_access_group
+csa_authorized_api_remove_items_from_access_group
+csa_authorized_api_report_applied_config
+csa_authorized_api_request_access_check
+csa_authorized_api_request_access_groups_for_clients
+csa_authorized_api_request_access_groups_items
+csa_authorized_api_request_all_accessed_clients
+=== search root_build in new h ===
+=== search remote in new h ===
+1661:} csa_client_api_unsafe_remote_t;
+1665:    csa_client_api_unsafe_remote_t *api,
+1671:    csa_client_api_unsafe_remote_t *api,
+1676:    csa_client_api_unsafe_remote_t *api,
+1681:    csa_client_api_unsafe_remote_t *api,
+1686:    csa_client_api_unsafe_remote_t *api,
+1691:    csa_client_api_unsafe_remote_t *api,
+1696:    csa_client_api_unsafe_remote_t *api,
+1701:    csa_client_api_unsafe_remote_t *api,
+1707:    csa_client_api_unsafe_remote_t *api,
+=== data_out in h ===
+872:    aether_data_out_t *out,
+883:    aether_data_out_t *out,
+894:    aether_data_out_t *out,
+905:    aether_data_out_t *out,
+916:    aether_data_out_t *out,
+927:    aether_data_out_t *out,
+>>> [elapsed: 19ms]
+
+>>> bash
+=== search reg_ ===
+41:} csa_client_api_reg_safe_stream_t;
+1687:    const csa_client_api_reg_safe_stream_t * stream);
+2497:} csa_client_api_reg_safe_remote_t;
+=== search aether_generated_reg ===
+=== remote struct csa_authorized_api_remote_t ===
+>>> [elapsed: 16ms]
+
+>>> bash
+ADSL load error: line 6: unsupported type property 'msgQueueLimit'
+>>> [elapsed: 15ms]
+>>> bash
+total 0
+drwxrwxr-x   2 angel angel    40 Oct 22 18:28 .
+drwxrwxrwt 737 root  root  17580 Oct 22 18:28 ..
+>>> [elapsed: 6ms]
+>>> bash
+grep: /tmp/regen2/aether_api.h: Нет такого файла или каталога
+OLD=277 NEW=0
+=== only NEW (first 40) ===
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+=== only OLD (first 40) ===
+comm: file 1 is not in sorted order
+comm: input is not in sorted order
+csa_authorized_api_add_access_groups_to_client
+csa_authorized_api_add_items_to_access_group
+csa_authorized_api_add_to_access_group
+csa_authorized_api_back_id
+csa_authorized_api_check_access_for_send_message
+csa_authorized_api_check_access_for_send_message2
+csa_authorized_api_client
+csa_authorized_api_create_access_group
+csa_authorized_api_get_access_group
+csa_authorized_api_get_access_groups
+csa_authorized_api_get_alias
+csa_authorized_api_get_all_accessed_clients
+csa_authorized_api_get_client_activity
+csa_authorized_api_get_client_connections
+csa_authorized_api_get_client_messages
+csa_authorized_api_get_client_timing
+csa_authorized_api_get_servers
+csa_authorized_api_get_uap
+csa_authorized_api_open_receive_window
+csa_authorized_api_ping
+csa_authorized_api_probe_packet
+csa_authorized_api_publish_web_rtc_session
+csa_authorized_api_remove_access_groups_from_client
+csa_authorized_api_remove_from_access_group
+csa_authorized_api_remove_items_from_access_group
+csa_authorized_api_report_applied_config
+csa_authorized_api_request_access_check
+csa_authorized_api_request_access_groups_for_clients
+csa_authorized_api_request_access_groups_items
+csa_authorized_api_request_all_accessed_clients
+csa_authorized_api_request_probe_report
+csa_authorized_api_request_signed_uid
+csa_authorized_api_request_web_rtc_session
+csa_authorized_api_resolve_clouds
+csa_authorized_api_resolver_servers
+csa_authorized_api_search_client_logs
+csa_authorized_api_self_destruct
+csa_authorized_api_send_access_group_for_client
+>>> [elapsed: 38ms]
+>>> bash
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 24ms]
+
+>>> bash
+# ================================================
+# File: aether_reflection.adsl.yaml
+# Version: 9 (v9)
+#
+# Description:
+# This meta-model defines a set of DTOs that allow
+# for the binary description of Aether protocol APIs,
+# DTOs, and types.
+#
+# This version is highly optimized, replacing all
+# repetitive string fields (names, docs) with
+# 'intpack' indices that refer to a central
+# 'stringPool'.
+# ================================================
+
+types:
+  # 1. Abstract "Type" (for the registry)
+  # All types in AetherModuleDescriptor.typeRegistry will be of this type.
+  AetherTypeDescriptor:
+    abstract: true
+    fields:
+      # Unique type ID within this module (1, 2, 3...)
+      id: intpack
+      # Index into AetherModuleDescriptor.stringPool for documentation
+      docId: intpack?
+
+  # 2. "Base" Type (Leaf)
+  # Describes a primitive ("intpack") or DTO ("MySensorDto")
+  AetherBaseType:
+    id: 1 # <-- Required 1-byte type ID for the hierarchy
+    parent: AetherTypeDescriptor
+    fields:
+      # Index into stringPool for the type's name
+      nameId: intpack
+
+  # 3. "Array" Type (Constructor)
+  # Describes an array type, referencing another type's ID.
+  AetherArrayType:
+    id: 2 # <-- Required 1-byte type ID for the hierarchy
+    parent: AetherTypeDescriptor
+    fields:
+      # Refers to the 'id' of another AetherTypeDescriptor
+      elementTypeId: intpack
+
+  # 4. "Stream" Type (COMMAND BATCH)
+  # Describes a 'stream' (binary command batch).
+  AetherStreamType:
+    id: 3 # <-- Required 1-byte type ID for the hierarchy
+    parent: AetherTypeDescriptor
+    fields:
+>>> [elapsed: 2ms]
+>>> bash
+>>> [elapsed: 3ms]
+
+>>> bash
+=== only NEW (first 40) ===
+=== sample function with data_out ===
+aether_status_t csa_authorized_api_get_alias(
+    csa_authorized_api_remote_t *api);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:588 api.AuthorizedApi.methods.setAlias */
+aether_status_t csa_authorized_api_set_alias(
+=== remote struct ===
+=== search reg_safe functions ===
+41:} csa_client_api_reg_safe_stream_t;
+1687:    const csa_client_api_reg_safe_stream_t * stream);
+2497:} csa_client_api_reg_safe_remote_t;
+=== sizes ===
+  15804 /tmp/regen/aether_api.c
+   3182 /tmp/regen/aether_api.h
+  16726 src/generated/aether_api.c
+   3449 src/generated/aether_api.h
+  39161 total
+>>> [elapsed: 26ms]
+[subtask regenApi] ERROR: subtask produced no groovy block

@@ -1,0 +1,469 @@
+>>> bash
+29:#include "generated/aether_reg_root_enter.h"
+30:#include "generated/aether_reg_root_key.h"
+31:#include "generated/aether_reg_safe.h"
+32:#include "generated/aether_reg_unsafe_local.h"
+2427:        aether_generated_reg_root_build_get_key(
+2518:        aether_generated_reg_root_build_enter(
+2581:        aether_generated_reg_safe_build_pow(
+2628:        aether_generated_reg_safe_build_registration_direct(
+2691:        aether_generated_reg_safe_build_recovery(
+2751:        aether_generated_reg_safe_build_resolve_with_return_key(
+3472:aether_reg_unsafe_frame_t frame = {
+3480:            aether_generated_reg_unsafe_decode(
+3787:        aether_reg_unsafe_frame_t frame = {
+3795:            aether_generated_reg_unsafe_decode(
+>>> [elapsed: 12ms]
+
+>>> bash
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 9ms]
+
+>>> bash
+src/generated/aether_reg_global.c
+src/generated/aether_reg_global.h
+src/generated/aether_reg_root_enter.c
+src/generated/aether_reg_root_enter.h
+src/generated/aether_reg_root_key.c
+src/generated/aether_reg_root_key.h
+src/generated/aether_reg_safe.c
+src/generated/aether_reg_safe.h
+src/generated/aether_reg_unsafe_local.c
+src/generated/aether_reg_unsafe_local.h
+>>> [elapsed: 5ms]
+
+>>> bash
+[main da84d3a] checkpoint before restoring adapters
+ 27 files changed, 16939 insertions(+), 218 deletions(-)
+ create mode 100644 .aiedit/output/out-1792661594021.txt
+ create mode 100644 .aiedit/output/out-1792662834130.txt
+ create mode 100644 .aiedit/output/out-1792662921191.txt
+ create mode 100644 .aiedit/output/out-1792663019383.txt
+ create mode 100644 .aiedit/output/out-1792663044326.txt
+ create mode 100644 .aiedit/output/out-1792663103900.txt
+ create mode 100644 .aiedit/output/out-1792663282145.txt
+ create mode 100644 .aiedit/output/out-1792663372485.txt
+ create mode 100644 .aiedit/output/out-1792663464408.txt
+ create mode 100644 .aiedit/output/out-1792663521585.txt
+ create mode 100644 .aiedit/output/out-1792663609564.txt
+ create mode 100644 .aiedit/output/out-1792663674223.txt
+ create mode 100644 .aiedit/output/out-1792663715514.txt
+ create mode 100644 .aiedit/output/out-1792663777500.txt
+ create mode 100644 .aiedit/output/out-1792663887798.txt
+ create mode 100644 .aiedit/output/out-1792663960402.txt
+ create mode 100644 .aiedit/output/out-1792664081525.txt
+ create mode 100644 .aiedit/output/out-1792664303578.txt
+ delete mode 100644 aiedit-chat.bin
+ create mode 100644 build-diag-1-config.log
+ create mode 100644 build-diag-1-tests.log
+ create mode 100644 build-diag-1.log
+ create mode 100644 subtask-p2p-diag-trace.json
+ create mode 100644 subtask-p2p-e2e-run.json
+>>> [elapsed: 70ms]
+
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+23 /home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.h
+>>> [elapsed: 6ms]
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: NullPointerException
+  message: Cannot invoke method trim() on null object
+````
+
+>>> bash
+=== aether_reg_root_enter.h ===
+23 src/generated/aether_reg_root_enter.h
+>>> [elapsed: 9ms]
+>>> bash
+=== aether_reg_root_enter.c ===
+86 src/generated/aether_reg_root_enter.c
+>>> [elapsed: 8ms]
+>>> bash
+=== aether_reg_root_key.h ===
+22 src/generated/aether_reg_root_key.h
+>>> [elapsed: 10ms]
+>>> bash
+=== aether_reg_root_key.c ===
+74 src/generated/aether_reg_root_key.c
+>>> [elapsed: 14ms]
+>>> bash
+=== aether_reg_safe.h ===
+104 src/generated/aether_reg_safe.h
+>>> [elapsed: 15ms]
+>>> bash
+=== aether_reg_safe.c ===
+772 src/generated/aether_reg_safe.c
+>>> [elapsed: 7ms]
+>>> bash
+=== aether_reg_unsafe_local.h ===
+34 src/generated/aether_reg_unsafe_local.h
+>>> [elapsed: 7ms]
+>>> bash
+=== aether_reg_unsafe_local.c ===
+110 src/generated/aether_reg_unsafe_local.c
+>>> [elapsed: 7ms]
+[aether_reg_root_enter.h, aether_reg_root_enter.c, aether_reg_root_key.h, aether_reg_root_key.c, aether_reg_safe.h, aether_reg_safe.c, aether_reg_unsafe_local.h, aether_reg_unsafe_local.c]timestamp: 1792664349703
+>>> bash
+=== root_enter.h ===
+
+#ifndef AETHER_REG_ROOT_ENTER_H
+#define AETHER_REG_ROOT_ENTER_H
+
+#include "aether_client.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+aether_status_t aether_generated_reg_root_build_enter(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t crypto_lib,
+    const uint8_t *encrypted_stream,
+    size_t encrypted_stream_length);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+=== root_key.h ===
+
+#ifndef AETHER_REG_ROOT_KEY_H
+#define AETHER_REG_ROOT_KEY_H
+
+#include "aether_client.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+aether_status_t aether_generated_reg_root_build_get_key(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint32_t request_id,
+    uint8_t crypto_lib);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+=== safe.h ===
+
+#ifndef AETHER_REG_SAFE_H
+>>> [elapsed: 10ms]
+
+>>> bash
+Следующие пути игнорируются одним из ваших файлов .gitignore:
+src/generated
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 5ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected character: '\'' @ line 1, column 46.    bash('/home/angel/projects/aether-client-c', 'git add -f src/generated/aether_reg_root_enter.c src/generated/aether_reg_root_enter.h src/generated/aether_reg_root_key.c src/generated/aether_reg_root_key.h src/generated/aether_reg_safe.c src/generated/aether_reg_safe.h src/generated/aether_reg_unsafe_local.c src/generated/aether_reg_unsafe_local.h && git commit -m "restore: manual registration adapters (reg_r...
+````
+
+>>> bash
+[main d18d02e] restore manual registration adapters
+ 8 files changed, 1227 insertions(+)
+ create mode 100644 src/generated/aether_reg_root_enter.c
+ create mode 100644 src/generated/aether_reg_root_enter.h
+ create mode 100644 src/generated/aether_reg_root_key.c
+ create mode 100644 src/generated/aether_reg_root_key.h
+ create mode 100644 src/generated/aether_reg_safe.c
+ create mode 100644 src/generated/aether_reg_safe.h
+ create mode 100644 src/generated/aether_reg_unsafe_local.c
+ create mode 100644 src/generated/aether_reg_unsafe_local.h
+>>> [elapsed: 15ms]
+
+>>> bash
+-- Detecting C compile features - done
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.5.5")
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/angel/projects/aether-client-c/build-test2
+      |                   int16_t * {aka short int *}
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h:87:14: note: expected ‘uint32_t’ {aka ‘unsigned int’} but argument is of type ‘int16_t *’ {aka ‘short int *’}
+   87 |     uint32_t request_id,
+      |     ~~~~~~~~~^~~~~~~~~~
+/home/angel/projects/aether-client-c/src/aether_client.c:2761:19: error: passing argument 8 of ‘aether_generated_reg_safe_build_resolve_with_return_key’ makes pointer from integer without a cast [-Wint-conversion]
+ 2761 |             client->cloud_count);
+      |             ~~~~~~^~~~~~~~~~~~~
+      |                   |
+      |                   uint8_t {aka unsigned char}
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h:88:20: note: expected ‘const int16_t *’ {aka ‘const short int *’} but argument is of type ‘uint8_t’ {aka ‘unsigned char’}
+   88 |     const int16_t *server_ids,
+      |     ~~~~~~~~~~~~~~~^~~~~~~~~~
+/home/angel/projects/aether-client-c/src/aether_client.c:2751:9: error: too few arguments to function ‘aether_generated_reg_safe_build_resolve_with_return_key’; expected 9, have 8
+ 2751 |         aether_generated_reg_safe_build_resolve_with_return_key(
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h:80:17: note: declared here
+   80 | aether_status_t aether_generated_reg_safe_build_resolve_with_return_key(
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 22%] Building C object CMakeFiles/aether_client.dir/src/aether_meta_runtime.c.o
+/home/angel/projects/aether-client-c/src/aether_client.c: In function ‘aether_client_send_message’:
+/home/angel/projects/aether-client-c/src/aether_client.c:5568:10: error: ‘csa_authorized_api_remote_t’ has no member named ‘tx’
+ 5568 |         .tx = client->tx_plain,
+      |          ^~
+/home/angel/projects/aether-client-c/src/aether_client.c:5568:15: error: initialization of ‘aether_data_out_t *’ {aka ‘struct aether_data_out *’} from incompatible pointer type ‘uint8_t *’ {aka ‘unsigned char *’} [-Wincompatible-pointer-types]
+ 5568 |         .tx = client->tx_plain,
+      |               ^~~~~~
+/home/angel/projects/aether-client-c/src/aether_client.c:5568:15: note: (near initialization for ‘authorized.out’)
+/home/angel/projects/aether-client-c/src/aether_client.c:5569:10: error: ‘csa_authorized_api_remote_t’ has no member named ‘tx_capacity’
+ 5569 |         .tx_capacity =
+      |          ^~~~~~~~~~~
+/home/angel/projects/aether-client-c/src/aether_client.c:5570:13: error: excess elements in struct initializer [-Werror]
+ 5570 |             sizeof(client->tx_plain)
+      |             ^~~~~~
+/home/angel/projects/aether-client-c/src/aether_client.c:5570:13: note: (near initialization for ‘authorized’)
+cc1: all warnings being treated as errors
+gmake[3]: *** [CMakeFiles/aether_client.dir/build.make:79: CMakeFiles/aether_client.dir/src/aether_client.c.o] Ошибка 1
+gmake[3]: *** Ожидание завершения заданий…
+gmake[2]: *** [CMakeFiles/Makefile2:170: CMakeFiles/aether_client.dir/all] Ошибка 2
+gmake[1]: *** [CMakeFiles/Makefile2:177: CMakeFiles/aether_client.dir/rule] Ошибка 2
+gmake: *** [Makefile:147: aether_client] Ошибка 2
+>>> [elapsed: 731ms]
+
+>>> bash
+/home/angel/projects/aether-client-c/src/aether_client.c:2427:9: error: too few arguments to function ‘aether_generated_reg_root_build_get_key’; expected 5, have 4
+/home/angel/projects/aether-client-c/src/aether_client.c:2590:27: error: incompatible type for argument 7 of ‘aether_generated_reg_safe_build_pow’
+/home/angel/projects/aether-client-c/src/aether_client.c:2581:9: error: too few arguments to function ‘aether_generated_reg_safe_build_pow’; expected 8, have 7
+/home/angel/projects/aether-client-c/src/aether_client.c:2641:33: error: passing argument 9 of ‘aether_generated_reg_safe_build_registration_direct’ makes integer from pointer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2642:33: error: passing argument 10 of ‘aether_generated_reg_safe_build_registration_direct’ makes pointer from integer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2643:33: error: passing argument 11 of ‘aether_generated_reg_safe_build_registration_direct’ makes integer from pointer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2644:33: error: passing argument 12 of ‘aether_generated_reg_safe_build_registration_direct’ makes pointer from integer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2645:33: error: passing argument 13 of ‘aether_generated_reg_safe_build_registration_direct’ makes integer from pointer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2646:33: error: passing argument 14 of ‘aether_generated_reg_safe_build_registration_direct’ makes pointer from integer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2648:27: error: incompatible type for argument 15 of ‘aether_generated_reg_safe_build_registration_direct’
+/home/angel/projects/aether-client-c/src/aether_client.c:2628:9: error: too few arguments to function ‘aether_generated_reg_safe_build_registration_direct’; expected 16, have 15
+/home/angel/projects/aether-client-c/src/aether_client.c:2706:19: error: incompatible type for argument 12 of ‘aether_generated_reg_safe_build_recovery’
+/home/angel/projects/aether-client-c/src/aether_client.c:2691:9: error: too few arguments to function ‘aether_generated_reg_safe_build_recovery’; expected 13, have 12
+/home/angel/projects/aether-client-c/src/aether_client.c:2760:19: error: passing argument 7 of ‘aether_generated_reg_safe_build_resolve_with_return_key’ makes integer from pointer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2761:19: error: passing argument 8 of ‘aether_generated_reg_safe_build_resolve_with_return_key’ makes pointer from integer without a cast [-Wint-conversion]
+/home/angel/projects/aether-client-c/src/aether_client.c:2751:9: error: too few arguments to function ‘aether_generated_reg_safe_build_resolve_with_return_key’; expected 9, have 8
+/home/angel/projects/aether-client-c/src/aether_client.c:5568:10: error: ‘csa_authorized_api_remote_t’ has no member named ‘tx’
+/home/angel/projects/aether-client-c/src/aether_client.c:5568:15: error: initialization of ‘aether_data_out_t *’ {aka ‘struct aether_data_out *’} from incompatible pointer type ‘uint8_t *’ {aka ‘unsigned char *’} [-Wincompatible-pointer-types]
+/home/angel/projects/aether-client-c/src/aether_client.c:5569:10: error: ‘csa_authorized_api_remote_t’ has no member named ‘tx_capacity’
+/home/angel/projects/aether-client-c/src/aether_client.c:5570:13: error: excess elements in struct initializer [-Werror]
+gmake[3]: *** [CMakeFiles/aether_client.dir/build.make:79: CMakeFiles/aether_client.dir/src/aether_client.c.o] Ошибка 1
+gmake[2]: *** [CMakeFiles/Makefile2:170: CMakeFiles/aether_client.dir/all] Ошибка 2
+gmake[1]: *** [CMakeFiles/Makefile2:177: CMakeFiles/aether_client.dir/rule] Ошибка 2
+gmake: *** [Makefile:147: aether_client] Ошибка 2
+>>> [elapsed: 175ms]
+
+>>> bash
+        next_request_id(
+            client);
+
+    size_t packet_length =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_root_build_get_key(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &packet_length,
+            client->config.crypto
+                ->profile.crypto_lib);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+---
+
+
+    size_t nested_len =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_safe_build_pow(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->config.parent_uid);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    status =
+        send_reg_enter(
+            client,
+            client->tx_plain,
+>>> [elapsed: 5ms]
+
+>>> bash
+
+#ifndef AETHER_REG_UNSAFE_LOCAL_H
+#define AETHER_REG_UNSAFE_LOCAL_H
+
+#include "aether_client.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    AETHER_REG_UNSAFE_FRAME_ENTER = 1,
+    AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL = 2
+} aether_reg_unsafe_frame_kind_t;
+
+
+typedef struct {
+    aether_reg_unsafe_frame_kind_t kind;
+    const uint8_t *data;
+    size_t length;
+} aether_reg_unsafe_frame_t;
+
+
+aether_status_t aether_generated_reg_unsafe_decode(
+    aether_reg_unsafe_frame_t *frame,
+    const uint8_t *data,
+    size_t length,
+    size_t *consumed);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+===UNSAFE_C_HEAD===
+
+#include "aether_reg_unsafe_local.h"
+
+#include "client_server_reg_unsafe_local_local.h"
+
+
+typedef struct {
+    aether_reg_unsafe_frame_t *frame;
+} aether_reg_unsafe_capture_t;
+
+
+static aether_status_t aether_reg_unsafe_capture_enter(
+    void *ctx,
+    const client_api_reg_safe_stream_t *stream) {
+
+>>> [elapsed: 11ms]
+
+>>> bash
+e18f280 debug: add protocol tracing
+b4fc04f fix: remove request_id from csa_authorized_api_send_message_with_result call
+4abe273 DONE!
+5c4084e crypto_lib
+ffd10eb p2p
+8bc1a19 p2p done for java
+6cb0b9f upgrade
+c127df1 Preserve caller credentials across facade startup
+3289856 Fix cross-provider client recovery key migration
+8523b81 implement mandatory client recovery
+1af16f8 implement mandatory client recovery
+58a79ee checkpoint: credentials and mandatory recovery refactor
+bcce4a3 Add compact ADSL protocol runtime and architecture docs
+bce0fc3 Initial Aether C client implementation
+>>> [elapsed: 13ms]
+
+>>> bash
+>>> [elapsed: 6ms]
+
+>>> bash
+d18d02e restore manual registration adapters
+5832091 gen
+3289856 Fix cross-provider client recovery key migration
+58a79ee checkpoint: credentials and mandatory recovery refactor
+bcce4a3 Add compact ADSL protocol runtime and architecture docs
+>>> [elapsed: 12ms]
+>>> bash
+d18d02e restore manual registration adapters
+5832091 gen
+bcce4a3 Add compact ADSL protocol runtime and architecture docs
+>>> [elapsed: 11ms]
+>>> bash
+d18d02e restore manual registration adapters
+5832091 gen
+bcce4a3 Add compact ADSL protocol runtime and architecture docs
+>>> [elapsed: 16ms]
+
+>>> bash
+
+#ifndef AETHER_REG_SAFE_H
+#define AETHER_REG_SAFE_H
+
+#include "aether_client.h"
+---
+
+#ifndef AETHER_REG_SAFE_H
+#define AETHER_REG_SAFE_H
+
+#include "aether_client.h"
+>>> [elapsed: 10ms]
+
+>>> bash
+11:aether_status_t aether_generated_reg_safe_build_pow(
+21:aether_status_t aether_generated_reg_safe_build_registration(
+39:aether_status_t aether_generated_reg_safe_build_registration_direct(
+60:aether_status_t aether_generated_reg_safe_build_recovery(
+80:aether_status_t aether_generated_reg_safe_build_resolve_with_return_key(
+93:aether_status_t aether_generated_reg_safe_build_resolve(
+>>> [elapsed: 8ms]
+
+>>> bash
+>>> [elapsed: 12ms]
+
+[subtask restoreDeletedAdapters] 
+<b>Отчёт о восстановлении</b>
+
+<b>Восстановлены файлы</b> из коммита 1776aa8 (8 шт.):
+<ul>
+<li>src/generated/aether_reg_root_enter.h/.c</li>
+<li>src/generated/aether_reg_root_key.h/.c</li>
+<li>src/generated/aether_reg_safe.h/.c</li>
+<li>src/generated/aether_reg_unsafe_local.h/.c</li>
+</ul>
+
+<b>Коммит:</b> d18d02e "restore manual registration adapters"
+
+<b>Сборка (cmake --build build-test2 --target aether_client):</b> НЕ УСПЕШНА
+
+<b>Ошибки компиляции:</b>
+<ol>
+<li><b>aether_reg_root_build_get_key</b> (aether_client.c:2427) — 4 аргумента вместо 5 (ожидается request_id)</li>
+<li><b>aether_reg_safe_build_pow</b> (aether_client.c:2581) — 7 аргументов вместо 8</li>
+<li><b>aether_reg_safe_build_registration_direct</b> (aether_client.c:2628) — 15 вместо 16, несоответствие типов аргументов 9-15</li>
+<li><b>aether_reg_safe_build_recovery</b> (aether_client.c:2691) — 12 вместо 13</li>
+<li><b>aether_reg_safe_build_resolve_with_return_key</b> (aether_client.c:2751) — 8 вместо 9, несоответствие типов</li>
+<li><b>aether_client_send_message</b> (aether_client.c:5568-5570) — <code>csa_authorized_api_remote_t</code> не имеет полей <code>tx</code>/<code>tx_capacity</code> (устаревший aether_api)</li>
+</ol>
+
+<b>Анализ aether_generated_reg_unsafe_decode:</b><br>
+Вызывается из 2 мест (строки 3480, 3795) — переносить в aether_client.c нецелесообразно.
+
+<b>Включённые заголовки</b> — все 4 используются, лишних нет.
+
+<b>Причина ошибок:</b> восстановленные адаптеры (из 1776aa8) содержат сигнатуры, не совпадающие с текущим aether_client.c (который менялся в коммитах b4fc04f, e18f280 и др.). Требуется либо обновить сигнатуры в адаптерах под текущий aether_client.c, либо откатить aether_client.c к совместимой версии.

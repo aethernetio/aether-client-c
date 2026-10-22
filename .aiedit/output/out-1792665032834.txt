@@ -1,0 +1,1066 @@
+>>> bash
+>>> [elapsed: 13ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 8ms]
+>>> bash
+10372:aether_status_t csa_registration_root_api_enter(
+>>> [elapsed: 7ms]
+>>> bash
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:779 api.RegistrationRootApi.methods.getAsymmetricPublicKey */
+aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 3u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:783 api.RegistrationRootApi.methods.enter */
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+>>> [elapsed: 12ms]
+>>> bash
+>>> [elapsed: 10ms]
+>>> bash
+>>> [elapsed: 17ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 22ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 15ms]
+>>> bash
+>>> [elapsed: 11ms]
+>>> bash
+>>> [elapsed: 23ms]
+
+>>> bash
+1661:} csa_client_api_unsafe_remote_t;
+1665:    csa_client_api_unsafe_remote_t *api,
+1671:    csa_client_api_unsafe_remote_t *api,
+1676:    csa_client_api_unsafe_remote_t *api,
+1681:    csa_client_api_unsafe_remote_t *api,
+1686:    csa_client_api_unsafe_remote_t *api,
+1691:    csa_client_api_unsafe_remote_t *api,
+1696:    csa_client_api_unsafe_remote_t *api,
+1701:    csa_client_api_unsafe_remote_t *api,
+1707:    csa_client_api_unsafe_remote_t *api,
+1712:    csa_client_api_unsafe_remote_t *api,
+1720:} csa_client_api_safe_remote_t;
+1724:    csa_client_api_safe_remote_t *api,
+1729:    csa_client_api_safe_remote_t *api,
+1734:    csa_client_api_safe_remote_t *api,
+1739:    csa_client_api_safe_remote_t *api,
+1744:    csa_client_api_safe_remote_t *api,
+1749:    csa_client_api_safe_remote_t *api,
+1754:    csa_client_api_safe_remote_t *api,
+1759:    csa_client_api_safe_remote_t *api,
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+=== from 10342 to 10402 ===
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:779 api.RegistrationRootApi.methods.getAsymmetricPublicKey */
+aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 3u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+>>> [elapsed: 16ms]
+>>> bash
+>>> [elapsed: 11ms]
+>>> bash
+>>> [elapsed: 25ms]
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 17ms]
+>>> bash
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 13ms]
+>>> bash
+>>> [elapsed: 9ms]
+>>> bash
+>>> [elapsed: 16ms]
+
+>>> bash
+13:typedef struct {
+19:typedef struct {
+25:typedef struct {
+31:typedef struct {
+37:typedef struct {
+43:typedef struct {
+86:typedef struct common_sodium_chacha20_poly1305_t common_sodium_chacha20_poly1305_t;
+87:typedef struct common_hydrogen_curve_private_t common_hydrogen_curve_private_t;
+88:typedef struct common_hydrogen_curve_public_t common_hydrogen_curve_public_t;
+89:typedef struct common_hydrogen_secret_box_t common_hydrogen_secret_box_t;
+90:typedef struct common_sodium_curve_public_t common_sodium_curve_public_t;
+91:typedef struct common_sodium_curve_private_t common_sodium_curve_private_t;
+92:typedef struct common_sodium_sign_private_t common_sodium_sign_private_t;
+93:typedef struct common_sodium_sign_public_t common_sodium_sign_public_t;
+94:typedef struct common_hydrogen_sign_private_t common_hydrogen_sign_private_t;
+95:typedef struct common_hydrogen_sign_public_t common_hydrogen_sign_public_t;
+96:typedef struct common_sign_a_e_e_d25519_t common_sign_a_e_e_d25519_t;
+97:typedef struct common_sign_h_y_d_r_o_g_e_n_t common_sign_h_y_d_r_o_g_e_n_t;
+98:typedef struct common_signed_key_t common_signed_key_t;
+99:typedef struct common_work_proof_b_crypt_t common_work_proof_b_crypt_t;
+>>> [elapsed: 10ms]
+>>> bash
+1661:} csa_client_api_unsafe_remote_t;
+1720:} csa_client_api_safe_remote_t;
+1961:} csa_authorized_api_remote_t;
+2226:} csa_login_api_remote_t;
+2267:} csa_server_api_by_uid_client_remote_t;
+2353:} csa_server_api_by_uid_remote_t;
+2436:} csa_server_registration_api_remote_t;
+2475:} csa_registration_root_api_remote_t;
+2497:} csa_client_api_reg_safe_remote_t;
+>>> [elapsed: 10ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+7008:aether_status_t csa_client_api_safe_send_messages(
+7384:aether_status_t csa_client_api_safe_send_message(
+8165:aether_status_t csa_authorized_api_send_message(
+8188:aether_status_t csa_authorized_api_send_messages(
+8244:aether_status_t csa_authorized_api_send_message_with_result(
+8346:aether_status_t csa_authorized_api_check_access_for_send_message(
+8519:aether_status_t csa_authorized_api_check_access_for_send_message2(
+10576:aether_status_t csa_login_stream_authorized_api_send_message(
+10611:    return csa_authorized_api_send_message(
+10617:aether_status_t csa_login_stream_authorized_api_send_messages(
+>>> [elapsed: 10ms]
+>>> bash
+10422:} csa_stream_commit_t;
+10424:static aether_status_t csa_stream_commit(
+10431:    csa_stream_commit_t *commit =
+10470:    csa_stream_commit_t commit = {
+10480:        csa_stream_commit,
+10512:    csa_stream_commit_t commit = {
+10522:        csa_stream_commit,
+10555:    csa_stream_commit_t commit = {
+10565:        csa_stream_commit,
+10597:    csa_stream_commit_t commit = {
+>>> [elapsed: 7ms]
+>>> bash
+101:    aether_data_in_t *in,
+>>> [elapsed: 9ms]
+>>> bash
+>>> [elapsed: 8ms]
+
+>>> bash
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_client_api_unsafe_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:139 api.ClientApiUnsafe.methods.sendSafeApiDataMulti */
+aether_status_t csa_client_api_unsafe_send_safe_api_data_multi(
+    csa_client_api_unsafe_remote_t *api,
+>>> [elapsed: 5ms]
+>>> bash
+    csa_server_registration_api_remote_t *api,
+    aether_uuid_t uid,
+    const common_key_ref_t * oldMasterKey,
+    const common_key_ref_t * newMasterKey);
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_registration_root_api_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:779 api.RegistrationRootApi.methods.getAsymmetricPublicKey */
+aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib);
+>>> [elapsed: 9ms]
+>>> bash
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 6ms]
+
+>>> bash
+10349:aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+>>> [elapsed: 9ms]
+>>> bash
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 3u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:783 api.RegistrationRootApi.methods.enter */
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+>>> [elapsed: 9ms]
+>>> bash
+aether_status_t csa_login_stream_authorized_api_send_message(
+    csa_login_stream_t *builder_stream,
+    const csa_message_t * msg) {
+
+    if (builder_stream == NULL ||
+        builder_stream->length > builder_stream->capacity) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (builder_stream->capacity > 0u &&
+        builder_stream->data == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    size_t remaining =
+        builder_stream->capacity - builder_stream->length;
+
+    if (remaining == 0u) {
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    csa_stream_commit_t commit = {
+        &builder_stream->length,
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 13ms]
+>>> bash
+>>> [elapsed: 14ms]
+>>> bash
+>>> [elapsed: 12ms]
+>>> bash
+>>> [elapsed: 25ms]
+
+>>> bash
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_client_api_unsafe_remote_t;
+---
+    csa_server_registration_api_remote_t *api,
+    aether_uuid_t uid,
+    const common_key_ref_t * oldMasterKey,
+    const common_key_ref_t * newMasterKey);
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_registration_root_api_remote_t;
+---
+---
+>>> [elapsed: 11ms]
+>>> bash
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:792 api.RegistrationRootApi.methods.getMyIp */
+aether_status_t csa_registration_root_api_get_my_ip(
+    csa_registration_root_api_remote_t *api) {
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 3ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 10ms]
+>>> bash
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 14ms]
+
+>>> bash
+    csa_client_api_safe_remote_t *api);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:358 api.ClientApiSafe.methods.sendAccessedClients */
+aether_status_t csa_client_api_safe_send_accessed_clients(
+    csa_client_api_safe_remote_t *api,
+    aether_uuid_t uid,
+    uuid_array_view_t clients);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:363 api.ClientApiSafe.methods.sendAccessCheckResult2 */
+aether_status_t csa_client_api_safe_send_access_check_result2(
+    csa_client_api_safe_remote_t *api,
+    aether_uuid_t uid1,
+    aether_uuid_t uid2,
+    bool ok);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:369 api.ClientApiSafe.methods.sendAccessCheckAck */
+aether_status_t csa_client_api_safe_send_access_check_ack(
+    csa_client_api_safe_remote_t *api,
+    aether_uuid_t uid);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:373 api.ClientApiSafe.methods.sendNewAccessGroupId */
+aether_status_t csa_client_api_safe_send_new_access_group_id(
+    csa_client_api_safe_remote_t *api,
+    aether_uuid_t owner,
+    aether_uuid_t groupId);
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_authorized_api_remote_t;
+---
+    int64_t startsInMs,
+    int64_t durationMs);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:574 api.AuthorizedApi.methods.probePacket */
+aether_status_t csa_authorized_api_probe_packet(
+    csa_authorized_api_remote_t *api,
+    int32_t testId,
+    int32_t sequence,
+    aether_bytes_view_t payload);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:580 api.AuthorizedApi.methods.requestProbeReport */
+aether_status_t csa_authorized_api_request_probe_report(
+    csa_authorized_api_remote_t *api,
+    int32_t testId,
+    int32_t firstSequence,
+    int32_t count);
+
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 10ms]
+>>> bash
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 9ms]
+>>> bash
+>>> [elapsed: 14ms]
+
+>>> bash
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_login_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_interaction_client_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_api_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_client_api_reg_safe_stream_t;
+
+typedef struct {
+    uint8_t *data;
+    size_t capacity;
+    size_t length;
+} csa_server_registration_api_stream_t;
+
+typedef enum {
+    common_crypto_lib_SODIUM = 0,
+    common_crypto_lib_HYDROGEN = 1,
+    common_crypto_lib_P256_AES_GCM = 2
+} common_crypto_lib_t;
+
+typedef enum {
+    common_pow_method_AE_BCRYPT_CRC32 = 0
+} common_pow_method_t;
+
+typedef enum {
+    common_aether_codec_TCP = 0,
+    common_aether_codec_UDP = 1,
+    common_aether_codec_WS = 2,
+>>> [elapsed: 12ms]
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: echo for class: Script1 is applicable for argument types: (String) values: [---] Possible solutions: each(groovy.lang.Closure), getAt(java.lang.String), wait(), run(), run(), any()
+````
+
+>>> bash
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_authorized_api_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:381 api.AuthorizedApi.methods.backId */
+aether_status_t csa_authorized_api_back_id(
+    csa_authorized_api_remote_t *api,
+---
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_login_api_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:602 api.LoginApi.methods.getTimeUTC */
+aether_status_t csa_login_api_get_time_u_t_c(
+    csa_login_api_remote_t *api);
+>>> [elapsed: 9ms]
+>>> bash
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:792 api.RegistrationRootApi.methods.getMyIp */
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 5ms]
+
+>>> bash
+bash: -c: строка 1: неожиданный конец файла во время поиска «'»
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 9ms]
+>>> bash
+bash: -c: строка 1: неожиданный конец файла во время поиска «'»
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 5ms]
+>>> bash
+bash: -c: строка 1: неожиданный конец файла во время поиска «'»
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 4ms]
+>>> bash
+bash: -c: строка 1: неожиданный конец файла во время поиска «'»
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 3ms]
+>>> bash
+bash: -c: строка 1: неожиданный конец файла во время поиска «'»
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 5ms]
+>>> bash
+bash: -c: строка 1: неожиданный конец файла во время поиска «'»
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 2ms]
+
+>>> bash
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_authorized_api_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:381 api.AuthorizedApi.methods.backId */
+aether_status_t csa_authorized_api_back_id(
+    csa_authorized_api_remote_t *api,
+---
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_login_api_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:602 api.LoginApi.methods.getTimeUTC */
+aether_status_t csa_login_api_get_time_u_t_c(
+    csa_login_api_remote_t *api);
+>>> [elapsed: 13ms]
+>>> bash
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:792 api.RegistrationRootApi.methods.getMyIp */
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 13ms]
+>>> bash
+>>> [elapsed: 5ms]
+
+>>> bash
+aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 3u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:783 api.RegistrationRootApi.methods.enter */
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+>>> [elapsed: 6ms]
+>>> bash
+aether_status_t csa_login_stream_authorized_api_send_message(
+    csa_login_stream_t *builder_stream,
+    const csa_message_t * msg) {
+
+    if (builder_stream == NULL ||
+        builder_stream->length > builder_stream->capacity) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (builder_stream->capacity > 0u &&
+        builder_stream->data == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    size_t remaining =
+        builder_stream->capacity - builder_stream->length;
+
+    if (remaining == 0u) {
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    csa_stream_commit_t commit = {
+        &builder_stream->length,
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 10ms]
+>>> bash
+>>> [elapsed: 9ms]
+>>> bash
+>>> [elapsed: 8ms]
+
+>>> bash
+    size_t remaining =
+        builder_stream->capacity - builder_stream->length;
+
+    if (remaining == 0u) {
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    csa_stream_commit_t commit = {
+        &builder_stream->length,
+        remaining
+    };
+
+    aether_data_out_t out;
+    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);
+
+    csa_authorized_api_remote_t remote = {
+        &commit,
+        csa_stream_commit,
+        &out
+    };
+
+    return csa_authorized_api_send_message(
+        &remote,
+        msg);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:401 api.AuthorizedApi.methods.sendMessages */
+aether_status_t csa_login_stream_authorized_api_send_messages(
+    csa_login_stream_t *builder_stream,
+    csa_message_array_view_t msg) {
+
+    if (builder_stream == NULL ||
+        builder_stream->length > builder_stream->capacity) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    if (builder_stream->capacity > 0u &&
+        builder_stream->data == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    size_t remaining =
+        builder_stream->capacity - builder_stream->length;
+
+    if (remaining == 0u) {
+        return AETHER_ERR_OVERFLOW;
+    }
+
+    csa_stream_commit_t commit = {
+        &builder_stream->length,
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 6ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> bash
+echo '=== 1. Structures _remote_t ===';
+grep -nE '^\s*}\s*\w+_remote_t;' /tmp/regen/aether_api.h;
+echo '--- csa_authorized_api_remote_t ---';
+cat -n /tmp/regen/aether_api.h | sed -n '/typedef struct {/,/} csa_authorized_api_remote_t;/p';
+echo '--- csa_login_api_remote_t ---';
+cat -n /tmp/regen/aether_api.h | sed -n '/typedef struct {/,/} csa_login_api_remote_t;/p';
+echo '--- csa_registration_root_api_remote_t ---';
+cat -n /tmp/regen/aether_api.h | sed -n '/typedef struct {/,/} csa_registration_root_api_remote_t;/p';
+echo '=== 2. csa_registration_root_api_enter ===';
+cat -n /tmp/regen/aether_api.c | sed -n '10372,10399p';
+echo '=== 3. get_asymmetric_public_key ===';
+cat -n /tmp/regen/aether_api.c | sed -n '10349,10375p';
+echo '=== 4. send_message ===';
+cat -n /tmp/regen/aether_api.c | sed -n '10576,10620p';
+echo '=== 5. csa_stream_commit ===';
+cat -n /tmp/regen/aether_api.c | sed -n '10424,10450p';
+echo '--- пример ---';
+cat -n /tmp/regen/aether_api.c | sed -n '10470,10490p';
+echo '=== 6. aether_data_in_t ===';
+cat -n /tmp/regen/aether_api.c | sed -n '95,115p';
+=== 1. Structures _remote_t ===
+1661:} csa_client_api_unsafe_remote_t;
+1720:} csa_client_api_safe_remote_t;
+1961:} csa_authorized_api_remote_t;
+2226:} csa_login_api_remote_t;
+2267:} csa_server_api_by_uid_client_remote_t;
+2353:} csa_server_api_by_uid_remote_t;
+2436:} csa_server_registration_api_remote_t;
+2475:} csa_registration_root_api_remote_t;
+2497:} csa_client_api_reg_safe_remote_t;
+--- csa_authorized_api_remote_t ---
+    13	typedef struct {
+    14	    uint8_t *data;
+    15	    size_t capacity;
+    16	    size_t length;
+    17	} csa_login_stream_t;
+    18	
+    19	typedef struct {
+    20	    uint8_t *data;
+    21	    size_t capacity;
+    22	    size_t length;
+    23	} csa_login_client_stream_t;
+    24	
+    25	typedef struct {
+    26	    uint8_t *data;
+    27	    size_t capacity;
+    28	    size_t length;
+    29	} csa_client_interaction_client_stream_t;
+    30	
+    31	typedef struct {
+    32	    uint8_t *data;
+    33	    size_t capacity;
+    34	    size_t length;
+    35	} csa_client_api_stream_t;
+    36	
+    37	typedef struct {
+    38	    uint8_t *data;
+    39	    size_t capacity;
+    40	    size_t length;
+    41	} csa_client_api_reg_safe_stream_t;
+... (вывод обрезан лимитом 1 строк)
+>>> [elapsed: 116ms]
+
+>>> (отфильтровано: из 81 строк оставлено 81)
+>>> bash
+echo '=== 5. csa_stream_commit (10424-10460) ===';
+sed -n '10424,10460p' /tmp/regen/aether_api.c;
+echo '=== 6. aether_data_in_t (85-130) ===';
+sed -n '85,130p' /tmp/regen/aether_api.c;
+echo '=== завершено ===';
+=== 5. csa_stream_commit (10424-10460) ===
+static aether_status_t csa_stream_commit(
+    void *ctx,
+    const uint8_t *data,
+    size_t length) {
+    (void)data;
+    csa_stream_commit_t *commit =
+        ctx;
+    if (commit == NULL ||
+        commit->length == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    if (length > commit->remaining) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    *commit->length += length;
+    return AETHER_OK;
+}
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:381 api.AuthorizedApi.methods.backId */
+aether_status_t csa_login_stream_authorized_api_back_id(
+    csa_login_stream_t *builder_stream,
+    int16_t id) {
+    if (builder_stream == NULL ||
+        builder_stream->length > builder_stream->capacity) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    if (builder_stream->capacity > 0u &&
+        builder_stream->data == NULL) {
+        return AETHER_ERR_ARGUMENT;
+=== 6. aether_data_in_t (85-130) ===
+    if (!aether_data_out_write(out, (const uint8_t *)(*v).as.common_p256_aes_gcm_sign_private->data.data, 0u, 32u)) return false;
+        break;
+    case 15u:
+        if ((*v).as.common_p256_aes_gcm_sign_public == NULL) return false;
+    if ((*v).as.common_p256_aes_gcm_sign_public == NULL) return false;
+    if (!aether_data_out_write(out, (const uint8_t *)(*v).as.common_p256_aes_gcm_sign_public->data.data, 0u, 64u)) return false;
+        break;
+    default:
+        return false;
+    }
+    (void)v;
+    return true;
+}
+bool common_deserialize_key(
+    aether_data_in_t *in,
+    void *value,
+    unsigned int depth) {
+    if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    if (in == NULL || value == NULL) return false;
+    common_key_ref_t *v = (common_key_ref_t *)value;
+    memset(v, 0, sizeof(*v));
+    {
+        uint8_t _meta_type_id_0 = aether_data_in_read_ubyte(in);
+        if (in->error) return false;
+        switch (_meta_type_id_0) {
+        case 6u: {
+            common_sodium_chacha20_poly1305_t *_meta_child_0 = (common_sodium_chacha20_poly1305_t *)in->scratch_alloc(in->scratch_ctx, sizeof(common_sodium_chacha20_poly1305_t), _Alignof(common_sodium_chacha20_poly1305_t));
+            if (_meta_child_0 == NULL) return false;
+            memset(_meta_child_0, 0, sizeof(*_meta_child_0));
+    {
+    if (!aether_data_in_read(in, (uint8_t *)(_meta_child_0->data).data, 0u, 32u)) return false;
+    }
+            ((*v)).as.common_sodium_chacha20_poly1305 = _meta_child_0;
+            break;
+        }
+        case 1u: {
+            common_hydrogen_curve_private_t *_meta_child_0 = (common_hydrogen_curve_private_t *)in->scratch_alloc(in->scratch_ctx, sizeof(common_hydrogen_curve_private_t), _Alignof(common_hydrogen_curve_private_t));
+            if (_meta_child_0 == NULL) return false;
+            memset(_meta_child_0, 0, sizeof(*_meta_child_0));
+    {
+    if (!aether_data_in_read(in, (uint8_t *)(_meta_child_0->data).data, 0u, 32u)) return false;
+    }
+            ((*v)).as.common_hydrogen_curve_private = _meta_child_0;
+=== завершено ===
+>>> [elapsed: 10ms]
+
+[subtask inspectNewApi] 
+<h2>Новый сгенерированный API — сводка</h2>
+<p>Все структуры <code>*_remote_t</code> имеют одинаковый вид:</p>
+<pre>typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+} ..._remote_t;</pre>
+<p><b>Примеры:</b> <code>csa_client_api_unsafe_remote_t</code>, <code>csa_authorized_api_remote_t</code>, <code>csa_login_api_remote_t</code>, <code>csa_registration_root_api_remote_t</code>.</p>
+
+<hr><h3>Обычный метод (csa_registration_root_api_enter, строки 10372–10399)</h3>
+<pre>aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream) {
+
+    if (api == NULL || api->send == NULL || api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+    if (stream == NULL) return AETHER_ERR_ARGUMENT;
+    if (stream->length > stream->capacity) return AETHER_ERR_ARGUMENT;
+    if (!aether_data_out_write_bytes(out, (*stream).data, (*stream).length)) return false;
+
+    return api->send(api->send_ctx, api->out->data, api->out->pos);
+}</pre>
+
+<hr><h3>Метод с api->out (csa_registration_root_api_get_asymmetric_public_key, строки 10349–10375)</h3>
+<pre>aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib) {
+
+    if (api == NULL || api->send == NULL || api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 3u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_byte(out, (uint8_t)cryptoLib)) return false;
+
+    return api->send(api->send_ctx, api->out->data, api->out->pos);
+}</pre>
+
+<hr><h3>Stream-метод (csa_login_stream_authorized_api_send_message, строки 10576–10620)</h3>
+<pre>aether_status_t csa_login_stream_authorized_api_send_message(
+    csa_login_stream_t *builder_stream,
+    const csa_message_t * msg) {
+
+    // проверки...
+
+    size_t remaining = builder_stream->capacity - builder_stream->length;
+    if (remaining == 0u) return AETHER_ERR_OVERFLOW;
+
+    csa_stream_commit_t commit = { &builder_stream->length, remaining };
+
+    aether_data_out_t out;
+    aether_data_out_init(&out, builder_stream->data + builder_stream->length, remaining);
+
+    csa_authorized_api_remote_t remote = {
+        &commit,
+        csa_stream_commit,
+        &out
+    };
+
+    return csa_authorized_api_send_message(&remote, msg);
+}</pre>
+
+<hr><h3>csa_stream_commit (строки 10424–10443)</h3>
+<pre>static aether_status_t csa_stream_commit(
+    void *ctx,
+    const uint8_t *data,
+    size_t length) {
+    (void)data;
+    csa_stream_commit_t *commit = ctx;
+    if (commit == NULL || commit->length == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    if (length > commit->remaining) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    *commit->length += length;
+    return AETHER_OK;
+}</pre>
+
+<hr><h3>Функция десериализации с aether_data_in_t (common_deserialize_key)</h3>
+<pre>bool common_deserialize_key(
+    aether_data_in_t *in,
+    void *value,
+    unsigned int depth) {
+    if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    if (in == NULL || value == NULL) return false;
+    common_key_ref_t *v = (common_key_ref_t *)value;
+    memset(v, 0, sizeof(*v));
+... (вывод обрезан лимитом 100 строк)
