@@ -1045,7 +1045,9 @@ bool aether_data_in_read_static_obj_array(
 bool aether_data_out_write_uuid(aether_data_out_t *out, aether_uuid_t v) {
     if (out == NULL || out->data == NULL || out->pos + 16u > out->capacity) {
         if (out) out->error = true;
-        return;
+
+        return false;
+
     }
     for (int shift = 56; shift >= 0; shift -= 8) {
         out->data[out->pos++] = (uint8_t)(v.msb >> (unsigned int)shift);
@@ -1053,7 +1055,10 @@ bool aether_data_out_write_uuid(aether_data_out_t *out, aether_uuid_t v) {
     for (int shift = 56; shift >= 0; shift -= 8) {
         out->data[out->pos++] = (uint8_t)(v.lsb >> (unsigned int)shift);
     }
+
+    return true;
 }
+
 
 aether_uuid_t aether_data_in_read_uuid(aether_data_in_t *in) {
     aether_uuid_t result;

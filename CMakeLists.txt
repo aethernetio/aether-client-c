@@ -52,6 +52,13 @@ add_library(aether_client STATIC
 
     src/generated/aether_api.c
 
+    src/generated/aether_reg_root_key.c
+    src/generated/aether_reg_root_enter.c
+    src/generated/aether_reg_safe.c
+    src/generated/aether_reg_unsafe_local.c
+    src/aether_dataio.c
+
+
 
 
 
@@ -736,5 +743,4 @@ endif()
 
 target_sources(aether_client PRIVATE
 )
-
 

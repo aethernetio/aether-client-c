@@ -1,13 +1,7 @@
 
 #include "aether_reg_root_enter.h"
 
-#include "client_server_reg_root_enter_api.h"
-
-
-typedef struct {
-    size_t *length;
-    size_t capacity;
-} aether_reg_root_enter_commit_t;
+#include "aether_api.h"
 
 
 static aether_status_t aether_reg_root_enter_commit(
@@ -17,20 +11,14 @@ static aether_status_t aether_reg_root_enter_commit(
 
     (void)data;
 
-    aether_reg_root_enter_commit_t *commit =
+    size_t *length_out =
         ctx;
 
-    if (commit == NULL ||
-        commit->length == NULL) {
-
+    if (length_out == NULL) {
         return AETHER_ERR_ARGUMENT;
     }
 
-    if (length > commit->capacity) {
-        return AETHER_ERR_OVERFLOW;
-    }
-
-    *commit->length =
+    *length_out =
         length;
 
     return AETHER_OK;
@@ -54,33 +42,36 @@ aether_status_t aether_generated_reg_root_build_enter(
         return AETHER_ERR_ARGUMENT;
     }
 
-    *length =
+    aether_data_out_t out;
+    aether_data_out_init(&out, data, capacity);
+
+    size_t produced =
         0u;
 
-    aether_reg_root_enter_commit_t commit = {
-        .length = length,
-        .capacity = capacity
-    };
-
-    registration_root_api_remote_t remote = {
-        .send_ctx = &commit,
+    csa_registration_root_api_remote_t remote = {
+        .send_ctx = &produced,
         .send = aether_reg_root_enter_commit,
-        .tx = data,
-        .tx_capacity = capacity
+        .out = &out
     };
 
-    server_registration_api_stream_t stream = {
-        .data =
-            (uint8_t *)encrypted_stream,
-        .capacity =
-            encrypted_stream_length,
-        .length =
-            encrypted_stream_length
+    csa_server_registration_api_stream_t stream = {
+        .data = (uint8_t *)encrypted_stream,
+        .capacity = encrypted_stream_length,
+        .length = encrypted_stream_length
     };
 
-    return
-        registration_root_api_enter(
+    aether_status_t status =
+        csa_registration_root_api_enter(
             &remote,
-            (crypto_lib_t)crypto_lib,
+            (common_crypto_lib_t)crypto_lib,
             &stream);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    *length =
+        produced;
+
+    return AETHER_OK;
 }

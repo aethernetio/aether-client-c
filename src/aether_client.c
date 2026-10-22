@@ -5562,13 +5562,16 @@ aether_status_t aether_client_send_message(
         }
     };
 
+
+    aether_data_out_t out;
+    aether_data_out_init(&out, client->tx_plain, sizeof(client->tx_plain));
+
     csa_authorized_api_remote_t authorized = {
         .send_ctx = client,
         .send = generated_authorized_send,
-        .tx = client->tx_plain,
-        .tx_capacity =
-            sizeof(client->tx_plain)
+        .out = &out
     };
+
 
     aether_status_t status =
         csa_authorized_api_send_message_with_result(
