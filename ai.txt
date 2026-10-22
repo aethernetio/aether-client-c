@@ -385,3 +385,16 @@ AETHER C CLIENT (aether-client-c) — архитектура:
 - CMD_RESULT = 0u, CMD_ERROR = 1u (aether_client.c:59-60). Опкоды ответов сервера: 70 = ClientApiUnsafe.sendAsymmetricPublicKey, 6 = RegistrationRootApi.getMyIp, 4 = RegistrationRootApi.enter.
 
 - DEBUG от p2p_e2e (актуально): DBG reg cmd=70 pos=1 len=99 state=4 (signed_key приходит обоим клиентам), затем DBG reg cmd=67 pos=1 len=199 state=5 для клиента B — и падение AETHER_ERR_PROTOCOL. cmd=67 — это пуш requestWorkProofData (WorkProofData: salt/suffix/maxHashVal/poolSize). Его надо обработать в handle_registration_rx (ветка command==67u), сохранить work proof данные и вызвать send_pow_request (после получения PoW — registrationDirect). Опкоды ответов сервера регистрации: проверь в src/generated/aether_api.c какие write_byte(out, N) у csa_server_registration_api_request_work_proof_data и csa_server_registration_api_registration_direct — это и есть 67 и следующий.
+
+- PUSH-МОДЕЛЬ РЕГИСТРАЦИИ (реализована, тест CClientP2PTest ПРОХОДИТ целиком):
+  handle_registration_rx в src/aether_client.c обрабатывает следующие опкоды сервера БЕЗ request_id:
+  * 70 = sendAsymmetricPublicKey (SignedKey) — добавлен парсинг, verify, переход к enter.
+  * 67 = requestWorkProofData (WorkProofData: salt/suffix/poolSize/maxHashVal/globalKey) — парсинг, генерация PoW, отправка registrationDirect.
+  * 66 = RegistrationDirectResult (alias/uid/cloud) — сохранение состояния, переход к resolve.
+  * 68 = sendResolvedServers (массив серверов) — переход к begin_work.
+  * 24 = pingAck — игнорируются в safe-канале.
+  Старая request/response модель (CMD_RESULT + request_id) УДАЛЕНА из регистрации; CMD_ERROR(1) сохранён.
+  Коммит, полностью починивший оба клиента: 941480d.
+- ВАЖНО: cmd=67 в workProofData содержит 16 байт глобального ключа (uid?) перед salt — см. handle_pow_response. salt_len=29, suffix_len=48 типичны.
+- aether_reg_*.c/h в src/generated/ — РУЧНЫЕ адаптеры, переписаны на новый DataInOut API (csa_* + aether_data_out_t), request_id убран. Не генерируются.
+- src/generated/aether_api.c/h — генерируется как ЕДИНАЯ пара из client-server-work-api + common.adsl (команда: aether-adslc --input .../ClientServerApi.adsl.yaml --input .../common.adsl.yaml <outdir>).
