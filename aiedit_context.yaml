@@ -58,7 +58,8 @@
         diagP2P,
         analyzeProtocol,
         rewriteProtocol,
-        rewriteRegRx
+        rewriteRegRx,
+        fixClientB
       ]
       
     }
