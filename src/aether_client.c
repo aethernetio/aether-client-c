@@ -3479,12 +3479,13 @@ aether_reg_unsafe_frame_t frame = {
 
         const uint8_t *key;
 
-        if (frame.kind ==
-            AETHER_REG_UNSAFE_FRAME_ENTER) {
+
+        if (frame.kind == AETHER_REG_UNSAFE_FRAME_ENTER ||
+            frame.kind == AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL) {
+
 
             key =
                 client->temp_key;
-
 
         } else {
             return
@@ -3492,6 +3493,7 @@ aether_reg_unsafe_frame_t frame = {
                     client,
                     AETHER_ERR_PROTOCOL);
         }
+
 
         size_t plain_len =
             0u;
