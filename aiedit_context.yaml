@@ -21,7 +21,7 @@
     autoRun: true,
     autoSend: true,
     selected: {
-      root: polishCClient
+      root: ''
     },
     subtasks: {
       root: [

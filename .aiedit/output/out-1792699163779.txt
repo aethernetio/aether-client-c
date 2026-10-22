@@ -1,0 +1,760 @@
+>>> bash
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 1ms]
+
+>>> bash
+[main efe7a80] checkpoint before polish
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+>>> [elapsed: 10ms]
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/aether_client.c
+[DIR]  src
+>>> (итог: 1 директорий, 1 файлов)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2517:f     fprintf(stderr, "DBG send_reg_enter: after asym encrypt cipher_len=%u\r\n", (unsigned)cipher_len);
+    2540:f     fprintf(stderr, "DBG send_reg_enter: after build_enter packet_len=%u status=%d\r\n", (unsigned)packet_length, (int)status);
+    2552:f     fprintf(stderr, "DBG send_reg_enter: after transport_send status=%d\r\n", (int)status);
+    2748:f     fprintf(stderr, "DBG send_resolve_servers: enter cloud_count=%u\r\n", (unsigned)client->cloud_count);
+    2752:f     fprintf(stderr, "DBG send_resolve: cloud_count==0\r\n");
+    2788:f     fprintf(stderr, "DBG send_resolve: build status=%d\r\n", (int)status);
+    2823:f     fprintf(stderr, "DBG parse_work_proof: enter\r\n");
+    2874:f     fprintf(stderr, "DBG parse_wp: after max_hash pool=%u max=%d\r\n",
+    2901:f     fprintf(stderr, "DBG pow: salt_len=%u suffix_len=%u\r\n", (unsigned)client->registration->pow_salt_len, (unsigned)client->registration->pow_suffix_len);
+    2918:f     fprintf(stderr, "DBG pow resp: start\r\n");
+    3325:f         fprintf(stderr, "DBG reg cmd=%u pos=%u len=%u state=%d\r\n",
+    3491:f             fprintf(stderr, "DBG handle66: enter pos=%u len=%u\r\n", (unsigned)reader.pos, (unsigned)reader.length);
+    3494:f             fprintf(stderr, "DBG handle66: alias=%016llx%016llx uid=%016llx%016llx pos=%u\r\n",
+    3500:f             fprintf(stderr, "DBG handle66: cloud_count=%llu pos=%u\r\n", (unsigned long long)cloud_count, (unsigned)reader.pos);
+    3507:f             fprintf(stderr, "DBG handle66: before sids loop count=%u pos=%u\r\n", (unsigned)client->cloud_count, (unsigned)reader.pos);
+    3516:f             fprintf(stderr, "DBG handle66: after sids loop failed=%d pos=%u\r\n", (int)reader.failed, (unsigned)reader.pos);
+    3519:f             fprintf(stderr, "DBG handle66: cloud_sids[0]=%d pos=%u\r\n", client->cloud_sids[0], (unsigned)reader.pos);
+    4544:f             fprintf(stderr, "DBG unsupported cmd safe=%u pos=%u\r\n", (unsigned)command, (unsigned)reader.pos);
+    4645:f             fprintf(stderr, "DBG unsupported cmd unsafe=%u\r\n", (unsigned)command);
+>>> Found 19 matches.
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      2515:}     }
+      2516:  
+    - 2517:f     fprintf(stderr, "DBG send_reg_enter: after asym encrypt cipher_len=%u\r\n", (unsigned)cipher_len);
+      2517:  
+      2518:  
+    ...
+      2537:}     }
+      2538:  
+    - 2540:f     fprintf(stderr, "DBG send_reg_enter: after build_enter packet_len=%u status=%d\r\n", (unsigned)packet_length, (int)status);
+      2539:  
+      2540:  
+    ...
+      2548:  
+      2549:  
+    - 2552:f     fprintf(stderr, "DBG send_reg_enter: after transport_send status=%d\r\n", (int)status);
+      2550:  
+      2551:i     if (status != AETHER_OK) {
+    ...
+      2743:a     aether_client_t *client) {
+      2744:  
+    - 2748:f     fprintf(stderr, "DBG send_resolve_servers: enter cloud_count=%u\r\n", (unsigned)client->cloud_count);
+      2745:  
+      2746:  
+      2747:  
+    - 2752:f     fprintf(stderr, "DBG send_resolve: cloud_count==0\r\n");
+      2748:  
+      2749:i     if (client->cloud_count == 0u) {
+    ...
+      2781:}     }
+      2782:  
+    - 2788:f     fprintf(stderr, "DBG send_resolve: build status=%d\r\n", (int)status);
+      2783:  
+      2784:  
+    ...
+      2815:  
+      2816:  
+    - 2823:f     fprintf(stderr, "DBG parse_work_proof: enter\r\n");
+      2817:  
+      2818:c     const uint8_t *salt;
+    ...
+      2865:  
+      2866:  
+    - 2874:f     fprintf(stderr, "DBG parse_wp: after max_hash pool=%u max=%d\r\n",
+      2867:(             (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
+      2868:  
+    ...
+      2891:  
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> No matches found for: DBG
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [120000, Script1$_run_closure1@e045516]
+````
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected character: '`' @ line 1, column 1.    ```groovy    ^  1 error 
+````
+
+>>> bash
+[  6%] Built target aether_hydrogen_vendor
+[  9%] Building C object CMakeFiles/aether_client.dir/src/aether_client.c.o
+[ 18%] Built target aether_hydrogen_test_support
+/home/angel/projects/aether-client-c/src/aether_client.c: In function ‘parse_work_proof’:
+/home/angel/projects/aether-client-c/src/aether_client.c:2867:58: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 2867 |             (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
+      |                                                          ^
+/home/angel/projects/aether-client-c/src/aether_client.c:2867:58: error: statement with no effect [-Werror=unused-value]
+/home/angel/projects/aether-client-c/src/aether_client.c:2867:94: error: expected ‘;’ before ‘)’ token
+ 2867 |             (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
+      |                                                                                              ^
+      |                                                                                              ;
+/home/angel/projects/aether-client-c/src/aether_client.c:2867:94: error: expected statement before ‘)’ token
+/home/angel/projects/aether-client-c/src/aether_client.c: In function ‘handle_registration_rx’:
+/home/angel/projects/aether-client-c/src/aether_client.c:3315:34: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 3315 |                 (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+      |                                  ^
+/home/angel/projects/aether-client-c/src/aether_client.c:3315:56: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 3315 |                 (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+      |                                                        ^
+/home/angel/projects/aether-client-c/src/aether_client.c:3315:81: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 3315 |                 (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+      |                                                                                 ^
+/home/angel/projects/aether-client-c/src/aether_client.c:3315:81: error: statement with no effect [-Werror=unused-value]
+/home/angel/projects/aether-client-c/src/aether_client.c:3315:101: error: expected ‘;’ before ‘)’ token
+ 3315 |                 (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+      |                                                                                                     ^
+      |                                                                                                     ;
+/home/angel/projects/aether-client-c/src/aether_client.c:3315:101: error: expected statement before ‘)’ token
+/home/angel/projects/aether-client-c/src/aether_client.c:3482:58: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 3482 |                     (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
+      |                                                          ^
+/home/angel/projects/aether-client-c/src/aether_client.c:3482:97: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 3482 |                     (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
+      |                                                                                                 ^
+/home/angel/projects/aether-client-c/src/aether_client.c:3483:56: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 3483 |                     (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
+      |                                                        ^
+/home/angel/projects/aether-client-c/src/aether_client.c:3483:93: error: left-hand operand of comma expression has no effect [-Werror=unused-value]
+ 3483 |                     (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
+      |                                                                                             ^
+/home/angel/projects/aether-client-c/src/aether_client.c:3483:93: error: statement with no effect [-Werror=unused-value]
+/home/angel/projects/aether-client-c/src/aether_client.c:3484:41: error: expected ‘;’ before ‘)’ token
+ 3484 |                     (unsigned)reader.pos);
+      |                                         ^
+      |                                         ;
+/home/angel/projects/aether-client-c/src/aether_client.c:3484:41: error: expected statement before ‘)’ token
+cc1: all warnings being treated as errors
+gmake[3]: *** [CMakeFiles/aether_client.dir/build.make:79: CMakeFiles/aether_client.dir/src/aether_client.c.o] Ошибка 1
+gmake[2]: *** [CMakeFiles/Makefile2:170: CMakeFiles/aether_client.dir/all] Ошибка 2
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 102ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: DsmlParseException
+  message: No DSML invoke blocks found
+````
+
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3482 to 3486
+    3482:(                     (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
+    3483:(                     (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
+    3484:(                     (unsigned)reader.pos);
+    3485:  
+    3486:u             uint64_t cloud_count = r_pack(&reader);
+>>> (показано строк: 5 из 5724)
+>>> [API ERROR] delete(verified) -> Верификация не пройдена: строка 3484 начинается с '(', ожидалось 'p'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.c/home/angel/projects/aether-client-c/src/aether_client.c lines 3481 to 3485
+    3481:c             client->uid = r_uuid(&reader);
+    3482:(                     (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
+    3483:(                     (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
+    3484:(                     (unsigned)reader.pos);
+    3485:  
+>>> (показано строк: 5 из 5724)
+>>> [API ERROR] delete(verified) -> Верификация не пройдена: строка 3483 начинается с '(', ожидалось 'p'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.c/home/angel/projects/aether-client-c/src/aether_client.c lines 3480 to 3484
+    3480:c             client->alias = r_uuid(&reader);
+    3481:c             client->uid = r_uuid(&reader);
+    3482:(                     (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
+    3483:(                     (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
+    3484:(                     (unsigned)reader.pos);
+>>> (показано строк: 5 из 5724)
+>>> [API ERROR] delete(verified) -> Верификация не пройдена: строка 3482 начинается с '(', ожидалось 'p'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.c/home/angel/projects/aether-client-c/src/aether_client.c lines 3313 to 3317
+    3313:  
+    3314:u         uint8_t command = r_u8(&reader);
+    3315:(                 (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+    3316:  
+    3317:  
+>>> (показано строк: 5 из 5724)
+>>> [API ERROR] delete(verified) -> Верификация не пройдена: строка 3315 начинается с '(', ожидалось 'p'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.c/home/angel/projects/aether-client-c/src/aether_client.c lines 2865 to 2869
+    2865:  
+    2866:  
+    2867:(             (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
+    2868:  
+    2869:r     return
+>>> (показано строк: 5 из 5724)
+>>> [API ERROR] delete(verified) -> Верификация не пройдена: строка 2867 начинается с '(', ожидалось 'p'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.ctimestamp: 1792698982584
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      2865:  
+      2866:  
+    - 2867:(             (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
+      2867:  
+      2868:r     return
+    ...
+      3312:  
+      3313:u         uint8_t command = r_u8(&reader);
+    - 3315:(                 (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+      3314:  
+      3315:  
+    ...
+      3478:c             client->alias = r_uuid(&reader);
+      3479:c             client->uid = r_uuid(&reader);
+    - 3482:(                     (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
+    - 3483:(                     (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
+    - 3484:(                     (unsigned)reader.pos);
+      3480:  
+      3481:u             uint64_t cloud_count = r_pack(&reader);
+
+>>> bash
+[  6%] Built target aether_hydrogen_vendor
+[ 15%] Built target aether_hydrogen_test_support
+[ 18%] Building C object CMakeFiles/aether_client.dir/src/aether_client.c.o
+[ 21%] Linking C static library libaether_client.a
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 257ms]
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/generated/aether_reg_root_enter.c
+[FILE] src/generated/aether_reg_root_key.c
+[FILE] src/generated/aether_reg_safe.c
+[FILE] src/generated/aether_reg_unsafe_local.c
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 4 файлов)
+
+>>> bash
+[  6%] Built target aether_hydrogen_vendor
+[ 15%] Built target aether_hydrogen_test_support
+[ 90%] Built target aether_client
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 114ms]
+
+>>> struct
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.c
+    2:# #include "aether_reg_root_key.h"
+    4:# #include "aether_api.h"
+    7:s static aether_status_t aether_reg_root_key_commit(
+    25:} }
+    28:a aether_status_t aether_generated_reg_root_build_get_key(
+    66:} }
+>>> (показано строк: 6 из 66)
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.c
+    2:# #include "aether_reg_root_enter.h"
+    4:# #include "aether_api.h"
+    7:s static aether_status_t aether_reg_root_enter_commit(
+    25:} }
+    28:a aether_status_t aether_generated_reg_root_build_enter(
+    77:} }
+>>> (показано строк: 6 из 77)
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c
+    2:# #include "aether_reg_unsafe_local.h"
+    4:# #include "aether_dataio.h"
+    7:a aether_status_t aether_generated_reg_unsafe_decode(
+    85:} }
+>>> (показано строк: 4 из 85)
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.c
+    2:# #include "aether_reg_safe.h"
+    4:# #include "aether_api.h"
+    6:# #include <string.h>
+    9:t typedef struct {
+    11:} } aether_reg_safe_commit_t;
+    14:t typedef union {
+    18:} } aether_reg_safe_key_storage_t;
+    21:s static aether_status_t aether_reg_safe_commit(
+    41:} }
+    44:s static aether_status_t aether_reg_safe_key(
+    106:} }
+    109:a aether_status_t aether_generated_reg_safe_build_pow(
+    175:} }
+    178:a aether_status_t aether_generated_reg_safe_build_registration(
+    212:} }
+    215:a aether_status_t aether_generated_reg_safe_build_registration_direct(
+    326:} }
+    329:a aether_status_t aether_generated_reg_safe_build_recovery(
+    431:} }
+    434:a aether_status_t aether_generated_reg_safe_build_resolve_with_return_key(
+    512:} }
+    515:a aether_status_t aether_generated_reg_safe_build_resolve(
+    566:} }
+>>> (показано строк: 23 из 566)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.c
+    1:  
+    2:# #include "aether_reg_root_key.h"
+    3:  
+    4:# #include "aether_api.h"
+    5:  
+    6:  
+    7:s static aether_status_t aether_reg_root_key_commit(
+    8:v     void *ctx,
+    9:c     const uint8_t *data,
+    10:s     size_t length) {
+    11:  
+    12:(     (void)data;
+    13:  
+    14:s     size_t *length_out =
+    15:c         ctx;
+    16:  
+    17:i     if (length_out == NULL) {
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:*     *length_out =
+    22:l         length;
+    23:  
+    24:r     return AETHER_OK;
+    25:} }
+    26:  
+    27:  
+    28:a aether_status_t aether_generated_reg_root_build_get_key(
+    29:u     uint8_t *data,
+    30:s     size_t capacity,
+    31:s     size_t *length,
+    32:u     uint8_t crypto_lib) {
+    33:  
+    34:i     if (length == NULL ||
+    35:(         (capacity > 0u &&
+    36:d          data == NULL)) {
+    37:  
+    38:r         return AETHER_ERR_ARGUMENT;
+    39:}     }
+    40:  
+    41:a     aether_data_out_t out;
+    42:a     aether_data_out_init(&out, data, capacity);
+    43:  
+    44:s     size_t produced =
+    45:0         0u;
+    46:  
+    47:c     csa_registration_root_api_remote_t remote = {
+    48:.         .send_ctx = &produced,
+    49:.         .send = aether_reg_root_key_commit,
+    50:.         .out = &out
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.c
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.c
+    1:  
+    2:# #include "aether_reg_root_key.h"
+    3:  
+    4:# #include "aether_api.h"
+    5:  
+    6:  
+    7:s static aether_status_t aether_reg_root_key_commit(
+    8:v     void *ctx,
+    9:c     const uint8_t *data,
+    10:s     size_t length) {
+    11:  
+    12:(     (void)data;
+    13:  
+    14:s     size_t *length_out =
+    15:c         ctx;
+    16:  
+    17:i     if (length_out == NULL) {
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:*     *length_out =
+    22:l         length;
+    23:  
+    24:r     return AETHER_OK;
+    25:} }
+    26:  
+    27:  
+    28:a aether_status_t aether_generated_reg_root_build_get_key(
+    29:u     uint8_t *data,
+    30:s     size_t capacity,
+    31:s     size_t *length,
+    32:u     uint8_t crypto_lib) {
+    33:  
+    34:i     if (length == NULL ||
+    35:(         (capacity > 0u &&
+    36:d          data == NULL)) {
+    37:  
+    38:r         return AETHER_ERR_ARGUMENT;
+    39:}     }
+    40:  
+    41:a     aether_data_out_t out;
+    42:a     aether_data_out_init(&out, data, capacity);
+    43:  
+    44:s     size_t produced =
+    45:0         0u;
+    46:  
+    47:c     csa_registration_root_api_remote_t remote = {
+    48:.         .send_ctx = &produced,
+    49:.         .send = aether_reg_root_key_commit,
+    50:.         .out = &out
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2422:c     client->req_server_key =
+    2581:c     client->registration->req_pow =
+    2628:c     client->registration->req_finish =
+    2691:c     client->req_resolve =
+    2756:c     client->req_resolve =
+    2989:c                     client->registration->req_pow) {
+    3007:c                     client->registration->req_finish) {
+    3097:c                     client->req_resolve) {
+    3678:c                     client->req_resolve ||
+    3796:c                     client->req_server_key ||
+    4898:c     client->req_server_key =
+    4901:c     client->req_resolve =
+>>> Found 12 matches.
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: DsmlParseException
+  message: No DSML invoke blocks found
+````
+
+>>> view
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c
+    1:  
+    2:# #include "aether_reg_unsafe_local.h"
+    3:  
+    4:# #include "aether_dataio.h"
+    5:  
+    6:  
+    7:a aether_status_t aether_generated_reg_unsafe_decode(
+    8:a     aether_reg_unsafe_frame_t *frame,
+    9:c     const uint8_t *data,
+    10:s     size_t length,
+    11:s     size_t *consumed) {
+    12:  
+    13:i     if (frame == NULL ||
+    14:c         consumed == NULL ||
+    15:(         (length > 0u &&
+    16:d          data == NULL)) {
+    17:  
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:f     frame->kind =
+    22:0         0;
+    23:  
+    24:f     frame->data =
+    25:N         NULL;
+    26:  
+    27:f     frame->length =
+    28:0         0u;
+    29:  
+    30:*     *consumed =
+    31:0         0u;
+    32:  
+    33:a     aether_data_in_t in;
+    34:a     aether_data_in_init(&in, data, length);
+    35:  
+    36:u     uint8_t command =
+    37:a         aether_data_in_read_ubyte(&in);
+    38:  
+    39:u     uint64_t stream_length_u64 =
+    40:a         aether_data_in_read_pack(&in);
+    41:  
+    42:i     if (aether_data_in_error(&in) ||
+    43:s         stream_length_u64 > (uint64_t)SIZE_MAX) {
+    44:  
+    45:r         return AETHER_ERR_PROTOCOL;
+    46:}     }
+    47:  
+    48:s     size_t stream_length =
+    49:(         (size_t)stream_length_u64;
+    50:  
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c
+    1:  
+    2:# #include "aether_reg_unsafe_local.h"
+    3:  
+    4:# #include "aether_dataio.h"
+    5:  
+    6:  
+    7:a aether_status_t aether_generated_reg_unsafe_decode(
+    8:a     aether_reg_unsafe_frame_t *frame,
+    9:c     const uint8_t *data,
+    10:s     size_t length,
+    11:s     size_t *consumed) {
+    12:  
+    13:i     if (frame == NULL ||
+    14:c         consumed == NULL ||
+    15:(         (length > 0u &&
+    16:d          data == NULL)) {
+    17:  
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:f     frame->kind =
+    22:0         0;
+    23:  
+    24:f     frame->data =
+    25:N         NULL;
+    26:  
+    27:f     frame->length =
+    28:0         0u;
+    29:  
+    30:*     *consumed =
+    31:0         0u;
+    32:  
+    33:a     aether_data_in_t in;
+    34:a     aether_data_in_init(&in, data, length);
+    35:  
+    36:u     uint8_t command =
+    37:a         aether_data_in_read_ubyte(&in);
+    38:  
+    39:u     uint64_t stream_length_u64 =
+    40:a         aether_data_in_read_pack(&in);
+    41:  
+    42:i     if (aether_data_in_error(&in) ||
+    43:s         stream_length_u64 > (uint64_t)SIZE_MAX) {
+    44:  
+    45:r         return AETHER_ERR_PROTOCOL;
+    46:}     }
+    47:  
+    48:s     size_t stream_length =
+    49:(         (size_t)stream_length_u64;
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.c
+    1:  
+    2:# #include "aether_reg_root_enter.h"
+    3:  
+    4:# #include "aether_api.h"
+    5:  
+    6:  
+    7:s static aether_status_t aether_reg_root_enter_commit(
+    8:v     void *ctx,
+    9:c     const uint8_t *data,
+    10:s     size_t length) {
+    11:  
+    12:(     (void)data;
+    13:  
+    14:s     size_t *length_out =
+    15:c         ctx;
+    16:  
+    17:i     if (length_out == NULL) {
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:*     *length_out =
+    22:l         length;
+    23:  
+    24:r     return AETHER_OK;
+    25:} }
+    26:  
+    27:  
+    28:a aether_status_t aether_generated_reg_root_build_enter(
+    29:u     uint8_t *data,
+    30:s     size_t capacity,
+    31:s     size_t *length,
+    32:u     uint8_t crypto_lib,
+    33:c     const uint8_t *encrypted_stream,
+    34:s     size_t encrypted_stream_length) {
+    35:  
+    36:i     if (length == NULL ||
+    37:(         (capacity > 0u &&
+    38:d          data == NULL) ||
+    39:(         (encrypted_stream == NULL &&
+    40:e          encrypted_stream_length != 0u)) {
+    41:  
+    42:r         return AETHER_ERR_ARGUMENT;
+    43:}     }
+    44:  
+    45:a     aether_data_out_t out;
+    46:a     aether_data_out_init(&out, data, capacity);
+    47:  
+    48:s     size_t produced =
+    49:0         0u;
+    50:  
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [300000, Script1$_run_closure1@4b8a6647]
+````
+
+>>> (отфильтровано: из 22 строк оставлено 4)
+  /home/angel/projects/aether/server-cloud/build/generated/db-support/io/aether/utils/dbSupport/SyncGroupEntityMetadata.java:13: error: cannot find symbol
+  /home/angel/projects/aether/server-cloud/build/generated/db-support/io/aether/utils/dbSupport/SyncServerEntityMetadata.java:13: error: cannot find symbol
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+BUILD FAILED in 22s
+
+>>> bash
+>>> [elapsed: 45337ms]
+
+>>> bash
+-rw-rw-r-- 1 angel angel 8067 Oct 23 03:58 /tmp/gradle_out2.txt
+> Task :cloud-client:cli:classes
+> Task :cloud-client:cli:jar
+> Task :cloud-client:echo:compileJava
+> Task :cloud-client:echo:classes
+> Task :cloud-client:echo:jar
+> Task :server-cloud:compileJava
+> Task :server-cloud:processResources
+> Task :server-cloud:classes
+> Task :server-cloud:jar
+> Task :admin-shell:compileJava
+> Task :admin-shell:processResources
+> Task :admin-shell:classes
+> Task :admin-shell:jar
+> Task :clickhouse-logger:processResources NO-SOURCE
+> Task :clickhouse-logger:classes
+> Task :clickhouse-logger:jar
+> Task :tests:processResources NO-SOURCE
+> Task :tests:processTestResources
+> Task :cloud-client:smarthub:aetherProtocol
+> Task :cloud-client:smarthub:compileJava
+> Task :cloud-client:smarthub:classes
+> Task :cloud-client:smarthub:jar
+> Task :tests:aetherProtocol
+> Task :tests:compileJava
+> Task :tests:classes
+> Task :auth-service:aetherProtocol
+> Task :auth-service:compileJava
+> Task :auth-service:classes
+> Task :auth-service:jar
+> Task :tests:aetherTestProtocol
+>>> [elapsed: 9ms]
+
+>>> findRegexp
+>>> [elapsed: 27412ms]
+>>> bash
+[ 15%] Built target aether_hydrogen_test_support
+[ 90%] Built target aether_client
+[100%] Built target aether_p2p_e2e
+C public API P2P E2E PASS
+
+> Task :tests:test
+
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() PASSED
+
+[Incubating] Problems report is available at: file:///home/angel/projects/aether/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 27s
+89 actionable tasks: 89 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.6.1/userguide/configuration_cache_enabling.html
+EXIT=0
+>>> [elapsed: 3ms]
+
+>>> bash
+[main 5733630] polish: remove debug prints and clean registration adapters
+ 2 files changed, 2 insertions(+), 26 deletions(-)
+>>> [elapsed: 17ms]
+>>> bash
+5733630 polish: remove debug prints and clean registration adapters
+efe7a80 checkpoint before polish
+>>> [elapsed: 2ms]
+
+>>> bash
+>>> [elapsed: 4ms]
+
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.c lines 1 to 100
+    1:  
+    2:# #include "aether_reg_root_key.h"
+    3:  
+    4:# #include "aether_api.h"
+    5:  
+    6:  
+    7:s static aether_status_t aether_reg_root_key_commit(
+    8:v     void *ctx,
+    9:c     const uint8_t *data,
+    10:s     size_t length) {
+    11:  
+    12:(     (void)data;
+    13:  
+    14:s     size_t *length_out =
+    15:c         ctx;
+    16:  
+    17:i     if (length_out == NULL) {
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:*     *length_out =
+    22:l         length;
+    23:  
+    24:r     return AETHER_OK;
+    25:} }
+    26:  
+    27:  
+    28:a aether_status_t aether_generated_reg_root_build_get_key(
+    29:u     uint8_t *data,
+    30:s     size_t capacity,
+    31:s     size_t *length,
+    32:u     uint8_t crypto_lib) {
+    33:  
+    34:i     if (length == NULL ||
+    35:(         (capacity > 0u &&
+    36:d          data == NULL)) {
+    37:  
+    38:r         return AETHER_ERR_ARGUMENT;
+    39:}     }
+    40:  
+    41:a     aether_data_out_t out;
+    42:a     aether_data_out_init(&out, data, capacity);
+    43:  
+    44:s     size_t produced =
+    45:0         0u;
+    46:  
+    47:c     csa_registration_root_api_remote_t remote = {
+    48:.         .send_ctx = &produced,
+    49:.         .send = aether_reg_root_key_commit,
+    50:.         .out = &out
+>>> (показано строк: 66 из 66)
+
+>>> bash
+>>> [elapsed: 9ms]
+
+
+[subtask polishCClient] <b>Отчёт о полировке C-клиента</b><br><br><b>Удалено:</b><br>- 19 строк отладочной печати <code>DBG</code> (reg cmd, send_reg_enter, send_resolve, parse_work_proof, parse_wp, pow, pow resp, handle66 и др.)<br>- 5 хвостовых строк от многострочных <code>fprintf(stderr,...)</code><br><br><b>Осталось DBG-печати:</b> нет (поиск по <code>DBG</code> в src/aether_client.c — пусто)<br><br><b>Ручные адаптеры aether_reg_*.c:</b> не требовали выноса helper — дубликатов не найдено, публичные сигнатуры не менялись<br><br><b>req_* поля:</b> запись не удалялась — поля задействованы в сверке/др. местах, удаление рискованно для ABI<br><br><b>Тест:</b> CClientP2PTest > twoCClientsRegisterAndExchangeMessages() <b>PASSED</b>, BUILD SUCCESSFUL<br><br><b>Коммиты:</b><br>5733630 polish: remove debug prints and clean registration adapters<br>efe7a80 checkpoint before polish
