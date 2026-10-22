@@ -1,0 +1,122 @@
+>>> bash
+
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3449 to 3453
+    3449:s                 send_pow_request(
+    3450:c                     client);
+    3451:  
+    3452:}         }
+    3453:  
+>>> (показано строк: 5 из 5627)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 3451 пуста, ожидался символ 'i'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.ctimestamp: 1792694846252
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3292 to 3460
+    3292:  
+    3293:u         uint8_t command = r_u8(&reader);
+    3294:f         fprintf(stderr, "DBG reg cmd=%u pos=%u len=%u state=%d\r\n",
+    3295:(                 (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
+    3296:  
+    3297:  
+    3298:  
+    3299:  
+    3300:i         if (command == CMD_RESULT ||
+    3301:c             command == 70u) {
+    3302:  
+    3303:  
+    3304:i             if (!parse_signed_key(
+    3305:&                     &reader,
+    3306:c                     client,
+    3307:&                     &client->registration_server_key)) {
+    3308:  
+    3309:r                 return
+    3310:f                     fail(
+    3311:c                         client,
+    3312:A                         AETHER_ERR_PROTOCOL);
+    3313:}             }
+    3314:  
+    3315:i             if (!verify_signed_key(
+    3316:c                     client,
+    3317:&                     &client->registration_server_key)) {
+    3318:  
+    3319:r                 return
+    3320:f                     fail_with_origin(
+    3321:c                         client,
+    3322:A                         AETHER_ERR_CRYPTO,
+    3323:A                         AETHER_ERROR_ORIGIN_TRUST);
+    3324:}             }
+    3325:  
+    3326:  
+    3327:i             if (client->state ==
+    3328:A                 AETHER_STATE_SERVER_RESOLVING) {
+    3329:  
+    3330:i                 if (client->config.crypto
+    3331:-                             ->random_symmetric_key(
+    3332:c                         client->config.crypto_ctx,
+    3333:c                         client->temp_key,
+    3334:c                         client->config.crypto
+    3335:-                             ->profile.symmetric_key_bytes) !=
+    3336:A                     AETHER_OK) {
+    3337:  
+    3338:r                     return
+    3339:f                         fail(
+    3340:c                             client,
+    3341:A                             AETHER_ERR_CRYPTO);
+>>> (показано строк: 169 из 5627)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2568 to 2615
+    2568:} }
+    2569:  
+    2570:  
+    2571:s static aether_status_t send_pow_request(
+    2572:a     aether_client_t *client) {
+    2573:  
+    2574:  
+    2575:c     client->registration->req_pow =
+    2576:n         next_request_id(
+    2577:c             client);
+    2578:  
+    2579:  
+    2580:s     size_t nested_len =
+    2581:0         0u;
+    2582:  
+    2583:a     aether_status_t status =
+    2584:a         aether_generated_reg_safe_build_pow(
+    2585:c             client->tx_plain,
+    2586:s             sizeof(client->tx_plain),
+    2587:&             &nested_len,
+    2588:c             client->config.crypto
+    2589:-                 ->profile.symmetric_key_type,
+    2590:c             client->temp_key,
+    2591:c             client->config.crypto
+    2592:-                 ->profile.symmetric_key_bytes,
+    2593:c             client->config.parent_uid);
+    2594:  
+    2595:i     if (status != AETHER_OK) {
+    2596:r         return
+    2597:f             fail(
+    2598:c                 client,
+    2599:s                 status);
+    2600:}     }
+    2601:  
+    2602:s     status =
+    2603:s         send_reg_enter(
+    2604:c             client,
+    2605:c             client->tx_plain,
+    2606:n             nested_len);
+    2607:  
+    2608:i     if (status == AETHER_OK) {
+    2609:s         set_registration_state(
+    2610:c             client,
+    2611:A             AETHER_STATE_REG_WAIT_POW);
+    2612:}     }
+    2613:  
+    2614:r     return status;
+    2615:} }
+>>> (показано строк: 48 из 5627)
+281e51b protocol: accept ENTER_GLOBAL push frame in registration rx
+ff195bd checkpoint before adding push-opcode debug
+3d9aedf checkpoint: before finalizing protocol fix for client B
+---
+ M src/aether_client.c
+>>> [elapsed: 50008ms]

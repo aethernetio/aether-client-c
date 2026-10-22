@@ -1,0 +1,268 @@
+>>> bash
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 200 to 310
+    200:e             expected_from) &&
+    201:r         received->size == expected_size &&
+    202:m         memcmp(
+    203:r             received->data,
+    204:e             expected,
+    205:e             expected_size) == 0
+    206:?         ? 0
+    207::         : -1;
+    208:} }
+    209:  
+    210:  
+    211:i int main(void) {
+    212:s     static const aether_uuid_t parent = {
+    213:U         UINT64_C(0xB1AC52C88D94BD39),
+    214:U         UINT64_C(0x4C01A631AC594165)
+    215:}     };
+    216:  
+    217:/     /*
+    218:*      * This is the complete client setup.
+    219:*      *
+    220:*      * Client A uses the default persistent slot.
+    221:*      * Client B uses a second independent identity.
+    222:*      */
+    223:i     if (aether_init(
+    224:&             &client_a,
+    225:p             parent) != AETHER_OK ||
+    226:a         aether_init_slot(
+    227:&             &client_b,
+    228:p             parent,
+    229:1             1u) != AETHER_OK) {
+    230:  
+    231:f         fprintf(
+    232:s             stderr,
+    233:"             "Failed to initialize C clients\n");
+    234:  
+    235:r         return 1;
+    236:}     }
+    237:  
+    238:a     aether_on_message(
+    239:&         &client_a,
+    240:o         on_message);
+    241:  
+    242:a     aether_on_message(
+    243:&         &client_b,
+    244:o         on_message);
+    245:  
+    246:a     aether_on_error(
+    247:&         &client_a,
+    248:o         on_error);
+    249:  
+>>> (показано строк: 111 из 443)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2380 to 2490
+    2380:  
+    2381:  
+    2382:s static aether_status_t begin_work(
+    2383:a     aether_client_t *client) {
+    2384:  
+    2385:i     int preferred =
+    2386:f         find_active_server(
+    2387:c             client);
+    2388:  
+    2389:i     if (preferred < 0) {
+    2390:r         return
+    2391:b             begin_server_resolving(
+    2392:c                 client);
+    2393:}     }
+    2394:  
+    2395:c     client->active_server_index =
+    2396:-         -1;
+    2397:  
+    2398:i     int previous =
+    2399:p         preferred == 0
+    2400:?             ? -1
+    2401::             : preferred - 1;
+    2402:  
+    2403:r     return
+    2404:c         connect_next_work_server(
+    2405:c             client,
+    2406:p             previous);
+    2407:} }
+    2408:  
+    2409:  
+    2410:s static aether_status_t send_get_server_key(
+    2411:a     aether_client_t *client) {
+    2412:  
+    2413:  
+    2414:b     bool recovery =
+    2415:c         client->state ==
+    2416:A         AETHER_STATE_RECOVERY_CONNECTING;
+    2417:  
+    2418:  
+    2419:c     client->req_server_key =
+    2420:n         next_request_id(
+    2421:c             client);
+    2422:  
+    2423:s     size_t packet_length =
+    2424:0         0u;
+    2425:  
+    2426:a     aether_status_t status =
+    2427:a         aether_generated_reg_root_build_get_key(
+    2428:c             client->tx_plain,
+    2429:s             sizeof(client->tx_plain),
+>>> (показано строк: 111 из 5590)
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c
+    1:  
+    2:# #include "aether_reg_unsafe_local.h"
+    3:  
+    4:# #include "aether_dataio.h"
+    5:  
+    6:  
+    7:a aether_status_t aether_generated_reg_unsafe_decode(
+    8:a     aether_reg_unsafe_frame_t *frame,
+    9:c     const uint8_t *data,
+    10:s     size_t length,
+    11:s     size_t *consumed) {
+    12:  
+    13:i     if (frame == NULL ||
+    14:c         consumed == NULL ||
+    15:(         (length > 0u &&
+    16:d          data == NULL)) {
+    17:  
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:f     frame->kind =
+    22:0         0;
+    23:  
+    24:f     frame->data =
+    25:N         NULL;
+    26:  
+    27:f     frame->length =
+    28:0         0u;
+    29:  
+    30:*     *consumed =
+    31:0         0u;
+    32:  
+    33:a     aether_data_in_t in;
+    34:a     aether_data_in_init(&in, data, length);
+    35:  
+    36:u     uint8_t command =
+    37:a         aether_data_in_read_ubyte(&in);
+    38:  
+    39:u     uint64_t stream_length_u64 =
+    40:a         aether_data_in_read_pack(&in);
+    41:  
+    42:i     if (aether_data_in_error(&in) ||
+    43:s         stream_length_u64 > (uint64_t)SIZE_MAX) {
+    44:  
+    45:r         return AETHER_ERR_PROTOCOL;
+    46:}     }
+    47:  
+    48:s     size_t stream_length =
+    49:(         (size_t)stream_length_u64;
+    50:  
+
+>>> findText
+/home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java
+>>> (совпадений не найдено)
+
+>>> view
+/home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java lines 1 to 68
+    1:p package io.aether.cloud.client;
+    2:  
+    3:i import io.aether.api.CryptoUtils;
+    4:i import io.aether.api.clientserverapi.*;
+    5:  
+    6:i import io.aether.api.common.Cloud;
+    7:i import io.aether.api.common.KeySymmetric;
+    8:i import io.aether.api.common.PowMethod;
+    9:i import io.aether.api.common.ServerDescriptor;
+    10:i import io.aether.api.common.WorkProofDTO;
+    11:  
+    12:i import io.aether.crypto.AKey;
+    13:i import io.aether.crypto.CryptoEngine;
+    14:i import io.aether.crypto.CryptoProviderFactory;
+    15:i import io.aether.logger.Log;
+    16:i import io.aether.utils.WorkProofUtil;
+    17:i import io.aether.utils.futures.AFuture;
+    18:i import io.aether.utils.futures.ARFuture;
+    19:  
+    20:i import java.net.URI;
+    21:i import java.util.Arrays;
+    22:  
+    23:p public class ConnectionRegistration extends Connection<ClientApiUnsafe, RegistrationRootApiRemote> implements ClientApiUnsafe {
+    24:f     final AFuture connectFuture = AFuture.make();
+    25:p     private final AKey.Symmetric tempKey = CryptoProviderFactory.getProvider(client.getCryptLib().name()).createSymmetricKey();
+    26:p     private final KeySymmetric tempKeyNative = CryptoUtils.of(tempKey);
+    27:p     private final CryptoEngine tempKeyCp = tempKey.toCryptoEngine();
+    28:  
+    29:  
+    30:p     private final io.aether.utils.slots.AMFuture<io.aether.api.common.SignedKey> asymmetricPublicKeyMFuture
+    31:=             = new io.aether.utils.slots.AMFuture<>();
+    32:p     private final io.aether.utils.slots.AMFuture<ServerDescriptor[]> resolvedServersMFuture
+    33:=             = new io.aether.utils.slots.AMFuture<>();
+    34:  
+    35:  
+    36:p     private final io.aether.utils.slots.AMFuture<WorkProofDTO> workProofMFuture
+    37:=             = new io.aether.utils.slots.AMFuture<>();
+    38:p     private final io.aether.utils.slots.AMFuture<RegistrationDirectResult> registrationDirectMFuture
+    39:=             = new io.aether.utils.slots.AMFuture<>();
+    40:  
+    41:  
+    42:v     volatile ServerRegistrationApiRemote safeApi;
+    43:  
+    44:  
+    45:p     public ConnectionRegistration(AetherCloudClient client, URI uri) {
+    46:s         super(client, uri, ClientApiUnsafe.META, RegistrationRootApi.META);
+    47:}     }
+    48:  
+    49:p     private ARFuture<CryptoEngine> getAsymmetricPublicKey() {
+    50:L         Log.debug("RegConn: TCP connection successful, requesting asymmetric key.", "uri", uri);
+>>> (показано строк: 68 из 201)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2490 to 2520
+    2490:s static aether_status_t send_reg_enter(
+    2491:a     aether_client_t *client,
+    2492:c     const uint8_t *nested,
+    2493:s     size_t nested_len) {
+    2494:  
+    2495:s     size_t cipher_len =
+    2496:0         0u;
+    2497:  
+    2498:i     if (crypto_asymmetric_encrypt(
+    2499:c             client,
+    2500:c             client->registration_server_key.key,
+    2501:n             nested,
+    2502:n             nested_len,
+    2503:c             client->tx_crypto,
+    2504:s             sizeof(client->tx_crypto),
+    2505:&             &cipher_len) !=
+    2506:A         AETHER_OK) {
+    2507:  
+    2508:r         return
+    2509:f             fail(
+    2510:c                 client,
+    2511:A                 AETHER_ERR_CRYPTO);
+    2512:}     }
+    2513:  
+    2514:s     size_t packet_length =
+    2515:0         0u;
+    2516:  
+    2517:a     aether_status_t status =
+    2518:a         aether_generated_reg_root_build_enter(
+    2519:c             client->tx_plain,
+    2520:s             sizeof(client->tx_plain),
+>>> (показано строк: 31 из 5590)
+ff195bd checkpoint before adding push-opcode debug
+3d9aedf checkpoint: before finalizing protocol fix for client B
+909e830 checkpoint: client A passes, client B fails protocol
+c21e23d protocol: accept push opcode 70 (sendAsymmetricPublicKey) in registration rx
+cee6e23 test: fix test_client and facade lifecycle for new DataInOut API
+---
+---
+-rw-rw-r-- 1 angel angel 22368 Oct 22 20:08 out-1792670910440.txt
+-rw-rw-r-- 1 angel angel 51988 Oct 22 20:15 out-1792671333066.txt
+-rw-rw-r-- 1 angel angel 39293 Oct 23 02:19 out-1792693173176.txt
+-rw-rw-r-- 1 angel angel  4998 Oct 23 02:24 out-1792693441544.txt
+-rw-rw-r-- 1 angel angel  4196 Oct 23 02:25 out-1792693543094.txt
+>>> [elapsed: 120011ms]

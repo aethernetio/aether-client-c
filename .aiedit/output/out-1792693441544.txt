@@ -1,0 +1,154 @@
+>>> bash
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2490:s static aether_status_t send_reg_enter(
+    2600:s         send_reg_enter(
+    2658:s         send_reg_enter(
+    2717:s         send_reg_enter(
+    2780:s         send_reg_enter(
+>>> (всего найдено строк: 5)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2520 to 2620
+    2520:s             sizeof(client->tx_plain),
+    2521:&             &packet_length,
+    2522:c             client->config.crypto
+    2523:-                 ->profile.crypto_lib,
+    2524:c             client->tx_crypto,
+    2525:c             cipher_len);
+    2526:  
+    2527:i     if (status != AETHER_OK) {
+    2528:r         return
+    2529:f             fail(
+    2530:c                 client,
+    2531:s                 status);
+    2532:}     }
+    2533:  
+    2534:s     status =
+    2535:t         transport_send(
+    2536:c             client,
+    2537:A             AETHER_CHANNEL_REGISTRATION,
+    2538:c             client->tx_plain,
+    2539:p             packet_length);
+    2540:  
+    2541:  
+    2542:i     if (status != AETHER_OK) {
+    2543:i         if (client->state ==
+    2544:A             AETHER_STATE_SERVER_RESOLVING) {
+    2545:  
+    2546:t             transport_close(
+    2547:c                 client,
+    2548:A                 AETHER_CHANNEL_REGISTRATION);
+    2549:  
+    2550:c             client->state_started_at_ms =
+    2551:(                 (uint32_t)
+    2552:c                     client->now_ms;
+    2553:  
+    2554:r             return AETHER_OK;
+    2555:}         }
+    2556:  
+    2557:r         return
+    2558:f             fail(
+    2559:c                 client,
+    2560:s                 status);
+    2561:}     }
+    2562:  
+    2563:  
+    2564:r     return AETHER_OK;
+    2565:} }
+    2566:  
+    2567:  
+    2568:s static aether_status_t send_pow_request(
+    2569:a     aether_client_t *client) {
+>>> (показано строк: 101 из 5590)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2590 to 2800
+    2590:c             client->config.parent_uid);
+    2591:  
+    2592:i     if (status != AETHER_OK) {
+    2593:r         return
+    2594:f             fail(
+    2595:c                 client,
+    2596:s                 status);
+    2597:}     }
+    2598:  
+    2599:s     status =
+    2600:s         send_reg_enter(
+    2601:c             client,
+    2602:c             client->tx_plain,
+    2603:n             nested_len);
+    2604:  
+    2605:i     if (status == AETHER_OK) {
+    2606:s         set_registration_state(
+    2607:c             client,
+    2608:A             AETHER_STATE_REG_WAIT_POW);
+    2609:}     }
+    2610:  
+    2611:r     return status;
+    2612:} }
+    2613:  
+    2614:  
+    2615:s static aether_status_t send_registration_payload(
+    2616:a     aether_client_t *client) {
+    2617:  
+    2618:  
+    2619:c     client->registration->req_finish =
+    2620:n         next_request_id(
+    2621:c             client);
+    2622:  
+    2623:  
+    2624:s     size_t nested_len =
+    2625:0         0u;
+    2626:  
+    2627:a     aether_status_t status =
+    2628:a         aether_generated_reg_safe_build_registration_direct(
+    2629:c             client->tx_plain,
+    2630:s             sizeof(client->tx_plain),
+    2631:&             &nested_len,
+    2632:c             client->config.crypto
+    2633:-                 ->profile.symmetric_key_type,
+    2634:c             client->temp_key,
+    2635:c             client->config.crypto
+    2636:-                 ->profile.symmetric_key_bytes,
+    2637:c             client->master_key,
+    2638:c             client->config.crypto
+    2639:-                 ->profile.symmetric_key_bytes,
+>>> (показано строк: 211 из 5590)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3860 to 3885
+    3860:r         registration->client;
+    3861:  
+    3862:i     if (client->state ==
+    3863:A         AETHER_STATE_REG_CONNECTING) {
+    3864:  
+    3865:r         return AETHER_OK;
+    3866:}     }
+    3867:  
+    3868:i     if (!registration_in_progress(
+    3869:c             client->state)) {
+    3870:  
+    3871:r         return AETHER_ERR_STATE;
+    3872:}     }
+    3873:  
+    3874:r     return
+    3875:h         handle_registration_rx(
+    3876:c             client,
+    3877:d             data,
+    3878:l             length);
+    3879:} }
+    3880:  
+    3881:  
+    3882:v void aether_client_registration_on_transport_state_internal(
+    3883:s     struct aether_registration *registration,
+    3884:b     bool writable) {
+    3885:  
+>>> (показано строк: 26 из 5590)
+ff195bd checkpoint before adding push-opcode debug
+3d9aedf checkpoint: before finalizing protocol fix for client B
+909e830 checkpoint: client A passes, client B fails protocol
+c21e23d protocol: accept push opcode 70 (sendAsymmetricPublicKey) in registration rx
+---
+>>> [elapsed: 90008ms]

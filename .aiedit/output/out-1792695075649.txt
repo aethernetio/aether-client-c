@@ -1,0 +1,287 @@
+>>> bash
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/generated/aether_api.c
+    1749:b bool common_serialize_work_proof_config(
+    1812:b bool common_serialize_work_proof_b_crypt(
+    1850:b bool common_serialize_work_proof_d_t_o(
+    1869:b bool common_deserialize_work_proof_d_t_o(
+    8056:i     if (!common_serialize_work_proof_d_t_o(out, dto, 0u)) return false;
+>>> Found 5 matches.
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 500 to 600
+    500:c     case 2u:
+    501:i         if ((*v).as.common_hydrogen_curve_public == NULL) return false;
+    502:i     if ((*v).as.common_hydrogen_curve_public == NULL) return false;
+    503:i     if (!aether_data_out_write(out, (const uint8_t *)(*v).as.common_hydrogen_curve_public->data.data, 0u, 32u)) return false;
+    504:b         break;
+    505:c     case 8u:
+    506:i         if ((*v).as.common_sodium_curve_public == NULL) return false;
+    507:i     if ((*v).as.common_sodium_curve_public == NULL) return false;
+    508:i     if (!aether_data_out_write(out, (const uint8_t *)(*v).as.common_sodium_curve_public->data.data, 0u, 32u)) return false;
+    509:b         break;
+    510:c     case 13u:
+    511:i         if ((*v).as.common_p256_aes_gcm_curve_public == NULL) return false;
+    512:i     if ((*v).as.common_p256_aes_gcm_curve_public == NULL) return false;
+    513:i     if (!aether_data_out_write(out, (const uint8_t *)(*v).as.common_p256_aes_gcm_curve_public->data.data, 0u, 64u)) return false;
+    514:b         break;
+    515:d     default:
+    516:r         return false;
+    517:}     }
+    518:  
+    519:(     (void)v;
+    520:r     return true;
+    521:} }
+    522:  
+    523:b bool common_deserialize_key_asymmetric_public(
+    524:a     aether_data_in_t *in,
+    525:v     void *value,
+    526:u     unsigned int depth) {
+    527:  
+    528:i     if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    529:i     if (in == NULL || value == NULL) return false;
+    530:c     common_key_asymmetric_public_ref_t *v = (common_key_asymmetric_public_ref_t *)value;
+    531:m     memset(v, 0, sizeof(*v));
+    532:{     {
+    533:u         uint8_t _meta_type_id_0 = aether_data_in_read_ubyte(in);
+    534:i         if (in->error) return false;
+    535:s         switch (_meta_type_id_0) {
+    536:c         case 2u: {
+    537:c             common_hydrogen_curve_public_t *_meta_child_0 = (common_hydrogen_curve_public_t *)in->scratch_alloc(in->scratch_ctx, sizeof(common_hydrogen_curve_public_t), _Alignof(common_hydrogen_curve_public_t));
+    538:i             if (_meta_child_0 == NULL) return false;
+    539:m             memset(_meta_child_0, 0, sizeof(*_meta_child_0));
+    540:{     {
+    541:i     if (!aether_data_in_read(in, (uint8_t *)(_meta_child_0->data).data, 0u, 32u)) return false;
+    542:}     }
+    543:(             ((*v)).as.common_hydrogen_curve_public = _meta_child_0;
+    544:b             break;
+>>> (показано строк: 101 из 16984)
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2631:a         aether_generated_reg_safe_build_registration_direct(
+>>> Found 1 matches.
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2736 to 2780
+    2736:s static aether_status_t send_resolve_servers(
+    2737:a     aether_client_t *client) {
+    2738:  
+    2739:i     if (client->cloud_count == 0u) {
+    2740:r         return
+    2741:f             fail(
+    2742:c                 client,
+    2743:A                 AETHER_ERR_PROTOCOL);
+    2744:}     }
+    2745:  
+    2746:c     client->req_resolve =
+    2747:n         next_request_id(
+    2748:c             client);
+    2749:  
+    2750:s     size_t nested_len =
+    2751:0         0u;
+    2752:  
+    2753:a     aether_status_t status =
+    2754:a         aether_generated_reg_safe_build_resolve_with_return_key(
+    2755:c             client->tx_plain,
+    2756:s             sizeof(client->tx_plain),
+    2757:&             &nested_len,
+    2758:c             client->config.crypto
+    2759:-                 ->profile.symmetric_key_type,
+    2760:c             client->temp_key,
+    2761:c             client->config.crypto
+    2762:-                 ->profile.symmetric_key_bytes,
+    2763:c             client->cloud_sids,
+    2764:c             client->cloud_count);
+    2765:  
+    2766:i     if (status != AETHER_OK) {
+    2767:r         return
+    2768:f             fail(
+    2769:c                 client,
+    2770:s                 status);
+    2771:}     }
+    2772:  
+    2773:  
+    2774:c     client->state_started_at_ms =
+    2775:(         (uint32_t)
+    2776:c             client->now_ms;
+    2777:  
+    2778:s     set_state(
+    2779:c         client,
+    2780:A         AETHER_STATE_SERVER_RESOLVING);
+>>> (показано строк: 45 из 5630)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2868 to 2910
+    2868:  
+    2869:r         return
+    2870:f             fail(
+    2871:c                 client,
+    2872:A                 AETHER_ERR_PROTOCOL);
+    2873:}     }
+    2874:  
+    2875:  
+    2876:f     fprintf(stderr, "DBG pow: salt_len=%u suffix_len=%u\r\n", (unsigned)client->registration->pow_salt_len, (unsigned)client->registration->pow_suffix_len);
+    2877:  
+    2878:i     if (!verify_signed_key(
+    2879:c             client,
+    2880:&             &client->registration->global_key)) {
+    2881:  
+    2882:r         return
+    2883:f             fail_with_origin(
+    2884:c                 client,
+    2885:A                 AETHER_ERR_CRYPTO,
+    2886:A                 AETHER_ERROR_ORIGIN_TRUST);
+    2887:}     }
+    2888:  
+    2889:s     size_t count =
+    2890:0         0u;
+    2891:  
+    2892:a     aether_status_t status =
+    2893:c         client->config.pow.generate(
+    2894:c             client->config.pow.ctx,
+    2895:  
+    2896:c             client->registration->pow_salt,
+    2897:c             client->registration->pow_salt_len,
+    2898:c             client->registration->pow_suffix,
+    2899:c             client->registration->pow_suffix_len,
+    2900:c             client->registration->pow_pool_size,
+    2901:c             client->registration->pow_max_hash,
+    2902:c             client->registration->pow_passwords,
+    2903:A             AETHER_MAX_POW_PASSWORDS,
+    2904:&             &count);
+    2905:  
+    2906:  
+    2907:i     if (status != AETHER_OK) {
+    2908:r         return
+    2909:f             fail_with_origin(
+    2910:c                 client,
+>>> (показано строк: 43 из 5630)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      2889:s     size_t count =
+      2890:0         0u;
+    + 2891:  
+    + 2892:  
+    + 2893:f     fprintf(stderr, "DBG pow resp: start\r\n");
+      2894:  
+      2895:a     aether_status_t status =
+
+>>> bash
+[ 18%] Built target aether_hydrogen_test_support
+[ 21%] Linking C static library libaether_client.a
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 303ms]
+>>> bash
+
+> Task :tests:test
+
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+    org.opentest4j.AssertionFailedError: Process failed: /home/angel/projects/aether-client-c/build-p2p-e2e/aether_p2p_e2e ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:560)
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+
+1 test completed, 1 failed
+
+> Task :tests:test FAILED
+
+[Incubating] Problems report is available at: file:///home/angel/projects/aether/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':tests:test'.
+> There were failing tests. See the report at: file:///home/angel/projects/aether/tests/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 20s
+89 actionable tasks: 89 executed
+>>> [elapsed: 20921ms]
+281e51b protocol: accept ENTER_GLOBAL push frame in registration rx
+ff195bd checkpoint before adding push-opcode debug
+3d9aedf checkpoint: before finalizing protocol fix for client B
+909e830 checkpoint: client A passes, client B fails protocol
+---
+ M ai.txt
+ M aiedit_context.yaml
+ M src/aether_client.c
+?? .aiedit/output/out-1792693441544.txt
+?? .aiedit/output/out-1792693543094.txt
+?? .aiedit/output/out-1792693672978.txt
+?? .aiedit/output/out-1792694689591.txt
+?? .aiedit/output/out-1792694873930.txt
+===
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.c lines 1830 to 1940
+    1830:a     aether_data_in_t *in,
+    1831:v     void *value,
+    1832:u     unsigned int depth) {
+    1833:  
+    1834:i     if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    1835:i     if (in == NULL || value == NULL) return false;
+    1836:c     common_work_proof_b_crypt_t *v = (common_work_proof_b_crypt_t *)value;
+    1837:m     memset(v, 0, sizeof(*v));
+    1838:{     {
+    1839:(     (v->costBCrypt) = aether_data_in_read_byte(in);
+    1840:i     if (in->error) return false;
+    1841:(     (v->poolSize) = aether_data_in_read_byte(in);
+    1842:i     if (in->error) return false;
+    1843:(     (v->maxHashVal) = aether_data_in_read_int(in);
+    1844:i     if (in->error) return false;
+    1845:}     }
+    1846:  
+    1847:r     return true;
+    1848:} }
+    1849:  
+    1850:b bool common_serialize_work_proof_d_t_o(
+    1851:a     aether_data_out_t *out,
+    1852:c     const void *value,
+    1853:u     unsigned int depth) {
+    1854:  
+    1855:i     if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    1856:i     if (out == NULL || value == NULL) return false;
+    1857:c     const common_work_proof_d_t_o_t *v = (const common_work_proof_d_t_o_t *)value;
+    1858:i     if (v == NULL) return false;
+    1859:i     if (!aether_data_out_write_bytes(out, v->salt.data, v->salt.length)) return false;
+    1860:i     if (!aether_data_out_write_bytes(out, v->suffix.data, v->suffix.length)) return false;
+    1861:i     if (!aether_data_out_write_byte(out, (uint8_t)v->poolSize)) return false;
+    1862:i     if (!aether_data_out_write_uint(out, (uint32_t)v->maxHashVal)) return false;
+    1863:i     if (!common_serialize_signed_key(out, (&(v->globalKey)), depth + 1u)) return false;
+    1864:  
+    1865:(     (void)v;
+    1866:r     return true;
+    1867:} }
+    1868:  
+    1869:b bool common_deserialize_work_proof_d_t_o(
+    1870:a     aether_data_in_t *in,
+    1871:v     void *value,
+    1872:u     unsigned int depth) {
+    1873:  
+    1874:i     if (depth >= AETHER_META_MAX_RECURSION_DEPTH) return false;
+    1875:i     if (in == NULL || value == NULL) return false;
+    1876:c     common_work_proof_d_t_o_t *v = (common_work_proof_d_t_o_t *)value;
+    1877:m     memset(v, 0, sizeof(*v));
+    1878:{     {
+    1879:i     if (!aether_data_in_read_view(in, (const uint8_t **)&(v->salt).data, &(v->salt).length)) return false;
+>>> (показано строк: 111 из 16984)
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=67 pos=1 len=199 state=5
+c-client-b Aether error code=-4 origin=1
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+BUILD FAILED in 21s
+>>> [elapsed: 141574ms]

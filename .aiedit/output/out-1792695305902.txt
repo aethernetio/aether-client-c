@@ -1,0 +1,396 @@
+>>> bash
+
+>>> view
+/home/angel/projects/aether-client-c/include/aether_registration.h
+    1:  
+    2:/ /*
+    3:*  * Optional caller-owned Aether identity registration component.
+    4:*  *
+    5:  
+    6:*  * Registration is policy, not mandatory client state. Applications that
+    7:*  * provision an Aether identity externally do not need this component.
+    8:  
+    9:*  *
+    10:*  * Scheduling is explicit: applications that want self-registration call
+    11:*  * aether_registration_poll() from their normal loop alongside the client.
+    12:*  */
+    13:# #ifndef AETHER_REGISTRATION_H
+    14:# #define AETHER_REGISTRATION_H
+    15:  
+    16:# #include "aether_client.h"
+    17:  
+    18:s struct aether;
+    19:  
+    20:  
+    21:# #include <stdbool.h>
+    22:  
+    23:# #ifdef __cplusplus
+    24:e extern "C" {
+    25:# #endif
+    26:  
+    27:  
+    28:  
+    29:s struct aether_registration;
+    30:  
+    31:t typedef struct {
+    32:a     aether_status_t (*on_rx)(
+    33:s         struct aether_registration *registration,
+    34:c         const uint8_t *data,
+    35:s         size_t length);
+    36:  
+    37:v     void (*on_transport_state)(
+    38:s         struct aether_registration *registration,
+    39:b         bool writable);
+    40:  
+    41:b     bool (*on_poll)(
+    42:s         struct aether_registration *registration,
+    43:u         uint64_t now_ms);
+    44:} } aether_registration_internal_ops_t;
+    45:  
+    46:  
+    47:  
+    48:t typedef struct aether_registration {
+    49:a     aether_client_t *client;
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-c/include/aether_registration.h lines 48 to 130
+    48:t typedef struct aether_registration {
+    49:a     aether_client_t *client;
+    50:  
+    51:  
+    52:/     /*
+    53:*      * Immutable internal dispatch table.
+    54:*      *
+    55:*      * One pointer is stored per optional component; the function table itself
+    56:*      * lives in optional code/rodata. Mandatory provisioned firmware never
+    57:*      * references that table directly.
+    58:*      */
+    59:c     const aether_registration_internal_ops_t *internal;
+    60:  
+    61:  
+    62:  
+    63:a     aether_signed_key_t global_key;
+    64:  
+    65:u     uint32_t req_pow;
+    66:u     uint32_t req_finish;
+    67:  
+    68:u     uint8_t pow_salt[AETHER_MAX_POW_TEXT];
+    69:s     size_t pow_salt_len;
+    70:  
+    71:u     uint8_t pow_suffix[AETHER_MAX_POW_TEXT];
+    72:s     size_t pow_suffix_len;
+    73:  
+    74:u     uint8_t pow_pool_size;
+    75:i     int32_t pow_max_hash;
+    76:  
+    77:i     int32_t pow_passwords[AETHER_MAX_POW_PASSWORDS];
+    78:s     size_t pow_password_count;
+    79:} } aether_registration_t;
+    80:  
+    81:  
+    82:v void aether_registration_init(
+    83:a     aether_registration_t *registration,
+    84:a     aether_client_t *client);
+    85:  
+    86:a aether_status_t aether_registration_poll(
+    87:a     aether_registration_t *registration);
+    88:  
+    89:  
+    90:  
+    91:/ /*
+    92:*  * Component-style adapter for the unified aether_work() lifecycle.
+    93:*  *
+    94:*  * Canonical sequence:
+    95:*  *
+    96:*  *     aether_init(&aether, parent_uid);
+    97:*  *     aether_set_components(&aether, storage, N);
+>>> (показано строк: 83 из 141)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3450 to 3475
+    3450:  
+    3451:r                 return
+    3452:f                     fail(
+    3453:c                         client,
+    3454:A                         AETHER_ERR_CRYPTO);
+    3455:}             }
+    3456:  
+    3457:r             return
+    3458:s                 send_pow_request(
+    3459:c                     client);
+    3460:  
+    3461:}         }
+    3462:  
+    3463:  
+    3464:i         if (command == 67u) {
+    3465:a             aether_status_t status = handle_pow_response(client, &reader);
+    3466:i             if (status != AETHER_OK) {
+    3467:r                 return status;
+    3468:}             }
+    3469:c             continue;
+    3470:}         }
+    3471:  
+    3472:  
+    3473:  
+    3474:  
+    3475:  
+>>> (показано строк: 26 из 5636)
+
+>>> bash
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+-rwxrwxr-x 1 angel angel 775216 Oct 23 02:53 build-p2p-e2e/aether_p2p_e2e
+>>> [elapsed: 281ms]
+
+>>> bash
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 278ms]
+>>> bash
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+c-client-b Aether error code=-4 origin=1
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+> Task :tests:test FAILED
+BUILD FAILED in 22s
+>>> [elapsed: 22205ms]
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    580:s static uint8_t r_u8(
+    600:s static uint16_t r_u16le(
+    604:r         r_u8(reader);
+    608:(             (uint16_t)r_u8(reader) <<
+    615:s static uint32_t r_u32le(
+    619:r         r_u8(reader);
+    622:(         (uint32_t)r_u8(reader) <<
+    626:(         (uint32_t)r_u8(reader) <<
+    630:(         (uint32_t)r_u8(reader) <<
+    641:(         (int16_t)r_u16le(
+    655:s static uint64_t r_pack(
+    668:r         r_u8(reader);
+    677:r         r_u8(reader);
+    692:r         r_u16le(reader);
+    761:s static bool r_view(
+    767:r         r_pack(reader);
+    809:(             (uint64_t)r_u8(reader);
+    818:(             (uint64_t)r_u8(reader);
+    941:r         r_u8(reader);
+    988:r         r_u8(reader);
+    1213:r         r_u8(reader);
+    1240:r             r_pack(reader);
+    1303:r         r_pack(reader);
+    1335:r             r_pack(reader);
+    1346:r                 r_u8(reader);
+    1349:r                 r_u16le(reader);
+    1413:r         r_pack(reader);
+    1744:i     if (r_u8(&reader) != AETHER_STATE_MAGIC0 ||
+    1745:r         r_u8(&reader) != AETHER_STATE_MAGIC1 ||
+    1746:r         r_u8(&reader) != AETHER_STATE_MAGIC2 ||
+    1747:r         r_u8(&reader) != AETHER_STATE_MAGIC3) {
+    1753:r         r_u8(&reader);
+    1766:r         r_u8(&reader);
+    1775:r         r_u8(&reader) != 0u;
+    1779:r         r_u8(&reader);
+    1805:r             r_u8(&reader);
+    1831:r         r_u8(&reader);
+    1851:r         r_u8(&reader);
+    1878:r             r_u8(&reader) != 0u;
+    1881:r             r_u8(&reader);
+    1884:r             r_u8(&reader);
+    1887:r             r_u8(&reader);
+    1938:r             r_u16le(&reader);
+    2813:i     if (!r_view(
+    2817:!         !r_view(
+    2850:r         r_u8(reader);
+    2966:r             r_u8(&reader);
+    3007:r                     r_pack(&reader);
+    3093:r                     r_pack(
+    3302:u         uint8_t command = r_u8(&reader);
+>>> Found 58 matches.
+
+>>> bash
+grep: src/aether_dataio.h: Нет такого файла или каталога
+src/aether_dataio.c:165:uint32_t aether_data_in_read_uint(aether_data_in_t *in) {
+src/aether_dataio.c:347:bool aether_data_out_write_uint(aether_data_out_t *out, uint32_t v) {
+src/aether_dataio.c:358:    return aether_data_out_write_uint(out, (uint32_t)v);
+src/aether_dataio.c:373:    return aether_data_out_write_uint(out, f32_to_bits(v));
+src/aether_dataio.c:446:        return aether_data_out_write_uint(out, (uint32_t)(d & 0xFFFFFFFFu));
+src/aether_dataio.c:465:    uint64_t f1 = aether_data_in_read_uint(in);
+src/aether_dataio.c:793:            aether_data_out_write_uint(out, *p);
+src/aether_dataio.c:843:            *p = aether_data_in_read_uint(in);
+>>> [elapsed: 22ms]
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    919:s static bool parse_signed_key(
+>>> (всего найдено строк: 1)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_dataio.c lines 150 to 185
+    150:u uint16_t aether_data_in_read_char(aether_data_in_t *in) {
+    151:/     /* Java: (char) readUShort() -- 16-bit UTF-16 code unit */
+    152:r     return aether_data_in_read_ushort(in);
+    153:} }
+    154:  
+    155:i int32_t aether_data_in_read_int(aether_data_in_t *in) {
+    156:i     if (!in || !in->data || in->pos + 4u > in->size) {
+    157:i         if (in) in->error = true;
+    158:r         return 0;
+    159:}     }
+    160:i     int32_t v = (int32_t)le_r32(&in->data[in->pos]);
+    161:i     in->pos += 4u;
+    162:r     return v;
+    163:} }
+    164:  
+    165:u uint32_t aether_data_in_read_uint(aether_data_in_t *in) {
+    166:i     if (!in || !in->data || in->pos + 4u > in->size) {
+    167:i         if (in) in->error = true;
+    168:r         return 0;
+    169:}     }
+    170:u     uint32_t v = le_r32(&in->data[in->pos]);
+    171:i     in->pos += 4u;
+    172:r     return v;
+    173:} }
+    174:  
+    175:i int64_t aether_data_in_read_long(aether_data_in_t *in) {
+    176:i     if (!in || !in->data || in->pos + 8u > in->size) {
+    177:i         if (in) in->error = true;
+    178:r         return 0;
+    179:}     }
+    180:i     int64_t v = (int64_t)le_r64(&in->data[in->pos]);
+    181:i     in->pos += 8u;
+    182:r     return v;
+    183:} }
+    184:  
+    185:f float aether_data_in_read_float(aether_data_in_t *in) {
+>>> (показано строк: 36 из 1130)
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 919 to 1004 : parse_signed_key
+    919:s static bool parse_signed_key(
+    920:r     reader_t *reader,
+    921:c     const aether_client_t *client,
+    922:a     aether_signed_key_t *key) {
+    923:  
+    924:/     /* client is used below for a config.crypto fallback. */
+    925:  
+    926:/     /*
+    927:*      * MCU code must not pull in <string.h>; zero the struct with a
+    928:*      * plain byte loop instead of memset.
+    929:*      */
+    930:u     uint8_t *raw =
+    931:(         (uint8_t *)key;
+    932:  
+>>> (показано строк: 86 из 5636)
+
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2848 to 2852
+    2848:  
+    2849:c     client->registration->pow_pool_size =
+    2850:r         r_u8(reader);
+    2851:  
+    2852:c     client->registration->pow_max_hash =
+>>> (показано строк: 5 из 5636)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 2850 начинается с 'r', ожидалось 'i'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.ctimestamp: 1792695276590
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2840 to 2880
+    2840:s         suffix,
+    2841:s         suffix_len);
+    2842:  
+    2843:c     client->registration->pow_salt_len =
+    2844:s         salt_len;
+    2845:  
+    2846:c     client->registration->pow_suffix_len =
+    2847:s         suffix_len;
+    2848:  
+    2849:c     client->registration->pow_pool_size =
+    2850:r         r_u8(reader);
+    2851:  
+    2852:c     client->registration->pow_max_hash =
+    2853:r         r_i32le(reader);
+    2854:  
+    2855:r     return
+    2856:p         parse_signed_key(
+    2857:r             reader,
+    2858:c             client,
+    2859:&             &client->registration->global_key) &&
+    2860:!         !reader->failed;
+    2861:} }
+    2862:  
+    2863:  
+    2864:s static aether_status_t handle_pow_response(
+    2865:a     aether_client_t *client,
+    2866:r     reader_t *reader) {
+    2867:  
+    2868:i     if (!parse_work_proof(
+    2869:r             reader,
+    2870:c             client)) {
+    2871:  
+    2872:r         return
+    2873:f             fail(
+    2874:c                 client,
+    2875:A                 AETHER_ERR_PROTOCOL);
+    2876:}     }
+    2877:  
+    2878:  
+    2879:f     fprintf(stderr, "DBG pow: salt_len=%u suffix_len=%u\r\n", (unsigned)client->registration->pow_salt_len, (unsigned)client->registration->pow_suffix_len);
+    2880:  
+>>> (показано строк: 41 из 5636)
+e0daf58 wip: allow subtask to continue fixing client B (cmd=67 workProofData)
+281e51b protocol: accept ENTER_GLOBAL push frame in registration rx
+ff195bd checkpoint before adding push-opcode debug
+3d9aedf checkpoint: before finalizing protocol fix for client B
+909e830 checkpoint: client A passes, client B fails protocol
+=== STATUS ===
+ M aiedit_context.yaml
+?? .aiedit/output/out-1792693441544.txt
+?? .aiedit/output/out-1792693543094.txt
+?? .aiedit/output/out-1792693672978.txt
+?? .aiedit/output/out-1792694689591.txt
+?? .aiedit/output/out-1792694873930.txt
+?? .aiedit/output/out-1792695075649.txt
+=== TEST ===
+
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2844 to 2848
+    2844:s         salt_len;
+    2845:  
+    2846:c     client->registration->pow_suffix_len =
+    2847:s         suffix_len;
+    2848:  
+>>> (показано строк: 5 из 5636)
+>>> [API ERROR] insertAfter(verified) -> Верификация не пройдена: строка 2846 начинается с 'c', ожидалось 's'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.c>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      2852:c     client->registration->pow_max_hash =
+      2853:r         r_i32le(reader);
+    + 2854:  
+    + 2855:  
+    + 2856:f     fprintf(stderr, "DBG parse_wp: after max_hash pool=%u max=%d\r\n",
+    + 2857:(             (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
+      2858:  
+      2859:r     return
+
+>>> bash
+[ 15%] Built target aether_hydrogen_test_support
+[ 90%] Built target aether_client
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 100ms]
+>>> bash
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=67 pos=1 len=199 state=5
+c-client-a Aether error code=-4 origin=1
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+BUILD FAILED in 24s
+>>> [elapsed: 205068ms]

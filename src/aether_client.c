@@ -2852,6 +2852,10 @@ static bool parse_work_proof(
     client->registration->pow_max_hash =
         r_i32le(reader);
 
+
+    fprintf(stderr, "DBG parse_wp: after max_hash pool=%u max=%d\r\n",
+            (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
+
     return
         parse_signed_key(
             reader,
@@ -3461,8 +3465,11 @@ size_t frame_start =
         }
 
 
+
         if (command == 67u) {
+            (void)r_uuid(&reader);
             aether_status_t status = handle_pow_response(client, &reader);
+
             if (status != AETHER_OK) {
                 return status;
             }

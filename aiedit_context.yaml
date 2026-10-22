@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 1034,
+      historySplit: 374,
       scriptAndLive: 287,
-      verticalSplit: 555
+      verticalSplit: 89
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -65,17 +65,17 @@
   gui: {
     toggles: {
       bashSafeMode: false,
-      completionSound: true,
+      completionSound: false,
       methodLengthValidation: false,
       bracketValidation: false,
       bashEnabled: true,
       validation: true
     },
     window: {
-      x: 2305,
-      width: 1278,
-      y: 470,
-      height: 733
+      x: 2971,
+      width: 618,
+      y: 1814,
+      height: 267
     }
   },
   roots: [

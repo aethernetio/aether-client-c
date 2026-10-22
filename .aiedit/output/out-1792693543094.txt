@@ -1,0 +1,108 @@
+>>> bash
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3267 to 3295
+    3267:s static aether_status_t handle_registration_rx(
+    3268:a     aether_client_t *client,
+    3269:c     const uint8_t *data,
+    3270:s     size_t length) {
+    3271:  
+    3272:r     reader_t reader = {
+    3273:d         data,
+    3274:l         length,
+    3275:0         0u,
+    3276:f         false
+    3277:}     };
+    3278:  
+    3279:w     while (!reader.failed &&
+    3280:r            reader.pos <
+    3281:r                reader.length) {
+    3282:  
+    3283:  
+    3284:s size_t frame_start =
+    3285:r             reader.pos;
+    3286:  
+    3287:u         uint8_t command =
+    3288:r             r_u8(&reader);
+    3289:  
+    3290:  
+    3291:  
+    3292:i         if (command == CMD_RESULT ||
+    3293:c             command == 70u) {
+    3294:  
+    3295:  
+>>> (показано строк: 29 из 5590)
+
+>>> bash
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 3ms]
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> (совпадений не найдено)
+
+>>> view
+/home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java lines 68 to 113
+    68:p     private void regProcess(CryptoEngine asymCE) {
+    69:s         safeApi = rootApi.openEnter(
+    70:c                 client.getCryptLib(),
+    71:r                 r -> ClientApiRegSafe.EMPTY,
+    72:a                 asymCE::encrypt,
+    73:"                 "reg safe"
+    74:)         );
+    75:  
+    76:L         Log.info("RegConn: Asym public key was received.");
+    77:  
+    78:s         safeApi.setReturnKey(tempKeyNative);
+    79:s         safeApi.requestWorkProofData(client.getParent(), PowMethod.AE_BCRYPT_CRC32);
+    80:  
+    81:w         workProofMFuture.mapToARFuture().to(wpd -> {
+    82:L             Log.info("RegConn: WorkProofData received. Starting PoW calculation.");
+    83:  
+    84:v             var passwords = WorkProofUtil.generateProofOfWorkPool(
+    85:w                     wpd.getSalt(), wpd.getSuffix(),
+    86:w                     wpd.getMaxHashVal(), wpd.getPoolSize(), 5300);
+    87:  
+    88:s             safeApi.registrationDirect(
+    89:w                     wpd.getSalt(), wpd.getSuffix(), passwords,
+    90:c                     client.getParent(), CryptoUtils.of(client.getMasterKey()));
+    91:  
+    92:r             registrationDirectMFuture.mapToARFuture().to(d -> {
+    93:L                 Log.trace("RegConn: registration step finish.");
+    94:L                 Log.info("RegConn: Registration confirmed.");
+    95:r                 resolveCloud(d.getCloud(), asymCE).to(() -> {
+    96:L                     Log.info("RegConn: resolve cloud.");
+    97:c                     client.confirmRegistration(d);
+    98:}                 });
+    99:}             }, error -> Log.error("RegConn: registrationDirect failed", error));
+    100:  
+    101:c             connectFuture.done();
+    102:}         }, error -> Log.error("RegConn: requestWorkProofData failed", error));
+    103:}     }
+    104:  
+    105:  
+    106:  
+    107:  
+    108:  
+    109:p     public AFuture resolveCloud(Cloud cloud) {
+    110:A         AFuture res = AFuture.make();
+    111:g         getAsymmetricPublicKey().to(ce -> {
+    112:r             resolveCloud(cloud, ce).to(res);
+    113:}         }).onError(res);
+>>> (показано строк: 46 из 201)
+
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-java/client/src/main/java/io/aether/api
+ff195bd checkpoint before adding push-opcode debug
+3d9aedf checkpoint: before finalizing protocol fix for client B
+909e830 checkpoint: client A passes, client B fails protocol
+c21e23d protocol: accept push opcode 70 (sendAsymmetricPublicKey) in registration rx
+cee6e23 test: fix test_client and facade lifecycle for new DataInOut API
+---
+---
+ .aiedit/output/out-1792693173176.txt | 973 +++++++++++++++++++++++++++++++++++
+ aiedit_context.yaml                  |  46 +-
+ 2 files changed, 979 insertions(+), 40 deletions(-)
+>>> [elapsed: 90012ms]
