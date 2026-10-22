@@ -2514,7 +2514,6 @@ static aether_status_t send_reg_enter(
                 AETHER_ERR_CRYPTO);
     }
 
-    fprintf(stderr, "DBG send_reg_enter: after asym encrypt cipher_len=%u\r\n", (unsigned)cipher_len);
 
 
     size_t packet_length =
@@ -2537,7 +2536,6 @@ static aether_status_t send_reg_enter(
                 status);
     }
 
-    fprintf(stderr, "DBG send_reg_enter: after build_enter packet_len=%u status=%d\r\n", (unsigned)packet_length, (int)status);
 
 
     status =
@@ -2549,7 +2547,6 @@ static aether_status_t send_reg_enter(
 
 
 
-    fprintf(stderr, "DBG send_reg_enter: after transport_send status=%d\r\n", (int)status);
 
     if (status != AETHER_OK) {
         if (client->state ==
@@ -2745,11 +2742,9 @@ static aether_status_t send_recovery_request(
 static aether_status_t send_resolve_servers(
     aether_client_t *client) {
 
-    fprintf(stderr, "DBG send_resolve_servers: enter cloud_count=%u\r\n", (unsigned)client->cloud_count);
 
 
 
-    fprintf(stderr, "DBG send_resolve: cloud_count==0\r\n");
 
     if (client->cloud_count == 0u) {
         return
@@ -2785,7 +2780,6 @@ static aether_status_t send_resolve_servers(
                 status);
     }
 
-    fprintf(stderr, "DBG send_resolve: build status=%d\r\n", (int)status);
 
 
 
@@ -2820,7 +2814,6 @@ static bool parse_work_proof(
     }
 
 
-    fprintf(stderr, "DBG parse_work_proof: enter\r\n");
 
     const uint8_t *salt;
     size_t salt_len;
@@ -2871,8 +2864,6 @@ static bool parse_work_proof(
         r_i32le(reader);
 
 
-    fprintf(stderr, "DBG parse_wp: after max_hash pool=%u max=%d\r\n",
-            (unsigned)client->registration->pow_pool_size, client->registration->pow_max_hash);
 
     return
         parse_signed_key(
@@ -2898,7 +2889,6 @@ static aether_status_t handle_pow_response(
     }
 
 
-    fprintf(stderr, "DBG pow: salt_len=%u suffix_len=%u\r\n", (unsigned)client->registration->pow_salt_len, (unsigned)client->registration->pow_suffix_len);
 
     if (!verify_signed_key(
             client,
@@ -2915,7 +2905,6 @@ static aether_status_t handle_pow_response(
         0u;
 
 
-    fprintf(stderr, "DBG pow resp: start\r\n");
 
     aether_status_t status =
         client->config.pow.generate(
@@ -3322,8 +3311,6 @@ size_t frame_start =
 
 
         uint8_t command = r_u8(&reader);
-        fprintf(stderr, "DBG reg cmd=%u pos=%u len=%u state=%d\r\n",
-                (unsigned)command, (unsigned)reader.pos, (unsigned)reader.length, (int)client->state);
 
 
 
@@ -3488,23 +3475,16 @@ size_t frame_start =
         if (command == 66u) {
 
 
-            fprintf(stderr, "DBG handle66: enter pos=%u len=%u\r\n", (unsigned)reader.pos, (unsigned)reader.length);
             client->alias = r_uuid(&reader);
             client->uid = r_uuid(&reader);
-            fprintf(stderr, "DBG handle66: alias=%016llx%016llx uid=%016llx%016llx pos=%u\r\n",
-                    (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
-                    (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
-                    (unsigned)reader.pos);
 
             uint64_t cloud_count = r_pack(&reader);
-            fprintf(stderr, "DBG handle66: cloud_count=%llu pos=%u\r\n", (unsigned long long)cloud_count, (unsigned)reader.pos);
             if (reader.failed || cloud_count > AETHER_MAX_SERVERS) {
                 return fail(client, AETHER_ERR_PROTOCOL);
             }
 
             client->cloud_count = (uint8_t)cloud_count;
 
-            fprintf(stderr, "DBG handle66: before sids loop count=%u pos=%u\r\n", (unsigned)client->cloud_count, (unsigned)reader.pos);
 
             for (uint8_t i = 0u; i < client->cloud_count; ++i) {
                 client->cloud_sids[i] = r_i16le(&reader);
@@ -3513,10 +3493,8 @@ size_t frame_start =
                 return fail(client, AETHER_ERR_PROTOCOL);
             }
 
-            fprintf(stderr, "DBG handle66: after sids loop failed=%d pos=%u\r\n", (int)reader.failed, (unsigned)reader.pos);
 
 
-            fprintf(stderr, "DBG handle66: cloud_sids[0]=%d pos=%u\r\n", client->cloud_sids[0], (unsigned)reader.pos);
 
 
             client->registered = true;
@@ -4541,7 +4519,6 @@ static aether_status_t resume_client_safe_plain(
         }
 
 
-            fprintf(stderr, "DBG unsupported cmd safe=%u pos=%u\r\n", (unsigned)command, (unsigned)reader.pos);
 
         return AETHER_ERR_UNSUPPORTED;
     }
@@ -4642,7 +4619,6 @@ static aether_status_t handle_work_rx(
             CLIENT_UNSAFE_SAFE_DATA) {
 
 
-            fprintf(stderr, "DBG unsupported cmd unsafe=%u\r\n", (unsigned)command);
 
             return AETHER_ERR_UNSUPPORTED;
         }

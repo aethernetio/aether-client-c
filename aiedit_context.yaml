@@ -9,7 +9,7 @@
     splitters: {
       historySplit: 779,
       scriptAndLive: 287,
-      verticalSplit: 791
+      verticalSplit: 901
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -19,7 +19,7 @@
     },
     reasoningEffort: low,
     autoRun: true,
-    autoSend: false,
+    autoSend: true,
     selected: {
       root: polishCClient
     },
