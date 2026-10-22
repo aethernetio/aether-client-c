@@ -1,0 +1,620 @@
+>>> bash
+###2620-2720 registration_direct+recovery
+        next_request_id(
+            client);
+
+
+    size_t nested_len =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_safe_build_registration_direct(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->master_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+
+            client->registration->pow_salt,
+            client->registration->pow_salt_len,
+            client->registration->pow_suffix,
+            client->registration->pow_suffix_len,
+            client->registration->pow_passwords,
+            client->registration->pow_password_count,
+
+            client->config.parent_uid);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    status =
+        send_reg_enter(
+            client,
+            client->tx_plain,
+            nested_len);
+
+    if (status == AETHER_OK) {
+        set_registration_state(
+            client,
+            AETHER_STATE_REG_WAIT_FINISH);
+    }
+
+>>> [elapsed: 7ms]
+>>> bash
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 9ms]
+>>> bash
+>>> [elapsed: 18ms]
+>>> bash
+>>> [elapsed: 10ms]
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 21ms]
+
+>>> (отфильтровано: из 42 строк оставлено 42)
+>>> bash
+###2740-2790 resolve
+                AETHER_ERR_PROTOCOL);
+    }
+    client->req_resolve =
+        next_request_id(
+            client);
+    size_t nested_len =
+        0u;
+    aether_status_t status =
+        aether_generated_reg_safe_build_resolve_with_return_key(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->cloud_sids,
+            client->cloud_count);
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+    client->state_started_at_ms =
+        (uint32_t)
+            client->now_ms;
+    set_state(
+        client,
+        AETHER_STATE_SERVER_RESOLVING);
+    status =
+        send_reg_enter(
+            client,
+            client->tx_plain,
+            nested_len);
+    return status;
+}
+static bool parse_work_proof(
+>>> [elapsed: 8ms]
+>>> (отфильтровано: из 36 строк оставлено 36)
+>>> bash
+###3460-3500
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+            return
+                fail_remote(
+                    client,
+                    request_id);
+        }
+aether_reg_unsafe_frame_t frame = {
+            0
+        };
+        size_t consumed =
+            0u;
+        aether_status_t decode_status =
+            aether_generated_reg_unsafe_decode(
+                &frame,
+                reader.data +
+                    frame_start,
+                reader.length -
+                    frame_start,
+                &consumed);
+        if (decode_status != AETHER_OK ||
+            consumed == 0u ||
+            consumed >
+                reader.length -
+                    frame_start) {
+            return
+                fail(
+                    client,
+                    AETHER_ERR_PROTOCOL);
+        }
+        const uint8_t *key;
+>>> [elapsed: 5ms]
+>>> (отфильтровано: из 33 строк оставлено 33)
+>>> bash
+###3775-3810
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+            return
+                fail_remote(
+                    client,
+                    request_id);
+        }
+        aether_reg_unsafe_frame_t frame = {
+            0
+        };
+        size_t consumed =
+            0u;
+        aether_status_t decode_status =
+            aether_generated_reg_unsafe_decode(
+                &frame,
+                reader.data +
+                    frame_start,
+                reader.length -
+                    frame_start,
+                &consumed);
+        if (decode_status != AETHER_OK ||
+            consumed == 0u ||
+            consumed >
+                reader.length -
+                    frame_start ||
+            frame.kind !=
+                AETHER_REG_UNSAFE_FRAME_ENTER) {
+>>> [elapsed: 5ms]
+>>> (отфильтровано: из 188 строк оставлено 100)
+>>> bash
+###reg_safe.h
+#ifndef AETHER_REG_SAFE_H
+#define AETHER_REG_SAFE_H
+#include "aether_client.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+aether_status_t aether_generated_reg_safe_build_pow(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t symmetric_key_type,
+    const uint8_t *key,
+    size_t key_length,
+    uint32_t request_id,
+    aether_uuid_t parent);
+aether_status_t aether_generated_reg_safe_build_registration(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t symmetric_key_type,
+    const uint8_t *return_key,
+    size_t return_key_length,
+    const uint8_t *salt,
+    size_t salt_length,
+    const uint8_t *suffix,
+    size_t suffix_length,
+    const int32_t *passwords,
+    size_t password_count,
+    aether_uuid_t parent,
+    const uint8_t *global_cipher,
+    size_t global_cipher_length);
+aether_status_t aether_generated_reg_safe_build_registration_direct(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t symmetric_key_type,
+    const uint8_t *return_key,
+    size_t return_key_length,
+    const uint8_t *master_key,
+    size_t master_key_length,
+    uint32_t request_id,
+    const uint8_t *salt,
+    size_t salt_length,
+    const uint8_t *suffix,
+    size_t suffix_length,
+    const int32_t *passwords,
+    size_t password_count,
+    aether_uuid_t parent);
+aether_status_t aether_generated_reg_safe_build_recovery(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t symmetric_key_type,
+    const uint8_t *return_key,
+    size_t return_key_length,
+    uint8_t old_master_key_type,
+    const uint8_t *old_master_key,
+    size_t old_master_key_length,
+    const uint8_t *new_master_key,
+    size_t new_master_key_length,
+    uint32_t request_id,
+    aether_uuid_t uid);
+aether_status_t aether_generated_reg_safe_build_resolve_with_return_key(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint8_t symmetric_key_type,
+    const uint8_t *return_key,
+    size_t return_key_length,
+    uint32_t request_id,
+    const int16_t *server_ids,
+    size_t server_count);
+aether_status_t aether_generated_reg_safe_build_resolve(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint32_t request_id,
+    const int16_t *server_ids,
+    size_t server_count);
+#ifdef __cplusplus
+}
+#endif
+#endif###reg_unsafe_local.h
+#ifndef AETHER_REG_UNSAFE_LOCAL_H
+#define AETHER_REG_UNSAFE_LOCAL_H
+#include "aether_client.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef enum {
+    AETHER_REG_UNSAFE_FRAME_ENTER = 1,
+    AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL = 2
+} aether_reg_unsafe_frame_kind_t;
+typedef struct {
+    aether_reg_unsafe_frame_kind_t kind;
+    const uint8_t *data;
+    size_t length;
+} aether_reg_unsafe_frame_t;
+>>> (отфильтровано: из 167 строк оставлено 167)
+>>> bash
+###reg_safe.c head
+#include "aether_reg_safe.h"
+#include "client_server_api_api.h"
+#include <string.h>
+typedef struct {
+    size_t *length;
+    size_t remaining;
+} aether_reg_safe_commit_t;
+typedef union {
+    sodium_chacha20_poly1305_t sodium;
+    hydrogen_secret_box_t hydrogen;
+    p256_aes_gcm_symmetric_t p256;
+} aether_reg_safe_key_storage_t;
+static aether_status_t aether_reg_safe_commit(
+    void *ctx,
+    const uint8_t *data,
+    size_t length) {
+    (void)data;
+    aether_reg_safe_commit_t *commit =
+        ctx;
+    if (commit == NULL ||
+        commit->length == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    if (length > commit->remaining) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    *commit->length +=
+        length;
+    return AETHER_OK;
+}
+static aether_status_t aether_reg_safe_key(
+    uint8_t symmetric_key_type,
+    const uint8_t *key,
+    size_t key_length,
+    aether_reg_safe_key_storage_t *storage,
+    key_ref_t *key_ref) {
+    if (key == NULL ||
+        storage == NULL ||
+        key_ref == NULL ||
+        key_length != 32u) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    memset(
+        storage,
+        0,
+        sizeof(*storage));
+    memset(
+        key_ref,
+        0,
+        sizeof(*key_ref));
+    key_ref->type_id =
+        symmetric_key_type;
+    switch (symmetric_key_type) {
+    case KEY_SYMMETRIC_TYPE_SODIUM_CHACHA20_POLY1305:
+        memcpy(
+            storage->sodium.data.data,
+            key,
+            32u);
+        key_ref->as.sodium_chacha20_poly1305 =
+            &storage->sodium;
+        return AETHER_OK;
+    case KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX:
+        memcpy(
+            storage->hydrogen.data.data,
+            key,
+            32u);
+        key_ref->as.hydrogen_secret_box =
+            &storage->hydrogen;
+        return AETHER_OK;
+    case KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC:
+        memcpy(
+            storage->p256.data.data,
+            key,
+            32u);
+        key_ref->as.p256_aes_gcm_symmetric =
+            &storage->p256;
+        return AETHER_OK;
+    default:
+        return AETHER_ERR_ARGUMENT;
+    }
+}
+static void aether_reg_safe_advance(
+    server_registration_api_remote_t *remote,
+    aether_reg_safe_commit_t *commit,
+    uint8_t *data,
+    size_t capacity,
+    size_t produced) {
+    commit->remaining =
+        capacity - produced;
+    remote->tx =
+        data != NULL
+            ? data + produced
+            : NULL;
+    remote->tx_capacity =
+        capacity - produced;
+}
+static aether_status_t aether_reg_safe_remote(
+    uint8_t *data,
+    size_t capacity,
+    size_t *produced,
+    aether_reg_safe_commit_t *commit,
+    server_registration_api_remote_t *remote) {
+###reg_safe.c tail
+        .length = server_count
+    };
+    cloud_t cloud = {
+        .data = server_id_view
+    };
+    status =
+        server_registration_api_resolve_servers(
+            &remote,
+            request_id,
+            &cloud);
+    if (status != AETHER_OK) {
+        return status;
+    }
+    *length =
+        produced;
+    return AETHER_OK;
+}
+aether_status_t aether_generated_reg_safe_build_resolve(
+    uint8_t *data,
+    size_t capacity,
+    size_t *length,
+    uint32_t request_id,
+    const int16_t *server_ids,
+    size_t server_count) {
+    if (length == NULL ||
+        (server_ids == NULL &&
+         server_count != 0u)) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    size_t produced;
+    aether_reg_safe_commit_t commit;
+    server_registration_api_remote_t remote;
+    aether_status_t status =
+        aether_reg_safe_remote(
+            data,
+            capacity,
+            &produced,
+            &commit,
+            &remote);
+    if (status != AETHER_OK) {
+        return status;
+    }
+    short_array_view_t server_id_view = {
+        .data = server_ids,
+        .length = server_count
+    };
+    cloud_t cloud = {
+        .data = server_id_view
+    };
+    status =
+        server_registration_api_resolve_servers(
+            &remote,
+            request_id,
+            &cloud);
+    if (status != AETHER_OK) {
+        return status;
+    }
+    *length =
+        produced;
+    return AETHER_OK;
+}
+>>> [elapsed: 9ms]
+>>> (отфильтровано: из 10 строк оставлено 10)
+>>> bash
+2427:        aether_generated_reg_root_build_get_key(
+2518:        aether_generated_reg_root_build_enter(
+2581:        aether_generated_reg_safe_build_pow(
+2628:        aether_generated_reg_safe_build_registration_direct(
+2691:        aether_generated_reg_safe_build_recovery(
+2751:        aether_generated_reg_safe_build_resolve_with_return_key(
+3480:            aether_generated_reg_unsafe_decode(
+3795:            aether_generated_reg_unsafe_decode(
+>>> [elapsed: 4ms]
+>>> (отфильтровано: из 35 строк оставлено 35)
+>>> bash
+include/aether_client.h:218:} aether_bytes_view_t;
+include/aether_client.h:262:            aether_bytes_view_t payload;
+include/aether_client.h:308:            aether_bytes_view_t payload;
+include/aether_client.h:344:    aether_bytes_view_t *frame);
+---dataio---
+40:typedef struct aether_data_out {
+49:void   aether_data_in_init(aether_data_in_t *in, const uint8_t *data, size_t size);
+58:size_t aether_data_in_read(aether_data_in_t *in, uint8_t *dst, size_t off, size_t len);
+59:void   aether_data_in_read_bulk(aether_data_in_t *in, uint8_t *dst, size_t len);
+60:size_t aether_data_in_read_int_array(aether_data_in_t *in, int32_t *dst, size_t off, size_t len);
+66:uint8_t  aether_data_in_read_ubyte(aether_data_in_t *in);
+67:int8_t   aether_data_in_read_byte(aether_data_in_t *in);
+68:uint16_t aether_data_in_read_ushort(aether_data_in_t *in);
+69:int16_t  aether_data_in_read_short(aether_data_in_t *in);
+70:uint16_t aether_data_in_read_char(aether_data_in_t *in);
+71:int32_t  aether_data_in_read_int(aether_data_in_t *in);
+72:uint32_t aether_data_in_read_uint(aether_data_in_t *in);
+73:int64_t  aether_data_in_read_long(aether_data_in_t *in);
+74:float    aether_data_in_read_float(aether_data_in_t *in);
+75:double   aether_data_in_read_double(aether_data_in_t *in);
+76:bool     aether_data_in_read_boolean(aether_data_in_t *in);
+82:void   aether_data_out_init(aether_data_out_t *out, uint8_t *data, size_t capacity);
+119: *   - aether_data_out_write_pack / aether_data_in_read_pack    (sync)
+136:uint64_t aether_data_in_read_pack(aether_data_in_t *in);
+188:bool aether_data_in_read_tiered_int(
+291:bool aether_data_in_read_flat_array(
+302:bool aether_data_in_read_obj_array(
+315:bool aether_data_in_read_static_flat_array(
+326:bool aether_data_in_read_static_obj_array(
+343:aether_uuid_t aether_data_in_read_uuid(aether_data_in_t *in);
+357:bool aether_data_out_write_bytes(aether_data_out_t *out, const void *data, size_t length);
+358:bool aether_data_in_read_bytes (aether_data_in_t  *in,  void *dst, size_t dst_capacity, size_t *out_length);
+361:bool aether_data_in_read_view(aether_data_in_t *in, const uint8_t **dst, size_t *out_length);
+>>> [elapsed: 15ms]
+
+>>> (отфильтровано: из 111 строк оставлено 40)
+>>> bash
+###bytes_view
+    uint8_t sign_type;
+    uint8_t signature[AETHER_MAX_CRYPTO_SIGNATURE_BYTES];
+} aether_signed_key_t;
+typedef struct {
+    const uint8_t *data;
+    size_t length;
+} aether_bytes_view_t;
+/*
+###data_out_struct
+    void *(*scratch_alloc)(void *ctx, size_t bytes, size_t align);
+} aether_data_in_t;
+/* ==== Writer (DataOut) ==== */
+typedef struct aether_data_out {
+    uint8_t *data;
+    size_t   capacity;
+    size_t   pos;
+    bool     error;
+} aether_data_out_t;
+/* ================= Reader API ================= */
+void   aether_data_in_init(aether_data_in_t *in, const uint8_t *data, size_t size);
+void   aether_data_in_reset(aether_data_in_t *in);
+size_t aether_data_in_size_for_read(const aether_data_in_t *in);
+bool   aether_data_in_is_empty(const aether_data_in_t *in);
+bool   aether_data_in_is_readable(const aether_data_in_t *in);
+bool   aether_data_in_error(const aether_data_in_t *in);
+void   aether_data_in_clear_error(aether_data_in_t *in);
+size_t aether_data_in_read(aether_data_in_t *in, uint8_t *dst, size_t off, size_t len);
+void   aether_data_in_read_bulk(aether_data_in_t *in, uint8_t *dst, size_t len);
+size_t aether_data_in_read_int_array(aether_data_in_t *in, int32_t *dst, size_t off, size_t len);
+###unsafe_local_c
+2063 src/generated/aether_reg_unsafe_local.c
+#include "aether_reg_unsafe_local.h"
+#include "client_server_reg_unsafe_local_local.h"
+typedef struct {
+    aether_reg_unsafe_frame_t *frame;
+} aether_reg_unsafe_capture_t;
+static aether_status_t aether_reg_unsafe_capture_enter(
+    void *ctx,
+
+>>> (отфильтровано: из 79 строк оставлено 79)
+>>> bash
+#include "aether_reg_unsafe_local.h"
+#include "client_server_reg_unsafe_local_local.h"
+typedef struct {
+    aether_reg_unsafe_frame_t *frame;
+} aether_reg_unsafe_capture_t;
+static aether_status_t aether_reg_unsafe_capture_enter(
+    void *ctx,
+    const client_api_reg_safe_stream_t *stream) {
+    aether_reg_unsafe_capture_t *capture =
+        ctx;
+    if (capture == NULL ||
+        capture->frame == NULL ||
+        stream == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    capture->frame->kind =
+        AETHER_REG_UNSAFE_FRAME_ENTER;
+    capture->frame->data =
+        stream->data;
+    capture->frame->length =
+        stream->length;
+    return AETHER_OK;
+}
+static aether_status_t aether_reg_unsafe_capture_enter_global(
+    void *ctx,
+    const global_reg_client_api_stream_t *stream) {
+    aether_reg_unsafe_capture_t *capture =
+        ctx;
+    if (capture == NULL ||
+        capture->frame == NULL ||
+        stream == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    capture->frame->kind =
+        AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL;
+    capture->frame->data =
+        stream->data;
+    capture->frame->length =
+        stream->length;
+    return AETHER_OK;
+}
+aether_status_t aether_generated_reg_unsafe_decode(
+    aether_reg_unsafe_frame_t *frame,
+    const uint8_t *data,
+    size_t length,
+    size_t *consumed) {
+    if (frame == NULL ||
+        consumed == NULL ||
+        (length > 0u &&
+         data == NULL)) {
+        return AETHER_ERR_ARGUMENT;
+    }
+    frame->kind =
+        0;
+    frame->data =
+        NULL;
+    frame->length =
+        0u;
+    *consumed =
+        0u;
+    aether_reg_unsafe_capture_t capture = {
+        .frame = frame
+    };
+    client_api_reg_unsafe_local_t local = {
+        .ctx = &capture,
+        .enter =
+            aether_reg_unsafe_capture_enter,
+        .enter_global =
+            aether_reg_unsafe_capture_enter_global
+    };
+    return
+        client_api_reg_unsafe_dispatch(
+            &local,
+            data,
+            length,
+            consumed);
+}
+>>> [elapsed: 7ms]
+
+[subtask extractCalls] <b>Готово.</b> Все запрошенные фрагменты извлечены и показаны выше.
