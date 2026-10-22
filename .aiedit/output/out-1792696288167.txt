@@ -1,0 +1,749 @@
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 596 to 650
+    596:]         ];
+    597:} }
+    598:  
+    599:  
+    600:s static uint16_t r_u16le(
+    601:r     reader_t *reader) {
+    602:  
+    603:u     uint16_t value =
+    604:r         r_u8(reader);
+    605:  
+    606:v     value |=
+    607:(         (uint16_t)(
+    608:(             (uint16_t)r_u8(reader) <<
+    609:8             8u);
+    610:  
+    611:r     return value;
+    612:} }
+    613:  
+    614:  
+    615:s static uint32_t r_u32le(
+    616:r     reader_t *reader) {
+    617:  
+    618:u     uint32_t value =
+    619:r         r_u8(reader);
+    620:  
+    621:v     value |=
+    622:(         (uint32_t)r_u8(reader) <<
+    623:8         8u;
+    624:  
+    625:v     value |=
+    626:(         (uint32_t)r_u8(reader) <<
+    627:1         16u;
+    628:  
+    629:v     value |=
+    630:(         (uint32_t)r_u8(reader) <<
+    631:2         24u;
+    632:  
+    633:r     return value;
+    634:} }
+    635:  
+    636:  
+    637:s static int16_t r_i16le(
+    638:r     reader_t *reader) {
+    639:  
+    640:r     return
+    641:(         (int16_t)r_u16le(
+    642:r             reader);
+    643:} }
+    644:  
+    645:  
+>>> (показано строк: 55 из 5688)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 576 to 598
+    576:w     w_u8(writer, (uint8_t)uuid.lsb);
+    577:} }
+    578:  
+    579:  
+    580:s static uint8_t r_u8(
+    581:r     reader_t *reader) {
+    582:  
+    583:i     if (reader->failed ||
+    584:r         reader->pos >=
+    585:r             reader->length) {
+    586:  
+    587:r         reader->failed =
+    588:t             true;
+    589:  
+    590:r         return 0u;
+    591:}     }
+    592:  
+    593:r     return
+    594:r         reader->data[
+    595:r             reader->pos++
+    596:]         ];
+    597:} }
+    598:  
+>>> (показано строк: 23 из 5688)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3488 to 3525
+    3488:f             for (uint8_t i = 0u; i < client->cloud_count; ++i) {
+    3489:c                 client->cloud_sids[i] = r_i16le(&reader);
+    3490:}             }
+    3491:i             if (reader.failed) {
+    3492:r                 return fail(client, AETHER_ERR_PROTOCOL);
+    3493:}             }
+    3494:  
+    3495:f             fprintf(stderr, "DBG handle66: cloud_sids[0]=%d pos=%u\r\n", client->cloud_sids[0], (unsigned)reader.pos);
+    3496:  
+    3497:  
+    3498:c             client->registered = true;
+    3499:i             if (save_state(client) != AETHER_OK) {
+    3500:r                 return fail(client, AETHER_ERR_STORAGE);
+    3501:}             }
+    3502:  
+    3503:a             aether_event_t event;
+    3504:m             memset(&event, 0, sizeof(event));
+    3505:e             event.type = AETHER_EVENT_REGISTERED;
+    3506:e             event.as.registered.uid = client->uid;
+    3507:e             event.as.registered.alias = client->alias;
+    3508:e             emit_event(client, &event);
+    3509:  
+    3510:r             return send_resolve_servers(client);
+    3511:}         }
+    3512:  
+    3513:  
+    3514:i         if (command == 67u) {
+    3515:(             (void)r_uuid(&reader);
+    3516:a             aether_status_t status = handle_pow_response(client, &reader);
+    3517:  
+    3518:i             if (status != AETHER_OK) {
+    3519:r                 return status;
+    3520:}             }
+    3521:c             continue;
+    3522:}         }
+    3523:  
+    3524:  
+    3525:  
+>>> (показано строк: 38 из 5688)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3480 to 3525
+    3480:  
+    3481:u             uint64_t cloud_count = r_pack(&reader);
+    3482:f             fprintf(stderr, "DBG handle66: cloud_count=%llu pos=%u\r\n", (unsigned long long)cloud_count, (unsigned)reader.pos);
+    3483:i             if (reader.failed || cloud_count > AETHER_MAX_SERVERS) {
+    3484:r                 return fail(client, AETHER_ERR_PROTOCOL);
+    3485:}             }
+    3486:  
+    3487:c             client->cloud_count = (uint8_t)cloud_count;
+    3488:f             for (uint8_t i = 0u; i < client->cloud_count; ++i) {
+    3489:c                 client->cloud_sids[i] = r_i16le(&reader);
+    3490:}             }
+    3491:i             if (reader.failed) {
+    3492:r                 return fail(client, AETHER_ERR_PROTOCOL);
+    3493:}             }
+    3494:  
+    3495:f             fprintf(stderr, "DBG handle66: cloud_sids[0]=%d pos=%u\r\n", client->cloud_sids[0], (unsigned)reader.pos);
+    3496:  
+    3497:  
+    3498:c             client->registered = true;
+    3499:i             if (save_state(client) != AETHER_OK) {
+    3500:r                 return fail(client, AETHER_ERR_STORAGE);
+    3501:}             }
+    3502:  
+    3503:a             aether_event_t event;
+    3504:m             memset(&event, 0, sizeof(event));
+    3505:e             event.type = AETHER_EVENT_REGISTERED;
+    3506:e             event.as.registered.uid = client->uid;
+    3507:e             event.as.registered.alias = client->alias;
+    3508:e             emit_event(client, &event);
+    3509:  
+    3510:r             return send_resolve_servers(client);
+    3511:}         }
+    3512:  
+    3513:  
+    3514:i         if (command == 67u) {
+    3515:(             (void)r_uuid(&reader);
+    3516:a             aether_status_t status = handle_pow_response(client, &reader);
+    3517:  
+    3518:i             if (status != AETHER_OK) {
+    3519:r                 return status;
+    3520:}             }
+    3521:c             continue;
+    3522:}         }
+    3523:  
+    3524:  
+    3525:  
+>>> (показано строк: 46 из 5688)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      3486:  
+      3487:c             client->cloud_count = (uint8_t)cloud_count;
+    + 3488:  
+    + 3489:f             fprintf(stderr, "DBG handle66: before sids loop count=%u pos=%u\r\n", (unsigned)client->cloud_count, (unsigned)reader.pos);
+    + 3490:  
+      3491:f             for (uint8_t i = 0u; i < client->cloud_count; ++i) {
+      3492:c                 client->cloud_sids[i] = r_i16le(&reader);
+    ...
+      3495:r                 return fail(client, AETHER_ERR_PROTOCOL);
+      3496:}             }
+    + 3497:  
+    + 3498:f             fprintf(stderr, "DBG handle66: after sids loop failed=%d pos=%u\r\n", (int)reader.failed, (unsigned)reader.pos);
+    + 3499:  
+      3500:  
+      3501:f             fprintf(stderr, "DBG handle66: cloud_sids[0]=%d pos=%u\r\n", client->cloud_sids[0], (unsigned)reader.pos);
+
+>>> bash
+[ 18%] Building C object CMakeFiles/aether_client.dir/src/aether_client.c.o
+[ 21%] Linking C static library libaether_client.a
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 264ms]
+>>> bash
+
+>>> bash
+[ 15%] Built target aether_hydrogen_test_support
+[ 90%] Built target aether_client
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 122ms]
+>>> bash
+>>> [elapsed: 19694ms]
+
+>>> bash
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=0142dce056dd4c9499c2de16d437d43e uid=8c98c56e04c6435ba48d15761edc1d89 pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=f1488c3dfc6844ab810d083cf48452ee uid=9ed676b53d9a4a8b986f9471ac42a5f7 pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+c-client-a Aether error code=-4 origin=1
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+> Task :tests:test FAILED
+BUILD FAILED in 45s
+>>> [elapsed: 45499ms]
+
+> Task :tests:test
+
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+    org.opentest4j.AssertionFailedError: Process failed: /home/angel/projects/aether-client-c/build-p2p-e2e/aether_p2p_e2e ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:560)
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+
+1 test completed, 1 failed
+
+> Task :tests:test FAILED
+
+[Incubating] Problems report is available at: file:///home/angel/projects/aether/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':tests:test'.
+> There were failing tests. See the report at: file:///home/angel/projects/aether/tests/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 25s
+89 actionable tasks: 89 executed
+>>> [elapsed: 26129ms]
+
+>>> bash
+
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3508 to 3512
+    3508:  
+    3509:a             aether_event_t event;
+    3510:m             memset(&event, 0, sizeof(event));
+    3511:e             event.type = AETHER_EVENT_REGISTERED;
+    3512:e             event.as.registered.uid = client->uid;
+>>> (показано строк: 5 из 5694)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 3510 начинается с 'm', ожидалось 'r'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.cEXIT=1
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=36a1ba6d18ff4f168d6c4c4aba78215e uid=ed42d278d36f4e498c1d50ff86352364 pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+c-client-b Aether error code=-4 origin=1
+C clients did not become ready
+
+> Task :tests:test
+
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+    org.opentest4j.AssertionFailedError: Process failed: /home/angel/projects/aether-client-c/build-p2p-e2e/aether_p2p_e2e ==> expected: <0> but was: <1>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:560)
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+
+1 test completed, 1 failed
+
+> Task :tests:test FAILED
+
+[Incubating] Problems report is available at: file:///home/angel/projects/aether/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':tests:test'.
+> There were failing tests. See the report at: file:///home/angel/projects/aether/tests/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 21s
+89 actionable tasks: 89 executed
+>>> [elapsed: 21555ms]
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3508 to 3520
+    3508:  
+    3509:a             aether_event_t event;
+    3510:m             memset(&event, 0, sizeof(event));
+    3511:e             event.type = AETHER_EVENT_REGISTERED;
+    3512:e             event.as.registered.uid = client->uid;
+    3513:e             event.as.registered.alias = client->alias;
+    3514:e             emit_event(client, &event);
+    3515:  
+    3516:r             return send_resolve_servers(client);
+    3517:}         }
+    3518:  
+    3519:  
+    3520:i         if (command == 67u) {
+>>> (показано строк: 13 из 5694)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2736 to 2800
+    2736:s static aether_status_t send_resolve_servers(
+    2737:a     aether_client_t *client) {
+    2738:  
+    2739:i     if (client->cloud_count == 0u) {
+    2740:r         return
+    2741:f             fail(
+    2742:c                 client,
+    2743:A                 AETHER_ERR_PROTOCOL);
+    2744:}     }
+    2745:  
+    2746:c     client->req_resolve =
+    2747:n         next_request_id(
+    2748:c             client);
+    2749:  
+    2750:s     size_t nested_len =
+    2751:0         0u;
+    2752:  
+    2753:a     aether_status_t status =
+    2754:a         aether_generated_reg_safe_build_resolve_with_return_key(
+    2755:c             client->tx_plain,
+    2756:s             sizeof(client->tx_plain),
+    2757:&             &nested_len,
+    2758:c             client->config.crypto
+    2759:-                 ->profile.symmetric_key_type,
+    2760:c             client->temp_key,
+    2761:c             client->config.crypto
+    2762:-                 ->profile.symmetric_key_bytes,
+    2763:c             client->cloud_sids,
+    2764:c             client->cloud_count);
+    2765:  
+    2766:i     if (status != AETHER_OK) {
+    2767:r         return
+    2768:f             fail(
+    2769:c                 client,
+    2770:s                 status);
+    2771:}     }
+    2772:  
+    2773:  
+    2774:c     client->state_started_at_ms =
+    2775:(         (uint32_t)
+    2776:c             client->now_ms;
+    2777:  
+    2778:s     set_state(
+    2779:c         client,
+    2780:A         AETHER_STATE_SERVER_RESOLVING);
+    2781:  
+    2782:s     status =
+    2783:s         send_reg_enter(
+    2784:c             client,
+    2785:c             client->tx_plain,
+>>> (показано строк: 65 из 5694)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2790 to 2880
+    2790:} }
+    2791:  
+    2792:  
+    2793:s static bool parse_work_proof(
+    2794:r     reader_t *reader,
+    2795:a     aether_client_t *client) {
+    2796:  
+    2797:i     if (reader == NULL ||
+    2798:c         client == NULL ||
+    2799:c         client->registration == NULL) {
+    2800:  
+    2801:r         return false;
+    2802:}     }
+    2803:  
+    2804:  
+    2805:f     fprintf(stderr, "DBG parse_work_proof: enter\r\n");
+    2806:  
+    2807:c     const uint8_t *salt;
+    2808:s     size_t salt_len;
+    2809:  
+    2810:c     const uint8_t *suffix;
+    2811:s     size_t suffix_len;
+    2812:  
+    2813:i     if (!r_view(
+    2814:r             reader,
+    2815:&             &salt,
+    2816:&             &salt_len) ||
+    2817:!         !r_view(
+    2818:r             reader,
+    2819:&             &suffix,
+    2820:&             &suffix_len)) {
+    2821:  
+    2822:r         return false;
+    2823:}     }
+    2824:  
+    2825:i     if (salt_len >
+    2826:s             sizeof(client->registration->pow_salt) ||
+    2827:s         suffix_len >
+    2828:s             sizeof(client->registration->pow_suffix)) {
+    2829:  
+    2830:r         return false;
+    2831:}     }
+    2832:  
+    2833:m     memcpy(
+    2834:c         client->registration->pow_salt,
+    2835:s         salt,
+    2836:s         salt_len);
+    2837:  
+    2838:m     memcpy(
+    2839:c         client->registration->pow_suffix,
+>>> (показано строк: 91 из 5694)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      2736:s static aether_status_t send_resolve_servers(
+      2737:a     aether_client_t *client) {
+    + 2738:  
+    + 2739:f     fprintf(stderr, "DBG send_resolve_servers: enter cloud_count=%u\r\n", (unsigned)client->cloud_count);
+    + 2740:  
+    + 2741:  
+    + 2742:  
+    + 2743:f     fprintf(stderr, "DBG send_resolve: cloud_count==0\r\n");
+      2744:  
+      2745:i     if (client->cloud_count == 0u) {
+    ...
+      2776:s                 status);
+      2777:}     }
+    + 2778:  
+    + 2779:f     fprintf(stderr, "DBG send_resolve: build status=%d\r\n", (int)status);
+    + 2780:  
+      2781:  
+      2782:  
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2780 to 2820
+    2780:  
+    2781:  
+    2782:  
+    2783:c     client->state_started_at_ms =
+    2784:(         (uint32_t)
+    2785:c             client->now_ms;
+    2786:  
+    2787:s     set_state(
+    2788:c         client,
+    2789:A         AETHER_STATE_SERVER_RESOLVING);
+    2790:  
+    2791:s     status =
+    2792:s         send_reg_enter(
+    2793:c             client,
+    2794:c             client->tx_plain,
+    2795:n             nested_len);
+    2796:  
+    2797:  
+    2798:r     return status;
+    2799:} }
+    2800:  
+    2801:  
+    2802:s static bool parse_work_proof(
+    2803:r     reader_t *reader,
+    2804:a     aether_client_t *client) {
+    2805:  
+    2806:i     if (reader == NULL ||
+    2807:c         client == NULL ||
+    2808:c         client->registration == NULL) {
+    2809:  
+    2810:r         return false;
+    2811:}     }
+    2812:  
+    2813:  
+    2814:f     fprintf(stderr, "DBG parse_work_proof: enter\r\n");
+    2815:  
+    2816:c     const uint8_t *salt;
+    2817:s     size_t salt_len;
+    2818:  
+    2819:c     const uint8_t *suffix;
+    2820:s     size_t suffix_len;
+>>> (показано строк: 41 из 5703)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3514 to 3520
+    3514:i             if (save_state(client) != AETHER_OK) {
+    3515:r                 return fail(client, AETHER_ERR_STORAGE);
+    3516:}             }
+    3517:  
+    3518:a             aether_event_t event;
+    3519:m             memset(&event, 0, sizeof(event));
+    3520:e             event.type = AETHER_EVENT_REGISTERED;
+>>> (показано строк: 7 из 5703)
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3514 to 3518
+    3514:i             if (save_state(client) != AETHER_OK) {
+    3515:r                 return fail(client, AETHER_ERR_STORAGE);
+    3516:}             }
+    3517:  
+    3518:a             aether_event_t event;
+>>> (показано строк: 5 из 5703)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 3516 начинается с '}', ожидалось 'r'
+ for path: /home/angel/projects/aether-client-c/src/aether_client.ctimestamp: 1792696218940
+>>> bash
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 334ms]
+>>> bash
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3514 to 3545
+    3514:i             if (save_state(client) != AETHER_OK) {
+    3515:r                 return fail(client, AETHER_ERR_STORAGE);
+    3516:}             }
+    3517:  
+    3518:a             aether_event_t event;
+    3519:m             memset(&event, 0, sizeof(event));
+    3520:e             event.type = AETHER_EVENT_REGISTERED;
+    3521:e             event.as.registered.uid = client->uid;
+    3522:e             event.as.registered.alias = client->alias;
+    3523:e             emit_event(client, &event);
+    3524:  
+    3525:r             return send_resolve_servers(client);
+    3526:}         }
+    3527:  
+    3528:  
+    3529:i         if (command == 67u) {
+    3530:(             (void)r_uuid(&reader);
+    3531:a             aether_status_t status = handle_pow_response(client, &reader);
+    3532:  
+    3533:i             if (status != AETHER_OK) {
+    3534:r                 return status;
+    3535:}             }
+    3536:c             continue;
+    3537:}         }
+    3538:  
+    3539:  
+    3540:  
+    3541:  
+    3542:  
+    3543:i         if (command ==
+    3544:C             CMD_ERROR) {
+    3545:  
+>>> (показано строк: 32 из 5703)
+
+>>> bash
+[ 15%] Built target aether_hydrogen_test_support
+[ 90%] Built target aether_client
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 106ms]
+>>> bash
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+The Project.getProperties method has been deprecated. This will fail with an error in Gradle 10. Consult the upgrading guide for further information: https://docs.gradle.org/9.6.1/userguide/upgrading_version_9.html#deprecated_get_properties
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=cacb232340e34c8abefdcbe1c3542a7d uid=e928708716ca495da13823ea13f62c48 pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=8bc516aa6c0d4c51bcfb0d8113dc33ea uid=f958f86e525f455aa87a9f47b44cc91a pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+c-client-b Aether error code=-4 origin=1
+>>> [elapsed: 22071ms]
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2493 to 2568
+    2493:s static aether_status_t send_reg_enter(
+    2494:a     aether_client_t *client,
+    2495:c     const uint8_t *nested,
+    2496:s     size_t nested_len) {
+    2497:  
+    2498:s     size_t cipher_len =
+    2499:0         0u;
+    2500:  
+    2501:i     if (crypto_asymmetric_encrypt(
+    2502:c             client,
+    2503:c             client->registration_server_key.key,
+    2504:n             nested,
+    2505:n             nested_len,
+    2506:c             client->tx_crypto,
+    2507:s             sizeof(client->tx_crypto),
+    2508:&             &cipher_len) !=
+    2509:A         AETHER_OK) {
+    2510:  
+    2511:r         return
+    2512:f             fail(
+    2513:c                 client,
+    2514:A                 AETHER_ERR_CRYPTO);
+    2515:}     }
+    2516:  
+    2517:s     size_t packet_length =
+    2518:0         0u;
+    2519:  
+    2520:a     aether_status_t status =
+    2521:a         aether_generated_reg_root_build_enter(
+    2522:c             client->tx_plain,
+    2523:s             sizeof(client->tx_plain),
+    2524:&             &packet_length,
+    2525:c             client->config.crypto
+    2526:-                 ->profile.crypto_lib,
+    2527:c             client->tx_crypto,
+    2528:c             cipher_len);
+    2529:  
+    2530:i     if (status != AETHER_OK) {
+    2531:r         return
+    2532:f             fail(
+    2533:c                 client,
+    2534:s                 status);
+    2535:}     }
+    2536:  
+    2537:s     status =
+    2538:t         transport_send(
+    2539:c             client,
+    2540:A             AETHER_CHANNEL_REGISTRATION,
+    2541:c             client->tx_plain,
+    2542:p             packet_length);
+>>> (показано строк: 76 из 5703)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2736 to 2800
+>>> (показано строк: 65 из 5703)
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=70 pos=1 len=99 state=4
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG parse_work_proof: enter
+DBG parse_wp: after max_hash pool=10 max=2147483647
+DBG pow: salt_len=29 suffix_len=48
+DBG pow resp: start
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=191f4e74d5da4951adac94750aa8df52 uid=8658dca6eebd4d2ea39ae13f1b4e9b7c pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG handle66: enter pos=1 len=36
+DBG handle66: alias=b7e0d0f3bd09471d9d02766e1b88df5d uid=30b84d1e77544cad941d38b56780c9e5 pos=33
+DBG handle66: cloud_count=1 pos=34
+DBG handle66: before sids loop count=1 pos=34
+DBG handle66: after sids loop failed=0 pos=36
+DBG handle66: cloud_sids[0]=21 pos=36
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+c-client-b Aether error code=-4 origin=1
+>>> [elapsed: 42197ms]
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    1112:s static aether_status_t crypto_symmetric_encrypt(
+    4121:i     if (crypto_symmetric_encrypt(
+>>> (всего найдено строк: 2)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    864:s static aether_status_t transport_send(
+    2445:t         transport_send(
+    2538:t         transport_send(
+    4160:t         transport_send(
+>>> (всего найдено строк: 4)
+[subtask fixClientB] ERROR: subtask produced no groovy block

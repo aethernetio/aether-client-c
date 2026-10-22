@@ -1,0 +1,485 @@
+>>> bash
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    266:s static aether_status_t fail_with_origin(
+    289:s static aether_status_t fail_remote(
+    311:s static aether_status_t fail(
+>>> (всего найдено строк: 3)
+
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 311 to 320 : fail
+    311:s static aether_status_t fail(
+    312:a     aether_client_t *client,
+    313:a     aether_status_t code) {
+    314:  
+    315:r     return
+    316:f         fail_with_origin(
+    317:c             client,
+    318:c             code,
+    319:e             error_origin_for_status(code));
+    320:} }
+>>> (показано строк: 10 из 5712)
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 289 to 308 : fail_remote
+    289:s static aether_status_t fail_remote(
+    290:a     aether_client_t *client,
+    291:u     uint32_t request_id) {
+    292:  
+    293:a     aether_state_t source_state =
+    294:c         client->state;
+    295:  
+    296:s     set_state(
+    297:c         client,
+    298:A         AETHER_STATE_ERROR);
+    299:  
+    300:e     emit_error(
+    301:c         client,
+    302:A         AETHER_ERR_REMOTE,
+    303:A         AETHER_ERROR_ORIGIN_REMOTE,
+    304:s         source_state,
+    305:r         request_id);
+    306:  
+    307:r     return AETHER_ERR_REMOTE;
+    308:} }
+>>> (показано строк: 20 из 5712)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    3787:s static aether_status_t handle_server_resolving_rx(
+    5424:h                 handle_server_resolving_rx(
+>>> (всего найдено строк: 2)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    3672:s static aether_status_t handle_server_resolve_plain(
+    3939:h             handle_server_resolve_plain(
+>>> (всего найдено строк: 2)
+
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3787 to 3959 : handle_server_resolving_rx
+    3787:s static aether_status_t handle_server_resolving_rx(
+    3788:a     aether_client_t *client,
+    3789:c     const uint8_t *data,
+    3790:s     size_t length) {
+    3791:  
+    3792:r     reader_t reader = {
+    3793:d         data,
+    3794:l         length,
+    3795:0         0u,
+    3796:f         false
+    3797:}     };
+    3798:  
+    3799:w     while (!reader.failed &&
+    3800:r            reader.pos <
+    3801:r                reader.length) {
+    3802:  
+    3803:s         size_t frame_start =
+    3804:r             reader.pos;
+    3805:  
+    3806:u         uint8_t command =
+    3807:r             r_u8(
+    3808:&                 &reader);
+    3809:  
+    3810:i         if (command ==
+    3811:C             CMD_RESULT) {
+    3812:  
+    3813:u             uint32_t request_id =
+    3814:r                 r_u32le(
+    3815:&                     &reader);
+    3816:  
+    3817:i             if (request_id !=
+    3818:c                     client->req_server_key ||
+    3819:c                 client->state !=
+    3820:A                     AETHER_STATE_SERVER_RESOLVING) {
+    3821:  
+    3822:r                 return
+    3823:f                     fail(
+    3824:c                         client,
+    3825:A                         AETHER_ERR_PROTOCOL);
+    3826:}             }
+    3827:  
+    3828:i             if (!parse_signed_key(
+    3829:&                     &reader,
+    3830:c                     client,
+    3831:&                     &client->registration_server_key)) {
+    3832:  
+    3833:r                 return
+    3834:f                     fail(
+    3835:c                         client,
+    3836:A                         AETHER_ERR_PROTOCOL);
+>>> (показано строк: 173 из 5712)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3787 to 3960
+    3787:s static aether_status_t handle_server_resolving_rx(
+    3788:a     aether_client_t *client,
+    3789:c     const uint8_t *data,
+    3790:s     size_t length) {
+    3791:  
+    3792:r     reader_t reader = {
+    3793:d         data,
+    3794:l         length,
+    3795:0         0u,
+    3796:f         false
+    3797:}     };
+    3798:  
+    3799:w     while (!reader.failed &&
+    3800:r            reader.pos <
+    3801:r                reader.length) {
+    3802:  
+    3803:s         size_t frame_start =
+    3804:r             reader.pos;
+    3805:  
+    3806:u         uint8_t command =
+    3807:r             r_u8(
+    3808:&                 &reader);
+    3809:  
+    3810:i         if (command ==
+    3811:C             CMD_RESULT) {
+    3812:  
+    3813:u             uint32_t request_id =
+    3814:r                 r_u32le(
+    3815:&                     &reader);
+    3816:  
+    3817:i             if (request_id !=
+    3818:c                     client->req_server_key ||
+    3819:c                 client->state !=
+    3820:A                     AETHER_STATE_SERVER_RESOLVING) {
+    3821:  
+    3822:r                 return
+    3823:f                     fail(
+    3824:c                         client,
+    3825:A                         AETHER_ERR_PROTOCOL);
+    3826:}             }
+    3827:  
+    3828:i             if (!parse_signed_key(
+    3829:&                     &reader,
+    3830:c                     client,
+    3831:&                     &client->registration_server_key)) {
+    3832:  
+    3833:r                 return
+    3834:f                     fail(
+    3835:c                         client,
+    3836:A                         AETHER_ERR_PROTOCOL);
+>>> (показано строк: 174 из 5712)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3900 to 3960
+    3900:f                     frame_start,
+    3901:r                 reader.length -
+    3902:f                     frame_start,
+    3903:&                 &consumed);
+    3904:  
+    3905:i         if (decode_status != AETHER_OK ||
+    3906:c             consumed == 0u ||
+    3907:c             consumed >
+    3908:r                 reader.length -
+    3909:f                     frame_start ||
+    3910:f             frame.kind !=
+    3911:A                 AETHER_REG_UNSAFE_FRAME_ENTER) {
+    3912:  
+    3913:r             return
+    3914:f                 fail(
+    3915:c                     client,
+    3916:A                     AETHER_ERR_PROTOCOL);
+    3917:}         }
+    3918:  
+    3919:s         size_t plain_len =
+    3920:0             0u;
+    3921:  
+    3922:i         if (crypto_symmetric_decrypt(
+    3923:c                 client,
+    3924:c                 client->temp_key,
+    3925:f                 frame.data,
+    3926:f                 frame.length,
+    3927:c                 client->tx_crypto,
+    3928:s                 sizeof(client->tx_crypto),
+    3929:&                 &plain_len) !=
+    3930:A             AETHER_OK) {
+    3931:  
+    3932:r             return
+    3933:f                 fail(
+    3934:c                     client,
+    3935:A                     AETHER_ERR_CRYPTO);
+    3936:}         }
+    3937:  
+    3938:a         aether_status_t status =
+    3939:h             handle_server_resolve_plain(
+    3940:c                 client,
+    3941:c                 client->tx_crypto,
+    3942:p                 plain_len);
+    3943:  
+    3944:i         if (status != AETHER_OK) {
+    3945:r             return status;
+    3946:}         }
+    3947:  
+    3948:r         reader.pos =
+    3949:f             frame_start +
+>>> (показано строк: 61 из 5712)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3810 to 3900
+    3810:i         if (command ==
+    3811:C             CMD_RESULT) {
+    3812:  
+    3813:u             uint32_t request_id =
+    3814:r                 r_u32le(
+    3815:&                     &reader);
+    3816:  
+    3817:i             if (request_id !=
+    3818:c                     client->req_server_key ||
+    3819:c                 client->state !=
+    3820:A                     AETHER_STATE_SERVER_RESOLVING) {
+    3821:  
+    3822:r                 return
+    3823:f                     fail(
+    3824:c                         client,
+    3825:A                         AETHER_ERR_PROTOCOL);
+    3826:}             }
+    3827:  
+    3828:i             if (!parse_signed_key(
+    3829:&                     &reader,
+    3830:c                     client,
+    3831:&                     &client->registration_server_key)) {
+    3832:  
+    3833:r                 return
+    3834:f                     fail(
+    3835:c                         client,
+    3836:A                         AETHER_ERR_PROTOCOL);
+    3837:}             }
+    3838:  
+    3839:i             if (!verify_signed_key(
+    3840:c                     client,
+    3841:&                     &client->registration_server_key)) {
+    3842:  
+    3843:r                 return
+    3844:f                     fail_with_origin(
+    3845:c                         client,
+    3846:A                         AETHER_ERR_CRYPTO,
+    3847:A                         AETHER_ERROR_ORIGIN_TRUST);
+    3848:}             }
+    3849:  
+    3850:i             if (client->config.crypto
+    3851:-                         ->random_symmetric_key(
+    3852:c                     client->config.crypto_ctx,
+    3853:c                     client->temp_key,
+    3854:c                     client->config.crypto
+    3855:-                         ->profile.symmetric_key_bytes) !=
+    3856:A                 AETHER_OK) {
+    3857:  
+    3858:r                 return
+    3859:f                     fail(
+>>> (показано строк: 91 из 5712)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3850 to 3960
+    3850:i             if (client->config.crypto
+    3851:-                         ->random_symmetric_key(
+    3852:c                     client->config.crypto_ctx,
+    3853:c                     client->temp_key,
+    3854:c                     client->config.crypto
+    3855:-                         ->profile.symmetric_key_bytes) !=
+    3856:A                 AETHER_OK) {
+    3857:  
+    3858:r                 return
+    3859:f                     fail(
+    3860:c                         client,
+    3861:A                         AETHER_ERR_CRYPTO);
+    3862:}             }
+    3863:  
+    3864:r             return
+    3865:s                 send_resolve_servers(
+    3866:c                     client);
+    3867:}         }
+    3868:  
+    3869:i         if (command ==
+    3870:C             CMD_ERROR) {
+    3871:  
+    3872:u             uint32_t request_id =
+    3873:r                 r_u32le(
+    3874:&                     &reader);
+    3875:  
+    3876:i             if (reader.failed) {
+    3877:r                 return
+    3878:f                     fail(
+    3879:c                         client,
+    3880:A                         AETHER_ERR_PROTOCOL);
+    3881:}             }
+    3882:  
+    3883:r             return
+    3884:f                 fail_remote(
+    3885:c                     client,
+    3886:r                     request_id);
+    3887:}         }
+    3888:  
+    3889:a         aether_reg_unsafe_frame_t frame = {
+    3890:0             0
+    3891:}         };
+    3892:  
+    3893:s         size_t consumed =
+    3894:0             0u;
+    3895:  
+    3896:a         aether_status_t decode_status =
+    3897:a             aether_generated_reg_unsafe_decode(
+    3898:&                 &frame,
+    3899:r                 reader.data +
+>>> (показано строк: 111 из 5712)
+
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3672 to 3784 : handle_server_resolve_plain
+    3672:s static aether_status_t handle_server_resolve_plain(
+    3673:a     aether_client_t *client,
+    3674:c     const uint8_t *data,
+    3675:s     size_t length) {
+    3676:  
+    3677:r     reader_t reader = {
+    3678:d         data,
+    3679:l         length,
+    3680:0         0u,
+    3681:f         false
+    3682:}     };
+    3683:  
+    3684:w     while (!reader.failed &&
+    3685:r            reader.pos <
+    3686:r                reader.length) {
+    3687:  
+    3688:u         uint8_t command =
+    3689:r             r_u8(
+    3690:&                 &reader);
+    3691:  
+    3692:i         if (command ==
+    3693:C             CMD_RESULT) {
+    3694:  
+    3695:u             uint32_t request_id =
+    3696:r                 r_u32le(
+    3697:&                     &reader);
+    3698:  
+    3699:i             if (request_id !=
+    3700:c                     client->req_resolve ||
+    3701:c                 client->state !=
+    3702:A                     AETHER_STATE_SERVER_RESOLVING) {
+    3703:  
+    3704:r                 return
+    3705:f                     fail(
+    3706:c                         client,
+    3707:A                         AETHER_ERR_PROTOCOL);
+    3708:}             }
+    3709:  
+    3710:i             if (!parse_server_array(
+    3711:&                     &reader,
+    3712:c                     client)) {
+    3713:  
+    3714:r                 return
+    3715:f                     fail(
+    3716:c                         client,
+    3717:A                         AETHER_ERR_PROTOCOL);
+    3718:}             }
+    3719:  
+    3720:  
+    3721:/             /*
+>>> (показано строк: 113 из 5712)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3718 to 3784
+    3718:}             }
+    3719:  
+    3720:  
+    3721:/             /*
+    3722:*              * A resolveServers response is a cheap refresh of the known Cloud,
+    3723:*              * not authoritative recovery. Remember that it was already used so
+    3724:*              * that exhausting its result escalates to mandatory recovery.
+    3725:*              */
+    3726:c             client->topology_refreshed =
+    3727:t                 true;
+    3728:  
+    3729:  
+    3730:  
+    3731:c             client->registered =
+    3732:t                 true;
+    3733:  
+    3734:i             if (save_state(client) !=
+    3735:A                 AETHER_OK) {
+    3736:  
+    3737:r                 return
+    3738:f                     fail(
+    3739:c                         client,
+    3740:A                         AETHER_ERR_STORAGE);
+    3741:}             }
+    3742:  
+    3743:t             transport_close(
+    3744:c                 client,
+    3745:A                 AETHER_CHANNEL_REGISTRATION);
+    3746:  
+    3747:r             return
+    3748:b                 begin_work(
+    3749:c                     client);
+    3750:}         }
+    3751:  
+    3752:i         if (command ==
+    3753:C             CMD_ERROR) {
+    3754:  
+    3755:u             uint32_t request_id =
+    3756:r                 r_u32le(
+    3757:&                     &reader);
+    3758:  
+    3759:i             if (reader.failed) {
+    3760:r                 return
+    3761:f                     fail(
+    3762:c                         client,
+    3763:A                         AETHER_ERR_PROTOCOL);
+    3764:}             }
+    3765:  
+    3766:r             return
+    3767:f                 fail_remote(
+>>> (показано строк: 67 из 5712)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/src/aether_client.c
+    ...
+      3865:s                 send_resolve_servers(
+      3866:c                     client);
+    + 3867:}         }
+    + 3868:  
+    + 3869:  
+    + 3870:i         if (command == 68u) {
+    + 3871:i             if (!parse_server_array(&reader, client)) {
+    + 3872:r                 return fail(client, AETHER_ERR_PROTOCOL);
+    + 3873:}             }
+    + 3874:  
+    + 3875:c             client->topology_refreshed = true;
+    + 3876:c             client->registered = true;
+    + 3877:  
+    + 3878:i             if (save_state(client) != AETHER_OK) {
+    + 3879:r                 return fail(client, AETHER_ERR_STORAGE);
+    + 3880:}             }
+    + 3881:  
+    + 3882:t             transport_close(client, AETHER_CHANNEL_REGISTRATION);
+    + 3883:  
+    + 3884:r             return begin_work(client);
+      3885:}         }
+    + 3886:  
+      3887:  
+      3888:i         if (command ==
+
+>>> bash
+[ 18%] Building C object CMakeFiles/aether_client.dir/src/aether_client.c.o
+[ 21%] Linking C static library libaether_client.a
+[ 90%] Built target aether_client
+[ 93%] Linking C executable aether_p2p_e2e
+[100%] Built target aether_p2p_e2e
+>>> [elapsed: 312ms]
+>>> bash
+f09680f wip: handle cmd=67 workProofData (subtask checkpoint)
+e0daf58 wip: allow subtask to continue fixing client B (cmd=67 workProofData)
+281e51b protocol: accept ENTER_GLOBAL push frame in registration rx
+ff195bd checkpoint before adding push-opcode debug
+=== STATUS ===
+ M aiedit_context.yaml
+ M src/aether_client.c
+?? .aiedit/output/out-1792696288167.txt
+?? .aiedit/output/out-1792696399496.txt
+?? .aiedit/output/out-1792696417864.txt
+?? .aiedit/output/out-1792696512856.txt
+=== LAST COMMIT DIFF ===
+f09680f wip: handle cmd=67 workProofData (subtask checkpoint)
+>>> [elapsed: 150012ms]

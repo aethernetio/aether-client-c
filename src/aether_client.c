@@ -2514,6 +2514,9 @@ static aether_status_t send_reg_enter(
                 AETHER_ERR_CRYPTO);
     }
 
+    fprintf(stderr, "DBG send_reg_enter: after asym encrypt cipher_len=%u\r\n", (unsigned)cipher_len);
+
+
     size_t packet_length =
         0u;
 
@@ -2534,6 +2537,9 @@ static aether_status_t send_reg_enter(
                 status);
     }
 
+    fprintf(stderr, "DBG send_reg_enter: after build_enter packet_len=%u status=%d\r\n", (unsigned)packet_length, (int)status);
+
+
     status =
         transport_send(
             client,
@@ -2541,6 +2547,9 @@ static aether_status_t send_reg_enter(
             client->tx_plain,
             packet_length);
 
+
+
+    fprintf(stderr, "DBG send_reg_enter: after transport_send status=%d\r\n", (int)status);
 
     if (status != AETHER_OK) {
         if (client->state ==
@@ -2736,6 +2745,12 @@ static aether_status_t send_recovery_request(
 static aether_status_t send_resolve_servers(
     aether_client_t *client) {
 
+    fprintf(stderr, "DBG send_resolve_servers: enter cloud_count=%u\r\n", (unsigned)client->cloud_count);
+
+
+
+    fprintf(stderr, "DBG send_resolve: cloud_count==0\r\n");
+
     if (client->cloud_count == 0u) {
         return
             fail(
@@ -2769,6 +2784,9 @@ static aether_status_t send_resolve_servers(
                 client,
                 status);
     }
+
+    fprintf(stderr, "DBG send_resolve: build status=%d\r\n", (int)status);
+
 
 
     client->state_started_at_ms =
@@ -3466,6 +3484,57 @@ size_t frame_start =
 
 
 
+
+        if (command == 66u) {
+
+
+            fprintf(stderr, "DBG handle66: enter pos=%u len=%u\r\n", (unsigned)reader.pos, (unsigned)reader.length);
+            client->alias = r_uuid(&reader);
+            client->uid = r_uuid(&reader);
+            fprintf(stderr, "DBG handle66: alias=%016llx%016llx uid=%016llx%016llx pos=%u\r\n",
+                    (unsigned long long)client->alias.msb, (unsigned long long)client->alias.lsb,
+                    (unsigned long long)client->uid.msb, (unsigned long long)client->uid.lsb,
+                    (unsigned)reader.pos);
+
+            uint64_t cloud_count = r_pack(&reader);
+            fprintf(stderr, "DBG handle66: cloud_count=%llu pos=%u\r\n", (unsigned long long)cloud_count, (unsigned)reader.pos);
+            if (reader.failed || cloud_count > AETHER_MAX_SERVERS) {
+                return fail(client, AETHER_ERR_PROTOCOL);
+            }
+
+            client->cloud_count = (uint8_t)cloud_count;
+
+            fprintf(stderr, "DBG handle66: before sids loop count=%u pos=%u\r\n", (unsigned)client->cloud_count, (unsigned)reader.pos);
+
+            for (uint8_t i = 0u; i < client->cloud_count; ++i) {
+                client->cloud_sids[i] = r_i16le(&reader);
+            }
+            if (reader.failed) {
+                return fail(client, AETHER_ERR_PROTOCOL);
+            }
+
+            fprintf(stderr, "DBG handle66: after sids loop failed=%d pos=%u\r\n", (int)reader.failed, (unsigned)reader.pos);
+
+
+            fprintf(stderr, "DBG handle66: cloud_sids[0]=%d pos=%u\r\n", client->cloud_sids[0], (unsigned)reader.pos);
+
+
+            client->registered = true;
+            if (save_state(client) != AETHER_OK) {
+                return fail(client, AETHER_ERR_STORAGE);
+            }
+
+            aether_event_t event;
+            memset(&event, 0, sizeof(event));
+            event.type = AETHER_EVENT_REGISTERED;
+            event.as.registered.uid = client->uid;
+            event.as.registered.alias = client->alias;
+            emit_event(client, &event);
+
+            return send_resolve_servers(client);
+        }
+
+
         if (command == 67u) {
             (void)r_uuid(&reader);
             aether_status_t status = handle_pow_response(client, &reader);
@@ -3796,6 +3865,25 @@ static aether_status_t handle_server_resolving_rx(
                 send_resolve_servers(
                     client);
         }
+
+
+        if (command == 68u) {
+            if (!parse_server_array(&reader, client)) {
+                return fail(client, AETHER_ERR_PROTOCOL);
+            }
+
+            client->topology_refreshed = true;
+            client->registered = true;
+
+            if (save_state(client) != AETHER_OK) {
+                return fail(client, AETHER_ERR_STORAGE);
+            }
+
+            transport_close(client, AETHER_CHANNEL_REGISTRATION);
+
+            return begin_work(client);
+        }
+
 
         if (command ==
             CMD_ERROR) {
@@ -4446,6 +4534,15 @@ static aether_status_t resume_client_safe_plain(
             return AETHER_OK;
         }
 
+
+
+        if (command == 24u) {
+            continue;
+        }
+
+
+            fprintf(stderr, "DBG unsupported cmd safe=%u pos=%u\r\n", (unsigned)command, (unsigned)reader.pos);
+
         return AETHER_ERR_UNSUPPORTED;
     }
 
@@ -4543,6 +4640,9 @@ static aether_status_t handle_work_rx(
         } else if (
             command !=
             CLIENT_UNSAFE_SAFE_DATA) {
+
+
+            fprintf(stderr, "DBG unsupported cmd unsafe=%u\r\n", (unsigned)command);
 
             return AETHER_ERR_UNSUPPORTED;
         }

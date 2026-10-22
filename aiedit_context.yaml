@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 374,
+      historySplit: 657,
       scriptAndLive: 287,
-      verticalSplit: 89
+      verticalSplit: 324
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -25,7 +25,8 @@
     },
     subtasks: {
       root: [
-        fixClientB
+        fixClientB,
+        rewriteRegRx
       ]
       
     }
@@ -72,10 +73,10 @@
       validation: true
     },
     window: {
-      x: 2971,
-      width: 618,
-      y: 1814,
-      height: 267
+      x: 2461,
+      width: 1128,
+      y: 1580,
+      height: 502
     }
   },
   roots: [

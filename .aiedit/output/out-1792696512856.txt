@@ -1,0 +1,124 @@
+>>> bash
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4090 to 4170
+    4090:  
+    4091:r         return
+    4092:c             client->config.request_timeout_ms;
+    4093:}     }
+    4094:  
+    4095:u     uint32_t base =
+    4096:c         client->config.ping_interval_ms;
+    4097:  
+    4098:i     if (client->config.rx_window_ms >
+    4099:b         base) {
+    4100:  
+    4101:b         base =
+    4102:c             client->config.rx_window_ms;
+    4103:}     }
+    4104:  
+    4105:i     if (base == 0u) {
+    4106:r         return 10000u;
+    4107:}     }
+    4108:  
+    4109:i     if (base >
+    4110:U         UINT32_MAX /
+    4111:2             2u) {
+    4112:  
+    4113:r         return UINT32_MAX;
+    4114:}     }
+    4115:  
+    4116:r     return
+    4117:b         base * 2u;
+    4118:} }
+    4119:  
+    4120:  
+    4121:  
+    4122:s static aether_status_t send_authorized_plain(
+    4123:a     aether_client_t *client,
+    4124:c     const uint8_t *plain,
+    4125:s     size_t plain_len) {
+    4126:  
+    4127:s     size_t cipher_len =
+    4128:0         0u;
+    4129:  
+    4130:i     if (crypto_symmetric_encrypt(
+    4131:c             client,
+    4132:c             client->work_tx_key,
+    4133:p             plain,
+    4134:p             plain_len,
+    4135:c             client->tx_crypto,
+    4136:s             sizeof(client->tx_crypto),
+    4137:&             &cipher_len) !=
+    4138:A         AETHER_OK) {
+    4139:  
+>>> (показано строк: 81 из 5712)
+f09680f wip: handle cmd=67 workProofData (subtask checkpoint)
+e0daf58 wip: allow subtask to continue fixing client B (cmd=67 workProofData)
+281e51b protocol: accept ENTER_GLOBAL push frame in registration rx
+ff195bd checkpoint before adding push-opcode debug
+=== STATUS ===
+ M aiedit_context.yaml
+ M src/aether_client.c
+?? .aiedit/output/out-1792696288167.txt
+?? .aiedit/output/out-1792696399496.txt
+?? .aiedit/output/out-1792696417864.txt
+=== TEST ===
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    1408:s static bool parse_server_array(
+>>> (всего найдено строк: 1)
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 1408 to 1448 : parse_server_array
+    1408:s static bool parse_server_array(
+    1409:r     reader_t *reader,
+    1410:a     aether_client_t *client) {
+    1411:  
+    1412:u     uint64_t count =
+    1413:r         r_pack(reader);
+    1414:  
+    1415:i     if (reader->failed) {
+    1416:r         return false;
+    1417:}     }
+    1418:  
+    1419:c     client->server_count =
+    1420:0         0u;
+    1421:  
+    1422:f     for (uint64_t i = 0u;
+    1423:i          i < count;
+    1424:+          ++i) {
+    1425:  
+    1426:a         aether_server_t *server =
+    1427:N             NULL;
+    1428:  
+    1429:i         if (client->server_count <
+    1430:A             AETHER_MAX_SERVERS) {
+    1431:  
+    1432:s             server =
+    1433:&                 &client->servers[
+    1434:c                     client->server_count++
+    1435:]                 ];
+    1436:}         }
+    1437:  
+    1438:i         if (!parse_server_descriptor(
+    1439:r                 reader,
+    1440:s                 server)) {
+    1441:  
+    1442:r             return false;
+    1443:}         }
+    1444:}     }
+    1445:  
+    1446:r     return
+    1447:!         !reader->failed;
+    1448:} }
+>>> (показано строк: 41 из 5712)
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG reg cmd=67 pos=1 len=199 state=5
+DBG reg cmd=66 pos=1 len=36 state=6
+c-client-a Aether error code=-4 origin=1
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+BUILD FAILED in 24s
+>>> [elapsed: 84150ms]

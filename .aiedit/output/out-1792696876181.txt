@@ -1,0 +1,156 @@
+>>> bash
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4480 to 4550
+    4480:r                 reader.pos;
+    4481:  
+    4482:r             return AETHER_OK;
+    4483:}         }
+    4484:  
+    4485:i         if (command ==
+    4486:C             CLIENT_SAFE_SEND_MESSAGE) {
+    4487:  
+    4488:a             aether_status_t status =
+    4489:y                 yield_message(
+    4490:c                     client,
+    4491:&                     &reader);
+    4492:  
+    4493:i             if (status != AETHER_OK) {
+    4494:r                 return status;
+    4495:}             }
+    4496:  
+    4497:c             client->rx_plain_pos =
+    4498:r                 reader.pos;
+    4499:  
+    4500:r             return AETHER_OK;
+    4501:}         }
+    4502:  
+    4503:i         if (command ==
+    4504:C             CLIENT_SAFE_SEND_MESSAGES) {
+    4505:  
+    4506:u             uint64_t count =
+    4507:r                 r_pack(&reader);
+    4508:  
+    4509:i             if (reader.failed) {
+    4510:r                 return AETHER_ERR_PROTOCOL;
+    4511:}             }
+    4512:  
+    4513:i             if (count == 0u) {
+    4514:c                 continue;
+    4515:}             }
+    4516:  
+    4517:c             client->rx_messages_remaining =
+    4518:c                 count;
+    4519:  
+    4520:a             aether_status_t status =
+    4521:y                 yield_message(
+    4522:c                     client,
+    4523:&                     &reader);
+    4524:  
+    4525:i             if (status != AETHER_OK) {
+    4526:r                 return status;
+    4527:}             }
+    4528:  
+    4529:-             --client->rx_messages_remaining;
+>>> (показано строк: 71 из 5731)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4600 to 4650
+>>> (показано строк: 51 из 5731)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4400 to 4480
+    4400:*              */
+    4401:i             if ((request_id &
+    4402:U                  UINT32_C(0x80000000)) !=
+    4403:0                 0u) {
+    4404:  
+    4405:c                 continue;
+    4406:}             }
+    4407:  
+    4408:i             if (client->ingress.kind !=
+    4409:A                 AETHER_INGRESS_NONE) {
+    4410:  
+    4411:r                 return AETHER_ERR_BUSY;
+    4412:}             }
+    4413:  
+    4414:c             client->ingress.kind =
+    4415:A                 AETHER_INGRESS_REQUEST_RESULT;
+    4416:  
+    4417:c             client->ingress.as.request_result.request_id =
+    4418:r                 request_id;
+    4419:  
+    4420:c             client->ingress.as.request_result.status =
+    4421:A                 AETHER_OK;
+    4422:  
+    4423:c             client->rx_plain_pos =
+    4424:r                 reader.pos;
+    4425:  
+    4426:r             return AETHER_OK;
+    4427:}         }
+    4428:  
+    4429:i         if (command ==
+    4430:C             CMD_ERROR) {
+    4431:  
+    4432:u             uint32_t request_id =
+    4433:r                 r_u32le(&reader);
+    4434:  
+    4435:i             if (reader.failed) {
+    4436:r                 return AETHER_ERR_PROTOCOL;
+    4437:}             }
+    4438:  
+    4439:i             if ((request_id &
+    4440:U                  UINT32_C(0x80000000)) !=
+    4441:0                 0u) {
+    4442:  
+    4443:/                 /*
+    4444:*                  * Preserve the compatibility diagnostic for mandatory
+    4445:*                  * internal traffic, but do not publish a send-future result.
+    4446:*                  */
+    4447:e                 emit_error(
+    4448:c                     client,
+    4449:A                     AETHER_ERR_REMOTE,
+>>> (показано строк: 81 из 5731)
+f09680f wip: handle cmd=67 workProofData (subtask checkpoint)
+e0daf58 wip: allow subtask to continue fixing client B (cmd=67 workProofData)
+281e51b protocol: accept ENTER_GLOBAL push frame in registration rx
+=== STATUS ===
+ M aiedit_context.yaml
+ M src/aether_client.c
+?? .aiedit/output/out-1792696288167.txt
+?? .aiedit/output/out-1792696399496.txt
+?? .aiedit/output/out-1792696417864.txt
+?? .aiedit/output/out-1792696512856.txt
+=== LAST TEST ===
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4530 to 4545
+    4530:  
+    4531:c             client->rx_plain_pos =
+    4532:r                 reader.pos;
+    4533:  
+    4534:r             return AETHER_OK;
+    4535:}         }
+    4536:  
+    4537:r         return AETHER_ERR_UNSUPPORTED;
+    4538:}     }
+    4539:  
+    4540:i     if (reader.failed) {
+    4541:r         return AETHER_ERR_PROTOCOL;
+    4542:}     }
+    4543:  
+    4544:c     client->rx_plain_pos =
+    4545:r         reader.pos;
+>>> (показано строк: 16 из 5731)
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+DBG reg cmd=66 pos=1 len=36 state=6
+DBG send_resolve_servers: enter cloud_count=1
+DBG send_resolve: cloud_count==0
+DBG send_resolve: build status=0
+c-client-a Aether error code=-8 origin=1
+CClientP2PTest > twoCClientsRegisterAndExchangeMessages() FAILED
+        at app//io.aether.cloudClient.CClientP2PTest.run(CClientP2PTest.java:122)
+        at app//io.aether.cloudClient.CClientP2PTest.twoCClientsRegisterAndExchangeMessages(CClientP2PTest.java:47)
+BUILD FAILED in 22s
+>>> [elapsed: 62535ms]
