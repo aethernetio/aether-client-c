@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 516,
+      historySplit: 1034,
       scriptAndLive: 287,
-      verticalSplit: 581
+      verticalSplit: 555
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -25,40 +25,6 @@
     },
     subtasks: {
       root: [
-        scanProject,
-        studyEmitter,
-        studyJavaGen,
-        studyTsGen,
-        studyEmitterStream,
-        studyEmitterStreams,
-        studyEmitterStreams2,
-        extractStreamBuilderCode,
-        inspectGeneratedCode,
-        findCClientTestAndGenerics,
-        inspectCGeneratedStreamImpl,
-        runCClientTest,
-        inspectTestRunner,
-        studyEmitterMethodGeneration,
-        inspectP2PE2E,
-        inspectStreamFixture,
-        generateAndTestC,
-        analyzeEmitterStreamCode,
-        studyCGeneration,
-        studyCClientGenerationProcess,
-        traceGeneration,
-        diagnoseGeneratedState,
-        analyzeOldRegUsage,
-        restoreDeletedAdapters,
-        regenApi,
-        inspectNewApi,
-        finalizeRegen,
-        analyzeAdapterMismatch,
-        extractCalls,
-        rewriteAdapters,
-        diagP2P,
-        analyzeProtocol,
-        rewriteProtocol,
-        rewriteRegRx,
         fixClientB
       ]
       
@@ -106,10 +72,10 @@
       validation: true
     },
     window: {
-      x: 2596,
-      width: 1191,
-      y: 1196,
-      height: 759
+      x: 2305,
+      width: 1278,
+      y: 470,
+      height: 733
     }
   },
   roots: [
