@@ -16,16 +16,12 @@
 
 #include "nvs_flash.h"
 
+
 #include "aether.h"
-
-#include "aether_credentials.h"
-#include "aether_transport.h"
-
-#include "aether_api.h"
-
 
 #include "aether_esp32_wifi.h"
 #include "echo_secrets.h"
+
 
 
 

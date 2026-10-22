@@ -7,6 +7,9 @@
 
 #include "esp_err.h"
 
+#include "aether.h"
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif

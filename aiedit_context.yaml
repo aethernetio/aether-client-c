@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 779,
+      historySplit: 1046,
       scriptAndLive: 287,
-      verticalSplit: 901
+      verticalSplit: 927
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -74,8 +74,8 @@
       validation: true
     },
     window: {
-      x: 2215,
-      width: 1375,
+      x: 1667,
+      width: 1922,
       y: 1002,
       height: 1079
     }

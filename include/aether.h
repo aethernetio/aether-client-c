@@ -24,6 +24,10 @@
 /* peer temporarily disabled */
 #include "aether_rx.h"
 
+#include "aether_api.h"
+#include "aether_credentials.h"
+
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
