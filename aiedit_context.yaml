@@ -9,7 +9,7 @@
     splitters: {
       historySplit: 1046,
       scriptAndLive: 287,
-      verticalSplit: 927
+      verticalSplit: 901
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -21,13 +21,14 @@
     autoRun: true,
     autoSend: true,
     selected: {
-      root: ''
+      root: cleanIncludes
     },
     subtasks: {
       root: [
         fixClientB,
         rewriteRegRx,
-        polishCClient
+        polishCClient,
+        cleanIncludes
       ]
       
     }

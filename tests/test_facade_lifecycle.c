@@ -19,9 +19,7 @@
 
 #include "aether.h"
 #include "aether_platform.h"
-#include "aether_credentials.h"
 
-#include "aether_api.h"
 
 #include "aether_hydrogen.h"
 #include "aether_test_crypto_hydrogen.h"
