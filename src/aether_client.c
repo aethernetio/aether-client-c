@@ -3288,30 +3288,10 @@ size_t frame_start =
             r_u8(&reader);
 
 
-        if (command ==
-            CMD_RESULT) {
 
-            uint32_t request_id =
-                r_u32le(&reader);
+        if (command == CMD_RESULT ||
+            command == 70u) {
 
-
-
-            if (request_id !=
-                    client->req_server_key ||
-                (client->state !=
-                     AETHER_STATE_REG_WAIT_SERVER_KEY &&
-                 client->state !=
-                     AETHER_STATE_RECOVERY_WAIT_SERVER_KEY &&
-                 client->state !=
-                     AETHER_STATE_SERVER_RESOLVING)) {
-
-
-
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
 
             if (!parse_signed_key(
                     &reader,
