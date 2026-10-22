@@ -1,0 +1,715 @@
+>>> bash
+2427:        aether_generated_reg_root_build_get_key(
+2518:        aether_generated_reg_root_build_enter(
+2581:        aether_generated_reg_safe_build_pow(
+2628:        aether_generated_reg_safe_build_registration_direct(
+2691:        aether_generated_reg_safe_build_recovery(
+2751:        aether_generated_reg_safe_build_resolve_with_return_key(
+>>> [elapsed: 5ms]
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2420 to 2440
+    2420:n         next_request_id(
+    2421:c             client);
+    2422:  
+    2423:s     size_t packet_length =
+    2424:0         0u;
+    2425:  
+    2426:a     aether_status_t status =
+    2427:a         aether_generated_reg_root_build_get_key(
+    2428:c             client->tx_plain,
+    2429:s             sizeof(client->tx_plain),
+    2430:&             &packet_length,
+    2431:c             client->config.crypto
+    2432:-                 ->profile.crypto_lib);
+    2433:  
+    2434:i     if (status != AETHER_OK) {
+    2435:r         return
+    2436:f             fail(
+    2437:c                 client,
+    2438:s                 status);
+    2439:}     }
+    2440:  
+>>> (показано строк: 21 из 5607)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2510 to 2530
+    2510:c                 client,
+    2511:A                 AETHER_ERR_CRYPTO);
+    2512:}     }
+    2513:  
+    2514:s     size_t packet_length =
+    2515:0         0u;
+    2516:  
+    2517:a     aether_status_t status =
+    2518:a         aether_generated_reg_root_build_enter(
+    2519:c             client->tx_plain,
+    2520:s             sizeof(client->tx_plain),
+    2521:&             &packet_length,
+    2522:c             client->config.crypto
+    2523:-                 ->profile.crypto_lib,
+    2524:c             client->tx_crypto,
+    2525:c             cipher_len);
+    2526:  
+    2527:i     if (status != AETHER_OK) {
+    2528:r         return
+    2529:f             fail(
+    2530:c                 client,
+>>> (показано строк: 21 из 5607)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2575 to 2595
+    2575:  
+    2576:  
+    2577:s     size_t nested_len =
+    2578:0         0u;
+    2579:  
+    2580:a     aether_status_t status =
+    2581:a         aether_generated_reg_safe_build_pow(
+    2582:c             client->tx_plain,
+>>> (показано строк: 21 из 5607)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2622 to 2642
+>>> (показано строк: 21 из 5607)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2685 to 2705
+>>> (показано строк: 21 из 5607)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2745 to 2765
+>>> (показано строк: 21 из 5607)
+
+>>> bash
+
+    client->req_server_key =
+        next_request_id(
+            client);
+
+    size_t packet_length =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_root_build_get_key(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &packet_length,
+            client->config.crypto
+                ->profile.crypto_lib);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+---
+        return
+            fail(
+                client,
+                AETHER_ERR_CRYPTO);
+    }
+
+    size_t packet_length =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_root_build_enter(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &packet_length,
+            client->config.crypto
+                ->profile.crypto_lib,
+            client->tx_crypto,
+            cipher_len);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+---
+
+
+>>> [elapsed: 15ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> bash
+aether_status_t csa_server_registration_api_registration_direct(
+    csa_server_registration_api_remote_t *api,
+    aether_bytes_view_t salt,
+    aether_bytes_view_t suffix,
+    int_array_view_t passwords,
+    aether_uuid_t parent,
+    const common_key_ref_t * masterKey) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 7u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_bytes(out, salt.data, salt.length)) return false;
+    if (!aether_data_out_write_bytes(out, suffix.data, suffix.length)) return false;
+    if (passwords.length > 0u && passwords.data == NULL) return false;
+    if (!aether_data_out_write_pack(out, (uint64_t)passwords.length)) return false;
+    for (size_t passwords_index = 0u; passwords_index < passwords.length; ++passwords_index) {
+    if (!aether_data_out_write_uint(out, (uint32_t)passwords.data[passwords_index])) return false;
+    }
+    if (!aether_data_out_write_uuid(out, parent)) return false;
+    if (!common_serialize_key(out, masterKey, 0u)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:755 api.ServerRegistrationApi.methods.requestWorkProofData */
+aether_status_t csa_server_registration_api_request_work_proof_data(
+    csa_server_registration_api_remote_t *api,
+    aether_uuid_t parent,
+    common_pow_method_t powMethods) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 4u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+>>> [elapsed: 6ms]
+
+>>> bash
+    client->registration->req_pow =
+        next_request_id(
+            client);
+
+
+    size_t nested_len =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_safe_build_pow(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->config.parent_uid);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    status =
+        send_reg_enter(
+---
+
+    client->registration->req_finish =
+        next_request_id(
+            client);
+
+
+    size_t nested_len =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_safe_build_registration_direct(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->master_key,
+>>> [elapsed: 13ms]
+
+>>> bash
+        next_request_id(
+            client);
+
+
+    size_t nested_len =
+        0u;
+
+    aether_status_t status =
+        aether_generated_reg_safe_build_registration_direct(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->master_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+
+            client->registration->pow_salt,
+            client->registration->pow_salt_len,
+            client->registration->pow_suffix,
+            client->registration->pow_suffix_len,
+            client->registration->pow_passwords,
+            client->registration->pow_password_count,
+
+            client->config.parent_uid);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    status =
+        send_reg_enter(
+            client,
+            client->tx_plain,
+---
+    client->req_resolve =
+        next_request_id(
+            client);
+
+    size_t nested_len =
+        0u;
+
+
+>>> [elapsed: 10ms]
+
+>>> bash
+        server_registration_api_resolve_servers(
+            &remote,
+            request_id,
+            &cloud);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    *length =
+        produced;
+
+    return AETHER_OK;
+}
+>>> [elapsed: 4ms]
+
+>>> bash
+109:typedef struct common_cloud_t common_cloud_t;
+113:typedef struct common_cloud_config_t common_cloud_config_t;
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 8ms]
+
+>>> bash
+---
+426:} short_array_view_t;
+642:} int_array_view_t;
+755:    short_array_view_t data;
+2294:    short_array_view_t sid);
+2691:    short_array_view_t sids);
+2696:    short_array_view_t sids);
+2710:    int_array_view_t passwords,
+2830:    short_array_view_t sid);
+3406:    short_array_view_t sids);
+3411:    short_array_view_t sids);
+>>> [elapsed: 97ms]
+
+>>> bash
+src/generated/aether_api.h:192:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_SODIUM_CHACHA20_POLY1305 UINT8_C(6)
+src/generated/aether_api.h:193:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX UINT8_C(3)
+src/generated/aether_api.h:194:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC UINT8_C(11)
+>>> [elapsed: 12ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '(' @ line 1, column 86.    _unsafe_local.h/c и определения нужных типов (sodium_chacha20_poly1305                                                 ^  1 error 
+````
+
+>>> bash
+
+#ifndef AETHER_REG_UNSAFE_LOCAL_H
+#define AETHER_REG_UNSAFE_LOCAL_H
+
+#include "aether_client.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    AETHER_REG_UNSAFE_FRAME_ENTER = 1,
+    AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL = 2
+} aether_reg_unsafe_frame_kind_t;
+
+
+typedef struct {
+    aether_reg_unsafe_frame_kind_t kind;
+    const uint8_t *data;
+    size_t length;
+} aether_reg_unsafe_frame_t;
+
+
+aether_status_t aether_generated_reg_unsafe_decode(
+    aether_reg_unsafe_frame_t *frame,
+    const uint8_t *data,
+    size_t length,
+    size_t *consumed);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+---
+
+#include "aether_reg_unsafe_local.h"
+
+#include "client_server_reg_unsafe_local_local.h"
+
+
+typedef struct {
+    aether_reg_unsafe_frame_t *frame;
+} aether_reg_unsafe_capture_t;
+
+
+static aether_status_t aether_reg_unsafe_capture_enter(
+    void *ctx,
+    const client_api_reg_safe_stream_t *stream) {
+
+>>> [elapsed: 13ms]
+
+>>> bash
+110
+    }
+
+    capture->frame->kind =
+        AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL;
+
+    capture->frame->data =
+        stream->data;
+
+    capture->frame->length =
+        stream->length;
+
+    return AETHER_OK;
+}
+
+
+aether_status_t aether_generated_reg_unsafe_decode(
+    aether_reg_unsafe_frame_t *frame,
+    const uint8_t *data,
+    size_t length,
+    size_t *consumed) {
+
+    if (frame == NULL ||
+        consumed == NULL ||
+        (length > 0u &&
+         data == NULL)) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    frame->kind =
+        0;
+
+    frame->data =
+        NULL;
+
+    frame->length =
+        0u;
+
+    *consumed =
+        0u;
+
+    aether_reg_unsafe_capture_t capture = {
+        .frame = frame
+    };
+
+    client_api_reg_unsafe_local_t local = {
+        .ctx = &capture,
+        .enter =
+            aether_reg_unsafe_capture_enter,
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+>>> [elapsed: 42ms]
+
+>>> bash
+---
+5568:        .tx = client->tx_plain,
+---
+5569:        .tx_capacity =
+>>> [elapsed: 23ms]
+
+>>> bash
+>>> [elapsed: 7ms]
+
+>>> bash
+
+#include "aether_reg_unsafe_local.h"
+
+#include "client_server_reg_unsafe_local_local.h"
+
+
+typedef struct {
+    aether_reg_unsafe_frame_t *frame;
+} aether_reg_unsafe_capture_t;
+
+
+static aether_status_t aether_reg_unsafe_capture_enter(
+    void *ctx,
+    const client_api_reg_safe_stream_t *stream) {
+
+    aether_reg_unsafe_capture_t *capture =
+        ctx;
+
+    if (capture == NULL ||
+        capture->frame == NULL ||
+        stream == NULL) {
+
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    capture->frame->kind =
+        AETHER_REG_UNSAFE_FRAME_ENTER;
+
+    capture->frame->data =
+        stream->data;
+
+    capture->frame->length =
+        stream->length;
+
+    return AETHER_OK;
+}
+
+
+static aether_status_t aether_reg_unsafe_capture_enter_global(
+    void *ctx,
+    const global_reg_client_api_stream_t *stream) {
+
+    aether_reg_unsafe_capture_t *capture =
+        ctx;
+
+    if (capture == NULL ||
+        capture->frame == NULL ||
+        stream == NULL) {
+
+        return AETHER_ERR_ARGUMENT;
+>>> [elapsed: 8ms]
+
+>>> bash
+86:typedef struct common_sodium_chacha20_poly1305_t common_sodium_chacha20_poly1305_t;
+645:struct common_sodium_chacha20_poly1305_t {
+---
+grep: Непарная ( или \(
+---
+aether_status_t csa_server_registration_api_registration_direct(
+    csa_server_registration_api_remote_t *api,
+    aether_bytes_view_t salt,
+    aether_bytes_view_t suffix,
+    int_array_view_t passwords,
+    aether_uuid_t parent,
+    const common_key_ref_t * masterKey) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 7u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_bytes(out, salt.data, salt.length)) return false;
+    if (!aether_data_out_write_bytes(out, suffix.data, suffix.length)) return false;
+    if (passwords.length > 0u && passwords.data == NULL) return false;
+    if (!aether_data_out_write_pack(out, (uint64_t)passwords.length)) return false;
+    for (size_t passwords_index = 0u; passwords_index < passwords.length; ++passwords_index) {
+    if (!aether_data_out_write_uint(out, (uint32_t)passwords.data[passwords_index])) return false;
+    }
+    if (!aether_data_out_write_uuid(out, parent)) return false;
+    if (!common_serialize_key(out, masterKey, 0u)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:755 api.ServerRegistrationApi.methods.requestWorkProofData */
+aether_status_t csa_server_registration_api_request_work_proof_data(
+    csa_server_registration_api_remote_t *api,
+    aether_uuid_t parent,
+    common_pow_method_t powMethods) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+>>> [elapsed: 19ms]
+
+>>> bash
+    const int32_t *data;
+    size_t length;
+} int_array_view_t;
+#endif
+
+struct common_sodium_chacha20_poly1305_t {
+    byte_array_32_t data;
+};
+
+struct common_hydrogen_curve_private_t {
+    byte_array_32_t data;
+};
+
+struct common_hydrogen_curve_public_t {
+    byte_array_32_t data;
+};
+
+struct common_hydrogen_secret_box_t {
+    byte_array_32_t data;
+};
+
+struct common_sodium_curve_public_t {
+    byte_array_32_t data;
+};
+
+struct common_sodium_curve_private_t {
+    byte_array_32_t data;
+};
+
+struct common_sodium_sign_private_t {
+    byte_array_64_t data;
+};
+
+struct common_sodium_sign_public_t {
+    byte_array_32_t data;
+};
+
+struct common_hydrogen_sign_private_t {
+    byte_array_64_t data;
+};
+
+---
+89:typedef struct common_hydrogen_secret_box_t common_hydrogen_secret_box_t;
+122:typedef struct common_p256_aes_gcm_symmetric_t common_p256_aes_gcm_symmetric_t;
+657:struct common_hydrogen_secret_box_t {
+829:struct common_p256_aes_gcm_symmetric_t {
+>>> [elapsed: 18ms]
+
+>>> bash
+include/aether_client.h:183:} aether_uuid_t;
+include/aether_client.h:256:            aether_uuid_t uid;
+include/aether_client.h:257:            aether_uuid_t alias;
+include/aether_client.h:261:            aether_uuid_t from;
+include/aether_client.h:307:            aether_uuid_t from;
+include/aether_client.h:619:    aether_uuid_t parent_uid;
+include/aether_client.h:698:    aether_uuid_t uid;
+include/aether_client.h:699:    aether_uuid_t alias;
+include/aether_client.h:845:    aether_uuid_t uid,
+include/aether_client.h:846:    aether_uuid_t alias,
+include/aether_client.h:954:   aether_uuid_t destination,
+src/generated/aether_api.h:373:} byte_array_32_t;
+src/generated/aether_api.h:380:} byte_array_64_t;
+src/generated/aether_api.h:432:    const aether_uuid_t *data;
+src/generated/aether_api.h:646:    byte_array_32_t data;
+src/generated/aether_api.h:650:    byte_array_32_t data;
+src/generated/aether_api.h:654:    byte_array_32_t data;
+src/generated/aether_api.h:658:    byte_array_32_t data;
+src/generated/aether_api.h:662:    byte_array_32_t data;
+src/generated/aether_api.h:666:    byte_array_32_t data;
+---
+    common_server_type_t type;
+    common_signed_key_array_view_t signingKeys;
+};
+
+struct common_cloud_t {
+    short_array_view_t data;
+};
+
+struct common_money_operation_t {
+    int64_t id;
+    aether_uuid_t from;
+    aether_uuid_t to;
+    int64_t amount;
+    int64_t time;
+    bool credit;
+    common_status_t status;
+---
+
+#ifndef AETHER_ADSLC_SHORT_ARRAY_VIEW_T_DEFINED
+#define AETHER_ADSLC_SHORT_ARRAY_VIEW_T_DEFINED
+typedef struct {
+    const int16_t *data;
+    size_t length;
+} short_array_view_t;
+#endif
+
+#ifndef AETHER_ADSLC_UUID_ARRAY_VIEW_T_DEFINED
+#define AETHER_ADSLC_UUID_ARRAY_VIEW_T_DEFINED
+---
+>>> [elapsed: 14ms]
+
+>>> bash
+./src/generated/aether_api.h:192:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_SODIUM_CHACHA20_POLY1305 UINT8_C(6)
+./src/generated/aether_api.h:193:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX UINT8_C(3)
+./src/generated/aether_api.h:194:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC UINT8_C(11)
+---
+>>> [elapsed: 160ms]
+
+>>> bash
+472:    uint8_t crypto_lib;
+473:    uint8_t symmetric_key_type;
+636:     * When crypto is NULL and crypto_lib is non-zero, aether_client_init()
+639:     * are used as-is and crypto_lib is ignored.
+641:    uint8_t crypto_lib;
+>>> [elapsed: 7ms]
+
+>>> bash
+    aether_status_t status =
+        aether_generated_reg_safe_build_resolve_with_return_key(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->cloud_sids,
+            client->cloud_count);
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+
+>>> [elapsed: 5ms]
+[subtask rewriteAdapters] ERROR: subtask produced no groovy block

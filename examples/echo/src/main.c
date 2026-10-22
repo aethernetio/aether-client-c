@@ -20,7 +20,9 @@
 
 #include "aether_credentials.h"
 #include "aether_transport.h"
-#include "client_server_api_types.h"
+
+#include "aether_api.h"
+
 
 #include "aether_esp32_wifi.h"
 #include "echo_secrets.h"
@@ -230,7 +232,9 @@ void app_main(void) {
                 &client.app.core,
                 ECHO_UID,
                 ECHO_MASTER_KEY,
-                KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) != AETHER_OK) {
+
+                COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX) != AETHER_OK) {
+
 
             printf("AETHER_ECHO_FATAL=credentials\n");
             return;

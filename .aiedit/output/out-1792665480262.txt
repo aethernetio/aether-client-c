@@ -1,0 +1,1799 @@
+>>> bash
+    }
+
+    client->req_resolve =
+        next_request_id(
+            client);
+
+    size_t nested_len =
+        0u;
+
+
+    aether_status_t status =
+        aether_generated_reg_safe_build_recovery(
+            client->tx_plain,
+            sizeof(client->tx_plain),
+            &nested_len,
+            client->config.crypto
+                ->profile.symmetric_key_type,
+            client->temp_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->master_key_type,
+            client->master_key,
+            AETHER_KEY_BYTES,
+            client->pending_recovery_key,
+            client->config.crypto
+                ->profile.symmetric_key_bytes,
+            client->uid);
+
+
+    if (status != AETHER_OK) {
+        return
+            fail(
+                client,
+                status);
+    }
+
+    status =
+        send_reg_enter(
+            client,
+            client->tx_plain,
+            nested_len);
+>>> [elapsed: 6ms]
+
+>>> bash
+
+    if (client->callback_active ||
+        client->rx_active) {
+
+        return AETHER_ERR_BUSY;
+    }
+
+    if (client->state !=
+        AETHER_STATE_READY) {
+
+        return AETHER_ERR_STATE;
+    }
+
+    uint32_t request_id =
+        next_request_id(
+            client);
+
+    csa_message_t message = {
+        .uid = destination,
+        .data = {
+            .data = data,
+            .length = length
+        }
+    };
+
+    csa_authorized_api_remote_t authorized = {
+        .send_ctx = client,
+        .send = generated_authorized_send,
+        .tx = client->tx_plain,
+        .tx_capacity =
+            sizeof(client->tx_plain)
+    };
+
+    aether_status_t status =
+        csa_authorized_api_send_message_with_result(
+            &authorized,
+            &message);
+
+    if (status != AETHER_OK) {
+        return status;
+    }
+
+    if (request_id_out != NULL) {
+        *request_id_out =
+            request_id;
+    }
+
+    return AETHER_OK;
+}
+
+>>> [elapsed: 6ms]
+
+>>> bash
+47:} csa_server_registration_api_stream_t;
+2703:} csa_server_registration_api_remote_t;
+2706:aether_status_t csa_server_registration_api_registration_direct(
+2707:    csa_server_registration_api_remote_t *api,
+2715:aether_status_t csa_server_registration_api_request_work_proof_data(
+2716:    csa_server_registration_api_remote_t *api,
+2721:aether_status_t csa_server_registration_api_resolve_servers(
+2722:    csa_server_registration_api_remote_t *api,
+2726:aether_status_t csa_server_registration_api_set_return_key(
+2727:    csa_server_registration_api_remote_t *api,
+2731:aether_status_t csa_server_registration_api_recovery(
+2732:    csa_server_registration_api_remote_t *api,
+2742:} csa_registration_root_api_remote_t;
+2745:aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+2746:    csa_registration_root_api_remote_t *api,
+2750:aether_status_t csa_registration_root_api_enter(
+2751:    csa_registration_root_api_remote_t *api,
+2753:    const csa_server_registration_api_stream_t * stream);
+2756:aether_status_t csa_registration_root_api_get_my_ip(
+2757:    csa_registration_root_api_remote_t *api);
+3414:aether_status_t csa_server_registration_api_stream_server_registration_api_registration_direct(
+3415:    csa_server_registration_api_stream_t *builder_stream,
+3423:aether_status_t csa_server_registration_api_stream_server_registration_api_request_work_proof_data(
+3424:    csa_server_registration_api_stream_t *builder_stream,
+3429:aether_status_t csa_server_registration_api_stream_server_registration_api_resolve_servers(
+3430:    csa_server_registration_api_stream_t *builder_stream,
+3434:aether_status_t csa_server_registration_api_stream_server_registration_api_set_return_key(
+3435:    csa_server_registration_api_stream_t *builder_stream,
+3439:aether_status_t csa_server_registration_api_stream_server_registration_api_recovery(
+3440:    csa_server_registration_api_stream_t *builder_stream,
+>>> [elapsed: 10ms]
+
+>>> bash
+    csa_server_api_by_uid_remote_t *api,
+    int32_t limit);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:727 api.ServerApiByUid.methods.setMsgTimeLimit */
+aether_status_t csa_server_api_by_uid_set_msg_time_limit(
+    csa_server_api_by_uid_remote_t *api,
+    int32_t seconds);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:732 api.ServerApiByUid.methods.addServersToCloud */
+aether_status_t csa_server_api_by_uid_add_servers_to_cloud(
+    csa_server_api_by_uid_remote_t *api,
+    short_array_view_t sids);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:736 api.ServerApiByUid.methods.removeServersFromCloud */
+aether_status_t csa_server_api_by_uid_remove_servers_from_cloud(
+    csa_server_api_by_uid_remote_t *api,
+    short_array_view_t sids);
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_server_registration_api_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:746 api.ServerRegistrationApi.methods.registrationDirect */
+aether_status_t csa_server_registration_api_registration_direct(
+    csa_server_registration_api_remote_t *api,
+    aether_bytes_view_t salt,
+    aether_bytes_view_t suffix,
+    int_array_view_t passwords,
+    aether_uuid_t parent,
+    const common_key_ref_t * masterKey);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:755 api.ServerRegistrationApi.methods.requestWorkProofData */
+aether_status_t csa_server_registration_api_request_work_proof_data(
+    csa_server_registration_api_remote_t *api,
+    aether_uuid_t parent,
+    common_pow_method_t powMethods);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:760 api.ServerRegistrationApi.methods.resolveServers */
+aether_status_t csa_server_registration_api_resolve_servers(
+    csa_server_registration_api_remote_t *api,
+    const common_cloud_t * serverIds);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:764 api.ServerRegistrationApi.methods.setReturnKey */
+aether_status_t csa_server_registration_api_set_return_key(
+    csa_server_registration_api_remote_t *api,
+    const common_key_ref_t * key);
+
+>>> [elapsed: 5ms]
+
+>>> bash
+    aether_data_out_t *out;
+
+} csa_registration_root_api_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:779 api.RegistrationRootApi.methods.getAsymmetricPublicKey */
+aether_status_t csa_registration_root_api_get_asymmetric_public_key(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:783 api.RegistrationRootApi.methods.enter */
+aether_status_t csa_registration_root_api_enter(
+    csa_registration_root_api_remote_t *api,
+    common_crypto_lib_t cryptoLib,
+    const csa_server_registration_api_stream_t * stream);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:792 api.RegistrationRootApi.methods.getMyIp */
+aether_status_t csa_registration_root_api_get_my_ip(
+    csa_registration_root_api_remote_t *api);
+
+typedef struct {
+    void *send_ctx;
+>>> [elapsed: 6ms]
+
+>>> bash
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:760 api.ServerRegistrationApi.methods.resolveServers */
+aether_status_t csa_server_registration_api_resolve_servers(
+    csa_server_registration_api_remote_t *api,
+    const common_cloud_t * serverIds);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:764 api.ServerRegistrationApi.methods.setReturnKey */
+aether_status_t csa_server_registration_api_set_return_key(
+    csa_server_registration_api_remote_t *api,
+    const common_key_ref_t * key);
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:769 api.ServerRegistrationApi.methods.recovery */
+aether_status_t csa_server_registration_api_recovery(
+    csa_server_registration_api_remote_t *api,
+    aether_uuid_t uid,
+    const common_key_ref_t * oldMasterKey,
+    const common_key_ref_t * newMasterKey);
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+>>> [elapsed: 4ms]
+
+>>> bash
+include/aether_dataio.h:40:typedef struct aether_data_out {
+include/aether_dataio.h:82:void   aether_data_out_init(aether_data_out_t *out, uint8_t *data, size_t capacity);
+src/generated/aether_api.h:109:typedef struct common_cloud_t common_cloud_t;
+src/generated/aether_api.h:113:typedef struct common_cloud_config_t common_cloud_config_t;
+>>> [elapsed: 6ms]
+
+>>> bash
+
+    /* Optional scratch allocator used by generated dynamic-array decode.
+       If NULL, decoding a dynamic non-flat array fails. Callback must
+       return memory that stays valid until the enclosing decode completes. */
+    void *scratch_ctx;
+    void *(*scratch_alloc)(void *ctx, size_t bytes, size_t align);
+} aether_data_in_t;
+
+
+/* ==== Writer (DataOut) ==== */
+typedef struct aether_data_out {
+    uint8_t *data;
+    size_t   capacity;
+    size_t   pos;
+    bool     error;
+} aether_data_out_t;
+
+/* ================= Reader API ================= */
+
+void   aether_data_in_init(aether_data_in_t *in, const uint8_t *data, size_t size);
+void   aether_data_in_reset(aether_data_in_t *in);
+
+size_t aether_data_in_size_for_read(const aether_data_in_t *in);
+bool   aether_data_in_is_empty(const aether_data_in_t *in);
+bool   aether_data_in_is_readable(const aether_data_in_t *in);
+bool   aether_data_in_error(const aether_data_in_t *in);
+void   aether_data_in_clear_error(aether_data_in_t *in);
+
+size_t aether_data_in_read(aether_data_in_t *in, uint8_t *dst, size_t off, size_t len);
+void   aether_data_in_read_bulk(aether_data_in_t *in, uint8_t *dst, size_t len);
+size_t aether_data_in_read_int_array(aether_data_in_t *in, int32_t *dst, size_t off, size_t len);
+size_t aether_data_in_to_array(aether_data_in_t *in, uint8_t *dst, size_t dst_cap);
+
+void   aether_data_in_skip_bytes(aether_data_in_t *in, size_t n);
+void   aether_data_in_skip_all(aether_data_in_t *in);
+
+uint8_t  aether_data_in_read_ubyte(aether_data_in_t *in);
+int8_t   aether_data_in_read_byte(aether_data_in_t *in);
+uint16_t aether_data_in_read_ushort(aether_data_in_t *in);
+int16_t  aether_data_in_read_short(aether_data_in_t *in);
+uint16_t aether_data_in_read_char(aether_data_in_t *in);
+int32_t  aether_data_in_read_int(aether_data_in_t *in);
+uint32_t aether_data_in_read_uint(aether_data_in_t *in);
+int64_t  aether_data_in_read_long(aether_data_in_t *in);
+float    aether_data_in_read_float(aether_data_in_t *in);
+double   aether_data_in_read_double(aether_data_in_t *in);
+bool     aether_data_in_read_boolean(aether_data_in_t *in);
+
+ptrdiff_t aether_data_in_index_of(const aether_data_in_t *in, size_t limit, uint8_t val);
+
+>>> [elapsed: 4ms]
+
+>>> bash
+-rw-rw-r-- 1 angel angel  1708 Oct 22 18:19 src/generated/aether_reg_root_enter.c
+-rw-rw-r-- 1 angel angel   384 Oct 22 18:19 src/generated/aether_reg_root_enter.h
+-rw-rw-r-- 1 angel angel  1367 Oct 22 18:19 src/generated/aether_reg_root_key.c
+-rw-rw-r-- 1 angel angel   334 Oct 22 18:19 src/generated/aether_reg_root_key.h
+-rw-rw-r-- 1 angel angel 15339 Oct 22 18:19 src/generated/aether_reg_safe.c
+-rw-rw-r-- 1 angel angel  2318 Oct 22 18:19 src/generated/aether_reg_safe.h
+-rw-rw-r-- 1 angel angel  2063 Oct 22 18:19 src/generated/aether_reg_unsafe_local.c
+-rw-rw-r-- 1 angel angel   600 Oct 22 18:19 src/generated/aether_reg_unsafe_local.h
+>>> [elapsed: 13ms]
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.h
+    1:  
+    2:# #ifndef AETHER_REG_ROOT_ENTER_H
+    3:# #define AETHER_REG_ROOT_ENTER_H
+    4:  
+    5:# #include "aether_client.h"
+    6:  
+    7:# #ifdef __cplusplus
+    8:e extern "C" {
+    9:# #endif
+    10:  
+    11:a aether_status_t aether_generated_reg_root_build_enter(
+    12:u     uint8_t *data,
+    13:s     size_t capacity,
+    14:s     size_t *length,
+    15:u     uint8_t crypto_lib,
+    16:c     const uint8_t *encrypted_stream,
+    17:s     size_t encrypted_stream_length);
+    18:  
+    19:# #ifdef __cplusplus
+    20:} }
+    21:# #endif
+    22:  
+    23:# #endif
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.c
+    1:  
+    2:# #include "aether_reg_root_enter.h"
+    3:  
+    4:# #include "client_server_reg_root_enter_api.h"
+    5:  
+    6:  
+    7:t typedef struct {
+    8:s     size_t *length;
+    9:s     size_t capacity;
+    10:} } aether_reg_root_enter_commit_t;
+    11:  
+    12:  
+    13:s static aether_status_t aether_reg_root_enter_commit(
+    14:v     void *ctx,
+    15:c     const uint8_t *data,
+    16:s     size_t length) {
+    17:  
+    18:(     (void)data;
+    19:  
+    20:a     aether_reg_root_enter_commit_t *commit =
+    21:c         ctx;
+    22:  
+    23:i     if (commit == NULL ||
+    24:c         commit->length == NULL) {
+    25:  
+    26:r         return AETHER_ERR_ARGUMENT;
+    27:}     }
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.h
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.c
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.c
+    1:  
+    2:# #include "aether_reg_root_enter.h"
+    3:  
+    4:# #include "client_server_reg_root_enter_api.h"
+    5:  
+    6:  
+    7:t typedef struct {
+    8:s     size_t *length;
+    9:s     size_t capacity;
+    10:} } aether_reg_root_enter_commit_t;
+    11:  
+    12:  
+    13:s static aether_status_t aether_reg_root_enter_commit(
+    14:v     void *ctx,
+    15:c     const uint8_t *data,
+    16:s     size_t length) {
+    17:  
+    18:(     (void)data;
+    19:  
+    20:a     aether_reg_root_enter_commit_t *commit =
+    21:c         ctx;
+    22:  
+    23:i     if (commit == NULL ||
+    24:c         commit->length == NULL) {
+    25:  
+    26:r         return AETHER_ERR_ARGUMENT;
+    27:}     }
+    28:  
+    29:i     if (length > commit->capacity) {
+    30:r         return AETHER_ERR_OVERFLOW;
+    31:}     }
+    32:  
+    33:*     *commit->length =
+    34:l         length;
+    35:  
+    36:r     return AETHER_OK;
+    37:} }
+    38:  
+    39:  
+    40:a aether_status_t aether_generated_reg_root_build_enter(
+    41:u     uint8_t *data,
+    42:s     size_t capacity,
+    43:s     size_t *length,
+    44:u     uint8_t crypto_lib,
+    45:c     const uint8_t *encrypted_stream,
+    46:s     size_t encrypted_stream_length) {
+    47:  
+    48:i     if (length == NULL ||
+    49:(         (capacity > 0u &&
+    50:d          data == NULL) ||
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.h
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.c
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.h
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c
+
+>>> (отфильтровано: из 88 строк оставлено 88)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.c
+    1:  
+    2:# #include "aether_reg_root_enter.h"
+    3:  
+    4:# #include "client_server_reg_root_enter_api.h"
+    5:  
+    6:  
+    7:t typedef struct {
+    8:s     size_t *length;
+    9:s     size_t capacity;
+    10:} } aether_reg_root_enter_commit_t;
+    11:  
+    12:  
+    13:s static aether_status_t aether_reg_root_enter_commit(
+    14:v     void *ctx,
+    15:c     const uint8_t *data,
+    16:s     size_t length) {
+    17:  
+    18:(     (void)data;
+    19:  
+    20:a     aether_reg_root_enter_commit_t *commit =
+    21:c         ctx;
+    22:  
+    23:i     if (commit == NULL ||
+    24:c         commit->length == NULL) {
+    25:  
+    26:r         return AETHER_ERR_ARGUMENT;
+    27:}     }
+    28:  
+    29:i     if (length > commit->capacity) {
+    30:r         return AETHER_ERR_OVERFLOW;
+    31:}     }
+    32:  
+    33:*     *commit->length =
+    34:l         length;
+    35:  
+    36:r     return AETHER_OK;
+    37:} }
+    38:  
+    39:  
+    40:a aether_status_t aether_generated_reg_root_build_enter(
+    41:u     uint8_t *data,
+    42:s     size_t capacity,
+    43:s     size_t *length,
+    44:u     uint8_t crypto_lib,
+    45:c     const uint8_t *encrypted_stream,
+    46:s     size_t encrypted_stream_length) {
+    47:  
+    48:i     if (length == NULL ||
+    49:(         (capacity > 0u &&
+    50:d          data == NULL) ||
+    51:(         (encrypted_stream == NULL &&
+    52:e          encrypted_stream_length != 0u)) {
+    53:  
+    54:r         return AETHER_ERR_ARGUMENT;
+    55:}     }
+    56:  
+    57:*     *length =
+    58:0         0u;
+    59:  
+    60:a     aether_reg_root_enter_commit_t commit = {
+    61:.         .length = length,
+    62:.         .capacity = capacity
+    63:}     };
+    64:  
+    65:r     registration_root_api_remote_t remote = {
+    66:.         .send_ctx = &commit,
+    67:.         .send = aether_reg_root_enter_commit,
+    68:.         .tx = data,
+    69:.         .tx_capacity = capacity
+    70:}     };
+    71:  
+    72:s     server_registration_api_stream_t stream = {
+    73:.         .data =
+    74:(             (uint8_t *)encrypted_stream,
+    75:.         .capacity =
+    76:e             encrypted_stream_length,
+    77:.         .length =
+    78:e             encrypted_stream_length
+    79:}     };
+    80:  
+    81:r     return
+    82:r         registration_root_api_enter(
+    83:&             &remote,
+    84:(             (crypto_lib_t)crypto_lib,
+    85:&             &stream);
+    86:} }
+
+>>> (отфильтровано: из 76 строк оставлено 76)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.c
+    1:  
+    2:# #include "aether_reg_root_key.h"
+    3:  
+    4:# #include "client_server_reg_root_key_api.h"
+    5:  
+    6:  
+    7:t typedef struct {
+    8:s     size_t *length;
+    9:s     size_t capacity;
+    10:} } aether_reg_root_key_commit_t;
+    11:  
+    12:  
+    13:s static aether_status_t aether_reg_root_key_commit(
+    14:v     void *ctx,
+    15:c     const uint8_t *data,
+    16:s     size_t length) {
+    17:  
+    18:(     (void)data;
+    19:  
+    20:a     aether_reg_root_key_commit_t *commit =
+    21:c         ctx;
+    22:  
+    23:i     if (commit == NULL ||
+    24:c         commit->length == NULL) {
+    25:  
+    26:r         return AETHER_ERR_ARGUMENT;
+    27:}     }
+    28:  
+    29:i     if (length > commit->capacity) {
+    30:r         return AETHER_ERR_OVERFLOW;
+    31:}     }
+    32:  
+    33:*     *commit->length =
+    34:l         length;
+    35:  
+    36:r     return AETHER_OK;
+    37:} }
+    38:  
+    39:  
+    40:a aether_status_t aether_generated_reg_root_build_get_key(
+    41:u     uint8_t *data,
+    42:s     size_t capacity,
+    43:s     size_t *length,
+    44:u     uint32_t request_id,
+    45:u     uint8_t crypto_lib) {
+    46:  
+    47:i     if (length == NULL ||
+    48:(         (capacity > 0u &&
+    49:d          data == NULL)) {
+    50:  
+    51:r         return AETHER_ERR_ARGUMENT;
+    52:}     }
+    53:  
+    54:*     *length =
+    55:0         0u;
+    56:  
+    57:a     aether_reg_root_key_commit_t commit = {
+    58:.         .length = length,
+    59:.         .capacity = capacity
+    60:}     };
+    61:  
+    62:r     registration_root_api_remote_t remote = {
+    63:.         .send_ctx = &commit,
+    64:.         .send = aether_reg_root_key_commit,
+    65:.         .tx = data,
+    66:.         .tx_capacity = capacity
+    67:}     };
+    68:  
+    69:r     return
+    70:r         registration_root_api_get_asymmetric_public_key(
+    71:&             &remote,
+    72:r             request_id,
+    73:(             (crypto_lib_t)crypto_lib);
+    74:} }
+
+>>> (отфильтровано: из 107 строк оставлено 107)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h
+    1:  
+    2:# #ifndef AETHER_REG_SAFE_H
+    3:# #define AETHER_REG_SAFE_H
+    4:  
+    5:# #include "aether_client.h"
+    6:  
+    7:# #ifdef __cplusplus
+    8:e extern "C" {
+    9:# #endif
+    10:  
+    11:a aether_status_t aether_generated_reg_safe_build_pow(
+    12:u     uint8_t *data,
+    13:s     size_t capacity,
+    14:s     size_t *length,
+    15:u     uint8_t symmetric_key_type,
+    16:c     const uint8_t *key,
+    17:s     size_t key_length,
+    18:u     uint32_t request_id,
+    19:a     aether_uuid_t parent);
+    20:  
+    21:a aether_status_t aether_generated_reg_safe_build_registration(
+    22:u     uint8_t *data,
+    23:s     size_t capacity,
+    24:s     size_t *length,
+    25:u     uint8_t symmetric_key_type,
+    26:c     const uint8_t *return_key,
+    27:s     size_t return_key_length,
+    28:c     const uint8_t *salt,
+    29:s     size_t salt_length,
+    30:c     const uint8_t *suffix,
+    31:s     size_t suffix_length,
+    32:c     const int32_t *passwords,
+    33:s     size_t password_count,
+    34:a     aether_uuid_t parent,
+    35:c     const uint8_t *global_cipher,
+    36:s     size_t global_cipher_length);
+    37:  
+    38:  
+    39:a aether_status_t aether_generated_reg_safe_build_registration_direct(
+    40:u     uint8_t *data,
+    41:s     size_t capacity,
+    42:s     size_t *length,
+    43:u     uint8_t symmetric_key_type,
+    44:c     const uint8_t *return_key,
+    45:s     size_t return_key_length,
+    46:c     const uint8_t *master_key,
+    47:s     size_t master_key_length,
+    48:u     uint32_t request_id,
+    49:c     const uint8_t *salt,
+    50:s     size_t salt_length,
+    51:c     const uint8_t *suffix,
+    52:s     size_t suffix_length,
+    53:c     const int32_t *passwords,
+    54:s     size_t password_count,
+    55:a     aether_uuid_t parent);
+    56:  
+    57:  
+    58:  
+    59:  
+    60:a aether_status_t aether_generated_reg_safe_build_recovery(
+    61:u     uint8_t *data,
+    62:s     size_t capacity,
+    63:s     size_t *length,
+    64:u     uint8_t symmetric_key_type,
+    65:c     const uint8_t *return_key,
+    66:s     size_t return_key_length,
+    67:u     uint8_t old_master_key_type,
+    68:c     const uint8_t *old_master_key,
+    69:s     size_t old_master_key_length,
+    70:c     const uint8_t *new_master_key,
+    71:s     size_t new_master_key_length,
+    72:u     uint32_t request_id,
+    73:a     aether_uuid_t uid);
+    74:  
+    75:  
+    76:  
+    77:  
+    78:  
+    79:  
+    80:a aether_status_t aether_generated_reg_safe_build_resolve_with_return_key(
+    81:u     uint8_t *data,
+    82:s     size_t capacity,
+    83:s     size_t *length,
+    84:u     uint8_t symmetric_key_type,
+    85:c     const uint8_t *return_key,
+    86:s     size_t return_key_length,
+    87:u     uint32_t request_id,
+    88:c     const int16_t *server_ids,
+    89:s     size_t server_count);
+    90:  
+    91:  
+    92:  
+    93:a aether_status_t aether_generated_reg_safe_build_resolve(
+    94:u     uint8_t *data,
+    95:s     size_t capacity,
+    96:s     size_t *length,
+    97:u     uint32_t request_id,
+    98:c     const int16_t *server_ids,
+    99:s     size_t server_count);
+    100:  
+    101:# #ifdef __cplusplus
+    102:} }
+    103:# #endif
+    104:  
+    105:# #endif
+
+>>> (отфильтровано: из 775 строк оставлено 775)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.c
+    1:  
+    2:# #include "aether_reg_safe.h"
+    3:  
+    4:# #include "client_server_api_api.h"
+    5:  
+    6:# #include <string.h>
+    7:  
+    8:  
+    9:t typedef struct {
+    10:s     size_t *length;
+    11:s     size_t remaining;
+    12:} } aether_reg_safe_commit_t;
+    13:  
+    14:  
+    15:t typedef union {
+    16:s     sodium_chacha20_poly1305_t sodium;
+    17:h     hydrogen_secret_box_t hydrogen;
+    18:p     p256_aes_gcm_symmetric_t p256;
+    19:} } aether_reg_safe_key_storage_t;
+    20:  
+    21:  
+    22:s static aether_status_t aether_reg_safe_commit(
+    23:v     void *ctx,
+    24:c     const uint8_t *data,
+    25:s     size_t length) {
+    26:  
+    27:(     (void)data;
+    28:  
+    29:a     aether_reg_safe_commit_t *commit =
+    30:c         ctx;
+    31:  
+    32:i     if (commit == NULL ||
+    33:c         commit->length == NULL) {
+    34:  
+    35:r         return AETHER_ERR_ARGUMENT;
+    36:}     }
+    37:  
+    38:i     if (length > commit->remaining) {
+    39:r         return AETHER_ERR_OVERFLOW;
+    40:}     }
+    41:  
+    42:*     *commit->length +=
+    43:l         length;
+    44:  
+    45:r     return AETHER_OK;
+    46:} }
+    47:  
+    48:  
+    49:s static aether_status_t aether_reg_safe_key(
+    50:u     uint8_t symmetric_key_type,
+    51:c     const uint8_t *key,
+    52:s     size_t key_length,
+    53:a     aether_reg_safe_key_storage_t *storage,
+    54:k     key_ref_t *key_ref) {
+    55:  
+    56:i     if (key == NULL ||
+    57:s         storage == NULL ||
+    58:k         key_ref == NULL ||
+    59:k         key_length != 32u) {
+    60:  
+    61:r         return AETHER_ERR_ARGUMENT;
+    62:}     }
+    63:  
+    64:m     memset(
+    65:s         storage,
+    66:0         0,
+    67:s         sizeof(*storage));
+    68:  
+    69:m     memset(
+    70:k         key_ref,
+    71:0         0,
+    72:s         sizeof(*key_ref));
+    73:  
+    74:k     key_ref->type_id =
+    75:s         symmetric_key_type;
+    76:  
+    77:s     switch (symmetric_key_type) {
+    78:c     case KEY_SYMMETRIC_TYPE_SODIUM_CHACHA20_POLY1305:
+    79:m         memcpy(
+    80:s             storage->sodium.data.data,
+    81:k             key,
+    82:3             32u);
+    83:  
+    84:k         key_ref->as.sodium_chacha20_poly1305 =
+    85:&             &storage->sodium;
+    86:r         return AETHER_OK;
+    87:  
+    88:c     case KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX:
+    89:m         memcpy(
+    90:s             storage->hydrogen.data.data,
+    91:k             key,
+    92:3             32u);
+    93:  
+    94:k         key_ref->as.hydrogen_secret_box =
+    95:&             &storage->hydrogen;
+    96:r         return AETHER_OK;
+    97:  
+    98:c     case KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC:
+    99:m         memcpy(
+    100:s             storage->p256.data.data,
+    101:k             key,
+    102:3             32u);
+    103:  
+    104:k         key_ref->as.p256_aes_gcm_symmetric =
+    105:&             &storage->p256;
+    106:r         return AETHER_OK;
+    107:  
+    108:d     default:
+    109:r         return AETHER_ERR_ARGUMENT;
+    110:}     }
+    111:} }
+    112:  
+    113:  
+    114:s static void aether_reg_safe_advance(
+    115:s     server_registration_api_remote_t *remote,
+    116:a     aether_reg_safe_commit_t *commit,
+    117:u     uint8_t *data,
+    118:s     size_t capacity,
+    119:s     size_t produced) {
+    120:  
+    121:c     commit->remaining =
+    122:c         capacity - produced;
+    123:  
+    124:r     remote->tx =
+    125:d         data != NULL
+    126:?             ? data + produced
+    127::             : NULL;
+    128:  
+    129:r     remote->tx_capacity =
+    130:c         capacity - produced;
+    131:} }
+    132:  
+    133:  
+    134:s static aether_status_t aether_reg_safe_remote(
+    135:u     uint8_t *data,
+    136:s     size_t capacity,
+    137:s     size_t *produced,
+    138:a     aether_reg_safe_commit_t *commit,
+    139:s     server_registration_api_remote_t *remote) {
+    140:  
+    141:i     if (produced == NULL ||
+    142:c         commit == NULL ||
+    143:r         remote == NULL ||
+    144:(         (capacity > 0u &&
+    145:d          data == NULL)) {
+    146:  
+    147:r         return AETHER_ERR_ARGUMENT;
+    148:}     }
+    149:  
+    150:*     *produced =
+    151:0         0u;
+    152:  
+    153:c     commit->length =
+    154:p         produced;
+    155:  
+    156:c     commit->remaining =
+    157:c         capacity;
+    158:  
+    159:r     remote->send_ctx =
+    160:c         commit;
+    161:  
+    162:r     remote->send =
+    163:a         aether_reg_safe_commit;
+    164:  
+    165:r     remote->tx =
+    166:d         data;
+    167:  
+    168:r     remote->tx_capacity =
+    169:c         capacity;
+    170:  
+    171:r     return AETHER_OK;
+    172:} }
+    173:  
+    174:  
+    175:a aether_status_t aether_generated_reg_safe_build_pow(
+    176:u     uint8_t *data,
+    177:s     size_t capacity,
+    178:s     size_t *length,
+    179:u     uint8_t symmetric_key_type,
+    180:c     const uint8_t *key,
+    181:s     size_t key_length,
+    182:u     uint32_t request_id,
+    183:a     aether_uuid_t parent) {
+    184:  
+    185:i     if (length == NULL) {
+    186:r         return AETHER_ERR_ARGUMENT;
+    187:}     }
+    188:  
+    189:a     aether_reg_safe_key_storage_t key_storage;
+    190:k     key_ref_t key_ref;
+    191:  
+    192:a     aether_status_t status =
+    193:a         aether_reg_safe_key(
+    194:s             symmetric_key_type,
+    195:k             key,
+    196:k             key_length,
+    197:&             &key_storage,
+    198:&             &key_ref);
+    199:  
+    200:i     if (status != AETHER_OK) {
+    201:r         return status;
+    202:}     }
+    203:  
+    204:s     size_t produced;
+    205:a     aether_reg_safe_commit_t commit;
+    206:s     server_registration_api_remote_t remote;
+    207:  
+    208:s     status =
+    209:a         aether_reg_safe_remote(
+    210:d             data,
+    211:c             capacity,
+    212:&             &produced,
+    213:&             &commit,
+    214:&             &remote);
+    215:  
+    216:i     if (status != AETHER_OK) {
+    217:r         return status;
+    218:}     }
+    219:  
+    220:s     status =
+    221:s         server_registration_api_set_return_key(
+    222:&             &remote,
+    223:&             &key_ref);
+    224:  
+    225:i     if (status != AETHER_OK) {
+    226:r         return status;
+    227:}     }
+    228:  
+    229:a     aether_reg_safe_advance(
+    230:&         &remote,
+    231:&         &commit,
+    232:d         data,
+    233:c         capacity,
+    234:p         produced);
+    235:  
+    236:s     status =
+    237:s         server_registration_api_request_work_proof_data(
+    238:&             &remote,
+    239:r             request_id,
+    240:p             parent,
+    241:p             pow_method_AE_BCRYPT_CRC32);
+    242:  
+    243:i     if (status != AETHER_OK) {
+    244:r         return status;
+    245:}     }
+    246:  
+    247:*     *length =
+    248:p         produced;
+    249:  
+    250:r     return AETHER_OK;
+    251:} }
+    252:  
+    253:  
+    254:a aether_status_t aether_generated_reg_safe_build_registration(
+    255:u     uint8_t *data,
+    256:s     size_t capacity,
+    257:s     size_t *length,
+    258:u     uint8_t symmetric_key_type,
+    259:c     const uint8_t *return_key,
+    260:s     size_t return_key_length,
+    261:c     const uint8_t *salt,
+    262:s     size_t salt_length,
+    263:c     const uint8_t *suffix,
+    264:s     size_t suffix_length,
+    265:c     const int32_t *passwords,
+    266:s     size_t password_count,
+    267:a     aether_uuid_t parent,
+    268:c     const uint8_t *global_cipher,
+    269:s     size_t global_cipher_length) {
+    270:  
+    271:i     if (length == NULL ||
+    272:(         (salt == NULL &&
+    273:s          salt_length != 0u) ||
+    274:(         (suffix == NULL &&
+    275:s          suffix_length != 0u) ||
+    276:(         (passwords == NULL &&
+    277:p          password_count != 0u) ||
+    278:(         (global_cipher == NULL &&
+    279:g          global_cipher_length != 0u)) {
+    280:  
+    281:r         return AETHER_ERR_ARGUMENT;
+    282:}     }
+    283:  
+    284:a     aether_reg_safe_key_storage_t key_storage;
+    285:k     key_ref_t key_ref;
+    286:  
+    287:a     aether_status_t status =
+    288:a         aether_reg_safe_key(
+    289:s             symmetric_key_type,
+    290:r             return_key,
+    291:r             return_key_length,
+    292:&             &key_storage,
+    293:&             &key_ref);
+    294:  
+    295:i     if (status != AETHER_OK) {
+    296:r         return status;
+    297:}     }
+    298:  
+    299:s     size_t produced;
+    300:a     aether_reg_safe_commit_t commit;
+    301:s     server_registration_api_remote_t remote;
+    302:  
+    303:s     status =
+    304:a         aether_reg_safe_remote(
+    305:d             data,
+    306:c             capacity,
+    307:&             &produced,
+    308:&             &commit,
+    309:&             &remote);
+    310:  
+    311:i     if (status != AETHER_OK) {
+    312:r         return status;
+    313:}     }
+    314:  
+    315:s     status =
+    316:s         server_registration_api_set_return_key(
+    317:&             &remote,
+    318:&             &key_ref);
+    319:  
+    320:i     if (status != AETHER_OK) {
+    321:r         return status;
+    322:}     }
+    323:  
+    324:a     aether_reg_safe_advance(
+    325:&         &remote,
+    326:&         &commit,
+    327:d         data,
+    328:c         capacity,
+    329:p         produced);
+    330:  
+    331:a     aether_bytes_view_t salt_view = {
+    332:.         .data = salt,
+    333:.         .length = salt_length
+    334:}     };
+    335:  
+    336:a     aether_bytes_view_t suffix_view = {
+    337:.         .data = suffix,
+    338:.         .length = suffix_length
+    339:}     };
+    340:  
+    341:i     int_array_view_t password_view = {
+    342:.         .data = passwords,
+    343:.         .length = password_count
+    344:}     };
+    345:  
+    346:g     global_api_stream_t global_api = {
+    347:.         .data =
+    348:(             (uint8_t *)global_cipher,
+    349:.         .capacity =
+    350:g             global_cipher_length,
+    351:.         .length =
+    352:g             global_cipher_length
+    353:}     };
+    354:  
+    355:s     status =
+    356:s         server_registration_api_registration(
+    357:&             &remote,
+    358:s             salt_view,
+    359:s             suffix_view,
+    360:p             password_view,
+    361:p             parent,
+    362:&             &global_api);
+    363:  
+    364:i     if (status != AETHER_OK) {
+    365:r         return status;
+    366:}     }
+    367:  
+    368:*     *length =
+    369:p         produced;
+    370:  
+    371:r     return AETHER_OK;
+    372:} }
+    373:  
+    374:  
+    375:  
+    376:a aether_status_t aether_generated_reg_safe_build_registration_direct(
+    377:u     uint8_t *data,
+    378:s     size_t capacity,
+    379:s     size_t *length,
+    380:u     uint8_t symmetric_key_type,
+    381:c     const uint8_t *return_key,
+    382:s     size_t return_key_length,
+    383:c     const uint8_t *master_key,
+    384:s     size_t master_key_length,
+    385:u     uint32_t request_id,
+    386:c     const uint8_t *salt,
+    387:s     size_t salt_length,
+    388:c     const uint8_t *suffix,
+    389:s     size_t suffix_length,
+    390:c     const int32_t *passwords,
+    391:s     size_t password_count,
+    392:a     aether_uuid_t parent) {
+    393:  
+    394:i     if (length == NULL ||
+    395:(         (salt == NULL && salt_length != 0u) ||
+    396:(         (suffix == NULL && suffix_length != 0u) ||
+    397:(         (passwords == NULL && password_count != 0u)) {
+    398:  
+    399:r         return AETHER_ERR_ARGUMENT;
+    400:}     }
+    401:  
+    402:a     aether_reg_safe_key_storage_t return_key_storage;
+    403:k     key_ref_t return_key_ref;
+    404:  
+    405:a     aether_status_t status =
+    406:a         aether_reg_safe_key(
+    407:s             symmetric_key_type,
+    408:r             return_key,
+    409:r             return_key_length,
+    410:&             &return_key_storage,
+    411:&             &return_key_ref);
+    412:  
+    413:i     if (status != AETHER_OK) {
+    414:r         return status;
+    415:}     }
+    416:  
+    417:a     aether_reg_safe_key_storage_t master_key_storage;
+    418:k     key_ref_t master_key_ref;
+    419:  
+    420:s     status =
+    421:a         aether_reg_safe_key(
+    422:s             symmetric_key_type,
+    423:m             master_key,
+    424:m             master_key_length,
+    425:&             &master_key_storage,
+    426:&             &master_key_ref);
+    427:  
+    428:i     if (status != AETHER_OK) {
+    429:r         return status;
+    430:}     }
+    431:  
+    432:s     size_t produced;
+    433:a     aether_reg_safe_commit_t commit;
+    434:s     server_registration_api_remote_t remote;
+    435:  
+    436:s     status =
+    437:a         aether_reg_safe_remote(
+    438:d             data,
+    439:c             capacity,
+    440:&             &produced,
+    441:&             &commit,
+    442:&             &remote);
+    443:  
+    444:i     if (status != AETHER_OK) {
+    445:r         return status;
+    446:}     }
+    447:  
+    448:s     status =
+    449:s         server_registration_api_set_return_key(
+    450:&             &remote,
+    451:&             &return_key_ref);
+    452:  
+    453:i     if (status != AETHER_OK) {
+    454:r         return status;
+    455:}     }
+    456:  
+    457:a     aether_reg_safe_advance(
+    458:&         &remote,
+    459:&         &commit,
+    460:d         data,
+    461:c         capacity,
+    462:p         produced);
+    463:  
+    464:a     aether_bytes_view_t salt_view = {
+    465:.         .data = salt,
+    466:.         .length = salt_length
+    467:}     };
+    468:  
+    469:a     aether_bytes_view_t suffix_view = {
+    470:.         .data = suffix,
+    471:.         .length = suffix_length
+    472:}     };
+    473:  
+    474:i     int_array_view_t password_view = {
+    475:.         .data = passwords,
+    476:.         .length = password_count
+    477:}     };
+    478:  
+    479:s     status =
+    480:s         server_registration_api_registration_direct(
+    481:&             &remote,
+    482:r             request_id,
+    483:s             salt_view,
+    484:s             suffix_view,
+    485:p             password_view,
+    486:p             parent,
+    487:&             &master_key_ref);
+    488:  
+    489:i     if (status != AETHER_OK) {
+    490:r         return status;
+    491:}     }
+    492:  
+    493:*     *length =
+    494:p         produced;
+    495:  
+    496:r     return AETHER_OK;
+    497:} }
+    498:  
+    499:  
+    500:  
+    501:a aether_status_t aether_generated_reg_safe_build_recovery(
+    502:u     uint8_t *data,
+    503:s     size_t capacity,
+    504:s     size_t *length,
+    505:u     uint8_t symmetric_key_type,
+    506:c     const uint8_t *return_key,
+    507:s     size_t return_key_length,
+    508:  
+    509:  
+    510:u     uint8_t old_master_key_type,
+    511:  
+    512:c     const uint8_t *old_master_key,
+    513:s     size_t old_master_key_length,
+    514:c     const uint8_t *new_master_key,
+    515:s     size_t new_master_key_length,
+    516:  
+    517:u     uint32_t request_id,
+    518:a     aether_uuid_t uid) {
+    519:  
+    520:i     if (length == NULL) {
+    521:r         return AETHER_ERR_ARGUMENT;
+    522:}     }
+    523:  
+    524:a     aether_reg_safe_key_storage_t return_key_storage;
+    525:k     key_ref_t return_key_ref;
+    526:  
+    527:a     aether_status_t status =
+    528:a         aether_reg_safe_key(
+    529:s             symmetric_key_type,
+    530:r             return_key,
+    531:r             return_key_length,
+    532:&             &return_key_storage,
+    533:&             &return_key_ref);
+    534:  
+    535:i     if (status != AETHER_OK) {
+    536:r         return status;
+    537:}     }
+    538:  
+    539:  
+    540:a     aether_reg_safe_key_storage_t old_master_key_storage;
+    541:k     key_ref_t old_master_key_ref;
+    542:  
+    543:s     status =
+    544:a         aether_reg_safe_key(
+    545:o             old_master_key_type,
+    546:o             old_master_key,
+    547:o             old_master_key_length,
+    548:&             &old_master_key_storage,
+    549:&             &old_master_key_ref);
+    550:  
+    551:i     if (status != AETHER_OK) {
+    552:r         return status;
+    553:}     }
+    554:  
+    555:a     aether_reg_safe_key_storage_t new_master_key_storage;
+    556:k     key_ref_t new_master_key_ref;
+    557:  
+    558:s     status =
+    559:a         aether_reg_safe_key(
+    560:s             symmetric_key_type,
+    561:n             new_master_key,
+    562:n             new_master_key_length,
+    563:&             &new_master_key_storage,
+    564:&             &new_master_key_ref);
+    565:  
+    566:i     if (status != AETHER_OK) {
+    567:r         return status;
+    568:}     }
+    569:  
+    570:  
+    571:s     size_t produced;
+    572:a     aether_reg_safe_commit_t commit;
+    573:s     server_registration_api_remote_t remote;
+    574:  
+    575:s     status =
+    576:a         aether_reg_safe_remote(
+    577:d             data,
+    578:c             capacity,
+    579:&             &produced,
+    580:&             &commit,
+    581:&             &remote);
+    582:  
+    583:i     if (status != AETHER_OK) {
+    584:r         return status;
+    585:}     }
+    586:  
+    587:s     status =
+    588:s         server_registration_api_set_return_key(
+    589:&             &remote,
+    590:&             &return_key_ref);
+    591:  
+    592:i     if (status != AETHER_OK) {
+    593:r         return status;
+    594:}     }
+    595:  
+    596:a     aether_reg_safe_advance(
+    597:&         &remote,
+    598:&         &commit,
+    599:d         data,
+    600:c         capacity,
+    601:p         produced);
+    602:  
+    603:  
+    604:s     status =
+    605:s         server_registration_api_recovery(
+    606:&             &remote,
+    607:r             request_id,
+    608:u             uid,
+    609:&             &old_master_key_ref,
+    610:&             &new_master_key_ref);
+    611:  
+    612:  
+    613:i     if (status != AETHER_OK) {
+    614:r         return status;
+    615:}     }
+    616:  
+    617:*     *length =
+    618:p         produced;
+    619:  
+    620:r     return AETHER_OK;
+    621:} }
+    622:  
+    623:  
+    624:  
+    625:  
+    626:  
+    627:a aether_status_t aether_generated_reg_safe_build_resolve_with_return_key(
+    628:u     uint8_t *data,
+    629:s     size_t capacity,
+    630:s     size_t *length,
+    631:u     uint8_t symmetric_key_type,
+    632:c     const uint8_t *return_key,
+    633:s     size_t return_key_length,
+    634:u     uint32_t request_id,
+    635:c     const int16_t *server_ids,
+    636:s     size_t server_count) {
+    637:  
+    638:i     if (length == NULL ||
+    639:(         (server_ids == NULL &&
+    640:s          server_count != 0u)) {
+    641:  
+    642:r         return AETHER_ERR_ARGUMENT;
+    643:}     }
+    644:  
+    645:a     aether_reg_safe_key_storage_t key_storage;
+    646:k     key_ref_t key_ref;
+    647:  
+    648:a     aether_status_t status =
+    649:a         aether_reg_safe_key(
+    650:s             symmetric_key_type,
+    651:r             return_key,
+    652:r             return_key_length,
+    653:&             &key_storage,
+    654:&             &key_ref);
+    655:  
+    656:i     if (status != AETHER_OK) {
+    657:r         return status;
+    658:}     }
+    659:  
+    660:s     size_t produced;
+    661:a     aether_reg_safe_commit_t commit;
+    662:s     server_registration_api_remote_t remote;
+    663:  
+    664:s     status =
+    665:a         aether_reg_safe_remote(
+    666:d             data,
+    667:c             capacity,
+    668:&             &produced,
+    669:&             &commit,
+    670:&             &remote);
+    671:  
+    672:i     if (status != AETHER_OK) {
+    673:r         return status;
+    674:}     }
+    675:  
+    676:s     status =
+    677:s         server_registration_api_set_return_key(
+    678:&             &remote,
+    679:&             &key_ref);
+    680:  
+    681:i     if (status != AETHER_OK) {
+    682:r         return status;
+    683:}     }
+    684:  
+    685:a     aether_reg_safe_advance(
+    686:&         &remote,
+    687:&         &commit,
+    688:d         data,
+    689:c         capacity,
+    690:p         produced);
+    691:  
+    692:s     short_array_view_t server_id_view = {
+    693:.         .data = server_ids,
+    694:.         .length = server_count
+    695:}     };
+    696:  
+    697:c     cloud_t cloud = {
+    698:.         .data = server_id_view
+    699:}     };
+    700:  
+    701:s     status =
+    702:s         server_registration_api_resolve_servers(
+    703:&             &remote,
+    704:r             request_id,
+    705:&             &cloud);
+    706:  
+    707:i     if (status != AETHER_OK) {
+    708:r         return status;
+    709:}     }
+    710:  
+    711:*     *length =
+    712:p         produced;
+    713:  
+    714:r     return AETHER_OK;
+    715:} }
+    716:  
+    717:  
+    718:  
+    719:a aether_status_t aether_generated_reg_safe_build_resolve(
+    720:u     uint8_t *data,
+    721:s     size_t capacity,
+    722:s     size_t *length,
+    723:u     uint32_t request_id,
+    724:c     const int16_t *server_ids,
+    725:s     size_t server_count) {
+    726:  
+    727:i     if (length == NULL ||
+    728:(         (server_ids == NULL &&
+    729:s          server_count != 0u)) {
+    730:  
+    731:r         return AETHER_ERR_ARGUMENT;
+    732:}     }
+    733:  
+    734:s     size_t produced;
+    735:a     aether_reg_safe_commit_t commit;
+    736:s     server_registration_api_remote_t remote;
+    737:  
+    738:a     aether_status_t status =
+    739:a         aether_reg_safe_remote(
+    740:d             data,
+    741:c             capacity,
+    742:&             &produced,
+    743:&             &commit,
+    744:&             &remote);
+    745:  
+    746:i     if (status != AETHER_OK) {
+    747:r         return status;
+    748:}     }
+    749:  
+    750:s     short_array_view_t server_id_view = {
+    751:.         .data = server_ids,
+    752:.         .length = server_count
+    753:}     };
+    754:  
+    755:c     cloud_t cloud = {
+    756:.         .data = server_id_view
+    757:}     };
+    758:  
+    759:s     status =
+    760:s         server_registration_api_resolve_servers(
+    761:&             &remote,
+    762:r             request_id,
+    763:&             &cloud);
+    764:  
+    765:i     if (status != AETHER_OK) {
+    766:r         return status;
+    767:}     }
+    768:  
+    769:*     *length =
+    770:p         produced;
+    771:  
+    772:r     return AETHER_OK;
+    773:} }
+
+>>> bash
+src/generated/aether_api.h:109:typedef struct common_cloud_t common_cloud_t;
+>>> [elapsed: 10ms]
+
+>>> (отфильтровано: из 3451 строк оставлено 120)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+    1:# #ifndef AETHER_API_H
+    2:# #define AETHER_API_H
+    3:  
+    4:# #include "aether_dataio.h"
+    5:# #include <stdbool.h>
+    6:# #include <stddef.h>
+    7:# #include <stdint.h>
+    8:  
+    9:# #ifdef __cplusplus
+    10:e extern "C" {
+    11:# #endif
+    12:  
+    13:t typedef struct {
+    14:u     uint8_t *data;
+    15:s     size_t capacity;
+    16:s     size_t length;
+    17:} } csa_login_stream_t;
+    18:  
+    19:t typedef struct {
+    20:u     uint8_t *data;
+    21:s     size_t capacity;
+    22:s     size_t length;
+    23:} } csa_login_client_stream_t;
+    24:  
+    25:t typedef struct {
+    26:u     uint8_t *data;
+    27:s     size_t capacity;
+    28:s     size_t length;
+    29:} } csa_client_interaction_client_stream_t;
+    30:  
+    31:t typedef struct {
+    32:u     uint8_t *data;
+    33:s     size_t capacity;
+    34:s     size_t length;
+    35:} } csa_client_api_stream_t;
+    36:  
+    37:t typedef struct {
+    38:u     uint8_t *data;
+    39:s     size_t capacity;
+    40:s     size_t length;
+    41:} } csa_client_api_reg_safe_stream_t;
+    42:  
+    43:t typedef struct {
+    44:u     uint8_t *data;
+    45:s     size_t capacity;
+    46:s     size_t length;
+    47:} } csa_server_registration_api_stream_t;
+    48:  
+    49:t typedef enum {
+    50:c     common_crypto_lib_SODIUM = 0,
+    51:c     common_crypto_lib_HYDROGEN = 1,
+    52:c     common_crypto_lib_P256_AES_GCM = 2
+    53:} } common_crypto_lib_t;
+    54:  
+    55:t typedef enum {
+    56:c     common_pow_method_AE_BCRYPT_CRC32 = 0
+    57:} } common_pow_method_t;
+    58:  
+    59:t typedef enum {
+    60:c     common_aether_codec_TCP = 0,
+    61:c     common_aether_codec_UDP = 1,
+    62:c     common_aether_codec_WS = 2,
+    63:c     common_aether_codec_WSS = 3
+    64:} } common_aether_codec_t;
+    65:  
+    66:t typedef enum {
+    67:c     common_status_PENDING = 0,
+    68:c     common_status_COMPLETED = 1,
+    69:c     common_status_FAILED = 2
+    70:} } common_status_t;
+    71:  
+    72:t typedef enum {
+    73:c     common_server_type_REG = 0,
+    74:c     common_server_type_WORK = 1
+    75:} } common_server_type_t;
+    76:  
+    77:t typedef enum {
+    78:c     csa_client_activity_type_CONNECT = 0,
+    79:c     csa_client_activity_type_DISCONNECT = 1,
+    80:c     csa_client_activity_type_MESSAGE_SEND = 2,
+    81:c     csa_client_activity_type_MESSAGE_RECEIVE = 3,
+    82:c     csa_client_activity_type_COMMAND_EXEC = 4,
+    83:c     csa_client_activity_type_API_CALL = 5
+    84:} } csa_client_activity_type_t;
+    85:  
+    86:t typedef struct common_sodium_chacha20_poly1305_t common_sodium_chacha20_poly1305_t;
+    87:t typedef struct common_hydrogen_curve_private_t common_hydrogen_curve_private_t;
+    88:t typedef struct common_hydrogen_curve_public_t common_hydrogen_curve_public_t;
+    89:t typedef struct common_hydrogen_secret_box_t common_hydrogen_secret_box_t;
+    90:t typedef struct common_sodium_curve_public_t common_sodium_curve_public_t;
+    91:t typedef struct common_sodium_curve_private_t common_sodium_curve_private_t;
+    92:t typedef struct common_sodium_sign_private_t common_sodium_sign_private_t;
+    93:t typedef struct common_sodium_sign_public_t common_sodium_sign_public_t;
+    94:t typedef struct common_hydrogen_sign_private_t common_hydrogen_sign_private_t;
+    95:t typedef struct common_hydrogen_sign_public_t common_hydrogen_sign_public_t;
+    96:t typedef struct common_sign_a_e_e_d25519_t common_sign_a_e_e_d25519_t;
+    97:t typedef struct common_sign_h_y_d_r_o_g_e_n_t common_sign_h_y_d_r_o_g_e_n_t;
+    98:t typedef struct common_signed_key_t common_signed_key_t;
+    99:t typedef struct common_work_proof_b_crypt_t common_work_proof_b_crypt_t;
+    100:t typedef struct common_work_proof_d_t_o_t common_work_proof_d_t_o_t;
+    101:t typedef struct common_i_p_address_v4_t common_i_p_address_v4_t;
+    102:t typedef struct common_i_p_address_v6_t common_i_p_address_v6_t;
+    103:t typedef struct common_i_p_address_web_t common_i_p_address_web_t;
+    104:t typedef struct common_coder_and_port_t common_coder_and_port_t;
+    105:t typedef struct common_i_p_address_and_ports_t common_i_p_address_and_ports_t;
+    106:t typedef struct common_i_p_address_and_ports_list_t common_i_p_address_and_ports_list_t;
+    107:t typedef struct common_server_descriptor_t common_server_descriptor_t;
+    108:t typedef struct common_server_descriptor_with_geo_t common_server_descriptor_with_geo_t;
+    109:t typedef struct common_cloud_t common_cloud_t;
+    110:t typedef struct common_money_operation_t common_money_operation_t;
+    111:t typedef struct common_access_group_t common_access_group_t;
+    112:t typedef struct common_u_u_i_d_and_cloud_t common_u_u_i_d_and_cloud_t;
+    113:t typedef struct common_cloud_config_t common_cloud_config_t;
+    114:t typedef struct common_applied_config_t common_applied_config_t;
+    115:t typedef struct common_pair_keys_sign_t common_pair_keys_sign_t;
+    116:t typedef struct common_pair_keys_asym_t common_pair_keys_asym_t;
+    117:t typedef struct common_pair_keys_asym_signed_t common_pair_keys_asym_signed_t;
+    118:t typedef struct common_pair_keys_sym_t common_pair_keys_sym_t;
+
+>>> bash
+>>> [elapsed: 8ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 2: Unexpected character: '"' @ line 2, column 10.    grep -rn "typedef.*aether_bytes_view_t\|typedef.*int_array_view_t\|typedef.*short_array_view_t" /home/angel/projects/aether-client-c/include /home/angel/projects/aether-client-c/src | head -20             ^  1 error 
+````
+
+>>> bash
+>>> [elapsed: 12ms]
+
+>>> bash
+./include/aether_client.h:218:} aether_bytes_view_t;
+./include/aether_client.h:262:            aether_bytes_view_t payload;
+./include/aether_client.h:308:            aether_bytes_view_t payload;
+./include/aether_client.h:344:    aether_bytes_view_t *frame);
+./src/generated/aether_api.h:464:    const aether_bytes_view_t *data;
+./src/generated/aether_api.h:705:    aether_bytes_view_t salt;
+./src/generated/aether_api.h:706:    aether_bytes_view_t suffix;
+./src/generated/aether_api.h:721:    aether_bytes_view_t data;
+./src/generated/aether_api.h:920:    aether_bytes_view_t blob;
+./src/generated/aether_api.h:921:    aether_bytes_view_t lib_version;
+./src/generated/aether_api.h:922:    aether_bytes_view_t os;
+./src/generated/aether_api.h:923:    aether_bytes_view_t compiler;
+./src/generated/aether_api.h:928:    aether_bytes_view_t data;
+./src/generated/aether_api.h:935:    aether_bytes_view_t details;
+./src/generated/aether_api.h:940:    aether_bytes_view_t key;
+./src/generated/aether_api.h:941:    aether_bytes_view_t value;
+./src/generated/aether_api.h:946:    aether_bytes_view_t level;
+./src/generated/aether_api.h:947:    aether_bytes_view_t message;
+./src/generated/aether_api.h:956:    aether_bytes_view_t protocol;
+./src/generated/aether_api.h:973:    aether_bytes_view_t data;
+>>> [elapsed: 46ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> bash
+109:typedef struct common_cloud_t common_cloud_t;
+113:typedef struct common_cloud_config_t common_cloud_config_t;
+>>> [elapsed: 15ms]
+
+>>> bash
+>>> [elapsed: 79ms]
+
+>>> bash
+./src/generated/aether_api.h:190:} common_key_ref_t;
+./src/generated/aether_api.h:694:    common_key_ref_t key;
+./src/generated/aether_api.h:792:    common_key_ref_t privateKey;
+./src/generated/aether_api.h:793:    common_key_ref_t publicKey;
+./src/generated/aether_api.h:797:    common_key_ref_t privateKey;
+./src/generated/aether_api.h:798:    common_key_ref_t publicKey;
+./src/generated/aether_api.h:802:    common_key_ref_t privateKey;
+./src/generated/aether_api.h:2712:    const common_key_ref_t * masterKey);
+./src/generated/aether_api.h:2728:    const common_key_ref_t * key);
+./src/generated/aether_api.h:2734:    const common_key_ref_t * oldMasterKey,
+./src/generated/aether_api.h:2735:    const common_key_ref_t * newMasterKey);
+./src/generated/aether_api.h:3420:    const common_key_ref_t * masterKey);
+./src/generated/aether_api.h:3436:    const common_key_ref_t * key);
+./src/generated/aether_api.h:3442:    const common_key_ref_t * oldMasterKey,
+./src/generated/aether_api.h:3443:    const common_key_ref_t * newMasterKey);
+>>> [elapsed: 93ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> bash
+    uint8_t sign_type;
+    uint8_t signature[AETHER_MAX_CRYPTO_SIGNATURE_BYTES];
+} aether_signed_key_t;
+
+
+typedef struct {
+    const uint8_t *data;
+    size_t length;
+} aether_bytes_view_t;
+
+
+
+
+
+
+/*
+---
+---
+90:size_t aether_data_out_write(aether_data_out_t *out, const uint8_t *src, size_t off, size_t len);
+91:size_t aether_data_out_write_int_array(aether_data_out_t *out, const int32_t *src, size_t off, size_t len);
+94:bool aether_data_out_write_boolean(aether_data_out_t *out, bool v);
+95:bool aether_data_out_write_byte(aether_data_out_t *out, uint8_t v);
+96:bool aether_data_out_write_short(aether_data_out_t *out, int16_t v);
+97:bool aether_data_out_write_ushort(aether_data_out_t *out, uint16_t v);
+98:bool aether_data_out_write_char(aether_data_out_t *out, uint16_t v);
+99:bool aether_data_out_write_int(aether_data_out_t *out, int32_t v);
+100:bool aether_data_out_write_uint(aether_data_out_t *out, uint32_t v);
+101:bool aether_data_out_write_long(aether_data_out_t *out, int64_t v);
+102:bool aether_data_out_write_float(aether_data_out_t *out, float v);
+103:bool aether_data_out_write_double(aether_data_out_t *out, double v);
+119: *   - aether_data_out_write_pack / aether_data_in_read_pack    (sync)
+135:bool     aether_data_out_write_pack(aether_data_out_t *out, uint64_t v);
+181:bool aether_data_out_write_tiered_int(
+286:bool aether_data_out_write_flat_array(
+296:bool aether_data_out_write_obj_array(
+310:bool aether_data_out_write_static_flat_array(
+320:bool aether_data_out_write_static_obj_array(
+342:bool         aether_data_out_write_uuid(aether_data_out_t *out, aether_uuid_t v);
+357:bool aether_data_out_write_bytes(aether_data_out_t *out, const void *data, size_t length);
+>>> [elapsed: 11ms]
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.h lines 160 to 200
+    160:# #define COMMON_KEY_TYPE_COMMON_SODIUM_CURVE_PRIVATE UINT8_C(7)
+    161:# #define COMMON_KEY_TYPE_COMMON_SODIUM_SIGN_PRIVATE UINT8_C(9)
+    162:# #define COMMON_KEY_TYPE_COMMON_SODIUM_SIGN_PUBLIC UINT8_C(10)
+    163:# #define COMMON_KEY_TYPE_COMMON_HYDROGEN_SIGN_PRIVATE UINT8_C(4)
+    164:# #define COMMON_KEY_TYPE_COMMON_HYDROGEN_SIGN_PUBLIC UINT8_C(5)
+    165:# #define COMMON_KEY_TYPE_COMMON_P256_AES_GCM_SYMMETRIC UINT8_C(11)
+    166:# #define COMMON_KEY_TYPE_COMMON_P256_AES_GCM_CURVE_PRIVATE UINT8_C(12)
+    167:# #define COMMON_KEY_TYPE_COMMON_P256_AES_GCM_CURVE_PUBLIC UINT8_C(13)
+    168:# #define COMMON_KEY_TYPE_COMMON_P256_AES_GCM_SIGN_PRIVATE UINT8_C(14)
+    169:# #define COMMON_KEY_TYPE_COMMON_P256_AES_GCM_SIGN_PUBLIC UINT8_C(15)
+    170:  
+    171:t typedef struct {
+    172:u     uint8_t type_id;
+    173:u     union {
+    174:c         const common_sodium_chacha20_poly1305_t *common_sodium_chacha20_poly1305;
+    175:c         const common_hydrogen_curve_private_t *common_hydrogen_curve_private;
+    176:c         const common_hydrogen_curve_public_t *common_hydrogen_curve_public;
+    177:c         const common_hydrogen_secret_box_t *common_hydrogen_secret_box;
+    178:c         const common_sodium_curve_public_t *common_sodium_curve_public;
+    179:c         const common_sodium_curve_private_t *common_sodium_curve_private;
+    180:c         const common_sodium_sign_private_t *common_sodium_sign_private;
+    181:c         const common_sodium_sign_public_t *common_sodium_sign_public;
+    182:c         const common_hydrogen_sign_private_t *common_hydrogen_sign_private;
+    183:c         const common_hydrogen_sign_public_t *common_hydrogen_sign_public;
+    184:c         const common_p256_aes_gcm_symmetric_t *common_p256_aes_gcm_symmetric;
+    185:c         const common_p256_aes_gcm_curve_private_t *common_p256_aes_gcm_curve_private;
+    186:c         const common_p256_aes_gcm_curve_public_t *common_p256_aes_gcm_curve_public;
+    187:c         const common_p256_aes_gcm_sign_private_t *common_p256_aes_gcm_sign_private;
+    188:c         const common_p256_aes_gcm_sign_public_t *common_p256_aes_gcm_sign_public;
+    189:}     } as;
+    190:} } common_key_ref_t;
+    191:  
+    192:# #define COMMON_KEY_SYMMETRIC_TYPE_COMMON_SODIUM_CHACHA20_POLY1305 UINT8_C(6)
+    193:# #define COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX UINT8_C(3)
+    194:# #define COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC UINT8_C(11)
+    195:  
+    196:t typedef struct {
+    197:u     uint8_t type_id;
+    198:u     union {
+    199:c         const common_sodium_chacha20_poly1305_t *common_sodium_chacha20_poly1305;
+    200:c         const common_hydrogen_secret_box_t *common_hydrogen_secret_box;
+>>> (показано строк: 41 из 3449)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.h lines 1080 to 1120
+    1080:u     unsigned int depth);
+    1081:  
+    1082:/ /* ADSL: /home/angel/projects/aether/common-api/src/main/resources/common.adsl.yaml:20 types.KeySignPublic */
+    1083:b bool common_serialize_key_sign_public(
+    1084:a     aether_data_out_t *out,
+    1085:c     const void *value,
+    1086:u     unsigned int depth);
+    1087:  
+    1088:b bool common_deserialize_key_sign_public(
+>>> (показано строк: 41 из 3449)
+
+>>> bash
+11396:aether_status_t csa_server_registration_api_registration_direct(
+16806:    return csa_server_registration_api_registration_direct(
+11479:aether_status_t csa_server_registration_api_set_return_key(
+16935:    return csa_server_registration_api_set_return_key(
+11502:aether_status_t csa_server_registration_api_recovery(
+16978:    return csa_server_registration_api_recovery(
+>>> [elapsed: 15ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 2: Unexpected input: 'sed -n' @ line 2, column 1.    sed -n '11396,11520p' /home/angel/projects/aether-client-c/src/generated/aether_api.c    ^  1 error 
+````
+[subtask rewriteAdapters] ERROR: subtask exceeded MAX_ITERATIONS

@@ -1,0 +1,229 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '/' @ line 1, column 2.    </think>Продолжаем. Нужно изучить определения важных типов, потом переписать адаптеры. Сделаем шаг 1: выведем полный aether_reg_safe.c (уже видели, но повторим ключевые части) и найдём определения csa_send_fn, common_key_ref_t, макросов типов.     ^  1 error 
+````
+
+>>> bash
+src/generated/aether_api.h:1918:typedef aether_status_t (*csa_send_fn)(
+src/generated/aether_api.h:1925:    csa_send_fn send;
+src/generated/aether_api.h:1984:    csa_send_fn send;
+src/generated/aether_api.h:2225:    csa_send_fn send;
+src/generated/aether_api.h:2490:    csa_send_fn send;
+src/generated/aether_api.h:2531:    csa_send_fn send;
+src/generated/aether_api.h:2617:    csa_send_fn send;
+src/generated/aether_api.h:2700:    csa_send_fn send;
+src/generated/aether_api.h:2739:    csa_send_fn send;
+src/generated/aether_api.h:2761:    csa_send_fn send;
+---
+122:typedef struct common_p256_aes_gcm_symmetric_t common_p256_aes_gcm_symmetric_t;
+829:struct common_p256_aes_gcm_symmetric_t {
+---
+src/generated/aether_api.h:192:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_SODIUM_CHACHA20_POLY1305 UINT8_C(6)
+src/generated/aether_api.h:193:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX UINT8_C(3)
+src/generated/aether_api.h:194:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC UINT8_C(11)
+>>> [elapsed: 8ms]
+
+>>> bash
+./src/generated/aether_api.h:192:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_SODIUM_CHACHA20_POLY1305 UINT8_C(6)
+./src/generated/aether_api.h:193:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX UINT8_C(3)
+./src/generated/aether_api.h:194:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC UINT8_C(11)
+./src/generated/aether_reg_safe.c:78:    case KEY_SYMMETRIC_TYPE_SODIUM_CHACHA20_POLY1305:
+./src/generated/aether_reg_safe.c:88:    case KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX:
+./src/generated/aether_reg_safe.c:98:    case KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC:
+./tests/test_facade_lifecycle.c:209:        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) == AETHER_OK);
+./tests/test_facade_lifecycle.c:230:        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX);
+./tests/test_client.c:3260:        COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC,
+./tests/test_client.c:3263:        COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX,
+./tests/test_client.c:3283:    return_key_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC;
+./tests/test_client.c:3288:    old_master_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX;
+./tests/test_client.c:3293:    new_master_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC;
+./examples/echo/src/main.c:233:                KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) != AETHER_OK) {
+---
+    void *value,
+    unsigned int depth);
+
+typedef aether_status_t (*csa_send_fn)(
+    void *ctx,
+    const uint8_t *data,
+    size_t length);
+
+typedef struct {
+    void *send_ctx;
+    csa_send_fn send;
+    aether_data_out_t *out;
+
+} csa_client_api_unsafe_remote_t;
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:139 api.ClientApiUnsafe.methods.sendSafeApiDataMulti */
+---
+typedef struct {
+    uint8_t type_id;
+    union {
+        const common_sodium_chacha20_poly1305_t *common_sodium_chacha20_poly1305;
+        const common_hydrogen_curve_private_t *common_hydrogen_curve_private;
+        const common_hydrogen_curve_public_t *common_hydrogen_curve_public;
+        const common_hydrogen_secret_box_t *common_hydrogen_secret_box;
+        const common_sodium_curve_public_t *common_sodium_curve_public;
+        const common_sodium_curve_private_t *common_sodium_curve_private;
+        const common_sodium_sign_private_t *common_sodium_sign_private;
+        const common_sodium_sign_public_t *common_sodium_sign_public;
+        const common_hydrogen_sign_private_t *common_hydrogen_sign_private;
+        const common_hydrogen_sign_public_t *common_hydrogen_sign_public;
+        const common_p256_aes_gcm_symmetric_t *common_p256_aes_gcm_symmetric;
+        const common_p256_aes_gcm_curve_private_t *common_p256_aes_gcm_curve_private;
+        const common_p256_aes_gcm_curve_public_t *common_p256_aes_gcm_curve_public;
+        const common_p256_aes_gcm_sign_private_t *common_p256_aes_gcm_sign_private;
+        const common_p256_aes_gcm_sign_public_t *common_p256_aes_gcm_sign_public;
+>>> [elapsed: 55ms]
+
+>>> bash
+---
+>>> [elapsed: 88ms]
+
+>>> bash
+./src/generated/aether_reg_safe.c:78:    case KEY_SYMMETRIC_TYPE_SODIUM_CHACHA20_POLY1305:
+./src/generated/aether_reg_safe.c:88:    case KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX:
+./src/generated/aether_reg_safe.c:98:    case KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC:
+./tests/test_facade_lifecycle.c:209:        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) == AETHER_OK);
+./tests/test_facade_lifecycle.c:230:        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX);
+./examples/echo/src/main.c:233:                KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) != AETHER_OK) {
+./.aiedit/output/out-1792665304883.txt:337:    case KEY_SYMMETRIC_TYPE_SODIUM_CHACHA20_POLY1305:
+./.aiedit/output/out-1792665304883.txt:345:    case KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX:
+./.aiedit/output/out-1792665304883.txt:353:    case KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC:
+./.aiedit/output/out-1792665480262.txt:782:    78:c     case KEY_SYMMETRIC_TYPE_SODIUM_CHACHA20_POLY1305:
+./.aiedit/output/out-1792665480262.txt:792:    88:c     case KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX:
+./.aiedit/output/out-1792665480262.txt:802:    98:c     case KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC:
+---
+473:    uint8_t symmetric_key_type;
+---
+
+    aether_status_t (*save)(
+        void *ctx,
+        const uint8_t *src,
+        size_t length);
+} aether_flash_vtable_t;
+
+
+/*
+ * Wire profile implemented by a crypto backend.
+ */
+typedef struct {
+    uint8_t crypto_lib;
+    uint8_t symmetric_key_type;
+    uint8_t asymmetric_public_key_type;
+    uint8_t sign_type;
+
+    uint8_t symmetric_key_bytes;
+    uint8_t asymmetric_public_key_bytes;
+    uint8_t sign_public_key_bytes;
+    uint8_t signature_bytes;
+>>> [elapsed: 162ms]
+
+>>> bash
+src/generated/aether_api.h:192:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_SODIUM_CHACHA20_POLY1305 UINT8_C(6)
+src/generated/aether_api.h:193:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX UINT8_C(3)
+src/generated/aether_api.h:194:#define COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC UINT8_C(11)
+src/generated/aether_reg_safe.c:78:    case KEY_SYMMETRIC_TYPE_SODIUM_CHACHA20_POLY1305:
+src/generated/aether_reg_safe.c:88:    case KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX:
+src/generated/aether_reg_safe.c:98:    case KEY_SYMMETRIC_TYPE_P256_AES_GCM_SYMMETRIC:
+tests/test_facade_lifecycle.c:209:        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) == AETHER_OK);
+tests/test_facade_lifecycle.c:230:        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX);
+tests/test_client.c:3260:        COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC,
+tests/test_client.c:3263:        COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX,
+tests/test_client.c:3283:    return_key_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC;
+tests/test_client.c:3288:    old_master_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX;
+tests/test_client.c:3293:    new_master_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC;
+examples/echo/src/main.c:233:                KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) != AETHER_OK) {
+---
+---
+
+
+    AETHER_STATE_WORK_CONNECTING,
+    AETHER_STATE_READY,
+    AETHER_STATE_ERROR
+} aether_state_t;
+
+
+
+
+
+typedef enum {
+    AETHER_OK = 0,
+    AETHER_ERR_ARGUMENT = -1,
+    AETHER_ERR_STATE = -2,
+    AETHER_ERR_OVERFLOW = -3,
+    AETHER_ERR_PROTOCOL = -4,
+    AETHER_ERR_CRYPTO = -5,
+    AETHER_ERR_TRANSPORT = -6,
+    AETHER_ERR_STORAGE = -7,
+    AETHER_ERR_UNSUPPORTED = -8,
+    AETHER_ERR_BUSY = -9,
+    AETHER_ERR_REMOTE = -10,
+    AETHER_ERR_TIMEOUT = -11
+} aether_status_t;
+
+
+
+typedef enum {
+    AETHER_ERROR_ORIGIN_CORE = 0,
+    AETHER_ERROR_ORIGIN_PROTOCOL,
+    AETHER_ERROR_ORIGIN_CRYPTO,
+    AETHER_ERROR_ORIGIN_TRUST,
+    AETHER_ERROR_ORIGIN_TRANSPORT,
+>>> [elapsed: 22ms]
+
+>>> bash
+aether_status_t csa_server_registration_api_set_return_key(
+    csa_server_registration_api_remote_t *api,
+    const common_key_ref_t * key) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 6u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!common_serialize_key(out, key, 0u)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:769 api.ServerRegistrationApi.methods.recovery */
+aether_status_t csa_server_registration_api_recovery(
+    csa_server_registration_api_remote_t *api,
+    aether_uuid_t uid,
+    const common_key_ref_t * oldMasterKey,
+    const common_key_ref_t * newMasterKey) {
+
+    if (api == NULL ||
+        api->send == NULL ||
+        api->out == NULL) {
+        return AETHER_ERR_ARGUMENT;
+    }
+
+    aether_data_out_t *out = api->out;
+    if (!aether_data_out_write_byte(out, 8u)) {
+        return AETHER_ERR_OVERFLOW;
+    }
+    if (!aether_data_out_write_uuid(out, uid)) return false;
+    if (!common_serialize_key(out, oldMasterKey, 0u)) return false;
+    if (!common_serialize_key(out, newMasterKey, 0u)) return false;
+
+    return api->send(
+        api->send_ctx,
+        api->out->data,
+        api->out->pos);
+}
+
+/* ADSL: /home/angel/projects/aether/client-server-work-api/src/main/resources/ClientServerApi.adsl.yaml:779 api.RegistrationRootApi.methods.getAsymmetricPublicKey */
+>>> [elapsed: 3ms]

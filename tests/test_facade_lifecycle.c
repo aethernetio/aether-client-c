@@ -20,7 +20,9 @@
 #include "aether.h"
 #include "aether_platform.h"
 #include "aether_credentials.h"
-#include "client_server_api_types.h"
+
+#include "aether_api.h"
+
 #include "aether_hydrogen.h"
 #include "aether_test_crypto_hydrogen.h"
 #include "hydrogen.h"
@@ -206,7 +208,9 @@ int main(void) {
         &client.app.core,
         uid,
         master_key,
-        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX) == AETHER_OK);
+
+        COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX) == AETHER_OK);
+
 
 
     aether_status_t start_status = aether_start(&client);
@@ -227,7 +231,9 @@ int main(void) {
         master_key,
         AETHER_KEY_BYTES) == 0);
     assert(client.app.core.master_key_type ==
-        KEY_SYMMETRIC_TYPE_HYDROGEN_SECRET_BOX);
+
+        COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX);
+
 
     /* The core must not have fallen back to NO_IDENTITY. */
     assert(client.app.core.state != AETHER_STATE_NO_IDENTITY);

@@ -3249,7 +3249,6 @@ static void test_recovery_builder_matches_canonical(void) {
         new_p256[i] = (uint8_t)(0x80u + i);
     }
 
-    uint32_t request_id = UINT32_C(0xAABBCCDD);
 
     uint8_t manual[512];
     size_t manual_len = 0u;
@@ -3265,8 +3264,9 @@ static void test_recovery_builder_matches_canonical(void) {
         sizeof(old_hydrogen),
         new_p256,
         sizeof(new_p256),
-        request_id,
+
         uid) == AETHER_OK);
+
 
     uint8_t canonical[512];
     size_t canonical_len = 0u;
@@ -3293,31 +3293,31 @@ static void test_recovery_builder_matches_canonical(void) {
     new_master_ref.type_id = COMMON_KEY_SYMMETRIC_TYPE_COMMON_P256_AES_GCM_SYMMETRIC;
     new_master_ref.as.common_p256_aes_gcm_symmetric = &new_p256_sym;
 
+
     struct {
         uint8_t *buf;
         size_t len;
         size_t cap;
     } acc = { canonical, 0u, sizeof(canonical) };
 
+    aether_data_out_t out;
+    aether_data_out_init(&out, canonical, sizeof(canonical));
+
     csa_server_registration_api_remote_t remote;
     memset(&remote, 0, sizeof(remote));
     remote.send_ctx = &acc;
     remote.send = canonical_append;
-    remote.tx = canonical;
-    remote.tx_capacity = sizeof(canonical);
+    remote.out = &out;
 
     assert(csa_server_registration_api_set_return_key(
         &remote, &return_key_ref) == AETHER_OK);
 
-    remote.tx = canonical + acc.len;
-    remote.tx_capacity = sizeof(canonical) - acc.len;
-
     assert(csa_server_registration_api_recovery(
         &remote,
-        request_id,
         uid,
         &old_master_ref,
         &new_master_ref) == AETHER_OK);
+
 
     canonical_len = acc.len;
 
