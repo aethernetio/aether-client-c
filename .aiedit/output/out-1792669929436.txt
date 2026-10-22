@@ -1,0 +1,1492 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> struct
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+    2:# #include "aether.h"
+    3:# #include "aether_registration.h"
+    4:# #include "p2p_test_support.h"
+    6:# #include <stdbool.h>
+    7:# #include <stddef.h>
+    8:# #include <stdint.h>
+    9:# #include <stdio.h>
+    10:# #include <string.h>
+    13:t typedef struct {
+    14:u     unsigned count;
+    15:a     aether_uuid_t from;
+    16:u     uint8_t data[AETHER_MAX_PACKET];
+    17:s     size_t size;
+    18:} } received_message_t;
+    21:s static aether_t client_a;
+    22:s static aether_t client_b;
+    24:s static aether_registration_t registration_a;
+    25:s static aether_registration_t registration_b;
+    27:s static aether_component_t components_a[2];
+    28:s static aether_component_t components_b[2];
+    32:s static received_message_t received_a;
+    33:s static received_message_t received_b;
+    35:s static unsigned errors;
+    38:s static bool uuid_equal(
+    39:a     aether_uuid_t a,
+    40:a     aether_uuid_t b) {
+    42:r     return
+    45:} }
+    48:s static void on_message(
+    49:a     aether_t *client,
+    50:a     aether_uuid_t from,
+    51:c     const uint8_t *data,
+    52:s     size_t size) {
+    54:r     received_message_t *received =
+    59:i     if (size >
+    64:}     }
+    66:+     ++received->count;
+    68:r     received->from =
+    71:r     received->size =
+    74:m     memcpy(
+    78:} }
+    81:s static void on_error(
+    82:a     aether_t *client,
+    83:a     aether_status_t code,
+    84:a     aether_error_origin_t origin) {
+    86:+     ++errors;
+    88:f     fprintf(
+    96:} }
+    99:s static int poll_pair(void) {
+    101:i     if (aether_work(&client_a) != AETHER_OK) {
+>>> (показано строк: 137 из 443)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (всего найдено строк: 2)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (всего найдено строк: 3)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (всего найдено строк: 1)
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 1 to 150
+>>> (показано строк: 150 из 443)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> Found 28 matches.
+>>> viewMethod
+>>> viewMethod
+>>> viewMethod
+>>> view
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [15000, Script1$_run_closure1@1184f48e]
+````
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 151 to 300
+    151:p         p2p_test_now_ms() + duration_ms;
+    152:  
+    153:w     while (p2p_test_now_ms() <
+    154:d            deadline) {
+    155:  
+    156:i         if (poll_pair() != 0) {
+    157:r             return -1;
+    158:}         }
+    159:}     }
+    160:  
+    161:r     return 0;
+    162:} }
+    163:  
+    164:  
+    165:s static int wait_message(
+    166:r     received_message_t *received,
+    167:u     unsigned previous_count,
+    168:u     uint64_t timeout_ms) {
+    169:  
+    170:u     uint64_t deadline =
+    171:p         p2p_test_now_ms() + timeout_ms;
+    172:  
+    173:w     while (p2p_test_now_ms() <
+    174:d            deadline) {
+    175:  
+    176:i         if (received->count >
+    177:p             previous_count) {
+    178:  
+    179:r             return 0;
+    180:}         }
+    181:  
+    182:i         if (poll_pair() != 0) {
+    183:r             return -1;
+    184:}         }
+    185:}     }
+    186:  
+    187:r     return -1;
+    188:} }
+    189:  
+    190:  
+    191:s static int verify_message(
+    192:c     const received_message_t *received,
+    193:a     aether_uuid_t expected_from,
+    194:c     const uint8_t *expected,
+    195:s     size_t expected_size) {
+    196:  
+    197:r     return
+    198:u         uuid_equal(
+    199:r             received->from,
+    200:e             expected_from) &&
+>>> (показано строк: 150 из 443)
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 301 to 443
+>>> (показано строк: 143 из 443)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+    211:i int main(void) {
+>>> (всего найдено строк: 1)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+    223:i     if (aether_init(
+    226:a         aether_init_slot(
+>>> (всего найдено строк: 2)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+    275:i     if (aether_start(&client_a) != AETHER_OK ||
+    276:a         aether_start(&client_b) != AETHER_OK) {
+    287:*      * aether_start() calls aether_client_init() which memsets the
+>>> (всего найдено строк: 3)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+    287:*      * aether_start() calls aether_client_init() which memsets the
+>>> (всего найдено строк: 1)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 200 to 300
+    200:e             expected_from) &&
+    201:r         received->size == expected_size &&
+    202:m         memcmp(
+    203:r             received->data,
+    204:e             expected,
+    205:e             expected_size) == 0
+    206:?         ? 0
+    207::         : -1;
+    208:} }
+    209:  
+    210:  
+    211:i int main(void) {
+    212:s     static const aether_uuid_t parent = {
+    213:U         UINT64_C(0xB1AC52C88D94BD39),
+    214:U         UINT64_C(0x4C01A631AC594165)
+    215:}     };
+    216:  
+    217:/     /*
+    218:*      * This is the complete client setup.
+    219:*      *
+    220:*      * Client A uses the default persistent slot.
+    221:*      * Client B uses a second independent identity.
+    222:*      */
+    223:i     if (aether_init(
+    224:&             &client_a,
+    225:p             parent) != AETHER_OK ||
+    226:a         aether_init_slot(
+    227:&             &client_b,
+    228:p             parent,
+    229:1             1u) != AETHER_OK) {
+    230:  
+    231:f         fprintf(
+    232:s             stderr,
+    233:"             "Failed to initialize C clients\n");
+    234:  
+    235:r         return 1;
+    236:}     }
+    237:  
+    238:a     aether_on_message(
+    239:&         &client_a,
+    240:o         on_message);
+    241:  
+    242:a     aether_on_message(
+    243:&         &client_b,
+    244:o         on_message);
+    245:  
+    246:a     aether_on_error(
+    247:&         &client_a,
+    248:o         on_error);
+    249:  
+>>> (показано строк: 101 из 443)
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 301 to 380
+>>> (показано строк: 80 из 443)
+>>> viewMethod
+>>> viewMethod
+>>> viewMethod
+>>> view
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+>>> bash
+>>> [elapsed: 8ms]
+
+>>> struct
+/home/angel/projects/aether-client-c/src/aether_client.c
+    7:/ /*
+    8:*  * Low-level Aether protocol state machine.
+    9:*  *
+    10:*  * This monolithic embedded core owns protocol sequencing, registration/work
+    11:*  * state, persistent Aether identity serialization, request tracking, crypto
+    12:*  * orchestration, bounded parsing and message transmission.
+    13:*  *
+    14:*  * It deliberately does not own physical sockets, platform persistence,
+    15:*  * cryptographic primitive implementations, application scheduling or
+    16:*  * heap-backed queues.
+    17:*  *
+    18:*  * Registration wire construction/decoding is delegated to protocol bindings and
+    19:*  * maintained registration adapters under src/generated/.
+    20:*  *
+    21:*  * Work RX can pin a borrowed platform frame while one application ingress item
+    22:*  * is exposed. The platform must preserve that frame until the ingress is
+    23:*  * consumed and aether_client_rx_active() becomes false.
+    24:*  */
+    25:# #include "aether_client.h"
+    26:# #include "aether_registration.h"
+    27:# #include "aether_credentials.h"
+    28:# #include "aether_api.h"
+    29:# #include "generated/aether_reg_root_enter.h"
+    30:# #include "generated/aether_reg_root_key.h"
+    31:# #include "generated/aether_reg_safe.h"
+    32:# #include "generated/aether_reg_unsafe_local.h"
+    34:/ /* aggregate aether_api.h already included */
+    35:# #include "aether_crypto_registry.h"
+    38:# #include <string.h>
+    43:# #define AETHER_STATE_MAGIC0 ((uint8_t)'A')
+    44:# #define AETHER_STATE_MAGIC1 ((uint8_t)'E')
+    45:# #define AETHER_STATE_MAGIC2 ((uint8_t)'C')
+    46:# #define AETHER_STATE_MAGIC3 ((uint8_t)'1')
+    49:# #define AETHER_STATE_VERSION 3u
+    50:# #define AETHER_STATE_VERSION_RECOVERY_JOURNAL 2u
+    51:# #define AETHER_STATE_VERSION_LEGACY 1u
+    56:# #define CMD_RESULT 0u
+    57:# #define CMD_ERROR 1u
+    65:# #define LOGIN_BY_ALIAS 5u
+    66:# #define CLIENT_UNSAFE_SAFE_DATA_MULTI 3u
+    67:# #define CLIENT_UNSAFE_SAFE_DATA 4u
+    70:# #define AUTH_PING 4u
+    71:# #define AUTH_SET_RECEIVE_WINDOW 45u
+    74:# #define CLIENT_SAFE_SEND_MESSAGES 6u
+    75:# #define CLIENT_SAFE_SEND_MESSAGE 20u
+    80:/ /*
+    81:*  * Wire values understood only so unsupported server endpoints can be skipped.
+    82:*  */
+    83:# #define AETHER_CODEC_WS_WIRE 2u
+    84:# #define AETHER_CODEC_WSS_WIRE 3u
+>>> (показано строк: 1295 из 5610)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> (всего найдено строк: 13)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> (всего найдено строк: 15)
+
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    1970:r         return AETHER_ERR_ARGUMENT;
+    1994:r         return AETHER_ERR_ARGUMENT;
+    2020:r         return AETHER_ERR_ARGUMENT;
+    2193:r         return AETHER_ERR_ARGUMENT;
+    2209:r         return AETHER_ERR_ARGUMENT;
+    3876:r         return AETHER_ERR_ARGUMENT;
+    4081:r         return AETHER_ERR_ARGUMENT;
+    4633:r         return AETHER_ERR_ARGUMENT;
+    4713:r         return AETHER_ERR_ARGUMENT;
+    4873:r         return AETHER_ERR_ARGUMENT;
+    5299:r         return AETHER_ERR_ARGUMENT;
+    5377:r         return AETHER_ERR_ARGUMENT;
+    5538:r         return AETHER_ERR_ARGUMENT;
+>>> (всего найдено строк: 13)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    154:s static aether_error_origin_t error_origin_for_status(
+    183:a     aether_error_origin_t origin,
+    200:e     event.as.error.origin =
+    201:o         origin;
+    263:s static aether_status_t fail_with_origin(
+    266:a     aether_error_origin_t origin) {
+    278:o         origin,
+    313:f         fail_with_origin(
+    316:e             error_origin_for_status(code));
+    2877:f             fail_with_origin(
+    2903:f             fail_with_origin(
+    3332:f                     fail_with_origin(
+    3742:f                     fail_with_origin(
+    5149:e                 error_origin_for_status(
+    5280:e                 error_origin_for_status(
+>>> (всего найдено строк: 15)
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 249 to 330
+    249:  
+    250:a     aether_on_error(
+    251:&         &client_b,
+    252:o         on_error);
+    253:  
+    254:  
+    255:i     if (aether_set_components(
+    256:&             &client_a,
+    257:c             components_a,
+    258:2             2u) != AETHER_OK ||
+    259:a         aether_set_components(
+    260:&             &client_b,
+    261:c             components_b,
+    262:2             2u) != AETHER_OK) {
+    263:  
+    264:f         fprintf(
+    265:s             stderr,
+    266:"             "Failed to attach component registry\n");
+    267:  
+    268:r         return 1;
+    269:}     }
+    270:  
+    271:  
+    272:  
+    273:i     int result = 1;
+    274:  
+    275:i     if (aether_start(&client_a) != AETHER_OK ||
+    276:a         aether_start(&client_b) != AETHER_OK) {
+    277:  
+    278:f         fprintf(
+    279:s             stderr,
+    280:"             "Failed to start C clients\n");
+    281:  
+    282:g         goto cleanup;
+    283:}     }
+    284:  
+    285:  
+    286:/     /*
+    287:*      * aether_start() calls aether_client_init() which memsets the
+    288:*      * core, so the registration alias into the core must be set
+    289:*      * after start. The registry itself was attached pre-start above.
+    290:*      */
+    291:a     aether_registration_init(
+    292:&         &registration_a,
+    293:&         &client_a.app.core);
+    294:  
+    295:a     aether_registration_init(
+    296:&         &registration_b,
+    297:&         &client_b.app.core);
+    298:  
+>>> (показано строк: 82 из 443)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (всего найдено строк: 1)
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 81 to 98
+    81:s static void on_error(
+    82:a     aether_t *client,
+    83:a     aether_status_t code,
+    84:a     aether_error_origin_t origin) {
+    85:  
+    86:+     ++errors;
+    87:  
+    88:f     fprintf(
+    89:s         stderr,
+    90:"         "%s Aether error code=%d origin=%d\n",
+    91:c         client == &client_a
+    92:?             ? "c-client-a"
+    93::             : "c-client-b",
+    94:(         (int)code,
+    95:(         (int)origin);
+    96:} }
+    97:  
+    98:  
+>>> (показано строк: 18 из 443)
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 298 to 443
+    298:  
+    299:i     if (aether_register_component(
+    300:&             &client_a,
+    301:&             &registration_a,
+    302:a             aether_registration_work) != AETHER_OK ||
+    303:a         aether_register_component(
+    304:&             &client_b,
+    305:&             &registration_b,
+    306:a             aether_registration_work) != AETHER_OK) {
+    307:  
+    308:f         fprintf(
+    309:s             stderr,
+    310:"             "Failed to register registration component\n");
+    311:  
+    312:g         goto cleanup;
+    313:}     }
+    314:  
+    315:  
+    316:i     if (wait_ready(5000u) != 0) {
+    317:f         fprintf(
+    318:s             stderr,
+    319:"             "C clients did not become ready\n");
+    320:  
+    321:g         goto cleanup;
+    322:}     }
+    323:  
+    324:i     if (uuid_equal(
+    325:a             aether_uid(&client_a),
+    326:a             aether_uid(&client_b))) {
+    327:  
+    328:f         fprintf(
+    329:s             stderr,
+>>> (показано строк: 146 из 443)
+>>> view
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+
+>>> viewMethod
+>>> Method 'aether_start' not found in /home/angel/projects/aether-client-c/src/aether_client.c
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 4564 to 4626 : aether_client_init
+    4564:v void aether_client_init(
+    4565:a     aether_client_t *client,
+    4566:c     const aether_client_config_t *config) {
+    4567:  
+    4568:i     if (client == NULL) {
+    4569:r         return;
+    4570:}     }
+    4571:  
+    4572:m     memset(
+    4573:c         client,
+    4574:0         0,
+    4575:s         sizeof(*client));
+    4576:  
+    4577:c     client->state =
+    4578:A         AETHER_STATE_STOPPED;
+    4579:  
+    4580:c     client->active_server_index =
+    4581:-         -1;
+    4582:  
+    4583:c     client->rx_channel =
+    4584:A         AETHER_CHANNEL_WORK;
+    4585:  
+    4586:c     client->ingress.kind =
+    4587:A         AETHER_INGRESS_NONE;
+    4588:  
+    4589:  
+    4590:i     if (config != NULL) {
+    4591:c         client->config = *config;
+    4592:}     }
+    4593:  
+    4594:/     /*
+    4595:*      * Resolve a default crypto provider from the process-wide registry
+    4596:*      * when the caller specified crypto_lib but no vtable. This is the
+    4597:*      * only place where the registry feeds the low-level client; existing
+    4598:*      * callers that set config.crypto directly keep working unchanged.
+    4599:*      */
+    4600:i     if (client->config.crypto == NULL &&
+    4601:c         client->config.crypto_lib != 0u) {
+    4602:  
+    4603:c         const aether_crypto_provider_t *provider =
+    4604:a             aether_crypto_find(client->config.crypto_lib);
+    4605:  
+    4606:i         if (provider != NULL) {
+    4607:c             client->config.crypto = provider->vtable;
+    4608:c             client->config.crypto_ctx = provider->ctx;
+    4609:}         }
+    4610:}     }
+    4611:  
+    4612:  
+>>> (показано строк: 63 из 5610)
+>>> viewMethod
+>>> viewMethod
+>>> viewMethod
+
+>>> view
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+    1:  
+    2:# #include <inttypes.h>
+    3:# #include <stdbool.h>
+    4:# #include <stdint.h>
+    5:# #include <stdio.h>
+    6:  
+    7:# #include <string.h>
+    8:  
+    9:  
+    10:# #include "freertos/FreeRTOS.h"
+    11:# #include "freertos/task.h"
+    12:  
+    13:  
+    14:# #include "esp_wifi.h"
+    15:  
+    16:  
+    17:# #include "nvs_flash.h"
+    18:  
+    19:# #include "aether.h"
+    20:  
+    21:# #include "aether_credentials.h"
+    22:# #include "aether_transport.h"
+    23:  
+    24:# #include "aether_api.h"
+    25:  
+    26:  
+    27:# #include "aether_esp32_wifi.h"
+    28:# #include "echo_secrets.h"
+    29:  
+    30:  
+    31:  
+    32:# #include "aether_uuid_ECHO_UID.h"
+    33:# #include "aether_hex_ECHO_MASTER_KEY.h"
+    34:  
+    35:  
+    36:  
+    37:  
+    38:  
+    39:t typedef enum {
+    40:E     ECHO_STAGE_EMPTY = 0,
+    41:E     ECHO_STAGE_READY,
+    42:E     ECHO_STAGE_IN_FLIGHT
+    43:} } echo_stage_state_t;
+    44:  
+    45:t typedef struct {
+    46:a     aether_uuid_t sender;
+    47:u     uint8_t payload[AETHER_MAX_PACKET];
+    48:s     size_t length;
+    49:e     echo_stage_state_t state;
+    50:} } echo_staging_t;
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 154 to 177 : error_origin_for_status
+>>> (показано строк: 24 из 5610)
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client.c lines 263 to 283 : fail_with_origin
+>>> (показано строк: 21 из 5610)
+>>> bash
+>>> [elapsed: 9ms]
+
+>>> view
+/home/angel/projects/aether-client-c/examples/echo/src/main.c lines 50 to 200
+    50:} } echo_staging_t;
+    51:  
+    52:s static aether_t client;
+    53:s static bool credentials_installed;
+    54:  
+    55:s static aether_component_t components[1];
+    56:  
+    57:s static echo_staging_t staging;
+    58:s static unsigned sent_count;
+    59:s static unsigned flush_done_count;
+    60:s static aether_status_t last_flush_status;
+    61:  
+    62:s static void on_flush_done(
+    63:v     void *ctx,
+    64:a     aether_status_t status) {
+    65:  
+    66:(     (void)ctx;
+    67:  
+    68:f     flush_done_count += 1u;
+    69:l     last_flush_status = status;
+    70:  
+    71:/     /*
+    72:*      * The transport no longer reads the borrowed staging buffer, so
+    73:*      * the staging slot is free again.
+    74:*      */
+    75:i     if (staging.state == ECHO_STAGE_IN_FLIGHT) {
+    76:s         staging.state = ECHO_STAGE_EMPTY;
+    77:}     }
+    78:  
+    79:i     if (status != AETHER_OK) {
+    80:p         printf(
+    81:"             "AETHER_ECHO_FLUSH_DONE status=%d\n",
+    82:(             (int)status);
+    83:}     }
+    84:} }
+    85:  
+    86:  
+    87:  
+    88:  
+    89:  
+    90:s static void on_message(
+    91:a     aether_t *aether,
+    92:a     aether_uuid_t from,
+    93:c     const uint8_t *data,
+    94:s     size_t size) {
+    95:  
+    96:(     (void)aether;
+    97:  
+    98:/     /*
+    99:*      * The RX callback owns borrowed payload memory. The semantic
+>>> (показано строк: 151 из 311)
+>>> findText
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+>>> (всего найдено строк: 1)
+>>> findText
+/home/angel/projects/aether-client-c/examples/echo/src/main.c
+>>> (всего найдено строк: 6)
+>>> ls
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+
+>>> ls
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c lines 330 to 443
+    330:"             "Clients received identical UIDs\n");
+    331:  
+    332:g         goto cleanup;
+    333:}     }
+    334:  
+    335:  
+    336:/     /*
+    337:*      * The public facade intentionally uses the production activity timing:
+    338:*      * ping = 6000 ms, rx window = 5000 ms.
+    339:*      *
+    340:*      * Keep polling until the first periodic UAP ping has certainly reached
+    341:*      * the server before testing P2P delivery.
+    342:*      */
+    343:i     if (pump_for(6500u) != 0) {
+    344:f         fprintf(
+    345:s             stderr,
+    346:"             "Failed while establishing UAP window\n");
+    347:  
+    348:g         goto cleanup;
+    349:}     }
+    350:  
+    351:  
+    352:s     static const uint8_t message_a_to_b[] = {
+    353:1         1u, 2u, 3u, 4u
+    354:}     };
+    355:  
+    356:u     unsigned previous_b =
+    357:r         received_b.count;
+    358:  
+    359:  
+    360:a     aether_status_t send_a =
+    361:a         aether_send(
+    362:&             &client_a,
+    363:a             aether_uid(&client_b),
+    364:m             message_a_to_b,
+    365:s             sizeof(message_a_to_b));
+    366:  
+    367:i     if (send_a != AETHER_OK) {
+    368:f         fprintf(
+    369:s             stderr,
+    370:"             "A -> B send failed: %d\n",
+    371:(             (int)send_a);
+    372:  
+    373:g         goto cleanup;
+    374:}     }
+    375:  
+    376:  
+    377:  
+    378:i     if (wait_message(
+    379:&             &received_b,
+>>> (показано строк: 114 из 443)
+>>> bash
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> view
+/home/angel/projects/aether-client-c/examples/echo/src/main.c lines 200 to 311
+    200:  
+    201:  
+    202:  
+    203:a     aether_set_components(
+    204:&         &client,
+    205:c         components,
+    206:1         1u);
+    207:  
+    208:a     aether_transport_listener_t listener = {
+    209:N         NULL,
+    210:o         on_flush_done
+    211:}     };
+    212:  
+    213:a     aether_transport_set_listener(
+    214:&         &client.app.transport,
+    215:&         &listener);
+    216:  
+    217:a     aether_on_message(
+    218:&         &client,
+    219:o         on_message);
+    220:  
+    221:a     aether_on_error(
+    222:&         &client,
+    223:o         on_error);
+    224:  
+    225:  
+    226:  
+    227:  
+    228:  
+    229:i     if (!credentials_installed) {
+    230:  
+    231:i         if (aether_set_credentials_typed(
+    232:&                 &client.app.core,
+    233:E                 ECHO_UID,
+    234:E                 ECHO_MASTER_KEY,
+    235:  
+    236:C                 COMMON_KEY_SYMMETRIC_TYPE_COMMON_HYDROGEN_SECRET_BOX) != AETHER_OK) {
+    237:  
+    238:  
+    239:p             printf("AETHER_ECHO_FATAL=credentials\n");
+    240:r             return;
+    241:}         }
+    242:  
+    243:  
+    244:c         credentials_installed = true;
+    245:}     }
+    246:  
+    247:  
+    248:  
+    249:  
+>>> (показано строк: 112 из 311)
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*start*>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 67 директорий, 35 файлов)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/src/*.c>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/src/*.ctimestamp: 1792669765956
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/aether.c
+[FILE] src/aether_client.c
+[FILE] src/aether_client_app.c
+[FILE] src/aether_credentials.c
+[FILE] src/aether_crypto_registry.c
+[FILE] src/aether_dataio.c
+[FILE] src/aether_hydrogen.c
+[FILE] src/aether_internal.c
+[FILE] src/aether_lan.c
+[FILE] src/aether_lan_codec.c
+[FILE] src/aether_messages.c
+[FILE] src/aether_meta_runtime.c
+[FILE] src/aether_peer_frame.c
+[FILE] src/aether_peer_identity.c
+[FILE] src/aether_peer_identity_verify.c
+[FILE] src/aether_peer_uap.c
+[FILE] src/aether_registration.c
+[FILE] src/aether_rx_adaptive.c
+[FILE] src/aether_rx_all.c
+[FILE] src/aether_rx_first.c
+[FILE] src/aether_send_future.c
+[FILE] src/aether_transport.c
+[FILE] src/aether_transport_server.c
+[FILE] src/generated/aether_api.c
+[FILE] src/generated/aether_reg_root_enter.c
+[FILE] src/generated/aether_reg_root_key.c
+[FILE] src/generated/aether_reg_safe.c
+[FILE] src/generated/aether_reg_unsafe_local.c
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 28 файлов)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.c>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.c>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] include/aether_client.h
+[DIR]  include
+>>> (итог: 1 директорий, 1 файлов)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/**/*.htimestamp: 1792669778327
+>>> findText
+/home/angel/projects/aether-client-c/src/aether.c
+    303:a aether_status_t aether_start(
+>>> (всего найдено строк: 1)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+    686:*      * before aether_start() live in that same object, so they must be
+>>> (всего найдено строк: 1)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_internal.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_credentials.c
+    9:a aether_status_t aether_set_credentials_typed(
+    77:a         aether_set_credentials_typed(
+>>> (всего найдено строк: 2)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether.c
+>>> (совпадений не найдено)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/include/*.htimestamp: 1792669790587
+>>> view
+/home/angel/projects/aether-client-c/src/aether.c lines 280 to 380
+    280:  
+    281:i     if (client == NULL) {
+    282:r         return;
+    283:}     }
+    284:  
+    285:c     client->on_ready =
+    286:c         callback;
+    287:} }
+    288:  
+    289:  
+    290:v void aether_on_error(
+    291:a     aether_t *client,
+    292:a     aether_error_fn callback) {
+    293:  
+    294:i     if (client == NULL) {
+    295:r         return;
+    296:}     }
+    297:  
+    298:c     client->on_error =
+    299:c         callback;
+    300:} }
+    301:  
+    302:  
+    303:a aether_status_t aether_start(
+    304:a     aether_t *client) {
+    305:  
+    306:i     if (client == NULL) {
+    307:r         return AETHER_ERR_ARGUMENT;
+    308:}     }
+    309:  
+    310:i     if (client->init_status !=
+    311:A         AETHER_OK) {
+    312:  
+    313:r         return
+    314:c             client->init_status;
+    315:}     }
+    316:  
+    317:r     return
+    318:a         aether_client_app_start(
+    319:&             &client->app);
+    320:} }
+    321:  
+    322:  
+    323:v void aether_stop(
+    324:a     aether_t *client) {
+    325:  
+    326:i     if (client == NULL ||
+    327:c         client->init_status !=
+    328:A             AETHER_OK) {
+    329:  
+>>> (показано строк: 101 из 710)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether.c
+>>> (всего найдено строк: 3)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 150 to 290
+>>> (показано строк: 141 из 5610)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 1 директорий, 18 файлов)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether.c lines 1 to 120
+    1:  
+    2:  
+    3:/ /*
+    4:*  * Beginner facade implementation.
+    5:*  *
+    6:*  * This file contains policy glue, not protocol implementation:
+    7:*  *
+    8:*  *     aether.h -> aether_client_app -> aether_client core
+    9:*  *
+    10:*  * Target-specific mechanisms enter only through aether_platform_init() and
+    11:*  * aether_platform_deinit().
+    12:*  *
+    13:*  * The weak platform definitions below are an unsupported fallback for builds
+    14:*  * that do not select a real target package. Production ports override them with
+    15:*  * strong definitions. Do not add ESP32/POSIX-specific mechanisms here.
+    16:*  */
+    17:# #include "aether.h"
+    18:# #include "aether_platform.h"
+    19:# #include "aether_internal.h"
+    20:  
+    21:# #include "aether_transport.h"
+    22:  
+    23:  
+    24:# #include <string.h>
+    25:  
+    26:  
+    27:  
+    28:# #if defined(__GNUC__) || defined(__clang__)
+    29:_ __attribute__((weak))
+    30:# #endif
+    31:a aether_status_t aether_platform_init(
+    32:v     void *platform_context,
+    33:s     size_t platform_context_size,
+    34:u     uint32_t storage_slot,
+    35:a     aether_client_platform_t *platform) {
+    36:  
+    37:(     (void)platform_context;
+    38:(     (void)platform_context_size;
+    39:(     (void)storage_slot;
+    40:  
+    41:i     if (platform != NULL) {
+    42:m         memset(
+    43:p             platform,
+    44:0             0,
+    45:s             sizeof(*platform));
+    46:}     }
+    47:  
+    48:r     return AETHER_ERR_UNSUPPORTED;
+    49:} }
+    50:  
+>>> (показано строк: 120 из 710)
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client_app.c lines 646 to 754 : aether_client_app_start
+>>> (показано строк: 109 из 1165)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 150 to 290
+>>> (показано строк: 141 из 5610)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> (всего найдено строк: 6)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client_app.c lines 646 to 754
+    646:a aether_status_t aether_client_app_start(
+    647:a     aether_client_app_t *client) {
+    648:  
+    649:i     if (client == NULL) {
+    650:r         return AETHER_ERR_ARGUMENT;
+    651:}     }
+    652:  
+    653:i     if (client->started) {
+    654:r         return AETHER_ERR_STATE;
+    655:}     }
+    656:  
+    657:i     if (client->platform.now_ms == NULL ||
+    658:!         !pull_rx_pair_is_valid(client)) {
+    659:  
+    660:r         return AETHER_ERR_ARGUMENT;
+    661:}     }
+    662:  
+    663:c     const char *registration_uri =
+    664:c         client->config.registration_uri != NULL
+    665:?             ? client->config.registration_uri
+    666::             : AETHER_DEFAULT_REGISTRATION_URI;
+    667:  
+    668:a     aether_endpoint_t registration_endpoint;
+    669:  
+    670:a     aether_status_t status =
+    671:p         parse_registration_uri(
+    672:r             registration_uri,
+    673:&             &client->platform,
+    674:&             &registration_endpoint);
+    675:  
+    676:i     if (status != AETHER_OK) {
+    677:r         return status;
+    678:}     }
+    679:  
+    680:  
+    681:a     aether_client_config_t core_config;
+    682:  
+    683:/     /*
+    684:*      * aether_client_init() performs a full memset() of the core object.
+    685:*      * Credentials installed by the caller through aether_set_credentials*()
+    686:*      * before aether_start() live in that same object, so they must be
+    687:*      * preserved across the destructive core (re)initialization.
+    688:*      *
+    689:*      * Only caller-provisioned identity is preserved: uid, master_key and
+    690:*      * master_key_type. Persistent registration/recovery state, cloud and
+    691:*      * server caches are not carried over.
+    692:*      */
+    693:b     bool had_caller_credentials =
+    694:a         aether_client_has_caller_credentials(
+    695:&             &client->core);
+>>> (показано строк: 109 из 1165)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> (всего найдено строк: 6)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether.c
+>>> (всего найдено строк: 3)
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_test_support.h
+    1:  
+    2:# #ifndef AETHER_P2P_TEST_SUPPORT_H
+    3:# #define AETHER_P2P_TEST_SUPPORT_H
+    4:  
+    5:# #include <stdint.h>
+    6:  
+    7:u uint64_t p2p_test_now_ms(void);
+    8:  
+    9:# #endif
+>>> view
+/home/angel/projects/aether-client-c/examples/echo/src/main.c lines 1 to 60
+    1:  
+    2:# #include <inttypes.h>
+    3:# #include <stdbool.h>
+    4:# #include <stdint.h>
+    5:# #include <stdio.h>
+    6:  
+    7:# #include <string.h>
+    8:  
+    9:  
+    10:# #include "freertos/FreeRTOS.h"
+    11:# #include "freertos/task.h"
+    12:  
+    13:  
+    14:# #include "esp_wifi.h"
+    15:  
+    16:  
+    17:# #include "nvs_flash.h"
+    18:  
+    19:# #include "aether.h"
+    20:  
+    21:# #include "aether_credentials.h"
+    22:# #include "aether_transport.h"
+    23:  
+    24:# #include "aether_api.h"
+    25:  
+    26:  
+    27:# #include "aether_esp32_wifi.h"
+    28:# #include "echo_secrets.h"
+    29:  
+    30:  
+    31:  
+    32:# #include "aether_uuid_ECHO_UID.h"
+    33:# #include "aether_hex_ECHO_MASTER_KEY.h"
+    34:  
+    35:  
+    36:  
+    37:  
+    38:  
+    39:t typedef enum {
+    40:E     ECHO_STAGE_EMPTY = 0,
+    41:E     ECHO_STAGE_READY,
+>>> (показано строк: 60 из 311)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 1 директорий, 21 файлов)
+
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (совпадений не найдено)
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+    1:  
+    2:# #include "p2p_test_support.h"
+    3:  
+    4:# #include "aether_platform.h"
+    5:  
+    6:# #include "aether_test_crypto_hydrogen.h"
+    7:# #include "aether_crypto_registry.h"
+    8:# #include "aether_posix_transport.h"
+    9:  
+    10:  
+    11:# #include <inttypes.h>
+    12:# #include <limits.h>
+    13:# #include <stdbool.h>
+    14:# #include <stddef.h>
+    15:# #include <stdint.h>
+    16:# #include <stdio.h>
+    17:# #include <string.h>
+    18:# #include <sys/time.h>
+    19:  
+    20:  
+    21:# #define P2P_TEST_STORAGE_SLOTS 2u
+    22:  
+    23:  
+    24:t typedef struct {
+    25:v     void *owner;
+    26:  
+    27:a     aether_posix_transport_t transport;
+    28:  
+    29:u     uint8_t flash[AETHER_MAX_PACKET * 2u];
+    30:s     size_t flash_len;
+    31:} } p2p_platform_context_t;
+    32:  
+    33:/ /*
+    34:*  * The transport vtable is handed &p2p_platform_context_t.transport as its
+    35:*  * context pointer. Recover the enclosing platform context so callbacks can
+    36:*  * reach transport, flash and crypto storage.
+    37:*  */
+    38:s static p2p_platform_context_t *p2p_platform_from_transport(
+    39:v     void *transport_ctx) {
+    40:  
+    41:i     if (transport_ctx == NULL) {
+    42:r         return NULL;
+    43:}     }
+    44:  
+    45:r     return
+    46:(         (p2p_platform_context_t *)(
+    47:(             (uint8_t *)transport_ctx -
+    48:o             offsetof(p2p_platform_context_t, transport));
+    49:  
+    50:} }
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client_app.c lines 754 to 850
+>>> (показано строк: 97 из 1165)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether.c lines 120 to 260
+    120:i     if (client->on_error != NULL) {
+    121:c         client->on_error(
+    122:c             client,
+    123:c             code,
+    124:o             origin);
+    125:}     }
+    126:} }
+    127:  
+    128:  
+    129:a aether_status_t aether_init(
+    130:a     aether_t *client,
+    131:a     aether_uuid_t parent_uid) {
+    132:  
+    133:r     return
+    134:a         aether_init_slot(
+    135:c             client,
+    136:p             parent_uid,
+    137:0             0u);
+    138:} }
+    139:  
+    140:  
+    141:a aether_status_t aether_init_slot(
+    142:a     aether_t *client,
+    143:a     aether_uuid_t parent_uid,
+    144:u     uint32_t slot) {
+    145:  
+    146:i     if (client == NULL) {
+    147:r         return AETHER_ERR_ARGUMENT;
+    148:}     }
+    149:  
+    150:m     memset(
+    151:c         client,
+    152:0         0,
+    153:s         sizeof(*client));
+    154:  
+    155:a     aether_rx_all_init(
+    156:&         &client->rx);
+    157:  
+    158:a     aether_client_platform_t platform;
+    159:  
+    160:m     memset(
+    161:&         &platform,
+    162:0         0,
+    163:s         sizeof(platform));
+    164:  
+    165:a     aether_status_t status =
+    166:a         aether_platform_init(
+    167:c             client->platform_context.bytes,
+    168:s             sizeof(client->platform_context.bytes),
+    169:s             slot,
+>>> (показано строк: 141 из 710)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client_app.c lines 754 to 850
+    754:} }
+    755:  
+    756:  
+    757:v void aether_client_app_stop(
+    758:a     aether_client_app_t *client) {
+    759:  
+    760:i     if (client == NULL) {
+    761:r         return;
+    762:}     }
+    763:  
+    764:i     if (client->started) {
+    765:a         aether_client_stop(
+    766:&             &client->core);
+    767:}     }
+    768:  
+    769:  
+    770:/     /*
+    771:*      * Release any borrowed semantic batch. After stop() returns the
+    772:*      * application owns all buffers it passed to aether_send_message().
+    773:*      */
+    774:a     aether_transport_reset(
+    775:&         &client->transport);
+    776:  
+    777:c     client->started =
+    778:f         false;
+    779:} }
+    780:  
+    781:  
+    782:  
+    783:/ /*
+    784:*  * Process one bounded RX parser step.
+    785:*  *
+    786:*  * A yielded ingress remains pending. This layer does not choose receive policy
+    787:*  * and does not invoke an application message callback.
+    788:*  */
+    789:s static aether_status_t receive_one(
+    790:a     aether_client_app_t *client) {
+    791:  
+    792:i     if (client->platform.transport_io.receive == NULL) {
+    793:r         return AETHER_OK;
+    794:}     }
+    795:  
+    796:a     aether_channel_t channels[2];
+    797:s     size_t channel_count;
+    798:  
+    799:i     if (aether_client_rx_active(
+    800:&             &client->core)) {
+    801:  
+    802:c         channels[0] =
+    803:a             aether_client_rx_channel(
+>>> (показано строк: 97 из 1165)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/tests/*.c>>> view
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c lines 50 to 250
+>>> (показано строк: 201 из 503)
+
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+    1:  
+    2:# #include "p2p_test_support.h"
+    3:  
+    4:# #include "aether_platform.h"
+    5:  
+    6:# #include "aether_test_crypto_hydrogen.h"
+    7:# #include "aether_crypto_registry.h"
+    8:# #include "aether_posix_transport.h"
+    9:  
+    10:  
+    11:# #include <inttypes.h>
+    12:# #include <limits.h>
+    13:# #include <stdbool.h>
+    14:# #include <stddef.h>
+    15:# #include <stdint.h>
+    16:# #include <stdio.h>
+    17:# #include <string.h>
+    18:# #include <sys/time.h>
+    19:  
+    20:  
+    21:# #define P2P_TEST_STORAGE_SLOTS 2u
+    22:  
+    23:  
+    24:t typedef struct {
+    25:v     void *owner;
+    26:  
+    27:a     aether_posix_transport_t transport;
+    28:  
+    29:u     uint8_t flash[AETHER_MAX_PACKET * 2u];
+    30:s     size_t flash_len;
+    31:} } p2p_platform_context_t;
+    32:  
+    33:/ /*
+    34:*  * The transport vtable is handed &p2p_platform_context_t.transport as its
+    35:*  * context pointer. Recover the enclosing platform context so callbacks can
+    36:*  * reach transport, flash and crypto storage.
+    37:*  */
+    38:s static p2p_platform_context_t *p2p_platform_from_transport(
+    39:v     void *transport_ctx) {
+    40:  
+    41:i     if (transport_ctx == NULL) {
+    42:r         return NULL;
+    43:}     }
+    44:  
+    45:r     return
+    46:(         (p2p_platform_context_t *)(
+    47:(             (uint8_t *)transport_ctx -
+    48:o             offsetof(p2p_platform_context_t, transport));
+    49:  
+    50:} }
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c/include/*.htimestamp: 1792669887658
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+    373:a aether_status_t aether_platform_init(
+>>> (всего найдено строк: 1)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/tests/p2p_e2e.c
+>>> (совпадений не найдено)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 154 to 177
+    154:s static aether_error_origin_t error_origin_for_status(
+    155:a     aether_status_t code) {
+    156:  
+    157:s     switch (code) {
+    158:c     case AETHER_ERR_PROTOCOL:
+    159:c     case AETHER_ERR_UNSUPPORTED:
+    160:r         return AETHER_ERROR_ORIGIN_PROTOCOL;
+    161:  
+    162:c     case AETHER_ERR_CRYPTO:
+    163:r         return AETHER_ERROR_ORIGIN_CRYPTO;
+    164:  
+    165:c     case AETHER_ERR_TRANSPORT:
+    166:r         return AETHER_ERROR_ORIGIN_TRANSPORT;
+    167:  
+    168:c     case AETHER_ERR_STORAGE:
+    169:r         return AETHER_ERROR_ORIGIN_STORAGE;
+    170:  
+    171:c     case AETHER_ERR_REMOTE:
+    172:r         return AETHER_ERROR_ORIGIN_REMOTE;
+    173:  
+    174:d     default:
+    175:r         return AETHER_ERROR_ORIGIN_CORE;
+    176:}     }
+    177:} }
+>>> (показано строк: 24 из 5610)
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c lines 373 to 503
+    373:a aether_status_t aether_platform_init(
+    374:v     void *platform_context,
+    375:s     size_t platform_context_size,
+    376:u     uint32_t storage_slot,
+    377:a     aether_client_platform_t *platform) {
+    378:  
+    379:(     (void)platform_context_size;
+    380:  
+    381:i     if (platform_context == NULL ||
+    382:p         platform == NULL ||
+    383:s         storage_slot >=
+    384:P             P2P_TEST_STORAGE_SLOTS) {
+    385:  
+    386:r         return AETHER_ERR_ARGUMENT;
+    387:}     }
+    388:  
+    389:p     p2p_platform_context_t *ctx =
+    390:&         &contexts[storage_slot];
+    391:  
+    392:i     if (ctx->owner != NULL &&
+    393:c         ctx->owner !=
+    394:p             platform_context) {
+    395:  
+    396:r         return AETHER_ERR_STORAGE;
+    397:}     }
+    398:  
+>>> (показано строк: 131 из 503)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> (всего найдено строк: 6)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether.c lines 165 to 260
+    165:a     aether_status_t status =
+    166:a         aether_platform_init(
+    167:c             client->platform_context.bytes,
+    168:s             sizeof(client->platform_context.bytes),
+    169:s             slot,
+    170:&             &platform);
+    171:  
+    172:c     client->init_status =
+    173:s         status;
+    174:  
+    175:i     if (status != AETHER_OK) {
+    176:r         return status;
+    177:}     }
+    178:  
+    179:a     aether_client_app_config_t config;
+    180:  
+    181:a     aether_client_app_config_default(
+    182:&         &config);
+    183:  
+    184:c     config.parent_uid =
+    185:f         facade_uuid_is_zero(
+    186:p             parent_uid)
+    187:?             ? AETHER_ANONYMOUS_UID
+    188::             : parent_uid;
+    189:  
+    190:c     config.on_ready =
+    191:f         facade_ready;
+    192:  
+    193:c     config.on_error =
+    194:f         facade_error;
+    195:  
+    196:c     config.callback_ctx =
+    197:c         client;
+    198:  
+    199:a     aether_client_app_init(
+    200:&         &client->app,
+    201:&         &config,
+    202:&         &platform);
+    203:  
+    204:c     client->init_status =
+    205:A         AETHER_OK;
+    206:  
+    207:r     return AETHER_OK;
+    208:} }
+    209:  
+    210:  
+    211:  
+    212:  
+    213:a aether_status_t aether_set_components(
+    214:a     aether_t *client,
+>>> (показано строк: 96 из 710)
+>>> viewMethod
+/home/angel/projects/aether-client-c/src/aether_client_app.c lines 184 to 227 : aether_client_app_init
+>>> (показано строк: 44 из 1165)
+>>> view
+/home/angel/projects/aether-client-c/tests/p2p_test_support.c lines 398 to 503
+>>> (показано строк: 106 из 503)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client_app.c lines 646 to 755
+    646:a aether_status_t aether_client_app_start(
+    647:a     aether_client_app_t *client) {
+    648:  
+    649:i     if (client == NULL) {
+    650:r         return AETHER_ERR_ARGUMENT;
+    651:}     }
+    652:  
+    653:i     if (client->started) {
+    654:r         return AETHER_ERR_STATE;
+    655:}     }
+    656:  
+    657:i     if (client->platform.now_ms == NULL ||
+    658:!         !pull_rx_pair_is_valid(client)) {
+    659:  
+    660:r         return AETHER_ERR_ARGUMENT;
+    661:}     }
+    662:  
+    663:c     const char *registration_uri =
+    664:c         client->config.registration_uri != NULL
+    665:?             ? client->config.registration_uri
+    666::             : AETHER_DEFAULT_REGISTRATION_URI;
+    667:  
+    668:a     aether_endpoint_t registration_endpoint;
+    669:  
+    670:a     aether_status_t status =
+    671:p         parse_registration_uri(
+    672:r             registration_uri,
+    673:&             &client->platform,
+    674:&             &registration_endpoint);
+    675:  
+    676:i     if (status != AETHER_OK) {
+    677:r         return status;
+    678:}     }
+    679:  
+    680:  
+    681:a     aether_client_config_t core_config;
+    682:  
+    683:/     /*
+    684:*      * aether_client_init() performs a full memset() of the core object.
+    685:*      * Credentials installed by the caller through aether_set_credentials*()
+    686:*      * before aether_start() live in that same object, so they must be
+    687:*      * preserved across the destructive core (re)initialization.
+    688:*      *
+    689:*      * Only caller-provisioned identity is preserved: uid, master_key and
+    690:*      * master_key_type. Persistent registration/recovery state, cloud and
+    691:*      * server caches are not carried over.
+    692:*      */
+    693:b     bool had_caller_credentials =
+    694:a         aether_client_has_caller_credentials(
+    695:&             &client->core);
+>>> (показано строк: 110 из 1165)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+>>> (всего найдено строк: 2)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client_app.c
+>>> (совпадений не найдено)

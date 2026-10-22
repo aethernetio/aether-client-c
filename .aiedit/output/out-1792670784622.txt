@@ -1,0 +1,2293 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> (отфильтровано: из 644 строк оставлено 644)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3260 to 3900
+    3260:A                   AETHER_ERR_PROTOCOL)
+    3261::             : AETHER_OK;
+    3262:} }
+    3263:  
+    3264:  
+    3265:  
+    3266:  
+    3267:s static aether_status_t handle_registration_rx(
+    3268:a     aether_client_t *client,
+    3269:c     const uint8_t *data,
+    3270:s     size_t length) {
+    3271:  
+    3272:r     reader_t reader = {
+    3273:d         data,
+    3274:l         length,
+    3275:0         0u,
+    3276:f         false
+    3277:}     };
+    3278:  
+    3279:w     while (!reader.failed &&
+    3280:r            reader.pos <
+    3281:r                reader.length) {
+    3282:  
+    3283:  
+    3284:s size_t frame_start =
+    3285:r             reader.pos;
+    3286:  
+    3287:u         uint8_t command =
+    3288:r             r_u8(&reader);
+    3289:  
+    3290:  
+    3291:i         if (command ==
+    3292:C             CMD_RESULT) {
+    3293:  
+    3294:u             uint32_t request_id =
+    3295:r                 r_u32le(&reader);
+    3296:  
+    3297:  
+    3298:  
+    3299:i             if (request_id !=
+    3300:c                     client->req_server_key ||
+    3301:(                 (client->state !=
+    3302:A                      AETHER_STATE_REG_WAIT_SERVER_KEY &&
+    3303:c                  client->state !=
+    3304:A                      AETHER_STATE_RECOVERY_WAIT_SERVER_KEY &&
+    3305:c                  client->state !=
+    3306:A                      AETHER_STATE_SERVER_RESOLVING)) {
+    3307:  
+    3308:  
+    3309:  
+    3310:r                 return
+    3311:f                     fail(
+    3312:c                         client,
+    3313:A                         AETHER_ERR_PROTOCOL);
+    3314:}             }
+    3315:  
+    3316:i             if (!parse_signed_key(
+    3317:&                     &reader,
+    3318:c                     client,
+    3319:&                     &client->registration_server_key)) {
+    3320:  
+    3321:r                 return
+    3322:f                     fail(
+    3323:c                         client,
+    3324:A                         AETHER_ERR_PROTOCOL);
+    3325:}             }
+    3326:  
+    3327:i             if (!verify_signed_key(
+    3328:c                     client,
+    3329:&                     &client->registration_server_key)) {
+    3330:  
+    3331:r                 return
+    3332:f                     fail_with_origin(
+    3333:c                         client,
+    3334:A                         AETHER_ERR_CRYPTO,
+    3335:A                         AETHER_ERROR_ORIGIN_TRUST);
+    3336:}             }
+    3337:  
+    3338:  
+    3339:i             if (client->state ==
+    3340:A                 AETHER_STATE_SERVER_RESOLVING) {
+    3341:  
+    3342:i                 if (client->config.crypto
+    3343:-                             ->random_symmetric_key(
+    3344:c                         client->config.crypto_ctx,
+    3345:c                         client->temp_key,
+    3346:c                         client->config.crypto
+    3347:-                             ->profile.symmetric_key_bytes) !=
+    3348:A                     AETHER_OK) {
+    3349:  
+    3350:r                     return
+    3351:f                         fail(
+    3352:c                             client,
+    3353:A                             AETHER_ERR_CRYPTO);
+    3354:}                 }
+    3355:  
+    3356:r                 return
+    3357:s                     send_resolve_servers(
+    3358:c                         client);
+    3359:}             }
+    3360:  
+    3361:  
+    3362:  
+    3363:i             if (client->state ==
+    3364:A                 AETHER_STATE_RECOVERY_WAIT_SERVER_KEY) {
+    3365:  
+    3366:i                 if (client->config.crypto
+    3367:-                             ->random_symmetric_key(
+    3368:c                         client->config.crypto_ctx,
+    3369:c                         client->temp_key,
+    3370:c                         client->config.crypto
+    3371:-                             ->profile.symmetric_key_bytes) !=
+    3372:A                     AETHER_OK) {
+    3373:  
+    3374:r                     return
+    3375:f                         fail(
+    3376:c                             client,
+    3377:A                             AETHER_ERR_CRYPTO);
+    3378:}                 }
+    3379:  
+    3380:  
+    3381:i                 if (!client->recovery_key_pending) {
+    3382:i                     if (client->config.crypto
+    3383:-                                 ->random_symmetric_key(
+    3384:c                             client->config.crypto_ctx,
+    3385:c                             client->pending_recovery_key,
+    3386:c                             client->config.crypto
+    3387:-                                 ->profile.symmetric_key_bytes) !=
+    3388:A                         AETHER_OK) {
+    3389:  
+    3390:r                         return
+    3391:f                             fail(
+    3392:c                                 client,
+    3393:A                                 AETHER_ERR_CRYPTO);
+    3394:}                     }
+    3395:  
+    3396:c                     client->recovery_key_pending =
+    3397:t                         true;
+    3398:  
+    3399:i                     if (save_state(client) !=
+    3400:A                         AETHER_OK) {
+    3401:  
+    3402:c                         client->recovery_key_pending =
+    3403:f                             false;
+    3404:  
+    3405:m                         memset(
+    3406:c                             client->pending_recovery_key,
+    3407:0                             0,
+    3408:s                             sizeof(client->pending_recovery_key));
+    3409:  
+    3410:r                         return
+    3411:f                             fail(
+    3412:c                                 client,
+    3413:A                                 AETHER_ERR_STORAGE);
+    3414:}                     }
+    3415:}                 }
+    3416:  
+    3417:  
+    3418:r                 return
+    3419:s                     send_recovery_request(
+    3420:c                         client);
+    3421:}             }
+    3422:  
+    3423:  
+    3424:  
+    3425:i             if (client->config.crypto
+    3426:-                         ->random_symmetric_key(
+    3427:c                     client->config.crypto_ctx,
+    3428:c                     client->temp_key,
+    3429:c                     client->config.crypto
+    3430:-                         ->profile.symmetric_key_bytes) !=
+    3431:A                     AETHER_OK ||
+    3432:c                 client->config.crypto
+    3433:-                         ->random_symmetric_key(
+    3434:c                     client->config.crypto_ctx,
+    3435:c                     client->master_key,
+    3436:c                     client->config.crypto
+    3437:-                         ->profile.symmetric_key_bytes) !=
+    3438:A                     AETHER_OK) {
+    3439:  
+    3440:r                 return
+    3441:f                     fail(
+    3442:c                         client,
+    3443:A                         AETHER_ERR_CRYPTO);
+    3444:}             }
+    3445:  
+    3446:r             return
+    3447:s                 send_pow_request(
+    3448:c                     client);
+    3449:  
+    3450:}         }
+    3451:  
+    3452:i         if (command ==
+    3453:C             CMD_ERROR) {
+    3454:  
+    3455:u             uint32_t request_id =
+    3456:r                 r_u32le(&reader);
+    3457:  
+    3458:i             if (reader.failed) {
+    3459:r                 return
+    3460:f                     fail(
+    3461:c                         client,
+    3462:A                         AETHER_ERR_PROTOCOL);
+    3463:}             }
+    3464:  
+    3465:r             return
+    3466:f                 fail_remote(
+    3467:c                     client,
+    3468:r                     request_id);
+    3469:}         }
+    3470:  
+    3471:  
+    3472:a aether_reg_unsafe_frame_t frame = {
+    3473:0             0
+    3474:}         };
+    3475:  
+    3476:s         size_t consumed =
+    3477:0             0u;
+    3478:  
+    3479:a         aether_status_t decode_status =
+    3480:a             aether_generated_reg_unsafe_decode(
+    3481:&                 &frame,
+    3482:r                 reader.data +
+    3483:f                     frame_start,
+    3484:r                 reader.length -
+    3485:f                     frame_start,
+    3486:&                 &consumed);
+    3487:  
+    3488:i         if (decode_status != AETHER_OK ||
+    3489:c             consumed == 0u ||
+    3490:c             consumed >
+    3491:r                 reader.length -
+    3492:f                     frame_start) {
+    3493:  
+    3494:r             return
+    3495:f                 fail(
+    3496:c                     client,
+    3497:A                     AETHER_ERR_PROTOCOL);
+    3498:}         }
+    3499:  
+    3500:c         const uint8_t *key;
+    3501:  
+    3502:i         if (frame.kind ==
+    3503:A             AETHER_REG_UNSAFE_FRAME_ENTER) {
+    3504:  
+    3505:k             key =
+    3506:c                 client->temp_key;
+    3507:  
+    3508:  
+    3509:}         } else {
+    3510:r             return
+    3511:f                 fail(
+    3512:c                     client,
+    3513:A                     AETHER_ERR_PROTOCOL);
+    3514:}         }
+    3515:  
+    3516:s         size_t plain_len =
+    3517:0             0u;
+    3518:  
+    3519:i         if (crypto_symmetric_decrypt(
+    3520:c                 client,
+    3521:k                 key,
+    3522:f                 frame.data,
+    3523:f                 frame.length,
+    3524:c                 client->tx_crypto,
+    3525:s                 sizeof(client->tx_crypto),
+    3526:&                 &plain_len) !=
+    3527:A             AETHER_OK) {
+    3528:  
+    3529:r             return
+    3530:f                 fail(
+    3531:c                     client,
+    3532:A                     AETHER_ERR_CRYPTO);
+    3533:}         }
+    3534:  
+    3535:  
+    3536:a         aether_status_t status =
+    3537:h             handle_reg_safe_plain(
+    3538:c                 client,
+    3539:c                 client->tx_crypto,
+    3540:p                 plain_len);
+    3541:  
+    3542:  
+    3543:i         if (status != AETHER_OK) {
+    3544:r             return status;
+    3545:}         }
+    3546:  
+    3547:r         reader.pos =
+    3548:f             frame_start +
+    3549:c             consumed;
+    3550:  
+    3551:c         continue;
+    3552:  
+    3553:  
+    3554:r         return
+    3555:f             fail(
+    3556:c                 client,
+    3557:A                 AETHER_ERR_PROTOCOL);
+    3558:}     }
+    3559:  
+    3560:r     return
+    3561:r         reader.failed
+    3562:?             ? fail(
+    3563:c                   client,
+    3564:A                   AETHER_ERR_PROTOCOL)
+    3565::             : AETHER_OK;
+    3566:} }
+    3567:  
+    3568:  
+    3569:  
+    3570:s static aether_status_t handle_server_resolve_plain(
+    3571:a     aether_client_t *client,
+    3572:c     const uint8_t *data,
+    3573:s     size_t length) {
+    3574:  
+    3575:r     reader_t reader = {
+    3576:d         data,
+    3577:l         length,
+    3578:0         0u,
+    3579:f         false
+    3580:}     };
+    3581:  
+    3582:w     while (!reader.failed &&
+    3583:r            reader.pos <
+    3584:r                reader.length) {
+    3585:  
+    3586:u         uint8_t command =
+    3587:r             r_u8(
+    3588:&                 &reader);
+    3589:  
+    3590:i         if (command ==
+    3591:C             CMD_RESULT) {
+    3592:  
+    3593:u             uint32_t request_id =
+    3594:r                 r_u32le(
+    3595:&                     &reader);
+    3596:  
+    3597:i             if (request_id !=
+    3598:c                     client->req_resolve ||
+    3599:c                 client->state !=
+    3600:A                     AETHER_STATE_SERVER_RESOLVING) {
+    3601:  
+    3602:r                 return
+    3603:f                     fail(
+    3604:c                         client,
+    3605:A                         AETHER_ERR_PROTOCOL);
+    3606:}             }
+    3607:  
+    3608:i             if (!parse_server_array(
+    3609:&                     &reader,
+    3610:c                     client)) {
+    3611:  
+    3612:r                 return
+    3613:f                     fail(
+    3614:c                         client,
+    3615:A                         AETHER_ERR_PROTOCOL);
+    3616:}             }
+    3617:  
+    3618:  
+    3619:/             /*
+    3620:*              * A resolveServers response is a cheap refresh of the known Cloud,
+    3621:*              * not authoritative recovery. Remember that it was already used so
+    3622:*              * that exhausting its result escalates to mandatory recovery.
+    3623:*              */
+    3624:c             client->topology_refreshed =
+    3625:t                 true;
+    3626:  
+    3627:  
+    3628:  
+    3629:c             client->registered =
+    3630:t                 true;
+    3631:  
+    3632:i             if (save_state(client) !=
+    3633:A                 AETHER_OK) {
+    3634:  
+    3635:r                 return
+    3636:f                     fail(
+    3637:c                         client,
+    3638:A                         AETHER_ERR_STORAGE);
+    3639:}             }
+    3640:  
+    3641:t             transport_close(
+    3642:c                 client,
+    3643:A                 AETHER_CHANNEL_REGISTRATION);
+    3644:  
+    3645:r             return
+    3646:b                 begin_work(
+    3647:c                     client);
+    3648:}         }
+    3649:  
+    3650:i         if (command ==
+    3651:C             CMD_ERROR) {
+    3652:  
+    3653:u             uint32_t request_id =
+    3654:r                 r_u32le(
+    3655:&                     &reader);
+    3656:  
+    3657:i             if (reader.failed) {
+    3658:r                 return
+    3659:f                     fail(
+    3660:c                         client,
+    3661:A                         AETHER_ERR_PROTOCOL);
+    3662:}             }
+    3663:  
+    3664:r             return
+    3665:f                 fail_remote(
+    3666:c                     client,
+    3667:r                     request_id);
+    3668:}         }
+    3669:  
+    3670:r         return
+    3671:f             fail(
+    3672:c                 client,
+    3673:A                 AETHER_ERR_PROTOCOL);
+    3674:}     }
+    3675:  
+    3676:r     return
+    3677:r         reader.failed
+    3678:?             ? fail(
+    3679:c                   client,
+    3680:A                   AETHER_ERR_PROTOCOL)
+    3681::             : AETHER_OK;
+    3682:} }
+    3683:  
+    3684:  
+    3685:s static aether_status_t handle_server_resolving_rx(
+    3686:a     aether_client_t *client,
+    3687:c     const uint8_t *data,
+    3688:s     size_t length) {
+    3689:  
+    3690:r     reader_t reader = {
+    3691:d         data,
+    3692:l         length,
+    3693:0         0u,
+    3694:f         false
+    3695:}     };
+    3696:  
+    3697:w     while (!reader.failed &&
+    3698:r            reader.pos <
+    3699:r                reader.length) {
+    3700:  
+    3701:s         size_t frame_start =
+    3702:r             reader.pos;
+    3703:  
+    3704:u         uint8_t command =
+    3705:r             r_u8(
+    3706:&                 &reader);
+    3707:  
+    3708:i         if (command ==
+    3709:C             CMD_RESULT) {
+    3710:  
+    3711:u             uint32_t request_id =
+    3712:r                 r_u32le(
+    3713:&                     &reader);
+    3714:  
+    3715:i             if (request_id !=
+    3716:c                     client->req_server_key ||
+    3717:c                 client->state !=
+    3718:A                     AETHER_STATE_SERVER_RESOLVING) {
+    3719:  
+    3720:r                 return
+    3721:f                     fail(
+    3722:c                         client,
+    3723:A                         AETHER_ERR_PROTOCOL);
+    3724:}             }
+    3725:  
+    3726:i             if (!parse_signed_key(
+    3727:&                     &reader,
+    3728:c                     client,
+    3729:&                     &client->registration_server_key)) {
+    3730:  
+    3731:r                 return
+    3732:f                     fail(
+    3733:c                         client,
+    3734:A                         AETHER_ERR_PROTOCOL);
+    3735:}             }
+    3736:  
+    3737:i             if (!verify_signed_key(
+    3738:c                     client,
+    3739:&                     &client->registration_server_key)) {
+    3740:  
+    3741:r                 return
+    3742:f                     fail_with_origin(
+    3743:c                         client,
+    3744:A                         AETHER_ERR_CRYPTO,
+    3745:A                         AETHER_ERROR_ORIGIN_TRUST);
+    3746:}             }
+    3747:  
+    3748:i             if (client->config.crypto
+    3749:-                         ->random_symmetric_key(
+    3750:c                     client->config.crypto_ctx,
+    3751:c                     client->temp_key,
+    3752:c                     client->config.crypto
+    3753:-                         ->profile.symmetric_key_bytes) !=
+    3754:A                 AETHER_OK) {
+    3755:  
+    3756:r                 return
+    3757:f                     fail(
+    3758:c                         client,
+    3759:A                         AETHER_ERR_CRYPTO);
+    3760:}             }
+    3761:  
+    3762:r             return
+    3763:s                 send_resolve_servers(
+    3764:c                     client);
+    3765:}         }
+    3766:  
+    3767:i         if (command ==
+    3768:C             CMD_ERROR) {
+    3769:  
+    3770:u             uint32_t request_id =
+    3771:r                 r_u32le(
+    3772:&                     &reader);
+    3773:  
+    3774:i             if (reader.failed) {
+    3775:r                 return
+    3776:f                     fail(
+    3777:c                         client,
+    3778:A                         AETHER_ERR_PROTOCOL);
+    3779:}             }
+    3780:  
+    3781:r             return
+    3782:f                 fail_remote(
+    3783:c                     client,
+    3784:r                     request_id);
+    3785:}         }
+    3786:  
+    3787:a         aether_reg_unsafe_frame_t frame = {
+    3788:0             0
+    3789:}         };
+    3790:  
+    3791:s         size_t consumed =
+    3792:0             0u;
+    3793:  
+    3794:a         aether_status_t decode_status =
+    3795:a             aether_generated_reg_unsafe_decode(
+    3796:&                 &frame,
+    3797:r                 reader.data +
+    3798:f                     frame_start,
+    3799:r                 reader.length -
+    3800:f                     frame_start,
+    3801:&                 &consumed);
+    3802:  
+    3803:i         if (decode_status != AETHER_OK ||
+    3804:c             consumed == 0u ||
+    3805:c             consumed >
+    3806:r                 reader.length -
+    3807:f                     frame_start ||
+    3808:f             frame.kind !=
+    3809:A                 AETHER_REG_UNSAFE_FRAME_ENTER) {
+    3810:  
+    3811:r             return
+    3812:f                 fail(
+    3813:c                     client,
+    3814:A                     AETHER_ERR_PROTOCOL);
+    3815:}         }
+    3816:  
+    3817:s         size_t plain_len =
+    3818:0             0u;
+    3819:  
+    3820:i         if (crypto_symmetric_decrypt(
+    3821:c                 client,
+    3822:c                 client->temp_key,
+    3823:f                 frame.data,
+    3824:f                 frame.length,
+    3825:c                 client->tx_crypto,
+    3826:s                 sizeof(client->tx_crypto),
+    3827:&                 &plain_len) !=
+    3828:A             AETHER_OK) {
+    3829:  
+    3830:r             return
+    3831:f                 fail(
+    3832:c                     client,
+    3833:A                     AETHER_ERR_CRYPTO);
+    3834:}         }
+    3835:  
+    3836:a         aether_status_t status =
+    3837:h             handle_server_resolve_plain(
+    3838:c                 client,
+    3839:c                 client->tx_crypto,
+    3840:p                 plain_len);
+    3841:  
+    3842:i         if (status != AETHER_OK) {
+    3843:r             return status;
+    3844:}         }
+    3845:  
+    3846:r         reader.pos =
+    3847:f             frame_start +
+    3848:c             consumed;
+    3849:}     }
+    3850:  
+    3851:r     return
+    3852:r         reader.failed
+    3853:?             ? fail(
+    3854:c                   client,
+    3855:A                   AETHER_ERR_PROTOCOL)
+    3856::             : AETHER_OK;
+    3857:} }
+    3858:  
+    3859:  
+    3860:  
+    3861:s static uint32_t operation_timeout_ms(
+    3862:c     const aether_client_t *client);
+    3863:  
+    3864:  
+    3865:  
+    3866:a aether_status_t aether_client_registration_on_rx_internal(
+    3867:s     struct aether_registration *registration,
+    3868:c     const uint8_t *data,
+    3869:s     size_t length) {
+    3870:  
+    3871:i     if (registration == NULL ||
+    3872:r         registration->client == NULL ||
+    3873:r         registration->client->registration !=
+    3874:r             registration) {
+    3875:  
+    3876:r         return AETHER_ERR_ARGUMENT;
+    3877:}     }
+    3878:  
+    3879:a     aether_client_t *client =
+    3880:r         registration->client;
+    3881:  
+    3882:i     if (client->state ==
+    3883:A         AETHER_STATE_REG_CONNECTING) {
+    3884:  
+    3885:r         return AETHER_OK;
+    3886:}     }
+    3887:  
+    3888:i     if (!registration_in_progress(
+    3889:c             client->state)) {
+    3890:  
+    3891:r         return AETHER_ERR_STATE;
+    3892:}     }
+    3893:  
+    3894:r     return
+    3895:h         handle_registration_rx(
+    3896:c             client,
+    3897:d             data,
+    3898:l             length);
+    3899:} }
+    3900:  
+>>> (показано строк: 641 из 5610)
+>>> (отфильтровано: из 65 строк оставлено 65)
+>>> view
+/home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java lines 140 to 220
+    140:}                 });
+    141:  
+    142:r         return result;
+    143:}     }
+    144:  
+    145:  
+    146:  
+    147:@     @Override
+    148:p     public void enterRegistration(ClientApiRegSafeStream stream) {
+    149:s         stream.asIn()
+    150:.                 .ctx(safeApi.getFastMetaContext())
+    151:.                 .convert(tempKeyCp::decrypt)
+    152:.                 .accept();
+    153:}     }
+    154:  
+    155:  
+    156:@     @Override
+    157:p     public void sendSafeApiDataMulti(short backId, LoginClientStream data) {
+    158:t         throw new UnsupportedOperationException("ConnectionRegistration: no multi-backId support");
+    159:}     }
+    160:  
+    161:@     @Override
+    162:p     public void sendSafeApiData(LoginClientStream data) {
+    163:t         throw new UnsupportedOperationException("ConnectionRegistration: not logged in");
+    164:}     }
+    165:  
+    166:@     @Override
+    167:p     public void sendCurrentTimeUtc(long time) {
+    168:L         Log.warn("ConnectionRegistration: unexpected sendCurrentTimeUtc");
+    169:}     }
+    170:  
+    171:@     @Override
+    172:p     public void sendMyIpInfo(io.aether.api.common.IpInfo info) {
+    173:L         Log.warn("ConnectionRegistration: unexpected sendMyIpInfo");
+    174:}     }
+    175:  
+    176:@     @Override
+    177:p     public void sendAsymmetricPublicKey(io.aether.api.common.SignedKey key) {
+    178:a         asymmetricPublicKeyMFuture.set(key);
+    179:}     }
+    180:  
+    181:@     @Override
+    182:p     public void sendWorkProofData(java.util.UUID parent, io.aether.api.common.WorkProofDTO dto) {
+    183:w         workProofMFuture.set(dto);
+    184:}     }
+    185:  
+    186:@     @Override
+    187:p     public void sendResolvedServers(ServerDescriptor[] servers) {
+    188:r         resolvedServersMFuture.set(servers);
+    189:}     }
+    190:  
+    191:@     @Override
+    192:p     public void sendRegistrationDirect(RegistrationDirectResult result) {
+    193:r         registrationDirectMFuture.set(result);
+    194:}     }
+    195:  
+    196:@     @Override
+    197:p     public void sendRecoveredClientState(RecoveryResult result) {
+    198:L         Log.warn("ConnectionRegistration: unexpected sendRecoveredClientState");
+    199:}     }
+    200:  
+    201:} }
+>>> (показано строк: 62 из 201)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> (отфильтровано: из 7 строк оставлено 7)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2419:c     client->req_server_key =
+    3300:c                     client->req_server_key ||
+    3716:c                     client->req_server_key ||
+    4789:c     client->req_server_key =
+>>> (всего найдено строк: 4)
+>>> (отфильтровано: из 8 строк оставлено 8)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2682:c     client->req_resolve =
+    2743:c     client->req_resolve =
+    3074:c                     client->req_resolve) {
+    3598:c                     client->req_resolve ||
+    4792:c     client->req_resolve =
+>>> (всего найдено строк: 5)
+>>> (отфильтровано: из 5 строк оставлено 5)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2572:c     client->registration->req_pow =
+    2966:c                     client->registration->req_pow) {
+>>> (всего найдено строк: 2)
+>>> (отфильтровано: из 5 строк оставлено 5)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2619:c     client->registration->req_finish =
+    2984:c                     client->registration->req_finish) {
+>>> (всего найдено строк: 2)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> (отфильтровано: из 2 строк оставлено 2)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c
+>>> (отфильтровано: из 2 строк оставлено 2)
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-c
+
+>>> (отфильтровано: из 9 строк оставлено 9)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    56:# #define CMD_RESULT 0u
+    2957:C             CMD_RESULT) {
+    3292:C             CMD_RESULT) {
+    3591:C             CMD_RESULT) {
+    3709:C             CMD_RESULT) {
+    4266:C             CMD_RESULT) {
+>>> (всего найдено строк: 6)
+>>> (отфильтровано: из 9 строк оставлено 9)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+    57:# #define CMD_ERROR 1u
+    3232:C             CMD_ERROR) {
+    3453:C             CMD_ERROR) {
+    3651:C             CMD_ERROR) {
+    3768:C             CMD_ERROR) {
+    4309:C             CMD_ERROR) {
+>>> (всего найдено строк: 6)
+>>> (отфильтровано: из 15 строк оставлено 15)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    56:# #define CMD_RESULT 0u
+    57:# #define CMD_ERROR 1u
+    2957:C             CMD_RESULT) {
+    3232:C             CMD_ERROR) {
+    3292:C             CMD_RESULT) {
+    3453:C             CMD_ERROR) {
+    3591:C             CMD_RESULT) {
+    3651:C             CMD_ERROR) {
+    3709:C             CMD_RESULT) {
+    3768:C             CMD_ERROR) {
+    4266:C             CMD_RESULT) {
+    4309:C             CMD_ERROR) {
+>>> Found 12 matches.
+>>> (отфильтровано: из 704 строк оставлено 704)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 2400 to 3100
+    2400:?             ? -1
+    2401::             : preferred - 1;
+    2402:  
+    2403:r     return
+    2404:c         connect_next_work_server(
+    2405:c             client,
+    2406:p             previous);
+    2407:} }
+    2408:  
+    2409:  
+    2410:s static aether_status_t send_get_server_key(
+    2411:a     aether_client_t *client) {
+    2412:  
+    2413:  
+    2414:b     bool recovery =
+    2415:c         client->state ==
+    2416:A         AETHER_STATE_RECOVERY_CONNECTING;
+    2417:  
+    2418:  
+    2419:c     client->req_server_key =
+    2420:n         next_request_id(
+    2421:c             client);
+    2422:  
+    2423:s     size_t packet_length =
+    2424:0         0u;
+    2425:  
+    2426:a     aether_status_t status =
+    2427:a         aether_generated_reg_root_build_get_key(
+    2428:c             client->tx_plain,
+    2429:s             sizeof(client->tx_plain),
+    2430:&             &packet_length,
+    2431:c             client->config.crypto
+    2432:-                 ->profile.crypto_lib);
+    2433:  
+    2434:i     if (status != AETHER_OK) {
+    2435:r         return
+    2436:f             fail(
+    2437:c                 client,
+    2438:s                 status);
+    2439:}     }
+    2440:  
+    2441:s     status =
+    2442:t         transport_send(
+    2443:c             client,
+    2444:A             AETHER_CHANNEL_REGISTRATION,
+    2445:c             client->tx_plain,
+    2446:p             packet_length);
+    2447:  
+    2448:i     if (status != AETHER_OK) {
+    2449:i         if (client->state ==
+    2450:A             AETHER_STATE_SERVER_RESOLVING) {
+    2451:  
+    2452:t             transport_close(
+    2453:c                 client,
+    2454:A                 AETHER_CHANNEL_REGISTRATION);
+    2455:  
+    2456:c             client->state_started_at_ms =
+    2457:(                 (uint32_t)
+    2458:c                     client->now_ms;
+    2459:  
+    2460:r             return AETHER_OK;
+    2461:}         }
+    2462:  
+    2463:r         return
+    2464:f             fail(
+    2465:c                 client,
+    2466:s                 status);
+    2467:}     }
+    2468:  
+    2469:i     if (client->state ==
+    2470:A         AETHER_STATE_SERVER_RESOLVING) {
+    2471:  
+    2472:c         client->state_started_at_ms =
+    2473:(             (uint32_t)
+    2474:c                 client->now_ms;
+    2475:  
+    2476:}     } else {
+    2477:s         set_registration_state(
+    2478:c             client,
+    2479:  
+    2480:r             recovery
+    2481:?                 ? AETHER_STATE_RECOVERY_WAIT_SERVER_KEY
+    2482::                 : AETHER_STATE_REG_WAIT_SERVER_KEY);
+    2483:  
+    2484:}     }
+    2485:  
+    2486:r     return AETHER_OK;
+    2487:} }
+    2488:  
+    2489:  
+    2490:s static aether_status_t send_reg_enter(
+    2491:a     aether_client_t *client,
+    2492:c     const uint8_t *nested,
+    2493:s     size_t nested_len) {
+    2494:  
+    2495:s     size_t cipher_len =
+    2496:0         0u;
+    2497:  
+    2498:i     if (crypto_asymmetric_encrypt(
+    2499:c             client,
+    2500:c             client->registration_server_key.key,
+    2501:n             nested,
+    2502:n             nested_len,
+    2503:c             client->tx_crypto,
+    2504:s             sizeof(client->tx_crypto),
+    2505:&             &cipher_len) !=
+    2506:A         AETHER_OK) {
+    2507:  
+    2508:r         return
+    2509:f             fail(
+    2510:c                 client,
+    2511:A                 AETHER_ERR_CRYPTO);
+    2512:}     }
+    2513:  
+    2514:s     size_t packet_length =
+    2515:0         0u;
+    2516:  
+    2517:a     aether_status_t status =
+    2518:a         aether_generated_reg_root_build_enter(
+    2519:c             client->tx_plain,
+    2520:s             sizeof(client->tx_plain),
+    2521:&             &packet_length,
+    2522:c             client->config.crypto
+    2523:-                 ->profile.crypto_lib,
+    2524:c             client->tx_crypto,
+    2525:c             cipher_len);
+    2526:  
+    2527:i     if (status != AETHER_OK) {
+    2528:r         return
+    2529:f             fail(
+    2530:c                 client,
+    2531:s                 status);
+    2532:}     }
+    2533:  
+    2534:s     status =
+    2535:t         transport_send(
+    2536:c             client,
+    2537:A             AETHER_CHANNEL_REGISTRATION,
+    2538:c             client->tx_plain,
+    2539:p             packet_length);
+    2540:  
+    2541:  
+    2542:i     if (status != AETHER_OK) {
+    2543:i         if (client->state ==
+    2544:A             AETHER_STATE_SERVER_RESOLVING) {
+    2545:  
+    2546:t             transport_close(
+    2547:c                 client,
+    2548:A                 AETHER_CHANNEL_REGISTRATION);
+    2549:  
+    2550:c             client->state_started_at_ms =
+    2551:(                 (uint32_t)
+    2552:c                     client->now_ms;
+    2553:  
+    2554:r             return AETHER_OK;
+    2555:}         }
+    2556:  
+    2557:r         return
+    2558:f             fail(
+    2559:c                 client,
+    2560:s                 status);
+    2561:}     }
+    2562:  
+    2563:  
+    2564:r     return AETHER_OK;
+    2565:} }
+    2566:  
+    2567:  
+    2568:s static aether_status_t send_pow_request(
+    2569:a     aether_client_t *client) {
+    2570:  
+    2571:  
+    2572:c     client->registration->req_pow =
+    2573:n         next_request_id(
+    2574:c             client);
+    2575:  
+    2576:  
+    2577:s     size_t nested_len =
+    2578:0         0u;
+    2579:  
+    2580:a     aether_status_t status =
+    2581:a         aether_generated_reg_safe_build_pow(
+    2582:c             client->tx_plain,
+    2583:s             sizeof(client->tx_plain),
+    2584:&             &nested_len,
+    2585:c             client->config.crypto
+    2586:-                 ->profile.symmetric_key_type,
+    2587:c             client->temp_key,
+    2588:c             client->config.crypto
+    2589:-                 ->profile.symmetric_key_bytes,
+    2590:c             client->config.parent_uid);
+    2591:  
+    2592:i     if (status != AETHER_OK) {
+    2593:r         return
+    2594:f             fail(
+    2595:c                 client,
+    2596:s                 status);
+    2597:}     }
+    2598:  
+    2599:s     status =
+    2600:s         send_reg_enter(
+    2601:c             client,
+    2602:c             client->tx_plain,
+    2603:n             nested_len);
+    2604:  
+    2605:i     if (status == AETHER_OK) {
+    2606:s         set_registration_state(
+    2607:c             client,
+    2608:A             AETHER_STATE_REG_WAIT_POW);
+    2609:}     }
+    2610:  
+    2611:r     return status;
+    2612:} }
+    2613:  
+    2614:  
+    2615:s static aether_status_t send_registration_payload(
+    2616:a     aether_client_t *client) {
+    2617:  
+    2618:  
+    2619:c     client->registration->req_finish =
+    2620:n         next_request_id(
+    2621:c             client);
+    2622:  
+    2623:  
+    2624:s     size_t nested_len =
+    2625:0         0u;
+    2626:  
+    2627:a     aether_status_t status =
+    2628:a         aether_generated_reg_safe_build_registration_direct(
+    2629:c             client->tx_plain,
+    2630:s             sizeof(client->tx_plain),
+    2631:&             &nested_len,
+    2632:c             client->config.crypto
+    2633:-                 ->profile.symmetric_key_type,
+    2634:c             client->temp_key,
+    2635:c             client->config.crypto
+    2636:-                 ->profile.symmetric_key_bytes,
+    2637:c             client->master_key,
+    2638:c             client->config.crypto
+    2639:-                 ->profile.symmetric_key_bytes,
+    2640:  
+    2641:c             client->registration->pow_salt,
+    2642:c             client->registration->pow_salt_len,
+    2643:c             client->registration->pow_suffix,
+    2644:c             client->registration->pow_suffix_len,
+    2645:c             client->registration->pow_passwords,
+    2646:c             client->registration->pow_password_count,
+    2647:  
+    2648:c             client->config.parent_uid);
+    2649:  
+    2650:i     if (status != AETHER_OK) {
+    2651:r         return
+    2652:f             fail(
+    2653:c                 client,
+    2654:s                 status);
+    2655:}     }
+    2656:  
+    2657:s     status =
+    2658:s         send_reg_enter(
+    2659:c             client,
+    2660:c             client->tx_plain,
+    2661:n             nested_len);
+    2662:  
+    2663:i     if (status == AETHER_OK) {
+    2664:s         set_registration_state(
+    2665:c             client,
+    2666:A             AETHER_STATE_REG_WAIT_FINISH);
+    2667:}     }
+    2668:  
+    2669:r     return status;
+    2670:} }
+    2671:  
+    2672:  
+    2673:  
+    2674:  
+    2675:s static aether_status_t send_recovery_request(
+    2676:a     aether_client_t *client) {
+    2677:  
+    2678:i     if (client == NULL) {
+    2679:r         return AETHER_ERR_STATE;
+    2680:}     }
+    2681:  
+    2682:c     client->req_resolve =
+    2683:n         next_request_id(
+    2684:c             client);
+    2685:  
+    2686:s     size_t nested_len =
+    2687:0         0u;
+    2688:  
+    2689:  
+    2690:a     aether_status_t status =
+    2691:a         aether_generated_reg_safe_build_recovery(
+    2692:c             client->tx_plain,
+    2693:s             sizeof(client->tx_plain),
+    2694:&             &nested_len,
+    2695:c             client->config.crypto
+    2696:-                 ->profile.symmetric_key_type,
+    2697:c             client->temp_key,
+    2698:c             client->config.crypto
+    2699:-                 ->profile.symmetric_key_bytes,
+    2700:c             client->master_key_type,
+    2701:c             client->master_key,
+    2702:A             AETHER_KEY_BYTES,
+    2703:c             client->pending_recovery_key,
+    2704:c             client->config.crypto
+    2705:-                 ->profile.symmetric_key_bytes,
+    2706:c             client->uid);
+    2707:  
+    2708:  
+    2709:i     if (status != AETHER_OK) {
+    2710:r         return
+    2711:f             fail(
+    2712:c                 client,
+    2713:s                 status);
+    2714:}     }
+    2715:  
+    2716:s     status =
+    2717:s         send_reg_enter(
+    2718:c             client,
+    2719:c             client->tx_plain,
+    2720:n             nested_len);
+    2721:  
+    2722:i     if (status == AETHER_OK) {
+    2723:s         set_registration_state(
+    2724:c             client,
+    2725:A             AETHER_STATE_RECOVERY_WAIT_RESULT);
+    2726:}     }
+    2727:  
+    2728:r     return status;
+    2729:} }
+    2730:  
+    2731:  
+    2732:  
+    2733:s static aether_status_t send_resolve_servers(
+    2734:a     aether_client_t *client) {
+    2735:  
+    2736:i     if (client->cloud_count == 0u) {
+    2737:r         return
+    2738:f             fail(
+    2739:c                 client,
+    2740:A                 AETHER_ERR_PROTOCOL);
+    2741:}     }
+    2742:  
+    2743:c     client->req_resolve =
+    2744:n         next_request_id(
+    2745:c             client);
+    2746:  
+    2747:s     size_t nested_len =
+    2748:0         0u;
+    2749:  
+    2750:a     aether_status_t status =
+    2751:a         aether_generated_reg_safe_build_resolve_with_return_key(
+    2752:c             client->tx_plain,
+    2753:s             sizeof(client->tx_plain),
+    2754:&             &nested_len,
+    2755:c             client->config.crypto
+    2756:-                 ->profile.symmetric_key_type,
+    2757:c             client->temp_key,
+    2758:c             client->config.crypto
+    2759:-                 ->profile.symmetric_key_bytes,
+    2760:c             client->cloud_sids,
+    2761:c             client->cloud_count);
+    2762:  
+    2763:i     if (status != AETHER_OK) {
+    2764:r         return
+    2765:f             fail(
+    2766:c                 client,
+    2767:s                 status);
+    2768:}     }
+    2769:  
+    2770:  
+    2771:c     client->state_started_at_ms =
+    2772:(         (uint32_t)
+    2773:c             client->now_ms;
+    2774:  
+    2775:s     set_state(
+    2776:c         client,
+    2777:A         AETHER_STATE_SERVER_RESOLVING);
+    2778:  
+    2779:s     status =
+    2780:s         send_reg_enter(
+    2781:c             client,
+    2782:c             client->tx_plain,
+    2783:n             nested_len);
+    2784:  
+    2785:  
+    2786:r     return status;
+    2787:} }
+    2788:  
+    2789:  
+    2790:s static bool parse_work_proof(
+    2791:r     reader_t *reader,
+    2792:a     aether_client_t *client) {
+    2793:  
+    2794:i     if (reader == NULL ||
+    2795:c         client == NULL ||
+    2796:c         client->registration == NULL) {
+    2797:  
+    2798:r         return false;
+    2799:}     }
+    2800:  
+    2801:c     const uint8_t *salt;
+    2802:s     size_t salt_len;
+    2803:  
+    2804:c     const uint8_t *suffix;
+    2805:s     size_t suffix_len;
+    2806:  
+    2807:i     if (!r_view(
+    2808:r             reader,
+    2809:&             &salt,
+    2810:&             &salt_len) ||
+    2811:!         !r_view(
+    2812:r             reader,
+    2813:&             &suffix,
+    2814:&             &suffix_len)) {
+    2815:  
+    2816:r         return false;
+    2817:}     }
+    2818:  
+    2819:i     if (salt_len >
+    2820:s             sizeof(client->registration->pow_salt) ||
+    2821:s         suffix_len >
+    2822:s             sizeof(client->registration->pow_suffix)) {
+    2823:  
+    2824:r         return false;
+    2825:}     }
+    2826:  
+    2827:m     memcpy(
+    2828:c         client->registration->pow_salt,
+    2829:s         salt,
+    2830:s         salt_len);
+    2831:  
+    2832:m     memcpy(
+    2833:c         client->registration->pow_suffix,
+    2834:s         suffix,
+    2835:s         suffix_len);
+    2836:  
+    2837:c     client->registration->pow_salt_len =
+    2838:s         salt_len;
+    2839:  
+    2840:c     client->registration->pow_suffix_len =
+    2841:s         suffix_len;
+    2842:  
+    2843:c     client->registration->pow_pool_size =
+    2844:r         r_u8(reader);
+    2845:  
+    2846:c     client->registration->pow_max_hash =
+    2847:r         r_i32le(reader);
+    2848:  
+    2849:r     return
+    2850:p         parse_signed_key(
+    2851:r             reader,
+    2852:c             client,
+    2853:&             &client->registration->global_key) &&
+    2854:!         !reader->failed;
+    2855:} }
+    2856:  
+    2857:  
+    2858:s static aether_status_t handle_pow_response(
+    2859:a     aether_client_t *client,
+    2860:r     reader_t *reader) {
+    2861:  
+    2862:i     if (!parse_work_proof(
+    2863:r             reader,
+    2864:c             client)) {
+    2865:  
+    2866:r         return
+    2867:f             fail(
+    2868:c                 client,
+    2869:A                 AETHER_ERR_PROTOCOL);
+    2870:}     }
+    2871:  
+    2872:i     if (!verify_signed_key(
+    2873:c             client,
+    2874:&             &client->registration->global_key)) {
+    2875:  
+    2876:r         return
+    2877:f             fail_with_origin(
+    2878:c                 client,
+    2879:A                 AETHER_ERR_CRYPTO,
+    2880:A                 AETHER_ERROR_ORIGIN_TRUST);
+    2881:}     }
+    2882:  
+    2883:s     size_t count =
+    2884:0         0u;
+    2885:  
+    2886:a     aether_status_t status =
+    2887:c         client->config.pow.generate(
+    2888:c             client->config.pow.ctx,
+    2889:  
+    2890:c             client->registration->pow_salt,
+    2891:c             client->registration->pow_salt_len,
+    2892:c             client->registration->pow_suffix,
+    2893:c             client->registration->pow_suffix_len,
+    2894:c             client->registration->pow_pool_size,
+    2895:c             client->registration->pow_max_hash,
+    2896:c             client->registration->pow_passwords,
+    2897:A             AETHER_MAX_POW_PASSWORDS,
+    2898:&             &count);
+    2899:  
+    2900:  
+    2901:i     if (status != AETHER_OK) {
+    2902:r         return
+    2903:f             fail_with_origin(
+    2904:c                 client,
+    2905:s                 status,
+    2906:A                 AETHER_ERROR_ORIGIN_POW);
+    2907:}     }
+    2908:  
+    2909:i     if (count >
+    2910:A         AETHER_MAX_POW_PASSWORDS) {
+    2911:  
+    2912:r         return
+    2913:f             fail(
+    2914:c                 client,
+    2915:A                 AETHER_ERR_OVERFLOW);
+    2916:}     }
+    2917:  
+    2918:  
+    2919:c     client->registration->pow_password_count =
+    2920:c         count;
+    2921:  
+    2922:  
+    2923:r     return
+    2924:s         send_registration_payload(
+    2925:c             client);
+    2926:} }
+    2927:  
+    2928:  
+    2929:s static aether_status_t handle_reg_safe_plain(
+    2930:a     aether_client_t *client,
+    2931:c     const uint8_t *data,
+    2932:s     size_t length) {
+    2933:  
+    2934:r     reader_t reader = {
+    2935:d         data,
+    2936:l         length,
+    2937:0         0u,
+    2938:f         false
+    2939:}     };
+    2940:  
+    2941:w     while (!reader.failed &&
+    2942:r            reader.pos <
+    2943:r                reader.length) {
+    2944:  
+    2945:  
+    2946:  
+    2947:s         size_t frame_start =
+    2948:r             reader.pos;
+    2949:(         (void)frame_start;
+    2950:  
+    2951:  
+    2952:  
+    2953:u         uint8_t command =
+    2954:r             r_u8(&reader);
+    2955:  
+    2956:i         if (command ==
+    2957:C             CMD_RESULT) {
+    2958:  
+    2959:u             uint32_t request_id =
+    2960:r                 r_u32le(&reader);
+    2961:  
+    2962:  
+    2963:i             if (client->state ==
+    2964:A                     AETHER_STATE_REG_WAIT_POW &&
+    2965:r                 request_id ==
+    2966:c                     client->registration->req_pow) {
+    2967:  
+    2968:  
+    2969:a                 aether_status_t status =
+    2970:h                     handle_pow_response(
+    2971:c                         client,
+    2972:&                         &reader);
+    2973:  
+    2974:i                 if (status != AETHER_OK) {
+    2975:r                     return status;
+    2976:}                 }
+    2977:  
+    2978:  
+    2979:  
+    2980:}             } else if (
+    2981:c                 client->state ==
+    2982:A                     AETHER_STATE_REG_WAIT_FINISH &&
+    2983:r                 request_id ==
+    2984:c                     client->registration->req_finish) {
+    2985:  
+    2986:  
+    2987:  
+    2988:c                 client->alias =
+    2989:r                     r_uuid(&reader);
+    2990:  
+    2991:c                 client->uid =
+    2992:r                     r_uuid(&reader);
+    2993:  
+    2994:u                 uint64_t cloud_count =
+    2995:r                     r_pack(&reader);
+    2996:  
+    2997:i                 if (reader.failed ||
+    2998:c                     cloud_count > AETHER_MAX_SERVERS) {
+    2999:  
+    3000:r                     return
+    3001:f                         fail(
+    3002:c                             client,
+    3003:A                             AETHER_ERR_PROTOCOL);
+    3004:}                 }
+    3005:  
+    3006:c                 client->cloud_count =
+    3007:(                     (uint8_t)cloud_count;
+    3008:  
+    3009:f                 for (uint8_t i = 0u;
+    3010:i                      i < client->cloud_count;
+    3011:+                      ++i) {
+    3012:  
+    3013:c                     client->cloud_sids[i] =
+    3014:r                         r_i16le(&reader);
+    3015:}                 }
+    3016:  
+    3017:i                 if (reader.failed) {
+    3018:r                     return
+    3019:f                         fail(
+    3020:c                             client,
+    3021:A                             AETHER_ERR_PROTOCOL);
+    3022:}                 }
+    3023:  
+    3024:  
+    3025:c                 client->registered =
+    3026:t                     true;
+    3027:  
+    3028:/                 /*
+    3029:*                  * Identity + Cloud must become durable before descriptor
+    3030:*                  * recovery. ServerDescriptor[] is only a refreshable cache.
+    3031:*                  */
+    3032:i                 if (save_state(client) !=
+    3033:A                     AETHER_OK) {
+    3034:  
+    3035:r                     return
+    3036:f                         fail(
+    3037:c                             client,
+    3038:A                             AETHER_ERR_STORAGE);
+    3039:}                 }
+    3040:  
+    3041:a                 aether_event_t event;
+    3042:  
+    3043:m                 memset(
+    3044:&                     &event,
+    3045:0                     0,
+    3046:s                     sizeof(event));
+    3047:  
+    3048:e                 event.type =
+    3049:A                     AETHER_EVENT_REGISTERED;
+    3050:  
+    3051:e                 event.as.registered.uid =
+    3052:c                     client->uid;
+    3053:  
+    3054:e                 event.as.registered.alias =
+    3055:c                     client->alias;
+    3056:  
+    3057:e                 emit_event(
+    3058:c                     client,
+    3059:&                     &event);
+    3060:  
+    3061:r                 return
+    3062:s                     send_resolve_servers(
+    3063:c                         client);
+    3064:  
+    3065:  
+    3066:  
+    3067:  
+    3068:  
+    3069:  
+    3070:}             } else if (
+    3071:c                 client->state ==
+    3072:A                     AETHER_STATE_RECOVERY_WAIT_RESULT &&
+    3073:r                 request_id ==
+    3074:c                     client->req_resolve) {
+    3075:  
+    3076:c                 client->alias =
+    3077:r                     r_uuid(
+    3078:&                         &reader);
+    3079:  
+    3080:u                 uint64_t cloud_count =
+    3081:r                     r_pack(
+    3082:&                         &reader);
+    3083:  
+    3084:i                 if (reader.failed ||
+    3085:c                     cloud_count == 0u ||
+    3086:c                     cloud_count >
+    3087:A                         AETHER_MAX_SERVERS) {
+    3088:  
+    3089:r                     return
+    3090:f                         fail(
+    3091:c                             client,
+    3092:A                             AETHER_ERR_PROTOCOL);
+    3093:}                 }
+    3094:  
+    3095:c                 client->cloud_count =
+    3096:(                     (uint8_t)cloud_count;
+    3097:  
+    3098:f                 for (uint8_t i = 0u;
+    3099:i                      i < client->cloud_count;
+    3100:+                      ++i) {
+>>> (показано строк: 701 из 5610)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3100 to 3266
+    3100:+                      ++i) {
+    3101:  
+    3102:c                     client->cloud_sids[i] =
+    3103:r                         r_i16le(
+    3104:&                             &reader);
+    3105:}                 }
+    3106:  
+    3107:i                 if (reader.failed) {
+    3108:r                     return
+    3109:f                         fail(
+    3110:c                             client,
+    3111:A                             AETHER_ERR_PROTOCOL);
+    3112:}                 }
+    3113:  
+    3114:i                 if (!parse_server_array(
+    3115:&                         &reader,
+    3116:c                         client)) {
+    3117:  
+    3118:  
+    3119:  
+    3120:  
+    3121:r                     return
+    3122:f                         fail(
+    3123:c                             client,
+    3124:A                             AETHER_ERR_PROTOCOL);
+    3125:}                 }
+    3126:  
+    3127:  
+    3128:c                 client->topology_refreshed =
+    3129:f                     false;
+    3130:  
+    3131:  
+    3132:  
+    3133:  
+    3134:  
+    3135:/                 /*
+    3136:*                  * Mark the commit attempt. save_state() serializes this flag,
+    3137:*                  * so it must be set before persistence. If persistence fails,
+    3138:*                  * the marker is rolled back below so a retry re-runs recovery
+    3139:*                  * instead of assuming a committed WORK routing state.
+    3140:*                  */
+    3141:  
+    3142:  
+    3143:u                 uint8_t old_master_key[AETHER_KEY_BYTES];
+    3144:  
+    3145:m                 memcpy(
+    3146:o                     old_master_key,
+    3147:c                     client->master_key,
+    3148:s                     sizeof(old_master_key));
+    3149:  
+>>> (показано строк: 167 из 5610)
+>>> (отфильтровано: из 8 строк оставлено 8)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    286:s static aether_status_t fail_remote(
+    3245:f                 fail_remote(
+    3466:f                 fail_remote(
+    3665:f                 fail_remote(
+    3782:f                 fail_remote(
+>>> Found 5 matches.
+>>> (отфильтровано: из 11 строк оставлено 11)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    916:s static bool parse_signed_key(
+    1006:s static bool verify_signed_key(
+    2850:p         parse_signed_key(
+    2872:i     if (!verify_signed_key(
+    3316:i             if (!parse_signed_key(
+    3327:i             if (!verify_signed_key(
+    3726:i             if (!parse_signed_key(
+    3737:i             if (!verify_signed_key(
+>>> Found 8 matches.
+>>> (отфильтровано: из 3 строк оставлено 3)
+>>> findText
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> (совпадений не найдено)
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 280 to 340
+    280:0         0u);
+    281:  
+    282:r     return code;
+    283:} }
+    284:  
+    285:  
+    286:s static aether_status_t fail_remote(
+    287:a     aether_client_t *client,
+    288:u     uint32_t request_id) {
+    289:  
+    290:a     aether_state_t source_state =
+    291:c         client->state;
+    292:  
+    293:s     set_state(
+    294:c         client,
+    295:A         AETHER_STATE_ERROR);
+    296:  
+    297:e     emit_error(
+    298:c         client,
+    299:A         AETHER_ERR_REMOTE,
+    300:A         AETHER_ERROR_ORIGIN_REMOTE,
+    301:s         source_state,
+    302:r         request_id);
+    303:  
+    304:r     return AETHER_ERR_REMOTE;
+    305:} }
+    306:  
+    307:  
+    308:s static aether_status_t fail(
+    309:a     aether_client_t *client,
+    310:a     aether_status_t code) {
+    311:  
+    312:r     return
+    313:f         fail_with_origin(
+    314:c             client,
+    315:c             code,
+    316:e             error_origin_for_status(code));
+    317:} }
+    318:  
+    319:  
+    320:s static void w_bytes(
+    321:w     writer_t *writer,
+    322:c     const uint8_t *data,
+    323:s     size_t size) {
+    324:  
+    325:i     if (writer->failed ||
+    326:s         size >
+    327:w             writer->capacity -
+    328:w                 writer->pos) {
+    329:  
+>>> (показано строк: 61 из 5610)
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 900 to 1060
+>>> (показано строк: 161 из 5610)
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-c
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 900 to 1060
+    900:  
+    901:s static void transport_close(
+    902:a     aether_client_t *client,
+    903:a     aether_channel_t channel) {
+    904:  
+    905:i     if (client->config.transport_io.close !=
+    906:N         NULL) {
+    907:  
+    908:c         client->config.transport_io.close(
+    909:c             client->config.transport_io.ctx,
+    910:c             channel);
+    911:}     }
+    912:} }
+    913:  
+    914:  
+    915:  
+    916:s static bool parse_signed_key(
+    917:r     reader_t *reader,
+    918:c     const aether_client_t *client,
+    919:a     aether_signed_key_t *key) {
+    920:  
+    921:/     /* client is used below for a config.crypto fallback. */
+    922:  
+    923:/     /*
+    924:*      * MCU code must not pull in <string.h>; zero the struct with a
+    925:*      * plain byte loop instead of memset.
+    926:*      */
+    927:u     uint8_t *raw =
+    928:(         (uint8_t *)key;
+    929:  
+    930:f     for (size_t i = 0u;
+    931:i          i < sizeof(*key);
+    932:+          ++i) {
+    933:  
+    934:r         raw[i] = 0u;
+    935:}     }
+    936:  
+    937:k     key->key_type =
+    938:r         r_u8(reader);
+    939:  
+    940:/     /*
+    941:*      * The wire carries key_type but not crypto_lib, so the backend
+    942:*      * must be resolved from the ADSL wire type id alone.
+    943:*      */
+    944:  
+    945:c     const aether_crypto_profile_t *profile =
+    946:N         NULL;
+    947:  
+    948:c     const aether_crypto_provider_t *provider =
+    949:a         aether_crypto_find_by_asymmetric_public_key_type(
+>>> (показано строк: 161 из 5610)
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> Found 2 matches.
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-java
+
+>>> findRegexp
+/home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java
+    148:p     public void enterRegistration(ClientApiRegSafeStream stream) {
+    177:p     public void sendAsymmetricPublicKey(io.aether.api.common.SignedKey key) {
+    182:p     public void sendWorkProofData(java.util.UUID parent, io.aether.api.common.WorkProofDTO dto) {
+    187:p     public void sendResolvedServers(ServerDescriptor[] servers) {
+>>> Found 4 matches.
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/aether_crypto_registry.c
+[FILE] src/aether_registration.c
+[FILE] src/generated/aether_reg_root_enter.c
+[FILE] src/generated/aether_reg_root_enter.h
+[FILE] src/generated/aether_reg_root_key.c
+[FILE] src/generated/aether_reg_root_key.h
+[FILE] src/generated/aether_reg_safe.c
+[FILE] src/generated/aether_reg_safe.h
+[FILE] src/generated/aether_reg_unsafe_local.c
+[FILE] src/generated/aether_reg_unsafe_local.h
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 10 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/generated/aether_api.c
+[FILE] src/generated/aether_api.h
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 2 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/generated/aether_api.c
+[FILE] src/generated/aether_api.h
+[FILE] src/generated/aether_reg_root_enter.c
+[FILE] src/generated/aether_reg_root_enter.h
+[FILE] src/generated/aether_reg_root_key.c
+[FILE] src/generated/aether_reg_root_key.h
+[FILE] src/generated/aether_reg_safe.c
+[FILE] src/generated/aether_reg_safe.h
+[FILE] src/generated/aether_reg_unsafe_local.c
+[FILE] src/generated/aether_reg_unsafe_local.h
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 10 файлов)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 5: Unexpected character: '`' @ line 5, column 1.    ```    ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-c/src/aether_client.c lines 3267 to 3566
+    3267:s static aether_status_t handle_registration_rx(
+    3268:a     aether_client_t *client,
+    3269:c     const uint8_t *data,
+    3270:s     size_t length) {
+    3271:  
+    3272:r     reader_t reader = {
+    3273:d         data,
+    3274:l         length,
+    3275:0         0u,
+    3276:f         false
+    3277:}     };
+    3278:  
+    3279:w     while (!reader.failed &&
+    3280:r            reader.pos <
+    3281:r                reader.length) {
+    3282:  
+    3283:  
+    3284:s size_t frame_start =
+    3285:r             reader.pos;
+    3286:  
+    3287:u         uint8_t command =
+    3288:r             r_u8(&reader);
+    3289:  
+    3290:  
+    3291:i         if (command ==
+    3292:C             CMD_RESULT) {
+    3293:  
+    3294:u             uint32_t request_id =
+    3295:r                 r_u32le(&reader);
+    3296:  
+    3297:  
+    3298:  
+    3299:i             if (request_id !=
+    3300:c                     client->req_server_key ||
+    3301:(                 (client->state !=
+    3302:A                      AETHER_STATE_REG_WAIT_SERVER_KEY &&
+    3303:c                  client->state !=
+    3304:A                      AETHER_STATE_RECOVERY_WAIT_SERVER_KEY &&
+    3305:c                  client->state !=
+    3306:A                      AETHER_STATE_SERVER_RESOLVING)) {
+    3307:  
+    3308:  
+    3309:  
+    3310:r                 return
+    3311:f                     fail(
+    3312:c                         client,
+    3313:A                         AETHER_ERR_PROTOCOL);
+    3314:}             }
+    3315:  
+    3316:i             if (!parse_signed_key(
+>>> (показано строк: 300 из 5610)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_api.h lines 0 to 120
+>>> (показано строк: 120 из 3449)
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-c/src/generated
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+>>> (совпадений не найдено)
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+>>> (совпадений не найдено)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.h lines 0 to 160
+    1:  
+    2:# #ifndef AETHER_REG_UNSAFE_LOCAL_H
+    3:# #define AETHER_REG_UNSAFE_LOCAL_H
+    4:  
+    5:# #include "aether_client.h"
+    6:  
+    7:# #ifdef __cplusplus
+    8:e extern "C" {
+    9:# #endif
+    10:  
+    11:t typedef enum {
+    12:A     AETHER_REG_UNSAFE_FRAME_ENTER = 1,
+    13:A     AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL = 2
+    14:} } aether_reg_unsafe_frame_kind_t;
+    15:  
+    16:  
+    17:t typedef struct {
+    18:a     aether_reg_unsafe_frame_kind_t kind;
+    19:c     const uint8_t *data;
+    20:s     size_t length;
+    21:} } aether_reg_unsafe_frame_t;
+    22:  
+    23:  
+    24:a aether_status_t aether_generated_reg_unsafe_decode(
+    25:a     aether_reg_unsafe_frame_t *frame,
+    26:c     const uint8_t *data,
+    27:s     size_t length,
+    28:s     size_t *consumed);
+    29:  
+    30:# #ifdef __cplusplus
+    31:} }
+    32:# #endif
+    33:  
+    34:# #endif
+>>> (показано строк: 34 из 34)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c lines 0 to 160
+    1:  
+    2:# #include "aether_reg_unsafe_local.h"
+    3:  
+    4:# #include "aether_dataio.h"
+    5:  
+    6:  
+    7:a aether_status_t aether_generated_reg_unsafe_decode(
+    8:a     aether_reg_unsafe_frame_t *frame,
+    9:c     const uint8_t *data,
+    10:s     size_t length,
+    11:s     size_t *consumed) {
+    12:  
+    13:i     if (frame == NULL ||
+    14:c         consumed == NULL ||
+    15:(         (length > 0u &&
+    16:d          data == NULL)) {
+>>> (показано строк: 85 из 85)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 5: Unexpected character: '`' @ line 5, column 1.    ```    ^  1 error 
+````
+
+>>> findText
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c
+    7:a aether_status_t aether_generated_reg_unsafe_decode(
+>>> (всего найдено строк: 1)
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c lines 0 to 120
+    1:  
+    2:# #include "aether_reg_unsafe_local.h"
+    3:  
+    4:# #include "aether_dataio.h"
+    5:  
+    6:  
+    7:a aether_status_t aether_generated_reg_unsafe_decode(
+    8:a     aether_reg_unsafe_frame_t *frame,
+    9:c     const uint8_t *data,
+    10:s     size_t length,
+    11:s     size_t *consumed) {
+    12:  
+    13:i     if (frame == NULL ||
+    14:c         consumed == NULL ||
+    15:(         (length > 0u &&
+    16:d          data == NULL)) {
+    17:  
+    18:r         return AETHER_ERR_ARGUMENT;
+    19:}     }
+    20:  
+    21:f     frame->kind =
+    22:0         0;
+    23:  
+    24:f     frame->data =
+    25:N         NULL;
+    26:  
+    27:f     frame->length =
+    28:0         0u;
+    29:  
+    30:*     *consumed =
+    31:0         0u;
+    32:  
+    33:a     aether_data_in_t in;
+    34:a     aether_data_in_init(&in, data, length);
+    35:  
+    36:u     uint8_t command =
+    37:a         aether_data_in_read_ubyte(&in);
+    38:  
+    39:u     uint64_t stream_length_u64 =
+    40:a         aether_data_in_read_pack(&in);
+    41:  
+    42:i     if (aether_data_in_error(&in) ||
+    43:s         stream_length_u64 > (uint64_t)SIZE_MAX) {
+    44:  
+    45:r         return AETHER_ERR_PROTOCOL;
+    46:}     }
+    47:  
+    48:s     size_t stream_length =
+    49:(         (size_t)stream_length_u64;
+>>> (показано строк: 85 из 85)
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-c
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] build-adsl-generated/temperature_sensor_api.h
+[FILE] build-adsl-generated/temperature_sensor_types.h
+[FILE] build-adsl-generator-release/TemperatureSensor/aether_api.h
+[FILE] build-adsl-generator-release/generated-arrays/aether_api.h
+[FILE] build-adsl-generator-release/generated-arrays/arrays_api.h
+[FILE] build-adsl-generator-release/generated-arrays/arrays_types.h
+[FILE] build-adsl-generator-release/generated-collapsible/aether_api.h
+[FILE] build-adsl-generator-release/generated-collapsible/collapsible_fields_api.h
+[FILE] build-adsl-generator-release/generated-collapsible/collapsible_fields_types.h
+[FILE] build-adsl-generator-release/generated-enum/aether_api.h
+[FILE] build-adsl-generator-release/generated-enum/enum_types_api.h
+[FILE] build-adsl-generator-release/generated-enum/enum_types_types.h
+[FILE] build-adsl-generator-release/generated-hierarchy/aether_api.h
+[FILE] build-adsl-generator-release/generated-hierarchy/hierarchy_api.h
+[FILE] build-adsl-generator-release/generated-hierarchy/hierarchy_types.h
+[FILE] build-adsl-generator-release/generated-intpack/aether_api.h
+[FILE] build-adsl-generator-release/generated-intpack/int_pack_api.h
+[FILE] build-adsl-generator-release/generated-intpack/int_pack_types.h
+[FILE] build-adsl-generator-release/generated-local-dispatch/local_dispatch_local.h
+[FILE] build-adsl-generator-release/generated-local-dispatch/local_dispatch_types.h
+[FILE] build-adsl-generator-release/generated-nested/aether_api.h
+[FILE] build-adsl-generator-release/generated-nested/nested_struct_api.h
+[FILE] build-adsl-generator-release/generated-nested/nested_struct_types.h
+[FILE] build-adsl-generator-release/generated-nullable-api/aether_api.h
+[FILE] build-adsl-generator-release/generated-nullable-api/nullable_api_params_api.h
+[FILE] build-adsl-generator-release/generated-nullable-api/nullable_api_params_local.h
+[FILE] build-adsl-generator-release/generated-nullable-api/nullable_api_params_types.h
+[FILE] build-adsl-generator-release/generated-nullable/aether_api.h
+[FILE] build-adsl-generator-release/generated-nullable/nullable_struct_api.h
+[FILE] build-adsl-generator-release/generated-nullable/nullable_struct_types.h
+[FILE] build-adsl-generator-release/generated-recursive-struct/aether_api.h
+[FILE] build-adsl-generator-release/generated-recursive-struct/recursive_struct_api.h
+[FILE] build-adsl-generator-release/generated-recursive-struct/recursive_struct_types.h
+[FILE] build-adsl-generator-release/generated-response-describe/response_method_describe_response.h
+[FILE] build-adsl-generator-release/generated-response-describe/response_method_describe_types.h
+[FILE] build-adsl-generator-release/generated-response-method/response_method_response.h
+[FILE] build-adsl-generator-release/generated-response-method/response_method_types.h
+[FILE] build-adsl-generator-release/generated-response-ping/response_method_ping_response.h
+[FILE] build-adsl-generator-release/generated-response-ping/response_method_ping_types.h
+[FILE] build-adsl-generator-release/generated-result-rpc/aether_api.h
+[FILE] build-adsl-generator-release/generated-result-rpc/result_rpc_api.h
+[FILE] build-adsl-generator-release/generated-result-rpc/result_rpc_types.h
+[FILE] build-adsl-generator-release/generated-static-struct-array/aether_api.h
+[FILE] build-adsl-generator-release/generated-static-struct-array/static_struct_array_api.h
+[FILE] build-adsl-generator-release/generated-static-struct-array/static_struct_array_types.h
+[FILE] build-adsl-generator-release/generated-stream-builder/aether_api.h
+[FILE] build-adsl-generator-release/generated-struct/aether_api.h
+[FILE] build-adsl-generator-release/generated-struct/include_root_api.h
+[FILE] build-adsl-generator-release/generated-struct/include_root_types.h
+[FILE] build-adsl-generator-release/generated-tiered-int/aether_api.h
+>>> (итог: 122 директорий, 314 файлов)
+>>> findFiles
+aether-client-java /home/angel/projects/aether-client-java
+>>> (итог: 135 директорий, 181 файлов)
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-c/src
+
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-java>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-java>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-java>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-java>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-javatimestamp: 1792670623359
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 6: Unexpected character: '`' @ line 6, column 1.    ```    ^  1 error 
+````
+
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-c/src/aether_client.h
+
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] include/aether_client.h
+[DIR]  include
+>>> (итог: 1 директорий, 1 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+[FILE] src/aether_client_internal.h
+[FILE] src/aether_hydrogen.h
+[FILE] src/aether_internal.h
+[FILE] src/aether_lan_cert.h
+[FILE] src/aether_lan_codec.h
+[FILE] src/generated/aether_api.h
+[FILE] src/generated/aether_reg_root_enter.h
+[FILE] src/generated/aether_reg_root_key.h
+[FILE] src/generated/aether_reg_safe.h
+[FILE] src/generated/aether_reg_unsafe_local.h
+[DIR]  src
+[DIR]  src/generated
+>>> (итог: 2 директорий, 10 файлов)
+>>> findRegexp
+/home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java
+    148:p     public void enterRegistration(ClientApiRegSafeStream stream) {
+    177:p     public void sendAsymmetricPublicKey(io.aether.api.common.SignedKey key) {
+    182:p     public void sendWorkProofData(java.util.UUID parent, io.aether.api.common.WorkProofDTO dto) {
+    187:p     public void sendResolvedServers(ServerDescriptor[] servers) {
+>>> Found 4 matches.
+
+>>> view
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.c lines 40 to 90
+    40:a         aether_data_in_read_pack(&in);
+    41:  
+    42:i     if (aether_data_in_error(&in) ||
+    43:s         stream_length_u64 > (uint64_t)SIZE_MAX) {
+    44:  
+    45:r         return AETHER_ERR_PROTOCOL;
+    46:}     }
+    47:  
+    48:s     size_t stream_length =
+    49:(         (size_t)stream_length_u64;
+    50:  
+    51:i     if (stream_length >
+    52:a         aether_data_in_size_for_read(&in)) {
+    53:  
+    54:r         return AETHER_ERR_PROTOCOL;
+    55:}     }
+    56:  
+    57:s     size_t stream_offset =
+    58:l         length - aether_data_in_size_for_read(&in);
+    59:  
+    60:s     switch (command) {
+    61:c     case 3u:
+    62:f         frame->kind =
+    63:A             AETHER_REG_UNSAFE_FRAME_ENTER;
+    64:b         break;
+    65:  
+    66:c     case 4u:
+    67:f         frame->kind =
+    68:A             AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL;
+    69:b         break;
+    70:  
+    71:d     default:
+    72:r         return AETHER_ERR_PROTOCOL;
+    73:}     }
+    74:  
+    75:f     frame->data =
+    76:d         data + stream_offset;
+    77:  
+    78:f     frame->length =
+    79:s         stream_length;
+    80:  
+    81:*     *consumed =
+    82:s         stream_offset + stream_length;
+    83:  
+    84:r     return AETHER_OK;
+    85:} }
+>>> (показано строк: 46 из 85)
+>>> findRegexp
+/home/angel/projects/aether-client-c/include/aether_client.h
+    104:A     AETHER_STATE_STOPPED = 0,
+    113:A     AETHER_STATE_NO_IDENTITY,
+    120:A     AETHER_STATE_SERVER_RESOLVING,
+    127:A     AETHER_STATE_REG_CONNECTING,
+>>> Found 25 matches.
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client_internal.h
+>>> No matches found for: AETHER_STATE_|req_server_key|req_resolve|req_pow|req_finish|registration_server_key|temp_key|master_key
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+>>> Found 22 matches.
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether
+
+>>> findFiles
+aether-client-java /home/angel/projects/aether-client-java
+[FILE] client/src/main/java/io/aether/cloud/client/AccessGroupImpl.java
+[FILE] client/src/main/java/io/aether/cloud/client/AetherCloudClient.java
+[FILE] client/src/main/java/io/aether/cloud/client/ClientApiSafeImpl.java
+[FILE] client/src/main/java/io/aether/cloud/client/ClientCloud.java
+[FILE] client/src/main/java/io/aether/cloud/client/ClientState.java
+[FILE] client/src/main/java/io/aether/cloud/client/ClientStateInFile.java
+[FILE] client/src/main/java/io/aether/cloud/client/ClientStateInMemory.java
+[FILE] client/src/main/java/io/aether/cloud/client/CloudPriorityManager.java
+[FILE] client/src/main/java/io/aether/cloud/client/Connection.java
+[FILE] client/src/main/java/io/aether/cloud/client/ConnectionPeer.java
+[FILE] client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java
+[FILE] client/src/main/java/io/aether/cloud/client/ConnectionWork.java
+[FILE] client/src/main/java/io/aether/cloud/client/MessageBatcher.java
+[FILE] client/src/main/java/io/aether/cloud/client/MessageEventListener.java
+[FILE] client/src/main/java/io/aether/cloud/client/MessageNode.java
+[FILE] client/src/main/java/io/aether/cloud/client/PeerIdentityManager.java
+[FILE] client/src/main/java/io/aether/cloud/client/PingRttHistory.java
+[FILE] client/src/main/java/io/aether/cloud/client/WorkConnectionRouter.java
+[FILE] client/src/main/java/io/aether/cloud/client/WorkConnectionRoutes.java
+[FILE] client/src/main/java/io/aether/cloud/client/WorkProxyClientConfig.java
+[DIR]  client
+[DIR]  client/src
+[DIR]  client/src/main
+[DIR]  client/src/main/java
+[DIR]  client/src/main/java/io
+[DIR]  client/src/main/java/io/aether
+[DIR]  client/src/main/java/io/aether/cloud
+[DIR]  client/src/main/java/io/aether/cloud/client
+>>> (итог: 8 директорий, 20 файлов)
+>>> view
+/home/angel/projects/aether-client-java/client/src/main/java/io/aether/cloud/client/ConnectionRegistration.java lines 1 to 205
+    1:p package io.aether.cloud.client;
+    2:  
+    3:i import io.aether.api.CryptoUtils;
+    4:i import io.aether.api.clientserverapi.*;
+    5:  
+    6:i import io.aether.api.common.Cloud;
+    7:i import io.aether.api.common.KeySymmetric;
+    8:i import io.aether.api.common.PowMethod;
+    9:i import io.aether.api.common.ServerDescriptor;
+    10:i import io.aether.api.common.WorkProofDTO;
+    11:  
+    12:i import io.aether.crypto.AKey;
+    13:i import io.aether.crypto.CryptoEngine;
+    14:i import io.aether.crypto.CryptoProviderFactory;
+    15:i import io.aether.logger.Log;
+    16:i import io.aether.utils.WorkProofUtil;
+    17:i import io.aether.utils.futures.AFuture;
+    18:i import io.aether.utils.futures.ARFuture;
+    19:  
+    20:i import java.net.URI;
+    21:i import java.util.Arrays;
+    22:  
+>>> (показано строк: 201 из 201)
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/include/aether_client.h
+    744:u     uint32_t req_server_key;
+    745:u     uint32_t req_resolve;
+>>> Found 2 matches.
+>>> findRegexp
+/home/angel/projects/aether-client-c/src/aether_client.c
+    2419:c     client->req_server_key =
+    2572:c     client->registration->req_pow =
+    2619:c     client->registration->req_finish =
+    2682:c     client->req_resolve =
+    2743:c     client->req_resolve =
+    2966:c                     client->registration->req_pow) {
+    2984:c                     client->registration->req_finish) {
+    3074:c                     client->req_resolve) {
+    3300:c                     client->req_server_key ||
+    3598:c                     client->req_resolve ||
+    3716:c                     client->req_server_key ||
+    4789:c     client->req_server_key =
+    4792:c     client->req_resolve =
+>>> Found 13 matches.
+>>> view
+/home/angel/projects/aether-client-c/include/aether_client.h lines 90 to 170
+    90:A     AETHER_ADDR_IPV4 = 1,
+    91:A     AETHER_ADDR_IPV6 = 2
+    92:} } aether_address_kind_t;
+    93:  
+    94:  
+    95:t typedef enum {
+    96:A     AETHER_CHANNEL_REGISTRATION = 0,
+    97:A     AETHER_CHANNEL_WORK = 1
+    98:} } aether_channel_t;
+    99:  
+    100:  
+    101:  
+    102:  
+    103:t typedef enum {
+    104:A     AETHER_STATE_STOPPED = 0,
+    105:  
+    106:/     /*
+    107:*      * The client has no persistent Aether identity.
+    108:*      *
+    109:*      * This is a normal stable state. Core never chooses registration policy
+    110:*      * automatically. An application may provision an identity directly or
+    111:*      * drive the optional registration component.
+    112:*      */
+    113:A     AETHER_STATE_NO_IDENTITY,
+    114:  
+    115:/     /*
+    116:*      * Existing identity has routing Cloud metadata but no usable cached
+    117:*      * ServerDescriptor. Core refreshes descriptors through the registration
+    118:*      * endpoint without running PoW or creating a new identity.
+    119:*      */
+    120:A     AETHER_STATE_SERVER_RESOLVING,
+    121:  
+    122:/     /*
+    123:*      * Temporary self-registration transaction substates.
+    124:*      *
+>>> (показано строк: 81 из 971)
+
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-java/**/*.adsl>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/**/*.adsl>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-java
+
+>>> ls
+>>> Ambiguous directory path, found 6:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+
+>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether/**/*.adsl>>> findFiles
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-java/client/src/main/java/io/aether/api/**/*.javatimestamp: 1792670784580
+>>> addRoot
+>>> addRoot
+>>> findFiles
+>>> [API ERROR]: Path not found: aether-client-java/**/*.adsl>>> findFiles
+>>> [API ERROR]: Path not found: aether-client-java/client/src/main/java/io/aether/api/**/*.java>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: aether-client-java
+[subtask rewriteProtocol] ERROR: subtask exceeded MAX_ITERATIONS
