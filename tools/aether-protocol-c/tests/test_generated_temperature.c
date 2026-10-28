@@ -38,15 +38,17 @@ static aether_status_t capture_send(
 }
 
 static void test_report_temperature_wire(void) {
+
     uint8_t tx[16] = {0};
     capture_t capture = {0};
+    aether_data_out_t out = {tx, sizeof(tx), 0, false};
 
     ts_temperature_sensor_api_remote_t remote = {
         &capture,
         capture_send,
-        tx,
-        sizeof(tx)
+        &out
     };
+
 
     float temperature =
         21.5f;
@@ -114,15 +116,17 @@ static void test_report_temperature_negative_wire(void) {
 }
 
 static void test_report_temperature_overflow(void) {
+
     uint8_t tx[4] = {0};
     capture_t capture = {0};
+    aether_data_out_t out = {tx, sizeof(tx), 0, false};
 
     ts_temperature_sensor_api_remote_t remote = {
         &capture,
         capture_send,
-        tx,
-        sizeof(tx)
+        &out
     };
+
 
     assert(
         ts_temperature_sensor_api_report_temperature(
@@ -140,14 +144,16 @@ static void test_report_temperature_arguments(void) {
             1.0f) ==
         AETHER_ERR_ARGUMENT);
 
+
     uint8_t tx[16] = {0};
+    aether_data_out_t out = {tx, sizeof(tx), 0, false};
 
     ts_temperature_sensor_api_remote_t no_send = {
         NULL,
         NULL,
-        tx,
-        sizeof(tx)
+        &out
     };
+
 
     assert(
         ts_temperature_sensor_api_report_temperature(

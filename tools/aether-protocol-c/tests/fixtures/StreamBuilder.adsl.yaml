@@ -12,11 +12,6 @@ api:
         params:
           value: int
 
-      query:
-        id: 4
-        returns: bool
-        params:
-          code: short
 
 
       updateValue:
