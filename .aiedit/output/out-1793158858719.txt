@@ -1,0 +1,2040 @@
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    ...
+      95:  
+      96:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    + 97:  
+      98:  
+      99:a auto Registration::GetKeys() {
+    - 99:r   return make_api_call(
+    - 100:s              server_reg_root_api_, protocol_context_,
+    - 101:r              root_server_select_stream_,
+    - 102:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    - 103:A                AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    - 104:a                auto promise = api_call->GetPublicKey(kDefaultCryptoLibProfile);
+    - 105:# #  if DEBUG
+    - 106:/                // For debug, call also for get my ip method to print our public
+    - 107:/                // ip visible to registration server
+    - 108:g                get_my_ip_subscription_ =
+    - 109:a                    api_call->GetMyIp().Subscribe([](auto&& res) {
+    - 110:i                      if (res) {
+    - 111:a                        auto& iip = res.value();
+    - 112:A                        AE_TELED_INFO(
+    - 113:"                            "Registration our public ip: {}:{}, coords: {},{}",
+    - 114:i                            iip.ip, iip.port, iip.latitude, iip.longitude);
+    - 115:}                      } else {
+    - 116:A                        AE_TELED_ERROR("Get my ip failed");
+    - 117:}                      }
+    - 118:}                    });
+    - 119:# #  endif
+    - 120:r                return promise;
+    - 121:}              }) |
+    - 122:e          ex::let_value([this](auto&& signed_key) noexcept {
+    - 123:r            return ex::create<ex::set_value_t(), ex::set_error_t(std::int32_t)>(
+    - 124:[                [this, signed_key = std::forward<decltype(signed_key)>(
+    - 125:s                           signed_key)](auto& ctx) mutable noexcept {
+    - 126:i                  if (!CryptoSignVerify(signed_key.sign, signed_key.key,
+    - 127:s                                        sign_pk_)) {
+    - 128:A                    AE_TELE_ERROR(RegisterGetKeysVerificationFailed,
+    - 129:"                                  "Sign verification failed");
+    - 130:e                    ex::set_error(std::move(ctx.receiver), std::int32_t{1});
+    - 131:r                    return;
+    - 132:}                  }
+    - 133:s                  server_pub_key_ = std::move(signed_key.key);
+    - 134:r                  root_crypto_provider_.SetEncryptionKey(server_pub_key_);
+    - 135:A                  AE_TELED_INFO("Key received");
+    - 136:e                  ex::set_value(std::move(ctx.receiver));
+    - 137:}                });
+    - 138:}          });
+    + 100:A   AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    + 101:s   server_reg_root_api_.GetPublicKey(kDefaultCryptoLibProfile);
+
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 101 to 105
+    101:s   server_reg_root_api_.GetPublicKey(kDefaultCryptoLibProfile);
+    102:r   return ex::just_value();
+    103:} }
+    104:  
+    105:  
+>>> (показано строк: 5 из 308)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 103 начинается с '}', ожидалось 'a'
+ for path: /home/angel/projects/aether-client-cpp/aether/registration/registration.cpptimestamp: 1793158335458
+>>> (отфильтровано: из 310 строк оставлено 150)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/api_protocol/make_api_call_sender.h"
+    28:# #  include "aether/crypto.h"
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/sign.h"
+    31:# #  include "aether/executors/executors.h"
+    32:  
+    33:# #  include "aether/registration/proof_of_work.h"
+    34:# #  include "aether/registration/registration_crypto_provider.h"
+    35:  
+    36:# #  include "aether/ae_actions/ae_actions_tele.h"
+    37:  
+    38:n namespace ae {
+    39:  
+    40:R Registration::Registration(AeContext const& ae_context,
+    41:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    42:U                            Uid parent_uid)
+    43::     : Action{ae_context},
+    44:a       ae_context_{ae_context},
+    45:p       parent_uid_{std::move(parent_uid)},
+    46:p       protocol_context_{ae_context_},
+    47:r       root_crypto_provider_{},
+    48:g       global_crypto_provider_{},
+    49:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    50:*                        *global_crypto_provider_.decryptor()},
+    51:s       server_reg_root_api_{*root_crypto_provider_.encryptor(),
+    52:*                            *global_crypto_provider_.encryptor()},
+    53:r       root_server_select_stream_{ae_context_, reg_cloud},
+    54:/       // TODO: add configuration
+    55:r       response_timeout_{std::chrono::seconds(20)},
+    56:s       sign_pk_{Crypto::ptr{ae_context_.aether().crypto}
+    57:-                    ->signs_pk_[kDefaultSignatureMethod]},
+    58:r       registration_event_{ae_context_} {
+    59:A   AE_TELE_INFO(RegisterStarted);
+    60:  
+    61:/   // parent uid must not be empty
+    62:a   assert(!parent_uid_.empty());
+    63:  
+    64:I   InitConnection();
+    65:R   Run();
+    66:} }
+    67:  
+    68:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    69:  
+    70:R Registration::RegistrationEvent const& Registration::registration() {
+    71:r   return registration_event_;
+    72:} }
+    73:  
+    74:v void Registration::InitConnection() {
+    75:A   AE_TELED_DEBUG("Registration::InitConnection");
+    76:  
+    77:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    78:/     // Reinit connection and start registration from the beginning
+    79:/     // TODO: make async_waiter_ stop and start get keys again
+    80:A     AE_TELED_ERROR("Server changed");
+    81:}   });
+    82:  
+    83:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    84:A     AE_TELED_ERROR("Link Error, Registration failed");
+    85:/     // TODO: make async_waiter_ stop with error
+    86:}   });
+    87:  
+    88:/   // Connect parser for out data
+    89:r   root_server_select_stream_.out_data_event().Subscribe(
+    90:[       [this](auto const& data) {
+    91:a         auto parser = ApiParser{protocol_context_, data};
+    92:p         parser.Parse(client_root_api_);
+    93:}       });
+    94:} }
+    95:  
+    96:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    97:  
+    98:  
+    99:a auto Registration::GetKeys() {
+    100:A   AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    101:s   server_reg_root_api_.GetPublicKey(kDefaultCryptoLibProfile);
+    102:r   return ex::just_value();
+    103:} }
+    104:  
+    105:  
+    106:a auto Registration::RequestPowParams() {
+    107:r   return make_api_call(
+    108:s              server_reg_root_api_, protocol_context_,
+    109:r              root_server_select_stream_,
+    110:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    111:A                AE_TELE_INFO(RegisterRequestPowParams,
+    112:"                             "Request proof of work params");
+    113:A                ApiPromise<PowParams> promise;
+    114:a                api_call->Enter(
+    115:k                    kDefaultCryptoLibProfile,
+    116:[                    [&promise,
+    117:t                     this](ApiContext<ServerRegistrationApi>& server_api) {
+    118:s                      server_api->SetReturnKey(
+    119:r                          root_crypto_provider_.GetDecryptionKey());
+    120:p                      promise = server_api->RequestProofOfWorkData(
+    121:p                          parent_uid_, PowMethod::kBCryptCrc32);
+    122:}                    });
+    123:r                return promise;
+    124:}              }) |
+    125:e          ex::let_value([this](auto&& pow_params) noexcept {
+    126:r            return ex::create<ex::set_value_t(), ex::set_error_t(std::int32_t)>(
+    127:[                [this, pow_params = std::forward<decltype(pow_params)>(
+    128:p                           pow_params)](auto& ctx) mutable noexcept {
+    129:i                  if (!CryptoSignVerify(pow_params.global_key.sign,
+    130:p                                        pow_params.global_key.key, sign_pk_)) {
+    131:A                    AE_TELE_ERROR(
+    132:R                        RegisterPowParamsVerificationFailed,
+    133:"                        "Proof of work params sign verification failed");
+    134:e                    ex::set_error(std::move(ctx.receiver), std::int32_t{2});
+    135:r                    return;
+    136:}                  }
+    137:  
+    138:a                  aether_global_key_ = pow_params.global_key.key;
+    139:p                  pow_params_.salt = pow_params.salt;
+    140:p                  pow_params_.max_hash_value = pow_params.max_hash_value;
+    141:p                  pow_params_.password_suffix = pow_params.password_suffix;
+    142:p                  pow_params_.pool_size = pow_params.pool_size;
+    143:g                  global_crypto_provider_.SetEncryptionKey(aether_global_key_);
+    144:m                  master_key_ = global_crypto_provider_.GetDecryptionKey();
+    145:e                  ex::set_value(std::move(ctx.receiver));
+    146:}                });
+    147:}          });
+    148:} }
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    ...
+      104:  
+      105:  
+    - 106:a auto Registration::RequestPowParams() {
+    - 107:r   return make_api_call(
+    - 108:s              server_reg_root_api_, protocol_context_,
+    - 109:r              root_server_select_stream_,
+    - 110:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    - 111:A                AE_TELE_INFO(RegisterRequestPowParams,
+    - 112:"                             "Request proof of work params");
+    - 113:A                ApiPromise<PowParams> promise;
+    - 114:a                api_call->Enter(
+    - 115:k                    kDefaultCryptoLibProfile,
+    - 116:[                    [&promise,
+    - 117:t                     this](ApiContext<ServerRegistrationApi>& server_api) {
+    - 118:s                      server_api->SetReturnKey(
+    - 119:r                          root_crypto_provider_.GetDecryptionKey());
+    - 120:p                      promise = server_api->RequestProofOfWorkData(
+    - 121:p                          parent_uid_, PowMethod::kBCryptCrc32);
+    - 122:}                    });
+    - 123:r                return promise;
+    - 124:}              }) |
+    - 125:e          ex::let_value([this](auto&& pow_params) noexcept {
+    - 126:r            return ex::create<ex::set_value_t(), ex::set_error_t(std::int32_t)>(
+    - 127:[                [this, pow_params = std::forward<decltype(pow_params)>(
+    - 128:p                           pow_params)](auto& ctx) mutable noexcept {
+    - 129:i                  if (!CryptoSignVerify(pow_params.global_key.sign,
+    - 130:p                                        pow_params.global_key.key, sign_pk_)) {
+    - 131:A                    AE_TELE_ERROR(
+    - 132:R                        RegisterPowParamsVerificationFailed,
+    - 133:"                        "Proof of work params sign verification failed");
+    - 134:e                    ex::set_error(std::move(ctx.receiver), std::int32_t{2});
+    - 135:r                    return;
+    - 136:}                  }
+      106:  
+    - 138:a                  aether_global_key_ = pow_params.global_key.key;
+    - 139:p                  pow_params_.salt = pow_params.salt;
+    - 140:p                  pow_params_.max_hash_value = pow_params.max_hash_value;
+    - 141:p                  pow_params_.password_suffix = pow_params.password_suffix;
+    - 142:p                  pow_params_.pool_size = pow_params.pool_size;
+    - 143:g                  global_crypto_provider_.SetEncryptionKey(aether_global_key_);
+    - 144:m                  master_key_ = global_crypto_provider_.GetDecryptionKey();
+    - 145:e                  ex::set_value(std::move(ctx.receiver));
+    - 146:}                });
+    - 147:}          });
+    + 107:a auto Registration::RequestPowParams() {
+    + 108:A   AE_TELE_INFO(RegisterRequestPowParams, "Request proof of work params");
+    + 109:s   server_reg_root_api_.Enter(
+
+>>> (отфильтровано: из 279 строк оставлено 230)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/api_protocol/make_api_call_sender.h"
+    28:# #  include "aether/crypto.h"
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/sign.h"
+    31:# #  include "aether/executors/executors.h"
+    32:  
+    33:# #  include "aether/registration/proof_of_work.h"
+    34:# #  include "aether/registration/registration_crypto_provider.h"
+    35:  
+    36:# #  include "aether/ae_actions/ae_actions_tele.h"
+    37:  
+    38:n namespace ae {
+    39:  
+    40:R Registration::Registration(AeContext const& ae_context,
+    41:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    42:U                            Uid parent_uid)
+    43::     : Action{ae_context},
+    44:a       ae_context_{ae_context},
+    45:p       parent_uid_{std::move(parent_uid)},
+    46:p       protocol_context_{ae_context_},
+    47:r       root_crypto_provider_{},
+    48:g       global_crypto_provider_{},
+    49:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    50:*                        *global_crypto_provider_.decryptor()},
+    51:s       server_reg_root_api_{*root_crypto_provider_.encryptor(),
+    52:*                            *global_crypto_provider_.encryptor()},
+    53:r       root_server_select_stream_{ae_context_, reg_cloud},
+    54:/       // TODO: add configuration
+    55:r       response_timeout_{std::chrono::seconds(20)},
+    56:s       sign_pk_{Crypto::ptr{ae_context_.aether().crypto}
+    57:-                    ->signs_pk_[kDefaultSignatureMethod]},
+    58:r       registration_event_{ae_context_} {
+    59:A   AE_TELE_INFO(RegisterStarted);
+    60:  
+    61:/   // parent uid must not be empty
+    62:a   assert(!parent_uid_.empty());
+    63:  
+    64:I   InitConnection();
+    65:R   Run();
+    66:} }
+    67:  
+    68:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    69:  
+    70:R Registration::RegistrationEvent const& Registration::registration() {
+    71:r   return registration_event_;
+    72:} }
+    73:  
+    74:v void Registration::InitConnection() {
+    75:A   AE_TELED_DEBUG("Registration::InitConnection");
+    76:  
+    77:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    78:/     // Reinit connection and start registration from the beginning
+    79:/     // TODO: make async_waiter_ stop and start get keys again
+    80:A     AE_TELED_ERROR("Server changed");
+    81:}   });
+    82:  
+    83:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    84:A     AE_TELED_ERROR("Link Error, Registration failed");
+    85:/     // TODO: make async_waiter_ stop with error
+    86:}   });
+    87:  
+    88:/   // Connect parser for out data
+    89:r   root_server_select_stream_.out_data_event().Subscribe(
+    90:[       [this](auto const& data) {
+    91:a         auto parser = ApiParser{protocol_context_, data};
+    92:p         parser.Parse(client_root_api_);
+    93:}       });
+    94:} }
+    95:  
+    96:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    97:  
+    98:  
+    99:a auto Registration::GetKeys() {
+    100:A   AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    101:s   server_reg_root_api_.GetPublicKey(kDefaultCryptoLibProfile);
+    102:r   return ex::just_value();
+    103:} }
+    104:  
+    105:  
+    106:  
+    107:a auto Registration::RequestPowParams() {
+    108:A   AE_TELE_INFO(RegisterRequestPowParams, "Request proof of work params");
+    109:s   server_reg_root_api_.Enter(
+    110:k       kDefaultCryptoLibProfile,
+    111:S       SubApi{[this](ApiContext<ServerRegistrationApi>& server_api) {
+    112:s         server_api->SetReturnKey(root_crypto_provider_.GetDecryptionKey());
+    113:s         server_api->RequestProofOfWorkData(parent_uid_, PowMethod::kBCryptCrc32);
+    114:}       }});
+    115:r   return ex::just_value();
+    116:} }
+    117:  
+    118:  
+    119:a auto Registration::MakeRegistration() {
+    120:r   return make_api_call(
+    121:s              server_reg_root_api_, protocol_context_,
+    122:r              root_server_select_stream_,
+    123:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    124:A                AE_TELE_INFO(RegisterMakeRegistration, "Make registration");
+    125:  
+    126:/                // Proof calculation
+    127:a                auto proofs = ProofOfWork::ComputeProofOfWork(
+    128:p                    pow_params_.pool_size, pow_params_.salt,
+    129:p                    pow_params_.password_suffix, pow_params_.max_hash_value);
+    130:  
+    131:A                AE_TELE_DEBUG(RegisterKeysGenerated,
+    132:"                              "Global Pk: {}:{}, Masterkey: {}:{}",
+    133:a                              aether_global_key_.Index(), aether_global_key_,
+    134:m                              master_key_.Index(), master_key_);
+    135:  
+    136:A                ApiPromise<RegistrationResponse> promise;
+    137:a                api_call->Enter(
+    138:k                    kDefaultCryptoLibProfile,
+    139:S                    SubApi{[this, &promise, &proofs](
+    140:A                               ApiContext<ServerRegistrationApi>& server_api) {
+    141:s                      server_api->Registration(
+    142:p                          pow_params_.salt, pow_params_.password_suffix, proofs,
+    143:p                          parent_uid_,
+    144:[                          [this, &promise](
+    145:A                              ApiContext<GlobalRegServerApi>& global_api) {
+    146:/                            // set master key and wait for confirmation
+    147:g                            global_api->SetMasterKey(master_key_);
+    148:p                            promise = global_api->Finish();
+    149:}                          });
+    150:}                    }});
+    151:r                return promise;
+    152:}              }) |
+    153:e          ex::then([this](auto&& reg_info) noexcept {
+    154:A            AE_TELE_INFO(RegisterRegistrationConfirmed,
+    155:"                         "Registration confirmed");
+    156:c            client_uid_ = reg_info.uid;
+    157:e            ephemeral_uid_ = reg_info.ephemeral_uid;
+    158:c            client_cloud_ = std::move(reg_info.cloud);
+    159:a            assert(!client_cloud_.empty() && "Client's cloud is empty");
+    160:}          });
+    161:} }
+    162:  
+    163:a auto Registration::ResolveCloud() {
+    164:r   return make_api_call(
+    165:s              server_reg_root_api_, protocol_context_,
+    166:r              root_server_select_stream_,
+    167:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    168:A                AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]",
+    169:c                             client_cloud_);
+    170:  
+    171:A                ApiPromise<std::vector<ServerDescriptor>> promise;
+    172:a                api_call->Enter(
+    173:k                    kDefaultCryptoLibProfile,
+    174:[                    [this, &promise](
+    175:A                        ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    176:p                      promise = server_api->ResolveServers(client_cloud_);
+    177:}                    });
+    178:r                return promise;
+    179:}              }) |
+    180:e          ex::then([this](auto&& servers) noexcept {
+    181:r            return OnCloudResolved(servers);
+    182:}          });
+    183:} }
+    184:  
+    185:C ClientConfig Registration::OnCloudResolved(
+    186:s     std::vector<ServerDescriptor> const& servers) {
+    187:A   AE_TELE_INFO(RegisterResolveCloudResponse);
+    188:  
+    189:C   ClientConfig client_config{
+    190:.       .parent_uid = parent_uid_,
+    191:.       .uid = client_uid_,
+    192:.       .ephemeral_uid = ephemeral_uid_,
+    193:.       .master_key = master_key_,
+    194:.       .cloud = {},
+    195:}   };
+    196:  
+    197:s   std::vector<Server::ptr> server_objects;
+    198:s   server_objects.reserve(servers.size());
+    199:  
+    200:f   for (const auto& description : servers) {
+    201:s     std::vector<Endpoint> endpoints;
+    202:f     for (auto const& ip : description.ips) {
+    203:f       for (auto const& pp : ip.protocol_and_ports) {
+    204:e         endpoints.emplace_back(Endpoint{{ip.ip, pp.port}, pp.protocol});
+    205:}       }
+    206:}     }
+    207:A     AE_TELED_DEBUG("Got server {} with endpoints {}", description.server_id,
+    208:e                    endpoints);
+    209:c     client_config.cloud.emplace_back(
+    210:S         ServerConfig{description.server_id, std::move(endpoints)});
+    211:}   }
+    212:  
+    213:/   // sort cloud by order of client_cloud_
+    214:s   std::sort(std::begin(client_config.cloud), std::end(client_config.cloud),
+    215:[             [this](auto const& left, auto const& right) {
+    216:a               auto left_order = std::find(std::begin(client_cloud_),
+    217:s                                           std::end(client_cloud_), left.id);
+    218:a               auto right_order = std::find(std::begin(client_cloud_),
+    219:s                                            std::end(client_cloud_), right.id);
+    220:r               return left_order < right_order;
+    221:}             });
+    222:  
+    223:A   AE_TELE_DEBUG(RegisterClientRegistered,
+    224:"                 "Client registered:\n>>>>>>>>>>>>>>>\n{}\n<<<<<<<<<<<<<<<",
+    225:c                 client_config);
+    226:  
+    227:r   return client_config;
+    228:} }
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    ...
+      115:r   return ex::just_value();
+      116:} }
+    + 117:  
+      118:  
+      119:  
+      120:a auto Registration::MakeRegistration() {
+    - 120:r   return make_api_call(
+    - 121:s              server_reg_root_api_, protocol_context_,
+    - 122:r              root_server_select_stream_,
+    - 123:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    - 124:A                AE_TELE_INFO(RegisterMakeRegistration, "Make registration");
+    + 121:A   AE_TELE_INFO(RegisterMakeRegistration, "Make registration");
+      122:  
+    - 126:/                // Proof calculation
+    - 127:a                auto proofs = ProofOfWork::ComputeProofOfWork(
+    - 128:p                    pow_params_.pool_size, pow_params_.salt,
+    - 129:p                    pow_params_.password_suffix, pow_params_.max_hash_value);
+    + 123:a   auto proofs = ProofOfWork::ComputeProofOfWork(
+    + 124:p       pow_params_.pool_size, pow_params_.salt, pow_params_.password_suffix,
+    + 125:p       pow_params_.max_hash_value);
+      126:  
+    - 131:A                AE_TELE_DEBUG(RegisterKeysGenerated,
+    - 132:"                              "Global Pk: {}:{}, Masterkey: {}:{}",
+    - 133:a                              aether_global_key_.Index(), aether_global_key_,
+    - 134:m                              master_key_.Index(), master_key_);
+    + 127:A   AE_TELE_DEBUG(RegisterKeysGenerated, "Global Pk: {}:{}, Masterkey: {}:{}",
+    + 128:a                 aether_global_key_.Index(), aether_global_key_, master_key_.Index(),
+    + 129:m                 master_key_);
+      130:  
+    - 136:A                ApiPromise<RegistrationResponse> promise;
+    - 137:a                api_call->Enter(
+    - 138:k                    kDefaultCryptoLibProfile,
+    - 139:S                    SubApi{[this, &promise, &proofs](
+    - 140:A                               ApiContext<ServerRegistrationApi>& server_api) {
+    - 141:s                      server_api->Registration(
+    - 142:p                          pow_params_.salt, pow_params_.password_suffix, proofs,
+    - 143:p                          parent_uid_,
+    - 144:[                          [this, &promise](
+    - 145:A                              ApiContext<GlobalRegServerApi>& global_api) {
+    - 146:/                            // set master key and wait for confirmation
+    - 147:g                            global_api->SetMasterKey(master_key_);
+    - 148:p                            promise = global_api->Finish();
+    - 149:}                          });
+    - 150:}                    }});
+    - 151:r                return promise;
+    - 152:}              }) |
+    - 153:e          ex::then([this](auto&& reg_info) noexcept {
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 164 to 168
+    164:r                return promise;
+    165:}              }) |
+    166:e          ex::then([this](auto&& servers) noexcept {
+    167:r            return OnCloudResolved(servers);
+    168:}          });
+>>> (показано строк: 5 из 263)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 166 начинается с 'e', ожидалось 'a'
+ for path: /home/angel/projects/aether-client-cpp/aether/registration/registration.cpp>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    ...
+      25:# #  include "aether/aether.h"
+      26:# #  include "aether/api_protocol/api_protocol.h"
+    - 27:# #  include "aether/api_protocol/make_api_call_sender.h"
+    + 27:  
+    + 28:# #  include "aether/api_protocol/api_protocol.h"
+    + 29:# #  include "aether/crypto.h"
+    + 30:  
+      31:# #  include "aether/crypto.h"
+      32:# #  include "aether/crypto/crypto_definitions.h"
+
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 161 to 165
+    161:}                    });
+    162:r                return promise;
+    163:}              }) |
+    164:e          ex::then([this](auto&& servers) noexcept {
+    165:r            return OnCloudResolved(servers);
+>>> (показано строк: 5 из 261)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 163 начинается с '}', ожидалось 'a'
+ for path: /home/angel/projects/aether-client-cpp/aether/registration/registration.cpp>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    ...
+      26:# #  include "aether/api_protocol/api_protocol.h"
+      27:  
+    - 28:# #  include "aether/api_protocol/api_protocol.h"
+    - 29:# #  include "aether/crypto.h"
+      28:  
+      29:# #  include "aether/crypto.h"
+
+>>> (отфильтровано: из 263 строк оставлено 260)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:  
+    28:  
+    29:# #  include "aether/crypto.h"
+    30:# #  include "aether/crypto/crypto_definitions.h"
+    31:# #  include "aether/crypto/sign.h"
+    32:# #  include "aether/executors/executors.h"
+    33:  
+    34:# #  include "aether/registration/proof_of_work.h"
+    35:# #  include "aether/registration/registration_crypto_provider.h"
+    36:  
+    37:# #  include "aether/ae_actions/ae_actions_tele.h"
+    38:  
+    39:n namespace ae {
+    40:  
+    41:R Registration::Registration(AeContext const& ae_context,
+    42:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    43:U                            Uid parent_uid)
+    44::     : Action{ae_context},
+    45:a       ae_context_{ae_context},
+    46:p       parent_uid_{std::move(parent_uid)},
+    47:p       protocol_context_{ae_context_},
+    48:r       root_crypto_provider_{},
+    49:g       global_crypto_provider_{},
+    50:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    51:*                        *global_crypto_provider_.decryptor()},
+    52:s       server_reg_root_api_{*root_crypto_provider_.encryptor(),
+    53:*                            *global_crypto_provider_.encryptor()},
+    54:r       root_server_select_stream_{ae_context_, reg_cloud},
+    55:/       // TODO: add configuration
+    56:r       response_timeout_{std::chrono::seconds(20)},
+    57:s       sign_pk_{Crypto::ptr{ae_context_.aether().crypto}
+    58:-                    ->signs_pk_[kDefaultSignatureMethod]},
+    59:r       registration_event_{ae_context_} {
+    60:A   AE_TELE_INFO(RegisterStarted);
+    61:  
+    62:/   // parent uid must not be empty
+    63:a   assert(!parent_uid_.empty());
+    64:  
+    65:I   InitConnection();
+    66:R   Run();
+    67:} }
+    68:  
+    69:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    70:  
+    71:R Registration::RegistrationEvent const& Registration::registration() {
+    72:r   return registration_event_;
+    73:} }
+    74:  
+    75:v void Registration::InitConnection() {
+    76:A   AE_TELED_DEBUG("Registration::InitConnection");
+    77:  
+    78:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    79:/     // Reinit connection and start registration from the beginning
+    80:/     // TODO: make async_waiter_ stop and start get keys again
+    81:A     AE_TELED_ERROR("Server changed");
+    82:}   });
+    83:  
+    84:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    85:A     AE_TELED_ERROR("Link Error, Registration failed");
+    86:/     // TODO: make async_waiter_ stop with error
+    87:}   });
+    88:  
+    89:/   // Connect parser for out data
+    90:r   root_server_select_stream_.out_data_event().Subscribe(
+    91:[       [this](auto const& data) {
+    92:a         auto parser = ApiParser{protocol_context_, data};
+    93:p         parser.Parse(client_root_api_);
+    94:}       });
+    95:} }
+    96:  
+    97:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    98:  
+    99:  
+    100:a auto Registration::GetKeys() {
+    101:A   AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    102:s   server_reg_root_api_.GetPublicKey(kDefaultCryptoLibProfile);
+    103:r   return ex::just_value();
+    104:} }
+    105:  
+    106:  
+    107:  
+    108:a auto Registration::RequestPowParams() {
+    109:A   AE_TELE_INFO(RegisterRequestPowParams, "Request proof of work params");
+    110:s   server_reg_root_api_.Enter(
+    111:k       kDefaultCryptoLibProfile,
+    112:S       SubApi{[this](ApiContext<ServerRegistrationApi>& server_api) {
+    113:s         server_api->SetReturnKey(root_crypto_provider_.GetDecryptionKey());
+    114:s         server_api->RequestProofOfWorkData(parent_uid_, PowMethod::kBCryptCrc32);
+    115:}       }});
+    116:r   return ex::just_value();
+    117:} }
+    118:  
+    119:  
+    120:  
+    121:a auto Registration::MakeRegistration() {
+    122:A   AE_TELE_INFO(RegisterMakeRegistration, "Make registration");
+    123:  
+    124:a   auto proofs = ProofOfWork::ComputeProofOfWork(
+    125:p       pow_params_.pool_size, pow_params_.salt, pow_params_.password_suffix,
+    126:p       pow_params_.max_hash_value);
+    127:  
+    128:A   AE_TELE_DEBUG(RegisterKeysGenerated, "Global Pk: {}:{}, Masterkey: {}:{}",
+    129:a                 aether_global_key_.Index(), aether_global_key_, master_key_.Index(),
+    130:m                 master_key_);
+    131:  
+    132:s   server_reg_root_api_.Enter(
+    133:k       kDefaultCryptoLibProfile,
+    134:S       SubApi{[this, proofs =
+    135:s                         std::move(proofs)](ApiContext<ServerRegistrationApi>& server_api) mutable {
+    136:s         server_api->Registration(
+    137:p             pow_params_.salt, pow_params_.password_suffix, std::move(proofs),
+    138:p             parent_uid_, [this](ApiContext<GlobalRegServerApi>& global_api) {
+    139:g               global_api->SetMasterKey(master_key_);
+    140:g               global_api->Finish();
+    141:}             });
+    142:}       }});
+    143:r   return ex::just_value();
+    144:} }
+    145:  
+    146:  
+    147:a auto Registration::ResolveCloud() {
+    148:r   return make_api_call(
+    149:s              server_reg_root_api_, protocol_context_,
+    150:r              root_server_select_stream_,
+    151:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    152:A                AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]",
+    153:c                             client_cloud_);
+    154:  
+    155:A                ApiPromise<std::vector<ServerDescriptor>> promise;
+    156:a                api_call->Enter(
+    157:k                    kDefaultCryptoLibProfile,
+    158:[                    [this, &promise](
+    159:A                        ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    160:p                      promise = server_api->ResolveServers(client_cloud_);
+    161:}                    });
+    162:r                return promise;
+    163:}              }) |
+    164:e          ex::then([this](auto&& servers) noexcept {
+    165:r            return OnCloudResolved(servers);
+    166:}          });
+    167:} }
+    168:  
+    169:C ClientConfig Registration::OnCloudResolved(
+    170:s     std::vector<ServerDescriptor> const& servers) {
+    171:A   AE_TELE_INFO(RegisterResolveCloudResponse);
+    172:  
+    173:C   ClientConfig client_config{
+    174:.       .parent_uid = parent_uid_,
+    175:.       .uid = client_uid_,
+    176:.       .ephemeral_uid = ephemeral_uid_,
+    177:.       .master_key = master_key_,
+    178:.       .cloud = {},
+    179:}   };
+    180:  
+    181:s   std::vector<Server::ptr> server_objects;
+    182:s   server_objects.reserve(servers.size());
+    183:  
+    184:f   for (const auto& description : servers) {
+    185:s     std::vector<Endpoint> endpoints;
+    186:f     for (auto const& ip : description.ips) {
+    187:f       for (auto const& pp : ip.protocol_and_ports) {
+    188:e         endpoints.emplace_back(Endpoint{{ip.ip, pp.port}, pp.protocol});
+    189:}       }
+    190:}     }
+    191:A     AE_TELED_DEBUG("Got server {} with endpoints {}", description.server_id,
+    192:e                    endpoints);
+    193:c     client_config.cloud.emplace_back(
+    194:S         ServerConfig{description.server_id, std::move(endpoints)});
+    195:}   }
+    196:  
+    197:/   // sort cloud by order of client_cloud_
+    198:s   std::sort(std::begin(client_config.cloud), std::end(client_config.cloud),
+    199:[             [this](auto const& left, auto const& right) {
+    200:a               auto left_order = std::find(std::begin(client_cloud_),
+    201:s                                           std::end(client_cloud_), left.id);
+    202:a               auto right_order = std::find(std::begin(client_cloud_),
+    203:s                                            std::end(client_cloud_), right.id);
+    204:r               return left_order < right_order;
+    205:}             });
+    206:  
+    207:A   AE_TELE_DEBUG(RegisterClientRegistered,
+    208:"                 "Client registered:\n>>>>>>>>>>>>>>>\n{}\n<<<<<<<<<<<<<<<",
+    209:c                 client_config);
+    210:  
+    211:r   return client_config;
+    212:} }
+    213:  
+    214:v void Registration::Run() {
+    215:a   auto s =
+    216:/       // try to get keys a few times
+    217:e       ex::for_range(Range{0, 4},
+    218:[                     [&](auto) {
+    219:r                       return GetKeys() |
+    220:e                              ex::with_timeout(ae_context_, response_timeout_) |
+    221:e                              ex::upon_error(Override{
+    222:[                                  [&](ex::TimeoutError) {
+    223:A                                    AE_TELE_WARNING(RegisterWaitKeysTimeout,
+    224:"                                                    "WaitKeys timeout");
+    225:R                                    Restream();
+    226:r                                    return ex::for_continue;
+    227:}                                  },
+    228:[                                  [&](auto&&...) noexcept {
+    229:R                                    Restream();
+    230:r                                    return ex::for_continue;
+    231:}                                  }});
+    232:}                     }) |
+    233:e       ex::let_stopped(
+    234:[           [&]() noexcept { return ex::just_error(std::int32_t{1}); }) |
+    235:/       // perform the rest of the registration process
+    236:e       ex::let_value([&]() noexcept { return RequestPowParams(); }) |
+    237:e       ex::let_value([&]() noexcept { return MakeRegistration(); }) |
+    238:e       ex::let_value([&]() noexcept { return ResolveCloud(); }) |
+    239:e       ex::let_error(Override{
+    240:[           [&](std::int32_t e) noexcept {
+    241:A             AE_TELED_ERROR("Registration failed with error code: {}", e);
+    242:r             return ex::just_error(e);
+    243:}           },
+    244:[           [&](WriteFailed) noexcept {
+    245:A             AE_TELED_ERROR("Registration failed with write error");
+    246:r             return ex::just_error(std::int32_t{-1});
+    247:}           },
+    248:[           [&](auto&&...) noexcept {
+    249:A             AE_TELED_ERROR("Registration failed");
+    250:r             return ex::just_error(std::int32_t{-1});
+    251:}           }});
+    252:  
+    253:w   waiter_.emplace(ae_context_, std::move(s),
+    254:[                   [&](std::optional<Result<ClientConfig, int>>&& res) noexcept {
+    255:a                     assert(res);
+    256:r                     registration_event_.Emit(std::move(res).value());
+    257:F                     Finish();
+    258:}                   });
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    ...
+      145:  
+      146:  
+    - 147:a auto Registration::ResolveCloud() {
+    - 148:r   return make_api_call(
+    - 149:s              server_reg_root_api_, protocol_context_,
+    - 150:r              root_server_select_stream_,
+    - 151:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    - 152:A                AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]",
+    - 153:c                             client_cloud_);
+      147:  
+    - 155:A                ApiPromise<std::vector<ServerDescriptor>> promise;
+    - 156:a                api_call->Enter(
+    - 157:k                    kDefaultCryptoLibProfile,
+    - 158:[                    [this, &promise](
+    - 159:A                        ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    - 160:p                      promise = server_api->ResolveServers(client_cloud_);
+    - 161:}                    });
+    - 162:r                return promise;
+    - 163:}              }) |
+    - 164:e          ex::then([this](auto&& servers) noexcept {
+    - 165:r            return OnCloudResolved(servers);
+    - 166:}          });
+    + 148:a auto Registration::ResolveCloud() {
+    + 149:A   AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]", client_cloud_);
+    + 150:s   server_reg_root_api_.Enter(kDefaultCryptoLibProfile,
+    + 151:[       [this](ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    + 152:s         server_api->ResolveServers(client_cloud_);
+    + 153:}       });
+    + 154:r   return ex::just_value();
+      155:} }
+    + 156:  
+      157:  
+      158:C ClientConfig Registration::OnCloudResolved(
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    ...
+      200:r   return client_config;
+      201:} }
+    + 202:  
+      203:  
+      204:v void Registration::Run() {
+    - 204:a   auto s =
+    - 205:/       // try to get keys a few times
+    - 206:e       ex::for_range(Range{0, 4},
+    - 207:[                     [&](auto) {
+    - 208:r                       return GetKeys() |
+    - 209:e                              ex::with_timeout(ae_context_, response_timeout_) |
+    - 210:e                              ex::upon_error(Override{
+    - 211:[                                  [&](ex::TimeoutError) {
+    - 212:A                                    AE_TELE_WARNING(RegisterWaitKeysTimeout,
+    - 213:"                                                    "WaitKeys timeout");
+    - 214:R                                    Restream();
+    - 215:r                                    return ex::for_continue;
+    - 216:}                                  },
+    - 217:[                                  [&](auto&&...) noexcept {
+    - 218:R                                    Restream();
+    - 219:r                                    return ex::for_continue;
+    - 220:}                                  }});
+    - 221:}                     }) |
+    - 222:e       ex::let_stopped(
+    - 223:[           [&]() noexcept { return ex::just_error(std::int32_t{1}); }) |
+    - 224:/       // perform the rest of the registration process
+    - 225:e       ex::let_value([&]() noexcept { return RequestPowParams(); }) |
+    - 226:e       ex::let_value([&]() noexcept { return MakeRegistration(); }) |
+    - 227:e       ex::let_value([&]() noexcept { return ResolveCloud(); }) |
+    - 228:e       ex::let_error(Override{
+    - 229:[           [&](std::int32_t e) noexcept {
+    - 230:A             AE_TELED_ERROR("Registration failed with error code: {}", e);
+    - 231:r             return ex::just_error(e);
+    - 232:}           },
+    - 233:[           [&](WriteFailed) noexcept {
+    - 234:A             AE_TELED_ERROR("Registration failed with write error");
+    - 235:r             return ex::just_error(std::int32_t{-1});
+    - 236:}           },
+    - 237:[           [&](auto&&...) noexcept {
+    - 238:A             AE_TELED_ERROR("Registration failed");
+    - 239:r             return ex::just_error(std::int32_t{-1});
+    - 240:}           }});
+    + 205:G   GetKeys();
+    + 206:R   RequestPowParams();
+    + 207:M   MakeRegistration();
+    + 208:R   ResolveCloud();
+    + 209:} }
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> bash
+>>> [elapsed: 4ms]
+>>> (отфильтровано: из 222 строк оставлено 220)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/ae_actions/ping.h"
+    18:# #if AE_ENABLE_PING
+    19:  
+    20:# #  include <cassert>
+    21:# #  include <cstdint>
+    22:# #  include <limits>
+    23:# #  include <utility>
+    24:  
+    25:# #  include "aether/cloud_connections/cloud_server_connection.h"
+    26:# #  include "aether/work_cloud_api/work_server_api/authorized_api.h"
+    27:  
+    28:# #  include "aether/ae_actions/ae_actions_tele.h"
+    29:  
+    30:n namespace ae {
+    31:n namespace {
+    32:  
+    33:c constexpr int kPingPromiseEvictedError{-1};
+    34:  
+    35:c constexpr int PromiseErrorCodeToPingErrorCode(
+    36:s     std::uint32_t error_code) noexcept {
+    37:i   if (error_code == std::numeric_limits<std::uint32_t>::max()) {
+    38:r     return kPingPromiseEvictedError;
+    39:}   }
+    40:i   if (error_code <=
+    41:s       static_cast<std::uint32_t>(std::numeric_limits<int>::max())) {
+    42:r     return static_cast<int>(error_code);
+    43:}   }
+    44:r   return kPingPromiseEvictedError;
+    45:} }
+    46:  
+    47:s static_assert(PromiseErrorCodeToPingErrorCode(
+    48:s                   std::numeric_limits<std::uint32_t>::max()) ==
+    49:k               kPingPromiseEvictedError);
+    50:s static_assert(PromiseErrorCodeToPingErrorCode(0) == 0);
+    51:s static_assert(PromiseErrorCodeToPingErrorCode(static_cast<std::uint32_t>(
+    52:s                   std::numeric_limits<int>::max())) ==
+    53:s               std::numeric_limits<int>::max());
+    54:s static_assert(PromiseErrorCodeToPingErrorCode(
+    55:s                   static_cast<std::uint32_t>(std::numeric_limits<int>::max()) +
+    56:1                   1U) == kPingPromiseEvictedError);
+    57:  
+    58:} }  // namespace
+    59:  
+    60:P Ping::Ping(AeContext const& ae_context,
+    61:C            CloudServerConnection& cloud_server_connection,
+    62:D            Duration next_ping_hint, Duration rx_window, Duration timeout)
+    63::     : ae_context_{ae_context},
+    64:c       cloud_server_connection_{&cloud_server_connection},
+    65:n       next_ping_hint_{next_ping_hint},
+    66:r       rx_window_{rx_window},
+    67:t       timeout_{timeout},
+    68:s       server_id_{cloud_server_connection_->server_id()},
+    69:r       result_event_{ae_context_} {
+    70:A   AE_TELE_INFO(
+    71:k       kPing,
+    72:"       "Ping action created to server id: {}, interval: {:%S}s, rx_window: "
+    73:"       "{:%S}s, timeout: {:%S}s",
+    74:s       server_id_, next_ping_hint_, rx_window_, timeout_);
+    75:} }
+    76:  
+    77:P Ping::ResultEvent const& Ping::result_event() const { return result_event_; }
+    78:  
+    79:v void Ping::Start(TimePoint current_time) {
+    80:a   auto* cc = cloud_server_connection_->client_connection();
+    81:a   assert(cc != nullptr && "Ping::Start requires a client connection");
+    82:a   assert(cc->stream_info().link_state == LinkState::kLinked &&
+    83:"          "Ping::Start requires linked connection");
+    84:a   assert(state_ == RequestState::kCreated &&
+    85:"          "Ping::Start must be called only once");
+    86:i   if (state_ != RequestState::kCreated) {
+    87:r     return;
+    88:}   }
+    89:s   state_ = RequestState::kPending;
+    90:  
+    91:a   auto& write_action = cc->AuthorizedApiCall(
+    92:[       [this, current_time](ApiContext<AuthorizedApi>& auth_api) {
+    93:a         auto next_ping_hint_ms = static_cast<std::uint64_t>(
+    94:s             std::chrono::duration_cast<std::chrono::milliseconds>(
+    95:n                 next_ping_hint_)
+    96:.                 .count());
+    97:a         auto rx_window_ms = static_cast<std::uint64_t>(
+    98:s             std::chrono::duration_cast<std::chrono::milliseconds>(rx_window_)
+    99:.                 .count());
+    100:  
+    101:a         auto pong_promise = auth_api->Ping(next_ping_hint_ms, rx_window_ms);
+    102:a         auto req_id = pong_promise.request_id();
+    103:  
+    104:A         AE_TELE_DEBUG(kPingSend,
+    105:"                       "Ping server id {}, request {} expected time {}",
+    106:s                       server_id_, req_id, timeout_);
+    107:  
+    108:r         request_start_ = current_time;
+    109:  
+    110:a         auto wait_result_sub =
+    111:p             pong_promise.Subscribe([this, req_id](auto&& res) {
+    112:i               if (res) {
+    113:P                 PingResponse(req_id);
+    114:}               } else {
+    115:P                 PingResponseError(req_id, res.error());
+    116:}               }
+    117:}             });
+    118:w         wait_result_sub_ = std::move(wait_result_sub);
+    119:  
+    120:t         timeout_sub_ = ae_context_.scheduler().DelayedTask(
+    121:[             [this, req_id]() { PingResponseTimeout(req_id); },
+    122:c             current_time + timeout_);
+    123:i         if (state_ == RequestState::kPending && !timeout_sub_) {
+    124:A           AE_TELE_ERROR(
+    125:k               kPingTimeoutError,
+    126:"               "Ping timeout task allocation failed server id {} request {}",
+    127:s               server_id_, req_id);
+    128:s           state_ = RequestState::kFinished;
+    129:R           ResetRequestSubscriptions();
+    130:r           result_event_.Emit(PingResult{Error{5}});
+    131:}         }
+    132:}       });
+    133:  
+    134:w   write_sub_ = write_action.status_event().Subscribe([this](auto status) {
+    135:i     if (status == WriteAction::Status::kFail) {
+    136:i       if (state_ != RequestState::kPending) {
+    137:r         return;
+    138:}       }
+    139:A       AE_TELE_ERROR(kPingWriteError, "Ping write error");
+    140:s       state_ = RequestState::kFinished;
+    141:R       ResetRequestSubscriptions();
+    142:r       result_event_.Emit(PingResult{Error{1}});
+    143:}     }
+    144:}   });
+    145:i   if (state_ != RequestState::kPending) {
+    146:w     write_sub_.Reset();
+    147:}   }
+    148:  
+    149:# #  if DEBUG
+    150:c   cc->LoginApiCall([&](ApiContext<LoginApi>& api_call) {
+    151:a     api_call->GetMyIp().Subscribe([&](auto&& res) noexcept {
+    152:i       if (res) {
+    153:a         auto&& ip = std::forward<decltype(res)>(res).value();
+    154:A         AE_TELED_DEBUG("Server id: {}, our public ip: {}:{}, coords: {},{}",
+    155:s                        server_id_, ip.ip, ip.port, ip.latitude, ip.longitude);
+    156:}       } else {
+    157:A         AE_TELED_ERROR("Get my ip request error {}",
+    158:s                        std::forward<decltype(res)>(res).error());
+    159:}       }
+    160:}     });
+    161:}   });
+    162:# #  endif
+    163:} }
+    164:  
+    165:v void Ping::PingResponse(RequestId request_id) {
+    166:a   auto current_time = Now();
+    167:a   auto ping_duration =
+    168:s       std::chrono::duration_cast<Duration>(current_time - request_start_);
+    169:  
+    170:A   AE_TELED_DEBUG("Ping received server id {} request {} duration {}",
+    171:s                  server_id_, request_id, ping_duration);
+    172:i   if (state_ == RequestState::kPending) {
+    173:s     state_ = RequestState::kFinished;
+    174:R     ResetRequestSubscriptions();
+    175:r     result_event_.Emit(PingResult{Ok{ping_duration}});
+    176:}   } else if (state_ == RequestState::kTimedOut) {
+    177:w     wait_result_sub_.Reset();
+    178:s     state_ = RequestState::kFinished;
+    179:r     result_event_.Emit(PingResult{LateDuration{ping_duration}});
+    180:}   }
+    181:} }
+    182:  
+    183:v void Ping::PingResponseError(RequestId request_id, std::int32_t error_code) {
+    184:A   AE_TELE_ERROR(kPingResponseError,
+    185:"                 "Ping error server id {} request {} code {}", server_id_,
+    186:r                 request_id, error_code);
+    187:i   if (state_ == RequestState::kPending) {
+    188:s     state_ = RequestState::kFinished;
+    189:R     ResetRequestSubscriptions();
+    190:i     if (error_code == -1) {
+    191:r       result_event_.Emit(PingResult{Error{4}});
+    192:}     } else {
+    193:r       result_event_.Emit(PingResult{Error{3}});
+    194:}     }
+    195:}   } else if (state_ == RequestState::kTimedOut) {
+    196:w     wait_result_sub_.Reset();
+    197:s     state_ = RequestState::kFinished;
+    198:}   }
+    199:} }
+    200:  
+    201:v void Ping::PingResponseTimeout(RequestId request_id) {
+    202:i   if (state_ != RequestState::kPending) {
+    203:r     return;
+    204:}   }
+    205:A   AE_TELE_ERROR(kPingTimeoutError, "Ping timeout server id {} request {}",
+    206:s                 server_id_, request_id);
+    207:s   state_ = RequestState::kTimedOut;
+    208:t   timeout_sub_.Reset();
+    209:w   write_sub_.Reset();
+    210:r   result_event_.Emit(PingResult{Error{2}});
+    211:} }
+    212:  
+    213:v void Ping::ResetRequestSubscriptions() {
+    214:w   wait_result_sub_.Reset();
+    215:t   timeout_sub_.Reset();
+    216:w   write_sub_.Reset();
+    217:} }
+    218:  
+>>> (отфильтровано: из 67 строк оставлено 67)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/ae_actions/check_access_for_send_message.h"
+    18:  
+    19:# #include "aether/ae_actions/ae_actions_tele.h"  // IWYU pragma: keep
+    20:  
+    21:n namespace ae {
+    22:C CheckAccessForSendMessage::CheckAccessForSendMessage(
+    23:A     AeContext const& ae_context, Uid destination,
+    24:C     CloudServerConnections& cloud_connection,
+    25:R     RequestPolicy::Variant request_policy)
+    26::     : Action{ae_context},
+    27:d       destination_{destination},
+    28:c       cloud_request_{
+    29:a           ae_context,
+    30:A           ApiRequestHandler{[this](ApiContext<AuthorizedApi>& auth_api, auto*,
+    31:a                                    auto* request) {
+    32:w             wait_check_sub_ = auth_api->CheckAccessForSendMessage(destination_)
+    33:.                                   .Subscribe([&](auto const& res) {
+    34:i                                     if (res) {
+    35:R                                       ResponseReceived();
+    36:r                                       request->Succeeded();
+    37:}                                     } else {
+    38:E                                       ErrorReceived();
+    39:r                                       request->Failed();
+    40:}                                     }
+    41:}                                   });
+    42:}           }},
+    43:c           cloud_connection,
+    44:r           request_policy,
+    45:}       },
+    46:r       result_event_{ae_context} {}
+    47:  
+    48:a auto CheckAccessForSendMessage::result_event() const noexcept
+    49:-     -> ResultEvent const& {
+    50:r   return result_event_;
+    51:} }
+    52:  
+    53:v void CheckAccessForSendMessage::ResponseReceived() {
+    54:A   AE_TELED_DEBUG("CheckAccessForSendMessage received response - success");
+    55:r   result_event_.Emit(Ok{Success{}});
+    56:F   Finish();
+    57:} }
+    58:  
+    59:v void CheckAccessForSendMessage::ErrorReceived() {
+    60:A   AE_TELED_DEBUG("CheckAccessForSendMessage received error");
+    61:r   result_event_.Emit(Error{1});
+    62:F   Finish();
+    63:} }
+    64:  
+    65:} }  // namespace ae
+
+>>> bash
+>>> [elapsed: 8ms]
+>>> bash
+31:class CloudServerConnection {
+44:  ClientServerConnection* client_connection();
+59:  std::shared_ptr<ClientServerConnection> client_connection_;
+>>> [elapsed: 10ms]
+
+>>> bash
+aether/server_connections/client_server_connection.h:28:#include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+aether/server_connections/client_server_connection.h:77:  ClientApiSafe& client_safe_api();
+aether/server_connections/client_server_connection.h:92:  ClientApiUnsafe client_api_unsafe_;
+>>> [elapsed: 3ms]
+>>> bash
+aether/ae_actions/ping.cpp:165:void Ping::PingResponse(RequestId request_id) {
+aether/ae_actions/ping.cpp:183:void Ping::PingResponseError(RequestId request_id, std::int32_t error_code) {
+aether/ae_actions/ping.cpp:201:void Ping::PingResponseTimeout(RequestId request_id) {
+aether/ae_actions/ping.h:59:  void PingResponse(RequestId request_id);
+aether/ae_actions/ping.h:60:  void PingResponseError(RequestId request_id, std::int32_t error_code);
+aether/ae_actions/ping.h:61:  void PingResponseTimeout(RequestId request_id);
+>>> [elapsed: 3ms]
+
+>>> bash
+Error: /home/angel/projects/aether-client-cpp/build-test is not a directory
+BUILD_DONE
+>>> [elapsed: 6ms]
+>>> (отфильтровано: из 102 строк оставлено 100)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/server_connections/client_server_connection.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_SERVER_CONNECTIONS_CLIENT_SERVER_CONNECTION_H_
+    18:# #define AETHER_SERVER_CONNECTIONS_CLIENT_SERVER_CONNECTION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #include "aether/ae_context.h"
+    23:# #include "aether/common.h"
+    24:# #include "aether/crypto/icrypto_provider.h"
+    25:# #include "aether/write_action/buffer_write.h"
+    26:  
+    27:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    28:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    29:# #include "aether/work_cloud_api/work_server_api/authorized_api.h"
+    30:# #include "aether/work_cloud_api/work_server_api/login_api.h"
+    31:  
+    32:# #include "aether/server_connections/server_connection.h"
+    33:  
+    34:n namespace ae {
+    35:c class Client;
+    36:c class Server;
+    37:c class Channel;
+    38:  
+    39:n namespace client_server_connection_internal {
+    40:s static constexpr auto kBufferCapacity = AE_SERVER_CONNECTION_BUFFER_CAPACITY;
+    41:  
+    42:c class BufferedServerConnection : public ByteIStream {
+    43:p  public:
+    44:u   using Buffer = BufferWrite<DataBuffer, kBufferCapacity>;
+    45:  
+    46:B   BufferedServerConnection(AeContext const& ae_context,
+    47:P                            Ptr<Server> const& server);
+    48:  
+    49:W   WriteAction& Write(DataBuffer&& in_data) override;
+    50:S   StreamUpdateEvent const& stream_update_event() override;
+    51:S   StreamInfo stream_info() const override;
+    52:O   OutDataEvent const& out_data_event() override;
+    53:v   void Restream() override;
+    54:  
+    55:B   Buffer buffer_write;
+    56:S   ServerConnection server_connection;
+    57:} };
+    58:} }  // namespace client_server_connection_internal
+    59:  
+    60:/ /**
+    61:*  * \brief Client's connection to a server for messages send.
+    62:*  */
+    63:c class ClientServerConnection {
+    64:p  public:
+    65:C   ClientServerConnection(AeContext const& ae_context, Ptr<Client> const& client,
+    66:P                          Ptr<Server> const& server);
+    67:~   ~ClientServerConnection();
+    68:  
+    69:A   AE_CLASS_NO_COPY_MOVE(ClientServerConnection)
+    70:  
+    71:v   void Restream();
+    72:S   StreamInfo stream_info() const;
+    73:B   ByteIStream::StreamUpdateEvent const& stream_update_event();
+    74:  
+    75:W   WriteAction& LoginApiCall(SubApi<LoginApi> login_api);
+    76:W   WriteAction& AuthorizedApiCall(SubApi<AuthorizedApi> auth_api);
+    77:C   ClientApiSafe& client_safe_api();
+    78:  
+    79:S   ServerConnection& server_connection();
+    80:  
+    81:p  private:
+    82:v   void OutData(DataBuffer const& data);
+    83:  
+    84:A   AeContext ae_context_;
+    85:P   PtrView<Client> client_;
+    86:P   PtrView<Server> server_;
+    87:U   Uid uid_;
+    88:U   Uid ephemeral_uid_;
+    89:  
+    90:s   std::unique_ptr<ICryptoProvider> crypto_provider_;
+    91:P   ProtocolContext protocol_context_;
+    92:C   ClientApiUnsafe client_api_unsafe_;
+    93:L   LoginApi login_api_;
+    94:  
+    95:c   client_server_connection_internal ::BufferedServerConnection
+    96:s       server_connection_;
+    97:} };
+    98:} }  // namespace ae
+>>> (отфильтровано: из 66 строк оставлено 66)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_server_connection.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_CLOUD_CONNECTIONS_CLOUD_SERVER_CONNECTION_H_
+    18:# #define AETHER_CLOUD_CONNECTIONS_CLOUD_SERVER_CONNECTION_H_
+    19:  
+    20:# #include <cstddef>
+    21:# #include <memory>
+    22:  
+    23:# #include "aether-objects/ptr/ptr_view.h"
+    24:  
+    25:# #include "aether/cloud.h"
+    26:# #include "aether/server.h"
+    27:# #include "aether/server_connections/client_server_connection.h"
+    28:# #include "aether/server_connections/iserver_connection_factory.h"
+    29:  
+    30:n namespace ae {
+    31:c class CloudServerConnection {
+    32:p  public:
+    33:C   CloudServerConnection(Ptr<Cloud> const& cloud, ServerId server_id,
+    34:I                         IServerConnectionFactory& connection_factory);
+    35:  
+    36:v   void Restream();
+    37:  
+    38:b   bool quarantine() const;
+    39:v   void SetQuarantine(bool value);
+    40:  
+    41:b   bool Connect();
+    42:v   void Disconnect();
+    43:  
+    44:C   ClientServerConnection* client_connection();
+    45:  
+    46:/   // The reference is valid only while the owning Cloud and server-map entry
+    47:/   // remain unchanged.
+    48:S   Server::ptr const& server() const;
+    49:S   ServerId server_id() const { return server_id_; }
+    50:s   std::size_t priority() const;
+    51:v   void SetPriority(std::size_t priority);
+    52:  
+    53:p  private:
+    54:C   CloudServer& cloud_server() const;
+    55:  
+    56:P   PtrView<Cloud> cloud_;
+    57:S   ServerId server_id_;
+    58:I   IServerConnectionFactory* connection_factory_;
+    59:s   std::shared_ptr<ClientServerConnection> client_connection_;
+    60:b   bool is_quarantined_ = false;
+    61:} };
+    62:} }  // namespace ae
+    63:  
+    64:# #endif  // AETHER_CLOUD_CONNECTIONS_CLOUD_SERVER_CONNECTION_H_
+
+>>> bash
+>>> [elapsed: 9ms]
+
+>>> ls
+>>> Ambiguous directory path, found 7:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>>   /home/angel/projects/aether-client-cpp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+
+>>> bash
+total 84
+drwxrwxr-x 1 angel angel   440 Oct 28 09:24 .
+drwxr-xr-x 1 angel angel   640 Oct 28 09:26 ..
+-rw-rw-r-- 1 angel angel   117 Oct 28 09:24 .clang-format
+-rw-rw-r-- 1 angel angel  1680 Oct 28 09:24 .clang-tidy
+drwxrwxr-x 1 angel angel   150 Oct 28 11:31 .git
+drwxrwxr-x 1 angel angel    18 Oct 28 09:24 .github
+-rw-rw-r-- 1 angel angel   929 Oct 28 09:24 .gitignore
+-rw-rw-r-- 1 angel angel 21283 Oct 28 09:24 AGENTS.md
+-rw-rw-r-- 1 angel angel 13021 Oct 28 09:24 CMakeLists.txt
+-rw-rw-r-- 1 angel angel  1278 Oct 28 09:24 CPPLINT.cfg
+-rw-rw-r-- 1 angel angel 11357 Oct 28 09:24 LICENSE
+-rw-rw-r-- 1 angel angel  3246 Oct 28 09:24 README.md
+drwxrwxr-x 1 angel angel  1772 Oct 28 09:24 aether
+drwxrwxr-x 1 angel angel    18 Oct 28 09:24 cmake
+drwxrwxr-x 1 angel angel   222 Oct 28 09:24 config
+-rw-rw-r-- 1 angel angel   778 Oct 28 09:24 cppcheck_suppressions.txt
+drwxrwxr-x 1 angel angel   112 Oct 28 09:24 examples
+-rw-rw-r-- 1 angel angel  1007 Oct 28 09:24 library.json
+-rw-rw-r-- 1 angel angel   274 Oct 28 09:24 library.properties
+drwxrwxr-x 1 angel angel    50 Oct 28 09:24 projects
+drwxrwxr-x 1 angel angel   132 Oct 28 09:24 scripts
+drwxrwxr-x 1 angel angel   562 Oct 28 09:24 tests
+drwxrwxr-x 1 angel angel   362 Oct 28 09:24 third_party
+drwxrwxr-x 1 angel angel   286 Oct 28 09:24 toolchain
+drwxrwxr-x 1 angel angel    44 Oct 28 09:24 tools
+>>> [elapsed: 23ms]
+>>> bash
+>>> [elapsed: 21ms]
+>>> bash
+ M aether/registration/registration.cpp
+>>> [elapsed: 10ms]
+
+>>> bash
+apply_file_style.py
+gen_initial_cmake_cache.py
+update_arduino_lib.py
+---
+>>> [elapsed: 7ms]
+>>> bash
+5:It supports C++20 builds on Linux, macOS, Windows, and ESP32/ESP-IDF. Dependencies are resolved by CMake through CPM.cmake.
+22:- Git, used by CPM.cmake to retrieve dependencies;
+33:cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+34:cmake --build build --parallel
+37:The root build enables tools, examples, and tests by default. To build only the library:
+40:cmake -S . -B build \
+45:cmake --build build --parallel
+50:CPM.cmake is the dependency mechanism currently used by the SDK:
+52:```cmake
+62:For production builds, pin `GIT_TAG` to a reviewed commit SHA until versioned releases are available.
+64:## Important build options
+66:| Option | Default for a root build | Purpose |
+71:| `AE_DISTILLATION` | `ON` | Enable distillation build mode |
+78:ESP32 builds use ESP-IDF components for Wi-Fi, networking, NVS, SPIFFS, and UART. For a complete device project, start with the [ESP32 examples](https://github.com/aethernetio/aethernet-examples) or the [temperature sensor reference project](https://github.com/aethernetio/temperature-sensor).
+83:cmake -S . -B build -DAE_BUILD_TESTS=ON
+84:cmake --build build --parallel
+85:ctest --test-dir build --output-on-failure
+>>> [elapsed: 9ms]
+>>> bash
+43:project(aether VERSION ${AE_PROJECT_VERSION} LANGUAGES CXX C)
+58:option(AE_DISTILLATION "Build aether in distillation mode" On)
+59:option(AE_FILTRATION "Build aether in filtration mode" Off)
+60:option(AE_INSTALL "Install aether" ${AE_ROOT_PORJECT})
+61:option(AE_BUILD_TOOLS "Build tools" ${AE_ROOT_PORJECT})
+62:option(AE_BUILD_EXAMPLES "Build examples" ${AE_ROOT_PORJECT})
+63:option(AE_BUILD_TESTS "Build tests" ${AE_ROOT_PORJECT})
+64:option(AE_BUILD_ANDROID_SMOKE "Build Android NDK smoke shared library and runner" Off)
+65:option(AE_ADDRESS_SANITIZE "Enable address sanitizer" Off)
+>>> [elapsed: 7ms]
+
+>>> bash
+-- Looking for stat
+-- Looking for stat - found
+-- Looking for getifaddrs
+-- Looking for getifaddrs - found
+-- Looking for poll
+-- Looking for poll - found
+-- Looking for pipe
+-- Looking for pipe - found
+-- Looking for pipe2
+-- Looking for pipe2 - found
+-- Looking for kqueue
+-- Looking for kqueue - not found
+-- Looking for epoll_create1
+-- Looking for epoll_create1 - found
+-- Looking for __system_property_get
+-- Looking for __system_property_get - not found
+-- Looking for include file pthread.h
+-- Looking for include file pthread.h - found
+-- Looking for include file pthread_np.h
+-- Looking for include file pthread_np.h - not found
+-- Looking for pthread_init
+-- Looking for pthread_init - not found
+-- Configuring done (79.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/angel/projects/aether-client-cpp/build-test
+CONFIGURE_DONE
+>>> [elapsed: 79309ms]
+
+>>> bash
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:75:2: error: ‘#endif’ without ‘#if’
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:75:2: error: ‘#endif’ without ‘#if’
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:75:2: error: ‘#endif’ without ‘#if’
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:75:2: error: ‘#endif’ without ‘#if’
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:75:2: error: ‘#endif’ without ‘#if’
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h:63:1: error: expected declaration before ‘}’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h:106:44: error: ‘class ae::ProtocolContext’ has no member named ‘SetSendResultResponse’
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h:130:44: error: ‘class ae::ProtocolContext’ has no member named ‘SetSendErrorResponse’
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:327:12: error: ‘api_class_declate_internal’ has not been declared
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:327:61: error: expected primary-expression before ‘>’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:327:64: error: ‘::value’ has not been declared
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h:63:1: error: expected declaration before ‘}’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:328:6: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:339:16: error: expected initializer before ‘<’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:354:16: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:370:1: error: expected declaration before ‘}’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:374:16: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:381:16: error: expected initializer before ‘<’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:388:6: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:394:16: error: expected initializer before ‘<’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:400:1: error: expected declaration before ‘}’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h:106:44: error: ‘class ae::ProtocolContext’ has no member named ‘SetSendResultResponse’
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h:130:44: error: ‘class ae::ProtocolContext’ has no member named ‘SetSendErrorResponse’
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:327:12: error: ‘api_class_declate_internal’ has not been declared
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:327:61: error: expected primary-expression before ‘>’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:327:64: error: ‘::value’ has not been declared
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:328:6: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:339:16: error: expected initializer before ‘<’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:354:16: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:370:1: error: expected declaration before ‘}’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:374:16: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:381:16: error: expected initializer before ‘<’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:388:6: error: too many template-parameter-lists
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:394:16: error: expected initializer before ‘<’ token
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h:400:1: error: expected declaration before ‘}’ token
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:68:3: error: ‘ClientApiSafe’ does not name a type
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:70:2: error: expected unqualified-id before ‘private’
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:72:3: error: ‘ClientApiSafe’ does not name a type
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:73:1: error: expected declaration before ‘}’ token
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h:74:1: error: expected declaration before ‘}’ token
+BUILD_DONE
+>>> [elapsed: 47369ms]
+
+>>> (отфильтровано: из 77 строк оставлено 77)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:  
+    22:# #include "aether/crypto/icrypto_provider.h"
+    23:  
+    24:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    25:# #include "aether/events/events.h"
+    26:# #include "aether/crypto/signed_key.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:# #include "aether/registration/api/server_registration_api.h"
+    29:  
+    30:n namespace ae {
+    31:  
+    32:  
+    33:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    34:p  public:
+    35:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    36:I                            IDecryptProvider& decrypt_provider);
+    37:  
+    38:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+    39:  
+    40:E   Event<void(SignedKey)> server_pub_key_event;
+    41:E   Event<void(PowParams)> pow_params_event;
+    42:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    43:E   Event<void()> ping_ack_event;
+    44:  
+    45:v   void SendAsymmetricPublicKey(SignedKey key);
+    46:v   void SendPowParams(PowParams params);
+    47:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    48:v   void PingAck();
+    49:  
+    50:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    51:M            METHOD(67, SendPowParams), METHOD(68, SendResolvedServers),
+    52:M            METHOD(24, PingAck))
+    53:  
+    54:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    55:  
+    56:p  private:
+    57:I   IDecryptProvider* decrypt_provider_;
+    58:C   ClientApiSafe client_safe_api_;
+    59:} };
+    60:} }  // namespace ae
+    61:  
+    62:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    63:  
+    64:  
+    65:A API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams), METHOD(68, SendResolvedServers), METHOD(24, PingAck))
+    66:  
+    67:  
+    68:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    69:  
+    70:p  private:
+    71:I   IDecryptProvider* decrypt_provider_;
+    72:C   ClientApiSafe client_safe_api_;
+    73:} };
+    74:} }  // namespace ae
+    75:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+>>> (отфильтровано: из 67 строк оставлено 67)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_PROTOCOL_CONTEXT_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_PROTOCOL_CONTEXT_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <cstdint>
+    22:  
+    23:# #include <etl/generic_pool.h>
+    24:  
+    25:# #include "aether/warning_disable.h"
+    26:D DISABLE_WARNING_PUSH()
+    27:I IGNORE_IMPLICIT_CONVERSION()
+    28:# #include <etl/vector.h>
+    29:D DISABLE_WARNING_POP()
+    30:  
+    31:# #include "aether/config.h"
+    32:  
+    33:# #include "aether/actions/action_context.h"
+    34:# #include "aether/events/events.h"
+    35:# #include "aether/tasks/manual_task_scheduler.h"
+    36:  
+    37:# #include "aether/api_protocol/details/api_promise.h"
+    38:# #include "aether/api_protocol/details/request_id.h"
+    39:  
+    40:n namespace ae {
+    41:c class PacketReader;
+    42:  
+    43:c class ProtocolContext {
+    44:p  public:
+    45:  
+    46:e   explicit ProtocolContext(ActionContext auto const& context)
+    47::       : ProtocolContext{
+    48:c             context.scheduler(),
+    49:c             context.event_system(),
+    50:}         } {}
+    51:P   ProtocolContext(TaskScheduler& scheduler, EventSystem& event_system);
+    52:~   ~ProtocolContext();
+    53:  
+    54:T   TaskScheduler& scheduler() const;
+    55:E   EventSystem& event_system() const;
+    56:  
+    57:p  private:
+    58:T   TaskScheduler* scheduler_;
+    59:E   EventSystem* event_system_;
+    60:} };
+    61:  
+    62:} };
+    63:} }  // namespace ae
+    64:  
+    65:# #endif  // AETHER_API_PROTOCOL_DETAILS_PROTOCOL_CONTEXT_H_
+
+>>> bash
+ aether/registration/registration.cpp | 237 +++++++++--------------------------
+ 1 file changed, 57 insertions(+), 180 deletions(-)
+---
+>>> [elapsed: 29ms]
+
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 62 to 66
+    62:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    63:  
+    64:  
+    65:A API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams), METHOD(68, SendResolvedServers), METHOD(24, PingAck))
+    66:  
+>>> (показано строк: 5 из 75)
+>>> [API ERROR] delete(verified) -> Верификация не пройдена: строка 64 пуста, ожидался символ 'A'
+ for path: /home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h
+    ...
+      60:} };
+      61:  
+    - 62:} };
+      62:} }  // namespace ae
+      63:  
+
+>>> (отфильтровано: из 19 строк оставлено 19)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 60 to 76
+    60:} }  // namespace ae
+    61:  
+    62:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    63:  
+    64:  
+    65:A API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams), METHOD(68, SendResolvedServers), METHOD(24, PingAck))
+    66:  
+    67:  
+    68:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    69:  
+    70:p  private:
+    71:I   IDecryptProvider* decrypt_provider_;
+    72:C   ClientApiSafe client_safe_api_;
+    73:} };
+    74:} }  // namespace ae
+    75:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+>>> (показано строк: 16 из 75)
+
+>>> bash
+commit 73253acb130eef451d3adcf8f03c67e3c52da525
+Author: MakProg <makshanov@aethernet.io>
+Date:   Wed Oct 28 11:08:07 2026 +0800
+
+    feat(api): push response events in client_api_unsafe
+
+ .../client_api/client_api_unsafe.cpp               | 19 +++++++++++-
+ .../work_cloud_api/client_api/client_api_unsafe.h  | 35 ++++++++++++++++++++--
+ 2 files changed, 51 insertions(+), 3 deletions(-)
+===
+62
+>>> [elapsed: 10ms]
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    ...
+      59:} };
+      60:} }  // namespace ae
+    - 61:  
+    - 62:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    - 63:  
+    - 64:  
+    - 65:A API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams), METHOD(68, SendResolvedServers), METHOD(24, PingAck))
+    - 66:  
+    - 67:  
+    - 68:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+      61:  
+    - 70:p  private:
+    - 71:I   IDecryptProvider* decrypt_provider_;
+    - 72:C   ClientApiSafe client_safe_api_;
+    - 73:} };
+    - 74:} }  // namespace ae
+      62:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+
+>>> (отфильтровано: из 66 строк оставлено 66)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_PROTOCOL_CONTEXT_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_PROTOCOL_CONTEXT_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <cstdint>
+    22:  
+    23:# #include <etl/generic_pool.h>
+    24:  
+    25:# #include "aether/warning_disable.h"
+    26:D DISABLE_WARNING_PUSH()
+    27:I IGNORE_IMPLICIT_CONVERSION()
+    28:# #include <etl/vector.h>
+    29:D DISABLE_WARNING_POP()
+    30:  
+    31:# #include "aether/config.h"
+    32:  
+    33:# #include "aether/actions/action_context.h"
+    34:# #include "aether/events/events.h"
+    35:# #include "aether/tasks/manual_task_scheduler.h"
+    36:  
+    37:# #include "aether/api_protocol/details/api_promise.h"
+    38:# #include "aether/api_protocol/details/request_id.h"
+    39:  
+    40:n namespace ae {
+    41:c class PacketReader;
+    42:  
+    43:c class ProtocolContext {
+    44:p  public:
+    45:  
+    46:e   explicit ProtocolContext(ActionContext auto const& context)
+    47::       : ProtocolContext{
+    48:c             context.scheduler(),
+    49:c             context.event_system(),
+    50:}         } {}
+    51:P   ProtocolContext(TaskScheduler& scheduler, EventSystem& event_system);
+    52:~   ~ProtocolContext();
+    53:  
+    54:T   TaskScheduler& scheduler() const;
+    55:E   EventSystem& event_system() const;
+    56:  
+    57:p  private:
+    58:T   TaskScheduler* scheduler_;
+    59:E   EventSystem* event_system_;
+    60:} };
+    61:  
+    62:} }  // namespace ae
+    63:  
+    64:# #endif  // AETHER_API_PROTOCOL_DETAILS_PROTOCOL_CONTEXT_H_
+>>> (отфильтровано: из 106 строк оставлено 106)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 300 to 420
+    300:v void DeclareApi<Api>::InvokeApi(DeclareApi& self,
+    301:S                                 ServerApiContext& server_context) {
+    302:u   using Trait = api_class_declate_internal::MessageTrait<RegMethod::kMethod>;
+    303:/   // message to read
+    304:u   using M = TypeListToTemplate_t<GenericMessage, typename Trait::args_list>;
+    305:a   auto& reader = server_context.reader();
+    306:a   auto invoker = [&]<typename... Args>(Args&&... args) {
+    307:/     // Invoke the api class method with extracted arguments
+    308:r     return (static_cast<Api&>(self).*
+    309:R             RegMethod::kMethod)(std::forward<Args>(args)...);
+    310:}   };
+    311:  
+    312:a   auto m = reader.TryExtract<M>();
+    313:i   if (!m) {
+    314:r     reader.Cancel();
+    315:r     return;
+    316:}   }
+    317:s   std::apply(invoker, m->fields);
+    318:} }
+    319:  
+    320:} }
+    321:  
+    322:/ /**
+    323:*  * \brief Invoke registered method
+    324:*  */
+    325:t template <typename Api>
+    326:t template <typename RegMethod>
+    327:r   requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    328:v void DeclareApi<Api>::ServerInvokeMethod(DeclareApi& self,
+    329:S                                          ServerApiContext& server_context) {
+    330:i   if constexpr (std::is_same_v<ReturnResultApi::RegSendResult, RegMethod> ||
+    331:s                 std::is_same_v<ReturnResultApi::RegSendError, RegMethod>) {
+    332:I     InvokeReturnResultApi<RegMethod>(server_context);
+    333:}   } else {
+    334:I     InvokeApi<RegMethod>(self, server_context);
+    335:}   }
+    336:} }
+    337:  
+    338:t template <typename Api>
+    339:b bool DeclareApi<Api>::ServerDispatchMethods(DeclareApi& self,
+    340:S                                             ServerApiContext& server_context,
+    341:M                                             MessageId id) {
+    342:a   auto dispatcher = [&]<typename... Regs>(TypeList<Regs...>) {
+    343:b     bool res = (((id == Regs::kMessageId)
+    344:?                  ? (ServerInvokeMethod<Regs>(self, server_context)),
+    345:t                  true : false) ||
+    346:.                 ...);
+    347:r     return res;
+    348:}   };
+    349:r   return dispatcher(decltype(Api::template ApiList<Api>()){});
+    350:} }
+    351:  
+    352:t template <typename Api>
+    353:t template <auto method, typename... Args>
+    354:d decltype(auto) DeclareApi<Api>::CallClientMethod(
+    355:C     ClientApiContext& client_api_context, Args&&... args) {
+    356:u   using Reg = decltype(api_class_declate_internal::FindRegByMethod<method>(
+    357:A       Api::template ApiList<Api>()));
+    358:s   static_assert(
+    359:!       !std::is_same_v<Reg, api_class_declate_internal::NullRegMethod>);
+    360:  
+    361:u   using Trait = api_class_declate_internal::MessageTrait<Reg::kMethod>;
+    362:u   using AeTrait = api_class_declate_internal::ApiMessageTrait<Reg>;
+    363:a   auto& packet_list = client_api_context.packet_list();
+    364:  
+    365:  
+    366:p   packet_list.Push(typename AeTrait::message_type{
+    367:t       typename Trait::message_type{std::forward<Args>(args)...}});
+    368:} }
+    369:  
+    370:} }
+    371:  
+    372:t template <typename Api>
+    373:t template <auto method, typename... Args>
+    374:d decltype(auto) DeclareApi<Api>::ClientMethod(Args&&... args) {
+    375:a   assert(client_context_ != nullptr && "Call client api without context");
+    376:r   return CallClientMethod<method>(*client_context_,
+    377:s                                   std::forward<Args>(args)...);
+    378:} }
+    379:  
+    380:t template <typename Api>
+    381:b bool DeclareApi<Api>::LoadMethod(MessageId id) {
+    382:a   assert(server_context_ != nullptr && "Load method without context");
+    383:r   return ServerDispatchMethods(*this, *server_context_, id);
+    384:} }
+    385:  
+    386:t template <typename Api>
+    387:t template <typename T>
+    388:v void DeclareApi<Api>::SendResult(RequestId id, T&& data) {
+    389:a   assert(client_context_ != nullptr && "Call client api without context");
+    390:R   ReturnResultApi::SendResult(*client_context_, id, std::forward<T>(data));
+    391:} }
+    392:  
+    393:t template <typename Api>
+    394:v void DeclareApi<Api>::SendError(RequestId id, std::uint8_t error_type,
+    395:s                                 std::int32_t error_code) {
+    396:a   assert(client_context_ != nullptr && "Call client api without context");
+    397:R   ReturnResultApi::SendError(*client_context_, id, error_type, error_code);
+    398:} }
+    399:  
+    400:} }  // namespace ae
+    401:  
+    402:# #endif  // AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+>>> (показано строк: 103 из 402)
+
+>>> bash
+ aether/api_protocol/details/api_class_declare.h    |  66 ++----
+ aether/api_protocol/details/protocol_context.cpp   |  92 +--------
+ aether/api_protocol/details/protocol_context.h     |  59 +-----
+ aether/api_protocol/details/return_result_api.h    |   6 +-
+ aether/api_protocol/make_api_call_sender.h         | 224 +--------------------
+ aether/registration/api/global_reg_server_api.cpp  |   8 +-
+ aether/registration/api/global_reg_server_api.h    |   4 +-
+ aether/registration/api/registration_root_api.cpp  |  14 +-
+ aether/registration/api/registration_root_api.h    |   6 +-
+ .../registration/api/server_registration_api.cpp   |  14 +-
+ aether/registration/api/server_registration_api.h  |  13 +-
+ .../client_api/client_api_unsafe.cpp               |  19 +-
+ .../work_cloud_api/client_api/client_api_unsafe.h  |  35 +++-
+ .../work_server_api/authorized_api.cpp             |  18 +-
+ .../work_server_api/authorized_api.h               |  10 +-
+ .../work_cloud_api/work_server_api/login_api.cpp   |   8 +-
+ aether/work_cloud_api/work_server_api/login_api.h  |   4 +-
+ 17 files changed, 143 insertions(+), 457 deletions(-)
+>>> [elapsed: 13ms]
+>>> bash
+Рабочий каталог и состояние индекса сохранены WIP on main: 73253acb feat(api): push response events in client_api_unsafe
+660
+HEAD_BUILD_CHECKED
+Текущая ветка: main
+Ваша ветка опережает «origin/main» на 3 коммита.
+  (используйте «git push», чтобы опубликовать ваши локальные коммиты)
+
+Изменения, которые не в индексе для коммита:
+  (используйте «git add <файл>...», чтобы добавить файл в индекс)
+  (используйте «git restore <файл>...», чтобы отменить изменения в рабочем каталоге)
+	изменено:      aether/api_protocol/details/protocol_context.h
+	изменено:      aether/registration/registration.cpp
+	изменено:      aether/work_cloud_api/client_api/client_api_unsafe.h
+
+Неотслеживаемые файлы:
+  (используйте «git add <файл>...», чтобы добавить в то, что будет включено в коммит)
+	build-test/
+
+индекс пуст (используйте «git add» и/или «git commit -a»)
+Отброшено refs/stash@{0} (11df84e720009118390c1285a6ab7b60ab4a5194)
+>>> [elapsed: 58088ms]
+[subtask rewriteConsumers] ERROR: subtask exceeded MAX_ITERATIONS
