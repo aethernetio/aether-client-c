@@ -1,0 +1,1092 @@
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    18:# #define AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:  
+    25:n namespace ae {
+    26:c class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+    27:p  public:
+    28:/   // Here only return result api implemented, which is default
+    29:A   API_LIST()
+    30:} };
+    31:} }  // namespace ae
+    32:# #endif
+    33:# #endif  // AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 40 to 70
+>>> (показано строк: 31 из 213)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp lines 0 to 80
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    18:  
+    19:# #include "aether/tele.h"
+    20:  
+    21:n namespace ae {
+    22:C ClientApiUnsafe::ClientApiUnsafe(EventSystem& event_system,
+    23:I                                  IDecryptProvider& decrypt_provider)
+    24:  
+    25::     : server_pub_key_event{event_system},
+    26:p       pow_params_event{event_system},
+    27:r       resolved_servers_event{event_system},
+    28:p       ping_ack_event{event_system},
+    29:d       decrypt_provider_{&decrypt_provider},
+    30:c       client_safe_api_{event_system} {}
+    31:  
+    32:  
+    33:v void ClientApiUnsafe::SendSafeApiData(SubApi<ClientApiSafe> sub_api) {
+    34:a   auto unsafe_data = decrypt_provider_->Decrypt(std::move(sub_api).buffer());
+    35:A   AE_TELED_DEBUG("Client api unsafe data {}", unsafe_data);
+    36:  
+    37:a   auto parser = ApiParser{server_context().protocol_context(), unsafe_data};
+    38:/   // not fully parsed
+    39:i   if (!parser.Parse(client_safe_api_)) {
+    40:s     server_context().reader().Cancel();
+    41:}   }
+    42:} }
+    43:  
+    44:v void ClientApiUnsafe::SendAsymmetricPublicKey(SignedKey key) {
+    45:s   server_pub_key_event.Emit(std::move(key));
+    46:} }
+    47:  
+    48:v void ClientApiUnsafe::SendPowParams(PowParams params) {
+    49:p   pow_params_event.Emit(std::move(params));
+    50:} }
+>>> (показано строк: 60 из 60)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 66 to 75
+>>> (показано строк: 10 из 213)
+
+>>> [OK] Создан файл: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.cpp (41 строк)
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+    ...
+      23:# #  include "aether/api_protocol/api_protocol.h"
+      24:  
+    - 25:n namespace ae {
+    + 25:# #  include "aether/crypto/signed_key.h"
+    + 26:# #  include "aether/registration/api/server_registration_api.h"
+    + 27:# #  include "aether/types/server_id.h"
+    + 28:# #  include "aether/types/uid.h"
+    + 29:# #  include "aether/work_cloud_api/server_descriptor.h"
+    + 30:  
+    + 31:  
+    + 32:  
+    + 33:n n namespace ae {
+    + 34:s struct RegistrationDirectResult {
+    + 35:A     AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    + 36:U     Uid ephemeral_uid;
+    + 37:U     Uid uid;
+    + 38:s     std::vector<ServerId> cloud;
+    + 39:} };
+    + 40:  
+      41:c class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+      42:p  public:
+    - 28:/   // Here only return result api implemented, which is default
+    - 29:A   API_LIST()
+    + 43:e   explicit GlobalRegClientApi(EventSystem& event_system)
+    + 44::       : server_pub_key_event{event_system},
+    + 45:p         pow_params_event{event_system},
+    + 46:r         registration_direct_event{event_system},
+    + 47:r         resolved_servers_event{event_system} {}
+    + 48:  
+    + 49:E   Event<void(SignedKey)> server_pub_key_event;
+    + 50:E   Event<void(PowParams)> pow_params_event;
+    + 51:E   Event<void(RegistrationDirectResult)> registration_direct_event;
+    + 52:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    + 53:  
+    + 54:v   void SendAsymmetricPublicKey(SignedKey key);
+    + 55:v   void SendPowParams(PowParams params);
+    + 56:v   void SendRegistrationDirect(RegistrationDirectResult result);
+    + 57:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    + 58:  
+    + 59:A   API_LIST(METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams),
+    + 60:M            METHOD(66, SendRegistrationDirect), METHOD(68, SendResolvedServers));
+      61:} };
+    + 62:} } }  // namespace ae
+    + 63:  
+      64:} }  // namespace ae
+      65:# #endif
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    18:# #define AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:  
+    25:# #  include "aether/crypto/signed_key.h"
+    26:# #  include "aether/registration/api/server_registration_api.h"
+    27:# #  include "aether/types/server_id.h"
+    28:# #  include "aether/types/uid.h"
+    29:# #  include "aether/work_cloud_api/server_descriptor.h"
+    30:  
+    31:  
+    32:  
+    33:n n namespace ae {
+    34:s struct RegistrationDirectResult {
+    35:A     AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    36:U     Uid ephemeral_uid;
+    37:U     Uid uid;
+    38:s     std::vector<ServerId> cloud;
+    39:} };
+    40:  
+    41:c class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+    42:p  public:
+    43:e   explicit GlobalRegClientApi(EventSystem& event_system)
+    44::       : server_pub_key_event{event_system},
+    45:p         pow_params_event{event_system},
+    46:r         registration_direct_event{event_system},
+    47:r         resolved_servers_event{event_system} {}
+    48:  
+    49:E   Event<void(SignedKey)> server_pub_key_event;
+    50:E   Event<void(PowParams)> pow_params_event;
+
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h lines 31 to 35
+    31:  
+    32:  
+    33:n n namespace ae {
+    34:s struct RegistrationDirectResult {
+    35:A     AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+>>> (показано строк: 5 из 66)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 33 не пуста, первый символ 'n'
+ for path: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h lines 50 to 70
+    50:E   Event<void(PowParams)> pow_params_event;
+    51:E   Event<void(RegistrationDirectResult)> registration_direct_event;
+    52:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    53:  
+    54:v   void SendAsymmetricPublicKey(SignedKey key);
+    55:v   void SendPowParams(PowParams params);
+    56:v   void SendRegistrationDirect(RegistrationDirectResult result);
+    57:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    58:  
+    59:A   API_LIST(METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams),
+    60:M            METHOD(66, SendRegistrationDirect), METHOD(68, SendResolvedServers));
+    61:} };
+    62:} } }  // namespace ae
+    63:  
+    64:} }  // namespace ae
+    65:# #endif
+    66:# #endif  // AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+>>> (показано строк: 17 из 66)
+
+>>> Deleted: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.cpp>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+    ...
+      22:# #if AE_SUPPORT_REGISTRATION
+      23:# #  include "aether/api_protocol/api_protocol.h"
+    - 24:  
+    - 25:# #  include "aether/crypto/signed_key.h"
+    - 26:# #  include "aether/registration/api/server_registration_api.h"
+    - 27:# #  include "aether/types/server_id.h"
+    - 28:# #  include "aether/types/uid.h"
+    - 29:# #  include "aether/work_cloud_api/server_descriptor.h"
+    - 30:  
+      24:  
+      25:  
+    - 33:n n namespace ae {
+    - 34:s struct RegistrationDirectResult {
+    - 35:A     AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    - 36:U     Uid ephemeral_uid;
+    - 37:U     Uid uid;
+    - 38:s     std::vector<ServerId> cloud;
+    - 39:} };
+    + 26:# #  include "aether/api_protocol/api_protocol.h"
+      27:  
+    + 28:n namespace ae {
+      29:c class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+      30:p  public:
+    - 43:e   explicit GlobalRegClientApi(EventSystem& event_system)
+    - 44::       : server_pub_key_event{event_system},
+    - 45:p         pow_params_event{event_system},
+    - 46:r         registration_direct_event{event_system},
+    - 47:r         resolved_servers_event{event_system} {}
+    - 48:  
+    - 49:E   Event<void(SignedKey)> server_pub_key_event;
+    - 50:E   Event<void(PowParams)> pow_params_event;
+    - 51:E   Event<void(RegistrationDirectResult)> registration_direct_event;
+    - 52:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    - 53:  
+    - 54:v   void SendAsymmetricPublicKey(SignedKey key);
+    - 55:v   void SendPowParams(PowParams params);
+    - 56:v   void SendRegistrationDirect(RegistrationDirectResult result);
+    - 57:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    - 58:  
+    - 59:A   API_LIST(METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams),
+    - 60:M            METHOD(66, SendRegistrationDirect), METHOD(68, SendResolvedServers));
+    + 31:/   // Here only return result api implemented, which is default
+    + 32:A   API_LIST()
+      33:} };
+    - 62:} } }  // namespace ae
+    - 63:  
+      34:} }  // namespace ae
+
+>>> [WARN] createFile block size: 65 lines. Method length validation is DISABLED, so the command is allowed.
+>>> [CREATE FILE FAILED] Файл уже существует: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h. Для редактирования существующего файла используйте команды insertBefore/insertAfter/replace>>> [ERROR] type: Exception
+>>> [ERROR] message: Файл уже существует: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h. Для редактирования существующего файла используйте команды insertBefore/insertAfter/replace
+
+>>> Deleted: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h>>> [OK] Создан файл: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h (35 строк)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h lines 0 to 60
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    18:# #define AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:# #if AE_SUPPORT_REGISTRATION
+    22:  
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:# #  include "aether/crypto/icrypto_provider.h"
+    25:  
+    26:# #  include "aether/registration/api/client_reg_api_safe.h"
+    27:# #  include "aether/registration/api/global_reg_client_api.h"
+    28:  
+    29:n namespace ae {
+    30:c class ClientRegRootApi final : public DeclareApi<ClientRegRootApi> {
+    31:p  public:
+    32:e   explicit ClientRegRootApi(IDecryptProvider& root_decrypt_provider,
+    33:I                             IDecryptProvider& global_decrypt_provider);
+    34:  
+    35:v   void Enter(SubApi<ClientRegApiSafe> sub_api);
+    36:v   void EnterGlobal(SubApi<GlobalRegClientApi> sub_api);
+    37:  
+    38:A   API_LIST(METHOD(3, Enter), METHOD(4, EnterGlobal));
+    39:  
+    40:p  private:
+    41:I   IDecryptProvider* root_decrypt_provider_;
+    42:I   IDecryptProvider* global_decrypt_provider_;
+    43:  
+    44:C   ClientRegApiSafe client_reg_api_;
+    45:G   GlobalRegClientApi global_reg_client_api_;
+    46:} };
+    47:} }  // namespace ae
+    48:# #endif
+    49:  
+    50:# #endif  // AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+>>> (показано строк: 50 из 50)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.h
+
+>>> Deleted: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h>>> [WARN] createFile block size: 65 lines. Method length validation is DISABLED, so the command is allowed.
+>>> [OK] Создан файл: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h (65 строк)
+>>> [OK] Создан файл: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.cpp (41 строк)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_context.h lines 90 to 130
+    90:t template <typename T>
+    91:c concept AeContextual =
+    92:s     std::same_as<decltype(&AeContextMaker<T>::value), AeCtxTable const*>;
+    93:  
+    94:c class AeContext {
+    95:p  public:
+    96:t   template <AeContextual T>
+    97:c   constexpr AeContext(T const& obj)  // NOLINT(*explicit-constructor)
+    98::       : obj_{&obj}, vtable_{&AeContextMaker<T>::value} {}
+    99:  
+    100:A   Aether& aether() const { return vtable_->aether_getter(obj_); }
+    101:T   TaskScheduler& scheduler() const { return vtable_->scheduler_getter(obj_); }
+    102:E   EventSystem& event_system() const {
+    103:r     return vtable_->event_system_getter(obj_);
+    104:}   }
+    105:  
+    106:b   bool operator==(AeContext const&) const = default;
+    107:  
+    108:p  private:
+    109:v   void const* obj_;
+    110:A   AeCtxTable const* vtable_;
+    111:} };
+    112:  
+    113:} }  // namespace ae
+    114:  
+    115:# #endif  // AETHER_AE_CONTEXT_H_
+>>> (показано строк: 26 из 115)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/api/client_reg_api_unsafe.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:n namespace ae {
+    21:C ClientRegRootApi::ClientRegRootApi(IDecryptProvider& root_decrypt_provider,
+    22:I                                    IDecryptProvider& global_decrypt_provider)
+    23::     : root_decrypt_provider_{&root_decrypt_provider},
+    24:g       global_decrypt_provider_{&global_decrypt_provider} {}
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 66 to 75
+>>> (показано строк: 10 из 213)
+
+>>> Deleted: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.cpp>>> Deleted: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h>>> [OK] Создан файл: /home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h (35 строк)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:  
+    22:# #include "aether/crypto/icrypto_provider.h"
+    23:  
+    24:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    25:# #include "aether/events/events.h"
+    26:# #include "aether/crypto/signed_key.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:# #include "aether/registration/api/server_registration_api.h"
+    29:  
+    30:n namespace ae {
+    31:  
+    32:  
+    33:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    34:p  public:
+    35:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    36:I                            IDecryptProvider& decrypt_provider);
+    37:  
+    38:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+    39:  
+    40:E   Event<void(SignedKey)> server_pub_key_event;
+    41:E   Event<void(PowParams)> pow_params_event;
+    42:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    43:E   Event<void()> ping_ack_event;
+    44:  
+    45:v   void SendAsymmetricPublicKey(SignedKey key);
+    46:v   void SendPowParams(PowParams params);
+    47:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    48:v   void PingAck();
+    49:  
+    50:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    18:  
+    19:# #include "aether/tele.h"
+    20:  
+    21:n namespace ae {
+    22:C ClientApiUnsafe::ClientApiUnsafe(EventSystem& event_system,
+    23:I                                  IDecryptProvider& decrypt_provider)
+    24:  
+    25::     : server_pub_key_event{event_system},
+    26:p       pow_params_event{event_system},
+    27:r       resolved_servers_event{event_system},
+    28:p       ping_ack_event{event_system},
+    29:d       decrypt_provider_{&decrypt_provider},
+    30:c       client_safe_api_{event_system} {}
+    31:  
+    32:  
+    33:v void ClientApiUnsafe::SendSafeApiData(SubApi<ClientApiSafe> sub_api) {
+    34:a   auto unsafe_data = decrypt_provider_->Decrypt(std::move(sub_api).buffer());
+    35:A   AE_TELED_DEBUG("Client api unsafe data {}", unsafe_data);
+    36:  
+    37:a   auto parser = ApiParser{server_context().protocol_context(), unsafe_data};
+    38:/   // not fully parsed
+    39:i   if (!parser.Parse(client_safe_api_)) {
+    40:s     server_context().reader().Cancel();
+    41:}   }
+    42:} }
+    43:  
+    44:v void ClientApiUnsafe::SendAsymmetricPublicKey(SignedKey key) {
+    45:s   server_pub_key_event.Emit(std::move(key));
+    46:} }
+    47:  
+    48:v void ClientApiUnsafe::SendPowParams(PowParams params) {
+    49:p   pow_params_event.Emit(std::move(params));
+    50:} }
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 30 to 62
+    30:n namespace ae {
+    31:  
+    32:  
+    33:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    34:p  public:
+    35:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    36:I                            IDecryptProvider& decrypt_provider);
+    37:  
+    38:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+    39:  
+    40:E   Event<void(SignedKey)> server_pub_key_event;
+    41:E   Event<void(PowParams)> pow_params_event;
+    42:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    43:E   Event<void()> ping_ack_event;
+    44:  
+    45:v   void SendAsymmetricPublicKey(SignedKey key);
+    46:v   void SendPowParams(PowParams params);
+    47:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    48:v   void PingAck();
+    49:  
+    50:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    51:M            METHOD(67, SendPowParams), METHOD(68, SendResolvedServers),
+    52:M            METHOD(24, PingAck))
+    53:  
+    54:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    55:  
+    56:p  private:
+    57:I   IDecryptProvider* decrypt_provider_;
+    58:C   ClientApiSafe client_safe_api_;
+    59:} };
+    60:} }  // namespace ae
+    61:  
+    62:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+>>> (показано строк: 33 из 62)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp lines 44 to 60
+    44:v void ClientApiUnsafe::SendAsymmetricPublicKey(SignedKey key) {
+    45:s   server_pub_key_event.Emit(std::move(key));
+    46:} }
+    47:  
+    48:v void ClientApiUnsafe::SendPowParams(PowParams params) {
+    49:p   pow_params_event.Emit(std::move(params));
+    50:} }
+    51:  
+    52:v void ClientApiUnsafe::SendResolvedServers(std::vector<ServerDescriptor> servers) {
+    53:r   resolved_servers_event.Emit(std::move(servers));
+    54:} }
+    55:  
+    56:v void ClientApiUnsafe::PingAck() {
+    57:p   ping_ack_event.Emit();
+    58:} }
+    59:  
+    60:} }  // namespace ae
+>>> (показано строк: 17 из 60)
+
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 68 to 72
+    68:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    69:M            METHOD(67, SendPowParams), METHOD(68, SendResolvedServers),
+    70:M            METHOD(24, PingAck))
+    71:  
+    72:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+>>> (показано строк: 5 из 80)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 70 не пуста, первый символ 'M'
+ for path: /home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    ...
+      26:# #include "aether/crypto/signed_key.h"
+      27:# #include "aether/work_cloud_api/server_descriptor.h"
+    - 28:# #include "aether/registration/api/server_registration_api.h"
+    + 28:  
+    + 29:# #include "aether/types/server_id.h"
+    + 30:# #include "aether/types/uid.h"
+    + 31:  
+      32:  
+      33:n namespace ae {
+    + 34:  
+    + 35:  
+      36:  
+    + 37:s struct RegistrationDirectResult {
+    + 38:A   AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    + 39:U   Uid ephemeral_uid;
+    + 40:U   Uid uid;
+    + 41:s   std::vector<ServerId> cloud;
+    + 42:} };
+      43:  
+      44:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    + 45:  
+      46:p  public:
+      47:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    ...
+      53:E   Event<void(PowParams)> pow_params_event;
+      54:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    - 43:E   Event<void()> ping_ack_event;
+    + 55:  
+    + 56:E Event<void()> ping_ack_event;
+    + 57:E   Event<void(RegistrationDirectResult)> registration_direct_event;
+    + 58:  
+      59:  
+      60:v   void SendAsymmetricPublicKey(SignedKey key);
+    ...
+      61:v   void SendPowParams(PowParams params);
+      62:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    + 63:  
+    + 64:v void SendRegistrationDirect(RegistrationDirectResult result);
+      65:v   void PingAck();
+    + 66:  
+      67:  
+      68:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 0 to 100
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:  
+    22:# #include "aether/crypto/icrypto_provider.h"
+    23:  
+    24:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    25:# #include "aether/events/events.h"
+    26:# #include "aether/crypto/signed_key.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:  
+    29:# #include "aether/types/server_id.h"
+    30:# #include "aether/types/uid.h"
+    31:  
+    32:  
+    33:n namespace ae {
+    34:  
+    35:  
+    36:  
+    37:s struct RegistrationDirectResult {
+    38:A   AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    39:U   Uid ephemeral_uid;
+    40:U   Uid uid;
+    41:s   std::vector<ServerId> cloud;
+    42:} };
+    43:  
+    44:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    45:  
+    46:p  public:
+    47:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    48:I                            IDecryptProvider& decrypt_provider);
+    49:  
+    50:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+>>> (показано строк: 80 из 80)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 60 to 90
+    60:v   void SendAsymmetricPublicKey(SignedKey key);
+    61:v   void SendPowParams(PowParams params);
+    62:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    63:  
+    64:v void SendRegistrationDirect(RegistrationDirectResult result);
+    65:v   void PingAck();
+    66:  
+    67:  
+    68:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    69:M            METHOD(67, SendPowParams), METHOD(68, SendResolvedServers),
+    70:M            METHOD(24, PingAck))
+    71:  
+    72:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    73:  
+    74:p  private:
+    75:I   IDecryptProvider* decrypt_provider_;
+    76:C   ClientApiSafe client_safe_api_;
+    77:} };
+    78:} }  // namespace ae
+    79:  
+    80:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+>>> (показано строк: 21 из 80)
+
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 68 to 72
+    68:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    69:M            METHOD(67, SendPowParams), METHOD(68, SendResolvedServers),
+    70:M            METHOD(24, PingAck))
+    71:  
+    72:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+>>> (показано строк: 5 из 80)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 70 не пуста, первый символ 'M'
+ for path: /home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    ...
+      26:# #include "aether/crypto/signed_key.h"
+      27:# #include "aether/work_cloud_api/server_descriptor.h"
+    - 28:  
+    + 28:# #include "aether/registration/api/server_registration_api.h"
+      29:# #include "aether/types/server_id.h"
+      30:# #include "aether/types/uid.h"
+    ...
+      62:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+      63:  
+    - 64:v void SendRegistrationDirect(RegistrationDirectResult result);
+    + 64:v v   void SendRegistrationDirect(RegistrationDirectResult result);
+      65:v   void PingAck();
+      66:  
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> [transaction: success, files: 2]
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+    ...
+      26:p       pow_params_event{event_system},
+      27:r       resolved_servers_event{event_system},
+    - 28:p       ping_ack_event{event_system},
+    + 28:  
+    + 29:p ping_ack_event{event_system},
+    + 30:r        registration_direct_event{event_system},
+    + 31:  
+      32:d       decrypt_provider_{&decrypt_provider},
+      33:c       client_safe_api_{event_system} {}
+    ...
+      55:v void ClientApiUnsafe::SendResolvedServers(std::vector<ServerDescriptor> servers) {
+      56:r   resolved_servers_event.Emit(std::move(servers));
+    + 57:} }
+    + 58:  
+    + 59:v void ClientApiUnsafe::SendRegistrationDirect(RegistrationDirectResult result) {
+    + 60:r   registration_direct_event.Emit(std::move(result));
+      61:} }
+    + 62:  
+      63:  
+      64:v void ClientApiUnsafe::PingAck() {
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    ...
+      62:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+      63:  
+    - 64:v v   void SendRegistrationDirect(RegistrationDirectResult result);
+    + 64:v   void SendRegistrationDirect(RegistrationDirectResult result);
+      65:v   void PingAck();
+      66:  
+      67:  
+    - 68:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    - 69:M            METHOD(67, SendPowParams), METHOD(68, SendResolvedServers),
+    - 70:M            METHOD(24, PingAck))
+    + 68:  
+    + 69:A API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    + 70:M            METHOD(67, SendPowParams), METHOD(66, SendRegistrationDirect),
+    + 71:M            METHOD(68, SendResolvedServers), METHOD(24, PingAck))
+    + 72:  
+      73:  
+      74:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:  
+    22:# #include "aether/crypto/icrypto_provider.h"
+    23:  
+    24:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    25:# #include "aether/events/events.h"
+    26:# #include "aether/crypto/signed_key.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:# #include "aether/registration/api/server_registration_api.h"
+    29:# #include "aether/types/server_id.h"
+    30:# #include "aether/types/uid.h"
+    31:  
+    32:  
+    33:n namespace ae {
+    34:  
+    35:  
+    36:  
+    37:s struct RegistrationDirectResult {
+    38:A   AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    39:U   Uid ephemeral_uid;
+    40:U   Uid uid;
+    41:s   std::vector<ServerId> cloud;
+    42:} };
+    43:  
+    44:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    45:  
+    46:p  public:
+    47:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    48:I                            IDecryptProvider& decrypt_provider);
+    49:  
+    50:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h lines 50 to 90
+    50:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+    51:  
+    52:E   Event<void(SignedKey)> server_pub_key_event;
+    53:E   Event<void(PowParams)> pow_params_event;
+    54:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    55:  
+    56:E Event<void()> ping_ack_event;
+    57:E   Event<void(RegistrationDirectResult)> registration_direct_event;
+    58:  
+    59:  
+    60:v   void SendAsymmetricPublicKey(SignedKey key);
+    61:v   void SendPowParams(PowParams params);
+    62:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    63:  
+    64:v   void SendRegistrationDirect(RegistrationDirectResult result);
+    65:v   void PingAck();
+    66:  
+    67:  
+    68:  
+    69:A API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    70:M            METHOD(67, SendPowParams), METHOD(66, SendRegistrationDirect),
+    71:M            METHOD(68, SendResolvedServers), METHOD(24, PingAck))
+    72:  
+    73:  
+    74:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    75:  
+    76:p  private:
+    77:I   IDecryptProvider* decrypt_provider_;
+    78:C   ClientApiSafe client_safe_api_;
+    79:} };
+    80:} }  // namespace ae
+    81:  
+    82:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+>>> (показано строк: 33 из 82)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    18:  
+    19:# #include "aether/tele.h"
+    20:  
+    21:n namespace ae {
+    22:C ClientApiUnsafe::ClientApiUnsafe(EventSystem& event_system,
+    23:I                                  IDecryptProvider& decrypt_provider)
+    24:  
+    25::     : server_pub_key_event{event_system},
+    26:p       pow_params_event{event_system},
+    27:r       resolved_servers_event{event_system},
+    28:  
+    29:p ping_ack_event{event_system},
+    30:r        registration_direct_event{event_system},
+    31:  
+    32:d       decrypt_provider_{&decrypt_provider},
+    33:c       client_safe_api_{event_system} {}
+    34:  
+    35:  
+    36:v void ClientApiUnsafe::SendSafeApiData(SubApi<ClientApiSafe> sub_api) {
+    37:a   auto unsafe_data = decrypt_provider_->Decrypt(std::move(sub_api).buffer());
+    38:A   AE_TELED_DEBUG("Client api unsafe data {}", unsafe_data);
+    39:  
+    40:a   auto parser = ApiParser{server_context().protocol_context(), unsafe_data};
+    41:/   // not fully parsed
+    42:i   if (!parser.Parse(client_safe_api_)) {
+    43:s     server_context().reader().Cancel();
+    44:}   }
+    45:} }
+    46:  
+    47:v void ClientApiUnsafe::SendAsymmetricPublicKey(SignedKey key) {
+    48:s   server_pub_key_event.Emit(std::move(key));
+    49:} }
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp lines 25 to 35
+    25::     : server_pub_key_event{event_system},
+    26:p       pow_params_event{event_system},
+    27:r       resolved_servers_event{event_system},
+    28:  
+    29:p ping_ack_event{event_system},
+    30:r        registration_direct_event{event_system},
+    31:  
+    32:d       decrypt_provider_{&decrypt_provider},
+    33:c       client_safe_api_{event_system} {}
+    34:  
+    35:  
+>>> (показано строк: 11 из 68)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp lines 47 to 62
+    47:v void ClientApiUnsafe::SendAsymmetricPublicKey(SignedKey key) {
+    48:s   server_pub_key_event.Emit(std::move(key));
+    49:} }
+    50:  
+    51:v void ClientApiUnsafe::SendPowParams(PowParams params) {
+    52:p   pow_params_event.Emit(std::move(params));
+    53:} }
+    54:  
+    55:v void ClientApiUnsafe::SendResolvedServers(std::vector<ServerDescriptor> servers) {
+    56:r   resolved_servers_event.Emit(std::move(servers));
+    57:} }
+    58:  
+    59:v void ClientApiUnsafe::SendRegistrationDirect(RegistrationDirectResult result) {
+    60:r   registration_direct_event.Emit(std::move(result));
+    61:} }
+    62:  
+>>> (показано строк: 16 из 68)
+
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp lines 23 to 27
+    23:I                                  IDecryptProvider& decrypt_provider)
+    24:  
+    25::     : server_pub_key_event{event_system},
+    26:p       pow_params_event{event_system},
+    27:r       resolved_servers_event{event_system},
+>>> (показано строк: 5 из 68)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 25 не пуста, первый символ ':'
+ for path: /home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpptimestamp: 1793160593820
+>>> [transaction: success, files: 2]
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+    ...
+      27:r       resolved_servers_event{event_system},
+      28:  
+    - 29:p ping_ack_event{event_system},
+    - 30:r        registration_direct_event{event_system},
+    + 29:p       ping_ack_event{event_system},
+    + 30:r       registration_direct_event{event_system},
+    + 31:  
+      32:  
+      33:d       decrypt_provider_{&decrypt_provider},
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    ...
+      67:  
+      68:  
+    - 69:A API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+    + 69:  
+    + 70:A   API_LIST(METHOD(4, SendSafeApiData), METHOD(70, SendAsymmetricPublicKey),
+      71:M            METHOD(67, SendPowParams), METHOD(66, SendRegistrationDirect),
+      72:M            METHOD(68, SendResolvedServers), METHOD(24, PingAck))
+    + 73:  
+      74:  
+      75:  
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 68 to 100
+    68:  
+    69:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    70:  
+    71:R Registration::RegistrationEvent const& Registration::registration() {
+    72:r   return registration_event_;
+    73:} }
+    74:  
+    75:v void Registration::InitConnection() {
+    76:A   AE_TELED_DEBUG("Registration::InitConnection");
+    77:  
+    78:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    79:/     // Reinit connection and start registration from the beginning
+    80:/     // TODO: make async_waiter_ stop and start get keys again
+    81:A     AE_TELED_ERROR("Server changed");
+    82:}   });
+    83:  
+    84:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    85:A     AE_TELED_ERROR("Link Error, Registration failed");
+    86:/     // TODO: make async_waiter_ stop with error
+    87:}   });
+    88:  
+    89:/   // Connect parser for out data
+    90:r   root_server_select_stream_.out_data_event().Subscribe(
+    91:[       [this](auto const& data) {
+    92:a         auto parser = ApiParser{protocol_context_, data};
+    93:p         parser.Parse(client_root_api_);
+    94:}       });
+    95:} }
+    96:  
+    97:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    98:  
+    99:  
+    100:a auto Registration::GetKeys() {
+>>> (показано строк: 33 из 213)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [300000, Script1$_run_closure1@24da8315]
+````
+
+>>> bash
+>>> Ambiguous directory path, found 7:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>>   /home/angel/projects/aether-client-cpp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+[subtask cppRegistrationEvents] ERROR: subtask exceeded MAX_ITERATIONS

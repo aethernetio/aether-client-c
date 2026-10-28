@@ -1,0 +1,1923 @@
+>>> (отфильтровано: из 249 строк оставлено 200)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include <string>
+    20:# #include <utility>
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:# #include "aether/tasks/manual_task_scheduler.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "assert_packet.h"
+    29:  
+    30:n namespace ae::test_api_protocol_method_call {
+    31:  
+    32:s struct Number {
+    33:A   AE_REFLECT_MEMBERS(value)
+    34:i   int value;
+    35:} };
+    36:  
+    37:c class ApiLevel1 : public ae::DeclareApi<ApiLevel1> {
+    38:p  public:
+    39:v   virtual ~ApiLevel1() = default;
+    40:  
+    41:v   virtual void Method3(float a) = 0;
+    42:  
+    43:A   API_LIST(METHOD(3, Method3))
+    44:} };
+    45:  
+    46:c class ApiLevel0 : public ae::DeclareApi<ApiLevel0> {
+    47:p  public:
+    48:v   virtual ~ApiLevel0() = default;
+    49:  
+    50:v   virtual void Method3(int a, std::string const& b) = 0;
+    51:v   virtual ae::ApiPromise<Number> Method4(int a) = 0;
+    52:v   virtual void Method6(int a, ae::SubApi<ApiLevel1> sub_api) = 0;
+    53:  
+    54:A   API_LIST(METHOD(3, Method3), METHOD(4, Method4), METHOD(6, Method6))
+    55:} };
+    56:  
+    57:n namespace client {
+    58:c class ApiLevel1 : public test_api_protocol_method_call::ApiLevel1 {
+    59:p  public:
+    60:v   void Method3(float a) override {
+    61:C     ClientMethod<&test_api_protocol_method_call::ApiLevel1::Method3>(a);
+    62:}   }
+    63:} };
+    64:  
+    65:c class ApiLevel0 : public test_api_protocol_method_call::ApiLevel0 {
+    66:p  public:
+    67:v   void Method3(int a, std::string const& b) override {
+    68:C     ClientMethod<&test_api_protocol_method_call::ApiLevel0::Method3>(a, b);
+    69:}   }
+    70:a   ae::ApiPromise<Number> Method4(int a) override {
+    71:r     return ClientMethod<&test_api_protocol_method_call::ApiLevel0::Method4>(a);
+    72:}   }
+    73:v   void Method6(
+    74:i       int a,
+    75:a       ae::SubApi<test_api_protocol_method_call::ApiLevel1> sub_api) override {
+    76:C     ClientMethod<&test_api_protocol_method_call::ApiLevel0::Method6>(
+    77:a         a, std::move(sub_api)(level1, client_context()));
+    78:}   }
+    79:  
+    80:A   ApiLevel1 level1;
+    81:} };
+    82:} }  // namespace client
+    83:  
+    84:n namespace server {
+    85:c class ApiLevel1 : public test_api_protocol_method_call::ApiLevel1 {
+    86:p  public:
+    87:e   explicit ApiLevel1(ae::EventSystem& es) : on_method3{es} {}
+    88:  
+    89:v   void Method3(float a) override { on_method3.Emit(a); }
+    90:  
+    91:a   ae::Event<void(float)> on_method3;
+    92:} };
+    93:  
+    94:c class ApiLevel0 : public test_api_protocol_method_call::ApiLevel0 {
+    95:p  public:
+    96:e   explicit ApiLevel0(ae::EventSystem& es)
+    97::       : on_method3{es}, on_method4{es}, on_method6{es}, level1{es} {}
+    98:  
+    99:v   void Method3(int a, std::string const& b) override { on_method3.Emit(a, b); }
+    100:a   ae::ApiPromise<Number> Method4(int a) override {
+    101:o     on_method4.Emit(a, server_context().request_id());
+    102:r     return {};
+    103:}   }
+    104:v   void Method6(
+    105:i       int a,
+    106:a       ae::SubApi<test_api_protocol_method_call::ApiLevel1> sub_api) override {
+    107:o     on_method6.Emit(a);
+    108:a     auto buff = std::move(sub_api).buffer();
+    109:a     auto parser = ae::ApiParser{server_context().protocol_context(), buff};
+    110:p     parser.Parse(level1);
+    111:}   }
+    112:  
+    113:a   ae::Event<void(int a, std::string const& b)> on_method3;
+    114:a   ae::Event<void(int a, ae::RequestId req_id)> on_method4;
+    115:a   ae::Event<void(int a)> on_method6;
+    116:A   ApiLevel1 level1;
+    117:} };
+    118:  
+    119:} }  // namespace server
+    120:  
+    121:s struct MethodCallFixture {
+    122:a   ae::EventSystem event_system;
+    123:a   ae::TaskScheduler scheduler;
+    124:a   ae::ProtocolContext protocol_context{scheduler, event_system};
+    125:} };
+    126:  
+    127:v void test_ReturnResult() {
+    128:M   MethodCallFixture fxtr;
+    129:  
+    130:b   bool promise_get_value = false;
+    131:  
+    132:a   auto client_level0 = client::ApiLevel0{};
+    133:a   auto call_context = ae::ApiContext{client_level0, fxtr.protocol_context};
+    134:  
+    135:a   auto promise = call_context->Method4(42);
+    136:p   promise.Subscribe([&](auto const& res) {
+    137:i     if (res.IsOk()) {
+    138:a       auto value = res.value().value;
+    139:T       TEST_ASSERT_EQUAL(78, value);
+    140:p       promise_get_value = true;
+    141:}     } else {
+    142:T       TEST_FAIL();
+    143:}     }
+    144:}   });
+    145:  
+    146:a   ae::DataBuffer packet = std::move(call_context);
+    147:  
+    148:A   AssertPacket(packet, ae::MessageId{4}, Skip<ae::RequestId>{}, int{42});
+    149:  
+    150:b   bool level0_method4_called = false;
+    151:  
+    152:a   auto server_level0 = server::ApiLevel0{fxtr.event_system};
+    153:  
+    154:s   server_level0.on_method4.Subscribe([&](int, ae::RequestId req_id) {
+    155:l     level0_method4_called = true;
+    156:/     // send response to req_id
+    157:a     auto response_context = ae::ApiContext{server_level0};
+    158:r     response_context->SendResult(req_id, Number{78});
+    159:a     auto data = std::move(response_context).Pack();
+    160:/     // simulate transport and parse response here
+    161:/     // response should be parsed by server implementation on sender side, but in
+    162:/     // our case more matter to use same protocol_context
+    163:a     auto parser = ae::ApiParser{fxtr.protocol_context, data};
+    164:p     parser.Parse(server_level0);
+    165:}   });
+    166:  
+    167:/   // simulate transport and parse sent packet
+    168:a   auto parser = ae::ApiParser{fxtr.protocol_context, packet};
+    169:p   parser.Parse(server_level0);
+    170:  
+    171:T   TEST_ASSERT(level0_method4_called);
+    172:T   TEST_ASSERT(promise_get_value);
+    173:} }
+    174:  
+    175:v void test_MethodWithSubApi() {
+    176:M   MethodCallFixture fxtr;
+    177:  
+    178:a   auto client_level0 = client::ApiLevel0{};
+    179:a   auto call_context = ae::ApiContext{client_level0, fxtr.protocol_context};
+    180:  
+    181:c   call_context->Method6(
+    182:1       12, [&](ae::ApiContext<ApiLevel1>& api) { api->Method3(42.12F); });
+    183:  
+    184:a   ae::DataBuffer packet = std::move(call_context);
+    185:A   AssertPacket(packet, ae::MessageId{6}, int{12}, Skip<ae::PackedSize>{},
+    186:a                ae::MessageId{3}, float{42.12F});
+    187:  
+    188:b   bool level0_method6_called = false;
+    189:b   bool level1_method3_called = false;
+    190:  
+    191:a   auto server_level0 = server::ApiLevel0{fxtr.event_system};
+    192:  
+    193:s   server_level0.on_method6.Subscribe(
+    194:[       [&](int) { level0_method6_called = true; });
+    195:  
+    196:s   server_level0.level1.on_method3.Subscribe(
+    197:[       [&](float) { level1_method3_called = true; });
+    198:  
+>>> (отфильтровано: из 193 строк оставлено 193)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include <cstdint>
+    20:  
+    21:# #include "aether/api_protocol/api_protocol.h"
+    22:# #include "aether/events/events.h"
+    23:# #include "aether/tasks/manual_task_scheduler.h"
+    24:  
+    25:# #include "assert_packet.h"
+    26:  
+    27:n namespace ae::test_api_protocol_request_response {
+    28:  
+    29:c class ResponseApi : public DeclareApi<ResponseApi> {
+    30:p  public:
+    31:v   virtual ~ResponseApi() = default;
+    32:  
+    33:v   virtual ApiPromise<std::int32_t> Request() = 0;
+    34:  
+    35:A   API_LIST(METHOD(2, Request))
+    36:} };
+    37:  
+    38:c class ClientResponseApi final : public ResponseApi {
+    39:p  public:
+    40:A   ApiPromise<std::int32_t> Request() override {
+    41:r     return ClientMethod<&ResponseApi::Request>();
+    42:}   }
+    43:} };
+    44:  
+    45:c class ServerResponseApi final : public ResponseApi {
+    46:p  public:
+    47:e   explicit ServerResponseApi(EventSystem& event_system)
+    48::       : request{event_system} {}
+    49:  
+    50:A   ApiPromise<std::int32_t> Request() override {
+    51:r     request.Emit(server_context().request_id());
+    52:r     return {};
+    53:}   }
+    54:  
+    55:E   Event<void(RequestId)> request;
+    56:} };
+    57:  
+    58:s struct RequestResponseFixture {
+    59:E   EventSystem event_system;
+    60:T   TaskScheduler scheduler;
+    61:P   ProtocolContext protocol_context{scheduler, event_system};
+    62:} };
+    63:  
+    64:v void test_SendErrorWireFormat() {
+    65:E   EventSystem event_system;
+    66:a   auto api = ServerResponseApi{event_system};
+    67:a   auto context = ApiContext{api};
+    68:c   context->SendError(RequestId{42}, 7, -9);
+    69:  
+    70:D   DataBuffer packet = std::move(context);
+    71:A   AssertPacket(packet, MessageId{1}, RequestId{42}, std::uint8_t{7},
+    72:s                std::int32_t{-9});
+    73:} }
+    74:  
+    75:v void test_ErrorResponseCompletesPromiseOnce() {
+    76:R   RequestResponseFixture fxtr;
+    77:a   auto client_api = ClientResponseApi{};
+    78:a   auto client_context = ApiContext{client_api, fxtr.protocol_context};
+    79:  
+    80:a   auto promise = client_context->Request();
+    81:a   auto completion_count = 0;
+    82:a   auto error_code = std::int32_t{};
+    83:S   Subscription subscription = promise.Subscribe([&](auto const& result) {
+    84:T     TEST_ASSERT_FALSE(result.IsOk());
+    85:e     error_code = static_cast<std::int32_t>(result.error());
+    86:+     ++completion_count;
+    87:}   });
+    88:(   (void)subscription;
+    89:  
+    90:D   DataBuffer request = std::move(client_context);
+    91:a   auto server_api = ServerResponseApi{fxtr.event_system};
+    92:D   DataBuffer response;
+    93:S   Subscription response_subscription =
+    94:s       server_api.request.Subscribe([&](RequestId request_id) {
+    95:a         auto response_context = ApiContext{server_api};
+    96:r         response_context->SendError(request_id, 3, -42);
+    97:r         response = std::move(response_context);
+    98:  
+    99:a         auto response_parser = ApiParser{fxtr.protocol_context, response};
+    100:T         TEST_ASSERT_TRUE(response_parser.Parse(server_api));
+    101:}       });
+    102:(   (void)response_subscription;
+    103:  
+    104:a   auto request_parser = ApiParser{fxtr.protocol_context, request};
+    105:T   TEST_ASSERT_TRUE(request_parser.Parse(server_api));
+    106:T   TEST_ASSERT_EQUAL(1, completion_count);
+    107:T   TEST_ASSERT_EQUAL(-42, error_code);
+    108:  
+    109:a   auto duplicate_response_parser = ApiParser{fxtr.protocol_context, response};
+    110:T   TEST_ASSERT_FALSE(duplicate_response_parser.Parse(server_api));
+    111:T   TEST_ASSERT_EQUAL(1, completion_count);
+    112:} }
+    113:  
+    114:v void test_TruncatedResultCompletesPromiseWithDecodeError() {
+    115:R   RequestResponseFixture fxtr;
+    116:a   auto client_api = ClientResponseApi{};
+    117:a   auto client_context = ApiContext{client_api, fxtr.protocol_context};
+    118:a   auto promise = client_context->Request();
+    119:a   auto completion_count = 0;
+    120:a   auto error_code = std::int32_t{};
+    121:S   Subscription subscription = promise.Subscribe([&](auto const& result) {
+    122:T     TEST_ASSERT_FALSE(result.IsOk());
+    123:e     error_code = static_cast<std::int32_t>(result.error());
+    124:+     ++completion_count;
+    125:}   });
+    126:(   (void)subscription;
+    127:  
+    128:a   auto server_api = ServerResponseApi{fxtr.event_system};
+    129:a   auto response_context = ApiContext{server_api};
+    130:r   response_context->SendResult(promise.request_id(), std::int32_t{42});
+    131:D   DataBuffer response = std::move(response_context);
+    132:r   response.pop_back();
+    133:  
+    134:a   auto parser = ApiParser{fxtr.protocol_context, response};
+    135:T   TEST_ASSERT_FALSE(parser.Parse(server_api));
+    136:T   TEST_ASSERT_EQUAL(1, completion_count);
+    137:T   TEST_ASSERT_EQUAL(-2, error_code);
+    138:} }
+    139:  
+    140:v void test_TruncatedResponseRequestIdDoesNotCompletePromise() {
+    141:R   RequestResponseFixture fxtr;
+    142:a   auto client_api = ClientResponseApi{};
+    143:a   auto client_context = ApiContext{client_api, fxtr.protocol_context};
+    144:a   auto promise = client_context->Request();
+    145:a   auto completion_count = 0;
+    146:S   Subscription subscription =
+    147:p       promise.Subscribe([&](auto const&) { ++completion_count; });
+    148:(   (void)subscription;
+    149:  
+    150:a   auto server_api = ServerResponseApi{fxtr.event_system};
+    151:a   auto malformed_packet = DataBuffer{0};
+    152:a   auto parser = ApiParser{fxtr.protocol_context, malformed_packet};
+    153:  
+    154:T   TEST_ASSERT_FALSE(parser.Parse(server_api));
+    155:T   TEST_ASSERT_EQUAL(0, completion_count);
+    156:} }
+    157:  
+    158:v void test_TruncatedErrorDoesNotCompletePromise() {
+    159:R   RequestResponseFixture fxtr;
+    160:a   auto client_api = ClientResponseApi{};
+    161:a   auto client_context = ApiContext{client_api, fxtr.protocol_context};
+    162:a   auto promise = client_context->Request();
+    163:a   auto completion_count = 0;
+    164:S   Subscription subscription =
+    165:p       promise.Subscribe([&](auto const&) { ++completion_count; });
+    166:(   (void)subscription;
+    167:  
+    168:a   auto server_api = ServerResponseApi{fxtr.event_system};
+    169:a   auto response_context = ApiContext{server_api};
+    170:r   response_context->SendError(promise.request_id(), 3, -42);
+    171:D   DataBuffer response = std::move(response_context);
+    172:r   response.pop_back();
+    173:  
+    174:a   auto parser = ApiParser{fxtr.protocol_context, response};
+    175:T   TEST_ASSERT_FALSE(parser.Parse(server_api));
+    176:T   TEST_ASSERT_EQUAL(0, completion_count);
+    177:} }
+    178:  
+    179:} }  // namespace ae::test_api_protocol_request_response
+    180:  
+    181:i int test_api_protocol_request_response() {
+    182:U   UNITY_BEGIN();
+    183:u   using namespace ae::test_api_protocol_request_response;  // NOLINT
+    184:  
+    185:R   RUN_TEST(test_SendErrorWireFormat);
+    186:R   RUN_TEST(test_ErrorResponseCompletesPromiseOnce);
+    187:R   RUN_TEST(test_TruncatedResultCompletesPromiseWithDecodeError);
+    188:R   RUN_TEST(test_TruncatedResponseRequestIdDoesNotCompletePromise);
+    189:R   RUN_TEST(test_TruncatedErrorDoesNotCompletePromise);
+    190:r   return UNITY_END();
+    191:} }
+>>> (отфильтровано: из 179 строк оставлено 179)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-pending-responses.cpp
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include <vector>
+    20:  
+    21:# #include "aether/events/events.h"
+    22:# #include "aether/tasks/manual_task_scheduler.h"
+    23:  
+    24:# #include "aether/api_protocol/api_protocol.h"
+    25:  
+    26:n namespace ae::test_api_protocol_pending_responses {
+    27:  
+    28:c class PendingResponsesApi : public DeclareApi<PendingResponsesApi> {
+    29:p  public:
+    30:v   virtual ~PendingResponsesApi() = default;
+    31:  
+    32:v   virtual ApiPromise<short> Method3(int value) = 0;
+    33:  
+    34:A   API_LIST(METHOD(3, Method3))
+    35:} };
+    36:  
+    37:c class PendingResponsesClientApi : public PendingResponsesApi {
+    38:p  public:
+    39:A   ApiPromise<short> Method3(int value) override {
+    40:r     return ClientMethod<&PendingResponsesApi::Method3>(value);
+    41:}   }
+    42:} };
+    43:  
+    44:s struct PendingResponsesFixture {
+    45:E   EventSystem event_system;
+    46:T   TaskScheduler scheduler;
+    47:P   ProtocolContext protocol_context{scheduler, event_system};
+    48:} };
+    49:  
+    50:v void test_RequestIdsStartIndependentlyAndAreSequential() {
+    51:P   PendingResponsesFixture first;
+    52:P   PendingResponsesFixture second;
+    53:  
+    54:T   TEST_ASSERT_EQUAL_UINT32(0, first.protocol_context.NextRequestId().id);
+    55:T   TEST_ASSERT_EQUAL_UINT32(1, first.protocol_context.NextRequestId().id);
+    56:T   TEST_ASSERT_EQUAL_UINT32(0, second.protocol_context.NextRequestId().id);
+    57:T   TEST_ASSERT_EQUAL_UINT32(1, second.protocol_context.NextRequestId().id);
+    58:} }
+    59:  
+    60:v void test_ApiPromiseBoolReflectsWhetherFutureIsPresent() {
+    61:P   PendingResponsesFixture fxtr;
+    62:  
+    63:a   auto empty_value = ApiPromise<short>{};
+    64:a   auto filled_value = ApiPromise<short>{
+    65:f       fxtr.protocol_context.CreateFuture<short>(RequestId{1})};
+    66:a   auto empty_void = ApiPromise<void>{};
+    67:a   auto filled_void =
+    68:A       ApiPromise<void>{fxtr.protocol_context.CreateFuture<void>(RequestId{2})};
+    69:  
+    70:T   TEST_ASSERT_FALSE(static_cast<bool>(empty_value));
+    71:T   TEST_ASSERT_TRUE(static_cast<bool>(filled_value));
+    72:T   TEST_ASSERT_FALSE(static_cast<bool>(empty_void));
+    73:T   TEST_ASSERT_TRUE(static_cast<bool>(filled_void));
+    74:} }
+    75:  
+    76:v void test_CapacityEvictsOldest() {
+    77:P   PendingResponsesFixture fxtr;
+    78:a   auto& pc = fxtr.protocol_context;
+    79:  
+    80:b   bool first_promise_evicted = false;
+    81:a   auto client_api = PendingResponsesClientApi{};
+    82:a   auto call_context = ApiContext{client_api, pc};
+    83:a   auto subscriptions = std::vector<Subscription>{};
+    84:  
+    85:f   for (auto i = 0U; i < ProtocolContext::kMaxPendingResponses + 1; ++i) {
+    86:a     auto promise = call_context->Method3(static_cast<int>(i));
+    87:a     auto subscription = promise.Subscribe([&, i](auto const& res) {
+    88:i       if (i == 0U) {
+    89:T         TEST_ASSERT_FALSE(res.IsOk());
+    90:T         TEST_ASSERT_EQUAL(-1, res.error());
+    91:f         first_promise_evicted = true;
+    92:}       }
+    93:}     });
+    94:s     subscriptions.emplace_back(std::move(subscription));
+    95:}   }
+    96:  
+    97:T   TEST_ASSERT_TRUE(first_promise_evicted);
+    98:} }
+    99:  
+    100:v void test_CompletionFreesPoolSlot() {
+    101:P   PendingResponsesFixture fxtr;
+    102:a   auto& pc = fxtr.protocol_context;
+    103:  
+    104:a   auto second_promise_evicted = false;
+    105:a   auto subscriptions = std::vector<Subscription>{};
+    106:  
+    107:f   for (auto i = 0U; i < ProtocolContext::kMaxPendingResponses; ++i) {
+    108:a     auto promise = ApiPromise<short>{pc.CreateFuture<short>(RequestId{i + 1})};
+    109:  
+    110:a     auto subscription = promise.Subscribe([&, i](auto const& res) {
+    111:i       if (i == 1U) {
+    112:T         TEST_ASSERT_FALSE(res.IsOk());
+    113:T         TEST_ASSERT_EQUAL(static_cast<std::uint32_t>(-1), res.error());
+    114:s         second_promise_evicted = true;
+    115:}       }
+    116:}     });
+    117:s     subscriptions.emplace_back(std::move(subscription));
+    118:}   }
+    119:  
+    120:p   pc.SetSendErrorResponse(RequestId{1}, 0, 7);
+    121:  
+    122:a   auto extra_promise = ApiPromise<short>{
+    123:f       fxtr.protocol_context.CreateFuture<short>(RequestId{1000})};
+    124:s   subscriptions.emplace_back(extra_promise.Subscribe([](auto const&) {}));
+    125:  
+    126:T   TEST_ASSERT_FALSE(second_promise_evicted);
+    127:} }
+    128:  
+    129:v void test_FifoAfterMiddleRemoval() {
+    130:P   PendingResponsesFixture fxtr;
+    131:a   auto& pc = fxtr.protocol_context;
+    132:  
+    133:a   auto first_evicted = false;
+    134:a   auto second_evicted = false;
+    135:a   auto subscriptions = std::vector<Subscription>{};
+    136:  
+    137:f   for (auto i = 0U; i < ProtocolContext::kMaxPendingResponses; ++i) {
+    138:a     auto id = i + 1U;
+    139:a     auto promise = ApiPromise<short>{pc.CreateFuture<short>(RequestId{id})};
+    140:a     auto subscription = promise.Subscribe([&, id](auto const& res) {
+    141:i       if (!res.IsOk() && (res.error() == static_cast<std::uint32_t>(-1))) {
+    142:i         if (id == 1U) {
+    143:f           first_evicted = true;
+    144:}         } else if (id == 2U) {
+    145:s           second_evicted = true;
+    146:}         }
+    147:}       }
+    148:}     });
+    149:s     subscriptions.emplace_back(std::move(subscription));
+    150:}   }
+    151:  
+    152:p   pc.SetSendErrorResponse(RequestId{3}, 0, 7);
+    153:  
+    154:a   auto fill_promise =
+    155:A       ApiPromise<short>{pc.CreateFuture<short>(RequestId{1000})};
+    156:s   subscriptions.emplace_back(fill_promise.Subscribe([](auto const&) {}));
+    157:a   auto overflow_promise =
+    158:A       ApiPromise<short>{pc.CreateFuture<short>(RequestId{1001})};
+    159:s   subscriptions.emplace_back(overflow_promise.Subscribe([](auto const&) {}));
+    160:  
+    161:T   TEST_ASSERT_TRUE(first_evicted);
+    162:T   TEST_ASSERT_FALSE(second_evicted);
+    163:} }
+    164:  
+    165:} }  // namespace ae::test_api_protocol_pending_responses
+    166:  
+    167:i int test_api_protocol_pending_responses() {
+    168:U   UNITY_BEGIN();
+    169:u   using namespace ae::test_api_protocol_pending_responses;  // NOLINT
+    170:  
+    171:R   RUN_TEST(test_CapacityEvictsOldest);
+    172:R   RUN_TEST(test_RequestIdsStartIndependentlyAndAreSequential);
+    173:R   RUN_TEST(test_ApiPromiseBoolReflectsWhetherFutureIsPresent);
+    174:R   RUN_TEST(test_CompletionFreesPoolSlot);
+    175:R   RUN_TEST(test_FifoAfterMiddleRemoval);
+    176:r   return UNITY_END();
+    177:} }
+>>> (отфильтровано: из 394 строк оставлено 200)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include <cassert>
+    20:# #include <cstddef>
+    21:# #include <cstdint>
+    22:# #include <optional>
+    23:# #include <utility>
+    24:  
+    25:# #include "aether/api_protocol/api_protocol.h"
+    26:# #include "aether/api_protocol/make_api_call_sender.h"
+    27:# #include "aether/events/events.h"
+    28:# #include "aether/executors/executors.h"
+    29:# #include "aether/tasks/manual_task_scheduler.h"
+    30:  
+    31:n namespace ae::test_api_protocol_sender_lifecycle {
+    32:  
+    33:c constexpr std::int32_t kResultValue{42};
+    34:c constexpr std::int32_t kApiErrorValue{-42};
+    35:c constexpr std::int32_t kIgnoredApiError{-1};
+    36:c constexpr std::int32_t kFailureResultValue{7};
+    37:c constexpr std::int32_t kStoppedResultValue{8};
+    38:c constexpr std::int32_t kNoRequestError{0};
+    39:c constexpr std::uint32_t kNotifyMethodId{2};
+    40:c constexpr std::uint32_t kFirstRequestId{1};
+    41:c constexpr std::uint32_t kSecondRequestId{2};
+    42:c constexpr int kNoWrites{0};
+    43:c constexpr int kOneWrite{1};
+    44:c constexpr int kTwoWrites{2};
+    45:c constexpr int kOneCompletion{1};
+    46:  
+    47:c class SenderApi : public DeclareApi<SenderApi> {
+    48:p  public:
+    49:v   virtual ~SenderApi() = default;
+    50:  
+    51:v   virtual void Notify() = 0;
+    52:  
+    53:A   API_LIST(METHOD(kNotifyMethodId, Notify))
+    54:} };
+    55:  
+    56:c class ClientSenderApi final : public SenderApi {
+    57:p  public:
+    58:v   void Notify() override { ClientMethod<&SenderApi::Notify>(); }
+    59:} };
+    60:  
+    61:s struct SenderFixture {
+    62:m   mutable TaskScheduler scheduler_;
+    63:m   mutable EventSystem event_system_;
+    64:P   ProtocolContext protocol_context{scheduler_, event_system_};
+    65:  
+    66:T   TaskScheduler& scheduler() const { return scheduler_; }
+    67:E   EventSystem& event_system() const { return event_system_; }
+    68:} };
+    69:  
+    70:c class TestWriteAction final : public WriteAction {
+    71:p  public:
+    72:e   explicit TestWriteAction(SenderFixture const& fixture)
+    73::       : WriteAction{fixture_context(fixture)} {}
+    74:  
+    75:v   void Complete(Status status) { SetStatus(status); }
+    76:  
+    77:p  private:
+    78:s   struct Context {
+    79:e     explicit Context(SenderFixture const& fixture) : fixture_{&fixture} {}
+    80:  
+    81:T     TaskScheduler& scheduler() const { return fixture_->scheduler(); }
+    82:E     EventSystem& event_system() const { return fixture_->event_system(); }
+    83:  
+    84:p    private:
+    85:S     SenderFixture const* fixture_;
+    86:}   };
+    87:  
+    88:s   static Context fixture_context(SenderFixture const& fixture) {
+    89:r     return Context{fixture};
+    90:}   }
+    91:} };
+    92:  
+    93:c class TestStream {
+    94:p  public:
+    95:e   explicit TestStream(SenderFixture const& fixture) : fixture_{&fixture} {}
+    96:  
+    97:W   WriteAction& Write(DataBuffer&& data) {
+    98:w     written_data.emplace(std::move(data));
+    99:+     ++write_count;
+    100:a     auto& action = write_action.emplace(*fixture_);
+    101:r     return action;
+    102:}   }
+    103:  
+    104:v   void CompleteWrite(WriteAction::Status status) {
+    105:a     assert(write_action.has_value() && "Write action must be available");
+    106:w     write_action->Complete(status);
+    107:}   }
+    108:  
+    109:i   int write_count{};
+    110:s   std::optional<TestWriteAction> write_action;
+    111:s   std::optional<DataBuffer> written_data;
+    112:  
+    113:p  private:
+    114:S   SenderFixture const* fixture_;
+    115:} };
+    116:  
+    117:e enum class Completion : std::uint8_t {
+    118:k   kNone,
+    119:k   kValue,
+    120:k   kApiError,
+    121:k   kWriteError,
+    122:k   kStopped
+    123:} };
+    124:  
+    125:s struct ReceiverState {
+    126:C   Completion completion{Completion::kNone};
+    127:i   int completion_count{};
+    128:s   std::int32_t value{};
+    129:s   std::int32_t api_error{};
+    130:} };
+    131:  
+    132:s struct Receiver {
+    133:u   using receiver_concept = ex::receiver_t;
+    134:  
+    135:v   void set_value() const&& noexcept {
+    136:s     state->completion = Completion::kValue;
+    137:+     ++state->completion_count;
+    138:}   }
+    139:v   void set_value(std::int32_t value) const&& noexcept {
+    140:s     state->completion = Completion::kValue;
+    141:s     state->value = value;
+    142:+     ++state->completion_count;
+    143:}   }
+    144:v   void set_error(std::int32_t error) const&& noexcept {
+    145:s     state->completion = Completion::kApiError;
+    146:s     state->api_error = error;
+    147:+     ++state->completion_count;
+    148:}   }
+    149:v   void set_error(WriteFailed) const&& noexcept {
+    150:s     state->completion = Completion::kWriteError;
+    151:+     ++state->completion_count;
+    152:}   }
+    153:v   void set_stopped() const&& noexcept {
+    154:s     state->completion = Completion::kStopped;
+    155:+     ++state->completion_count;
+    156:}   }
+    157:  
+    158:R   ReceiverState* state;
+    159:} };
+    160:  
+    161:v void test_EmptyPromiseDoesNotWriteAndStops() {
+    162:S   SenderFixture fxtr;
+    163:C   ClientSenderApi api;
+    164:T   TestStream stream{fxtr};
+    165:R   ReceiverState state;
+    166:  
+    167:a   auto sender = make_api_call(
+    168:a       api, fxtr.protocol_context, stream,
+    169:[       [](ApiContext<ClientSenderApi>&) { return ApiPromise<std::int32_t>{}; });
+    170:a   auto operation = ex::connect(std::move(sender), Receiver{&state});
+    171:e   ex::start(operation);
+    172:  
+    173:T   TEST_ASSERT_EQUAL(kNoWrites, stream.write_count);
+    174:T   TEST_ASSERT_EQUAL(kOneCompletion, state.completion_count);
+    175:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kStopped),
+    176:s                         static_cast<int>(state.completion));
+    177:} }
+    178:  
+    179:v void test_FilledPromiseCompletesWithValueAndError() {
+    180:S   SenderFixture fxtr;
+    181:C   ClientSenderApi api;
+    182:T   TestStream stream{fxtr};
+    183:R   ReceiverState success_state;
+    184:A   ApiFuture<std::int32_t>* success_future = nullptr;
+    185:  
+    186:a   auto success_sender = make_api_call(
+    187:a       api, fxtr.protocol_context, stream, [&](ApiContext<ClientSenderApi>&) {
+    188:s         success_future =
+    189:&             &fxtr.protocol_context.CreateFuture<std::int32_t>(kFirstRequestId);
+    190:r         return ApiPromise<std::int32_t>{*success_future};
+    191:}       });
+    192:a   auto success_operation =
+    193:e       ex::connect(std::move(success_sender), Receiver{&success_state});
+    194:e   ex::start(success_operation);
+    195:s   success_future->OnResult(std::int32_t{kResultValue});
+    196:  
+    197:T   TEST_ASSERT_EQUAL(kOneWrite, stream.write_count);
+    198:T   TEST_ASSERT_EQUAL(kOneCompletion, success_state.completion_count);
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] tests/test-api-protocol/CMakeLists.txt
+[FILE] tests/test-api-protocol/assert_packet.h
+[FILE] tests/test-api-protocol/main.cpp
+[FILE] tests/test-api-protocol/suite-main.cpp
+[FILE] tests/test-api-protocol/test-method-call.cpp
+[FILE] tests/test-api-protocol/test-packet.cpp
+[FILE] tests/test-api-protocol/test-pending-responses.cpp
+[FILE] tests/test-api-protocol/test-registration.cpp
+[FILE] tests/test-api-protocol/test-request-response.cpp
+[FILE] tests/test-api-protocol/test-sender-lifecycle.cpp
+[DIR]  tests
+[DIR]  tests/test-api-protocol
+>>> (итог: 2 директорий, 10 файлов)
+>>> (отфильтровано: из 64 строк оставлено 64)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/CMakeLists.txt
+    1:# # Copyright 2024 Aethernet Inc.
+    2:# #
+    3:# # Licensed under the Apache License, Version 2.0 (the "License");
+    4:# # you may not use this file except in compliance with the License.
+    5:# # You may obtain a copy of the License at
+    6:# #
+    7:# #     http://www.apache.org/licenses/LICENSE-2.0
+    8:# #
+    9:# # Unless required by applicable law or agreed to in writing, software
+    10:# # distributed under the License is distributed on an "AS IS" BASIS,
+    11:# # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    12:# # See the License for the specific language governing permissions and
+    13:# # limitations under the License.
+    14:  
+    15:c cmake_minimum_required( VERSION 3.16 )
+    16:  
+    17:s set(test_api_protocol_suites
+    18:p   packet
+    19:m   method-call
+    20:r   request-response
+    21:p   pending-responses
+    22:s   sender-lifecycle
+    23:r   registration
+    24:) )
+    25:  
+    26:s set(test_srcs
+    27:m   main.cpp
+    28:t   test-packet.cpp
+    29:t   test-method-call.cpp
+    30:t   test-request-response.cpp
+    31:t   test-pending-responses.cpp
+    32:t   test-sender-lifecycle.cpp
+    33:t   test-registration.cpp
+    34:) )
+    35:  
+    36:i if(NOT CM_PLATFORM)
+    37:  
+    38:p   project(test-api-protocol LANGUAGES CXX)
+    39:  
+    40:a   add_executable(${PROJECT_NAME})
+    41:t   target_sources(${PROJECT_NAME} PRIVATE ${test_srcs})
+    42:#   # for aether
+    43:t   target_link_libraries(${PROJECT_NAME} PRIVATE aether unity gcem etl)
+    44:  
+    45:a   add_test(NAME ${PROJECT_NAME} COMMAND $<TARGET_FILE:${PROJECT_NAME}>)
+    46:  
+    47:f   foreach(suite IN LISTS test_api_protocol_suites)
+    48:s     string(REPLACE "-" "_" suite_entry ${suite})
+    49:s     set(suite_target "${PROJECT_NAME}-${suite}")
+    50:  
+    51:a     add_executable(${suite_target} suite-main.cpp "test-${suite}.cpp")
+    52:t     target_compile_definitions(
+    53:$       ${suite_target}
+    54:P       PRIVATE API_PROTOCOL_SUITE=test_api_protocol_${suite_entry}
+    55:)     )
+    56:t     target_link_libraries(${suite_target} PRIVATE aether unity gcem etl)
+    57:  
+    58:a     add_test(NAME ${suite_target} COMMAND $<TARGET_FILE:${suite_target}>)
+    59:e   endforeach()
+    60:e else()
+    61:m   message(WARNING "Not implemented for ${CM_PLATFORM}")
+    62:e endif()
+
+>>> (отфильтровано: из 249 строк оставлено 80)
+    168:a   auto parser = ae::ApiParser{fxtr.protocol_context, packet};
+    169:p   parser.Parse(server_level0);
+    170:  
+    171:T   TEST_ASSERT(level0_method4_called);
+    172:T   TEST_ASSERT(promise_get_value);
+    173:} }
+    174:  
+    175:v void test_MethodWithSubApi() {
+    176:M   MethodCallFixture fxtr;
+    177:  
+    178:a   auto client_level0 = client::ApiLevel0{};
+    179:a   auto call_context = ae::ApiContext{client_level0, fxtr.protocol_context};
+    180:  
+    181:c   call_context->Method6(
+    182:1       12, [&](ae::ApiContext<ApiLevel1>& api) { api->Method3(42.12F); });
+    183:  
+    184:a   ae::DataBuffer packet = std::move(call_context);
+    185:A   AssertPacket(packet, ae::MessageId{6}, int{12}, Skip<ae::PackedSize>{},
+    186:a                ae::MessageId{3}, float{42.12F});
+    187:  
+    188:b   bool level0_method6_called = false;
+    189:b   bool level1_method3_called = false;
+    190:  
+    191:a   auto server_level0 = server::ApiLevel0{fxtr.event_system};
+    192:  
+    193:s   server_level0.on_method6.Subscribe(
+    194:[       [&](int) { level0_method6_called = true; });
+    195:  
+    196:s   server_level0.level1.on_method3.Subscribe(
+    197:[       [&](float) { level1_method3_called = true; });
+    198:  
+    199:a   auto parser = ae::ApiParser{fxtr.protocol_context, packet};
+    200:p   parser.Parse(server_level0);
+    201:  
+    202:T   TEST_ASSERT_TRUE(level0_method6_called);
+    203:T   TEST_ASSERT_TRUE(level1_method3_called);
+    204:} }
+    205:  
+    206:v void test_TruncatedArgumentsDoNotInvokeMethod() {
+    207:M   MethodCallFixture fxtr;
+    208:a   auto server_level0 = server::ApiLevel0{fxtr.event_system};
+    209:a   auto method_called = false;
+    210:S   Subscription subscription = server_level0.on_method3.Subscribe(
+    211:[       [&](int, std::string const&) { method_called = true; });
+    212:(   (void)subscription;
+    213:  
+    214:a   auto malformed_packet = DataBuffer{3};
+    215:a   auto parser = ApiParser{fxtr.protocol_context, malformed_packet};
+    216:  
+    217:T   TEST_ASSERT_FALSE(parser.Parse(server_level0));
+    218:T   TEST_ASSERT_FALSE(method_called);
+    219:} }
+    220:  
+    221:v void test_TruncatedRequestIdDoesNotInvokeMethod() {
+    222:M   MethodCallFixture fxtr;
+    223:a   auto server_level0 = server::ApiLevel0{fxtr.event_system};
+    224:a   auto method_called = false;
+    225:S   Subscription subscription = server_level0.on_method4.Subscribe(
+    226:[       [&](int, RequestId) { method_called = true; });
+    227:(   (void)subscription;
+    228:  
+    229:a   auto malformed_packet = DataBuffer{4};
+    230:a   auto parser = ApiParser{fxtr.protocol_context, malformed_packet};
+    231:  
+    232:T   TEST_ASSERT_FALSE(parser.Parse(server_level0));
+    233:T   TEST_ASSERT_FALSE(method_called);
+    234:} }
+    235:  
+    236:} }  // namespace ae::test_api_protocol_method_call
+    237:  
+    238:i int test_api_protocol_method_call() {
+    239:U   UNITY_BEGIN();
+    240:u   using namespace ae::test_api_protocol_method_call;  // NOLINT
+    241:  
+    242:R   RUN_TEST(test_ReturnResult);
+    243:R   RUN_TEST(test_MethodWithSubApi);
+    244:R   RUN_TEST(test_TruncatedArgumentsDoNotInvokeMethod);
+    245:R   RUN_TEST(test_TruncatedRequestIdDoesNotInvokeMethod);
+    246:r   return UNITY_END();
+    247:} }
+>>> (отфильтровано: из 394 строк оставлено 200)
+    193:e       ex::connect(std::move(success_sender), Receiver{&success_state});
+    194:e   ex::start(success_operation);
+    195:s   success_future->OnResult(std::int32_t{kResultValue});
+    196:  
+    197:T   TEST_ASSERT_EQUAL(kOneWrite, stream.write_count);
+    198:T   TEST_ASSERT_EQUAL(kOneCompletion, success_state.completion_count);
+    199:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kValue),
+    200:s                         static_cast<int>(success_state.completion));
+    201:T   TEST_ASSERT_EQUAL(kResultValue, success_state.value);
+    202:  
+    203:R   ReceiverState error_state;
+    204:A   ApiFuture<std::int32_t>* error_future = nullptr;
+    205:a   auto error_sender = make_api_call(
+    206:a       api, fxtr.protocol_context, stream, [&](ApiContext<ClientSenderApi>&) {
+    207:e         error_future =
+    208:&             &fxtr.protocol_context.CreateFuture<std::int32_t>(kSecondRequestId);
+    209:r         return ApiPromise<std::int32_t>{*error_future};
+    210:}       });
+    211:a   auto error_operation =
+    212:e       ex::connect(std::move(error_sender), Receiver{&error_state});
+    213:e   ex::start(error_operation);
+    214:e   error_future->OnError(kNoRequestError, kApiErrorValue);
+    215:  
+    216:T   TEST_ASSERT_EQUAL(kTwoWrites, stream.write_count);
+    217:T   TEST_ASSERT_EQUAL(kOneCompletion, error_state.completion_count);
+    218:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kApiError),
+    219:s                         static_cast<int>(error_state.completion));
+    220:T   TEST_ASSERT_EQUAL(kApiErrorValue, error_state.api_error);
+    221:} }
+    222:  
+    223:v void test_VoidPromiseCompletesWithValue() {
+    224:S   SenderFixture fxtr;
+    225:C   ClientSenderApi api;
+    226:T   TestStream stream{fxtr};
+    227:R   ReceiverState state;
+    228:A   ApiFuture<void>* future = nullptr;
+    229:  
+    230:a   auto sender = make_api_call(
+    231:a       api, fxtr.protocol_context, stream, [&](ApiContext<ClientSenderApi>&) {
+    232:f         future = &fxtr.protocol_context.CreateFuture<void>(kFirstRequestId);
+    233:r         return ApiPromise<void>{*future};
+    234:}       });
+    235:a   auto operation = ex::connect(std::move(sender), Receiver{&state});
+    236:e   ex::start(operation);
+    237:f   future->OnResult();
+    238:  
+    239:T   TEST_ASSERT_EQUAL(kOneWrite, stream.write_count);
+    240:T   TEST_ASSERT_EQUAL(kOneCompletion, state.completion_count);
+    241:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kValue),
+    242:s                         static_cast<int>(state.completion));
+    243:} }
+    244:  
+    245:v void test_EmptyVoidPromiseDoesNotWriteAndStops() {
+    246:S   SenderFixture fxtr;
+    247:C   ClientSenderApi api;
+    248:T   TestStream stream{fxtr};
+    249:R   ReceiverState state;
+    250:  
+    251:a   auto sender = make_api_call(
+    252:a       api, fxtr.protocol_context, stream,
+    253:[       [](ApiContext<ClientSenderApi>&) { return ApiPromise<void>{}; });
+    254:a   auto operation = ex::connect(std::move(sender), Receiver{&state});
+    255:e   ex::start(operation);
+    256:  
+    257:T   TEST_ASSERT_EQUAL(kNoWrites, stream.write_count);
+    258:T   TEST_ASSERT_EQUAL(kOneCompletion, state.completion_count);
+    259:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kStopped),
+    260:s                         static_cast<int>(state.completion));
+    261:} }
+    262:  
+    263:v void test_ResponseAfterStartCompletesAndReleasesSubscriptions() {
+    264:S   SenderFixture fxtr;
+    265:C   ClientSenderApi api;
+    266:T   TestStream stream{fxtr};
+    267:R   ReceiverState state;
+    268:A   ApiFuture<std::int32_t>* future = nullptr;
+    269:  
+    270:a   auto sender = make_api_call(
+    271:a       api, fxtr.protocol_context, stream, [&](ApiContext<ClientSenderApi>&) {
+    272:f         future =
+    273:&             &fxtr.protocol_context.CreateFuture<std::int32_t>(kFirstRequestId);
+    274:r         return ApiPromise<std::int32_t>{*future};
+    275:}       });
+    276:a   auto operation = ex::connect(std::move(sender), Receiver{&state});
+    277:e   ex::start(operation);
+    278:  
+    279:T   TEST_ASSERT_EQUAL(kOneWrite, stream.write_count);
+    280:T   TEST_ASSERT_EQUAL(0, state.completion_count);
+    281:  
+    282:f   future->OnResult(std::int32_t{kResultValue});
+    283:  
+    284:E   Event<void()> const probe_event{fxtr};
+    285:M   MultiSubscription probe_subscriptions;
+    286:f   for (std::size_t i = 0; i < kEventsHandlerCapacity; ++i) {
+    287:p     probe_subscriptions += probe_event.Subscribe([]() noexcept {});
+    288:}   }
+    289:T   TEST_ASSERT_EQUAL(kOneWrite, stream.write_count);
+    290:T   TEST_ASSERT_EQUAL(kOneCompletion, state.completion_count);
+    291:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kValue),
+    292:s                         static_cast<int>(state.completion));
+    293:T   TEST_ASSERT_EQUAL(kResultValue, state.value);
+    294:} }
+    295:  
+    296:v void test_VoidPromiseCallbackIsSupported() {
+    297:u   using VoidPromiseCallback =
+    298:d       decltype([](ApiContext<ClientSenderApi>& context) -> ApiPromise<void> {
+    299:c         context->Notify();
+    300:r         return {};
+    301:}       });
+    302:s   static_assert(make_api_call_sender_internal::ApiCall<VoidPromiseCallback,
+    303:C                                                        ClientSenderApi>);
+    304:s   static_assert(requires(ClientSenderApi& api,
+    305:P                          ProtocolContext& protocol_context,
+    306:T                          TestStream& stream) {
+    307:m     make_api_call(api, protocol_context, stream, VoidPromiseCallback{});
+    308:}   });
+    309:} }
+    310:  
+    311:v void test_WriteFailureAndStopCompleteAndReleaseSubscriptions() {
+    312:S   SenderFixture fxtr;
+    313:C   ClientSenderApi api;
+    314:T   TestStream stream{fxtr};
+    315:R   ReceiverState failure_state;
+    316:A   ApiFuture<std::int32_t>* failure_future = nullptr;
+    317:  
+    318:a   auto failure_sender = make_api_call(
+    319:a       api, fxtr.protocol_context, stream, [&](ApiContext<ClientSenderApi>&) {
+    320:f         failure_future =
+    321:&             &fxtr.protocol_context.CreateFuture<std::int32_t>(kFirstRequestId);
+    322:r         return ApiPromise<std::int32_t>{*failure_future};
+    323:}       });
+    324:a   auto failure_operation =
+    325:e       ex::connect(std::move(failure_sender), Receiver{&failure_state});
+    326:e   ex::start(failure_operation);
+    327:s   stream.CompleteWrite(WriteAction::Status::kFail);
+    328:f   failure_future->OnResult(std::int32_t{kFailureResultValue});
+    329:  
+    330:T   TEST_ASSERT_EQUAL(kOneCompletion, failure_state.completion_count);
+    331:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kWriteError),
+    332:s                         static_cast<int>(failure_state.completion));
+    333:  
+    334:R   ReceiverState stopped_state;
+    335:A   ApiFuture<std::int32_t>* stopped_future = nullptr;
+    336:a   auto stopped_sender = make_api_call(
+    337:a       api, fxtr.protocol_context, stream, [&](ApiContext<ClientSenderApi>&) {
+    338:s         stopped_future =
+    339:&             &fxtr.protocol_context.CreateFuture<std::int32_t>(kSecondRequestId);
+    340:r         return ApiPromise<std::int32_t>{*stopped_future};
+    341:}       });
+    342:a   auto stopped_operation =
+    343:e       ex::connect(std::move(stopped_sender), Receiver{&stopped_state});
+    344:e   ex::start(stopped_operation);
+    345:s   stream.CompleteWrite(WriteAction::Status::kStop);
+    346:s   stopped_future->OnResult(std::int32_t{kStoppedResultValue});
+    347:  
+    348:T   TEST_ASSERT_EQUAL(kOneCompletion, stopped_state.completion_count);
+    349:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kStopped),
+    350:s                         static_cast<int>(stopped_state.completion));
+    351:} }
+    352:  
+    353:v void test_TerminalCompletionIsExactlyOnce() {
+    354:S   SenderFixture fxtr;
+    355:C   ClientSenderApi api;
+    356:T   TestStream stream{fxtr};
+    357:R   ReceiverState state;
+    358:A   ApiFuture<std::int32_t>* future = nullptr;
+    359:  
+    360:a   auto sender = make_api_call(
+    361:a       api, fxtr.protocol_context, stream, [&](ApiContext<ClientSenderApi>&) {
+    362:f         future =
+    363:&             &fxtr.protocol_context.CreateFuture<std::int32_t>(kFirstRequestId);
+    364:r         return ApiPromise<std::int32_t>{*future};
+    365:}       });
+    366:a   auto operation = ex::connect(std::move(sender), Receiver{&state});
+    367:e   ex::start(operation);
+    368:f   future->OnResult(std::int32_t{kResultValue});
+    369:s   stream.CompleteWrite(WriteAction::Status::kFail);
+    370:f   future->OnError(kNoRequestError, kIgnoredApiError);
+    371:  
+    372:T   TEST_ASSERT_EQUAL(kOneCompletion, state.completion_count);
+    373:T   TEST_ASSERT_EQUAL_INT(static_cast<int>(Completion::kValue),
+    374:s                         static_cast<int>(state.completion));
+    375:T   TEST_ASSERT_EQUAL(kResultValue, state.value);
+    376:} }
+    377:} }  // namespace ae::test_api_protocol_sender_lifecycle
+    378:  
+    379:i int test_api_protocol_sender_lifecycle() {
+    380:U   UNITY_BEGIN();
+    381:u   using namespace ae::test_api_protocol_sender_lifecycle;  // NOLINT
+    382:  
+    383:R   RUN_TEST(test_EmptyPromiseDoesNotWriteAndStops);
+    384:R   RUN_TEST(test_FilledPromiseCompletesWithValueAndError);
+    385:R   RUN_TEST(test_VoidPromiseCompletesWithValue);
+    386:R   RUN_TEST(test_EmptyVoidPromiseDoesNotWriteAndStops);
+    387:R   RUN_TEST(test_ResponseAfterStartCompletesAndReleasesSubscriptions);
+    388:R   RUN_TEST(test_VoidPromiseCallbackIsSupported);
+    389:R   RUN_TEST(test_WriteFailureAndStopCompleteAndReleaseSubscriptions);
+    390:R   RUN_TEST(test_TerminalCompletionIsExactlyOnce);
+    391:r   return UNITY_END();
+    392:} }
+>>> (отфильтровано: из 55 строк оставлено 55)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-registration.cpp
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include "aether/api_protocol/api_protocol.h"
+    20:  
+    21:n namespace ae::test_api_protocol_registration {
+    22:  
+    23:c class RegistrationApi : public DeclareApi<RegistrationApi> {
+    24:p  public:
+    25:v   void Method2() {}
+    26:v   void Method3() {}
+    27:  
+    28:A   API_LIST(METHOD(2, Method2), METHOD(3, Method3))
+    29:} };
+    30:  
+    31:c constexpr auto kRegistrationMethods =
+    32:R     RegistrationApi::ApiList<RegistrationApi>();
+    33:u using RegistrationMethods = decltype(kRegistrationMethods);
+    34:u using DuplicateIds = TypeList<RegMethod<2, &RegistrationApi::Method2>,
+    35:R                               RegMethod<2, &RegistrationApi::Method3>>;
+    36:u using ReservedResultId = TypeList<RegMethod<0, &RegistrationApi::Method2>>;
+    37:u using ReservedErrorId = TypeList<RegMethod<1, &RegistrationApi::Method2>>;
+    38:  
+    39:s static_assert(
+    40:a     api_class_declate_internal::AreApiMessageIdsValid(RegistrationMethods{}));
+    41:s static_assert(
+    42:!     !api_class_declate_internal::AreApiMessageIdsValid(DuplicateIds{}));
+    43:s static_assert(
+    44:!     !api_class_declate_internal::AreApiMessageIdsValid(ReservedResultId{}));
+    45:s static_assert(
+    46:!     !api_class_declate_internal::AreApiMessageIdsValid(ReservedErrorId{}));
+    47:  
+    48:} }  // namespace ae::test_api_protocol_registration
+    49:  
+    50:i int test_api_protocol_registration() {
+    51:U   UNITY_BEGIN();
+    52:r   return UNITY_END();
+    53:} }
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> [transaction: success, files: 4]
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp
+    + 1:  
+      2:/ /*
+      3:*  * Copyright 2026 Aethernet Inc.
+    ...
+      32:v   virtual ~ResponseApi() = default;
+      33:  
+    - 33:v   virtual ApiPromise<std::int32_t> Request() = 0;
+    + 34:v   virtual void Request() = 0;
+    + 35:v   virtual void OnResponse(std::int32_t value) = 0;
+      36:  
+    - 35:A   API_LIST(METHOD(2, Request))
+    + 37:A   API_LIST(METHOD(2, Request), METHOD(3, OnResponse))
+      38:} };
+      39:  
+    ...
+      40:c class ClientResponseApi final : public ResponseApi {
+      41:p  public:
+    - 40:A   ApiPromise<std::int32_t> Request() override {
+    - 41:r     return ClientMethod<&ResponseApi::Request>();
+    - 42:}   }
+    + 42:e   explicit ClientResponseApi(EventSystem& event_system)
+    + 43::       : response{event_system} {}
+    + 44:  
+    + 45:v   void Request() override { ClientMethod<&ResponseApi::Request>(); }
+    + 46:  
+    + 47:v   void OnResponse(std::int32_t value) override { response.Emit(value); }
+    + 48:  
+    + 49:E   Event<void(std::int32_t)> response;
+      50:} };
+      51:  
+    ...
+      55::       : request{event_system} {}
+      56:  
+    - 50:A   ApiPromise<std::int32_t> Request() override {
+    - 51:r     request.Emit(server_context().request_id());
+    - 52:r     return {};
+    - 53:}   }
+    + 57:v   void Request() override { request.Emit(); }
+      58:  
+    - 55:E   Event<void(RequestId)> request;
+    + 59:v   void OnResponse(std::int32_t) override {}
+    + 60:  
+    + 61:E   Event<void()> request;
+      62:} };
+      63:  
+    ...
+      67:P   ProtocolContext protocol_context{scheduler, event_system};
+      68:} };
+
+>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-cpp/tests/test-api-protocol/*.cpp>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-cpp/tests/test-api-protocol/*.cpp>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-cpp/tests/test-api-protocol/*.cpp>>> findText
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-cpp/tests/test-api-protocol/*.cpptimestamp: 1793167852951
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp
+>>> No matches found for: ApiPromise|RequestId|CreateFuture
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp
+    70:v void test_RequestSendsWithoutRequestId() {
+    113:/ // promise completion, etc.) are removed because request_id and ApiPromise
+    122:R   RUN_TEST(test_RequestSendsWithoutRequestId);
+>>> Found 3 matches.
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-pending-responses.cpp
+    32:v   virtual ApiPromise<short> Method3(int value) = 0;
+    39:A   ApiPromise<short> Method3(int value) override {
+    51:v void test_RequestIdsStartIndependentlyAndAreSequential() {
+    57:v void test_ApiPromiseBoolReflectsWhetherFutureIsPresent() {
+    58:/   // TODO(push-model): ApiPromise and CreateFuture were removed.
+    87:R   RUN_TEST(test_RequestIdsStartIndependentlyAndAreSequential);
+    88:R   RUN_TEST(test_ApiPromiseBoolReflectsWhetherFutureIsPresent);
+>>> Found 7 matches.
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp
+    39:c constexpr std::uint32_t kFirstRequestId{1};
+    40:c constexpr std::uint32_t kSecondRequestId{2};
+    162:/   // TODO(push-model): make_api_call sender was removed.
+    168:/   // TODO(push-model): make_api_call sender was removed.
+    174:/   // TODO(push-model): make_api_call sender was removed.
+    180:/   // TODO(push-model): make_api_call sender was removed.
+    186:/   // TODO(push-model): make_api_call sender was removed.
+    192:/   // TODO(push-model): make_api_call sender was removed.
+    198:/   // TODO(push-model): make_api_call sender was removed.
+    204:/   // TODO(push-model): make_api_call sender was removed.
+>>> Found 10 matches.
+
+>>> (отфильтровано: из 94 строк оставлено 80)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-pending-responses.cpp
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include <vector>
+    20:  
+    21:# #include "aether/events/events.h"
+    22:# #include "aether/tasks/manual_task_scheduler.h"
+    23:  
+    24:# #include "aether/api_protocol/api_protocol.h"
+    25:  
+    26:n namespace ae::test_api_protocol_pending_responses {
+    27:  
+    28:c class PendingResponsesApi : public DeclareApi<PendingResponsesApi> {
+    29:p  public:
+    30:v   virtual ~PendingResponsesApi() = default;
+    31:  
+    32:v   virtual ApiPromise<short> Method3(int value) = 0;
+    33:  
+    34:A   API_LIST(METHOD(3, Method3))
+    35:} };
+    36:  
+    37:c class PendingResponsesClientApi : public PendingResponsesApi {
+    38:p  public:
+    39:A   ApiPromise<short> Method3(int value) override {
+    40:r     return ClientMethod<&PendingResponsesApi::Method3>(value);
+    41:}   }
+    42:} };
+    43:  
+    44:s struct PendingResponsesFixture {
+    45:E   EventSystem event_system;
+    46:T   TaskScheduler scheduler;
+    47:P   ProtocolContext protocol_context{scheduler, event_system};
+    48:} };
+    49:  
+    50:  
+    51:v void test_RequestIdsStartIndependentlyAndAreSequential() {
+    52:/   // TODO(push-model): request_id generation was removed.
+    53:} }
+    54:  
+    55:  
+    56:  
+    57:v void test_ApiPromiseBoolReflectsWhetherFutureIsPresent() {
+    58:/   // TODO(push-model): ApiPromise and CreateFuture were removed.
+    59:} }
+    60:  
+    61:  
+    62:  
+    63:v void test_CapacityEvictsOldest() {
+    64:/   // TODO(push-model): pending responses pool was removed.
+    65:} }
+    66:  
+    67:  
+    68:  
+    69:v void test_CompletionFreesPoolSlot() {
+    70:/   // TODO(push-model): pending responses pool was removed.
+    71:} }
+    72:  
+    73:  
+    74:  
+    75:v void test_FifoAfterMiddleRemoval() {
+    76:/   // TODO(push-model): pending responses pool was removed.
+    77:} }
+    78:  
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-pending-responses.cpp
+    ...
+      25:  
+      26:n namespace ae::test_api_protocol_pending_responses {
+    + 27:  
+      28:  
+      29:c class PendingResponsesApi : public DeclareApi<PendingResponsesApi> {
+    ...
+      31:v   virtual ~PendingResponsesApi() = default;
+      32:  
+    - 32:v   virtual ApiPromise<short> Method3(int value) = 0;
+    + 33:v   virtual void Method3(int value) = 0;
+      34:  
+      35:A   API_LIST(METHOD(3, Method3))
+    ...
+      38:c class PendingResponsesClientApi : public PendingResponsesApi {
+      39:p  public:
+    - 39:A   ApiPromise<short> Method3(int value) override {
+    - 40:r     return ClientMethod<&PendingResponsesApi::Method3>(value);
+    + 40:v   void Method3(int value) override {
+    + 41:C     ClientMethod<&PendingResponsesApi::Method3>(value);
+      42:}   }
+      43:} };
+    + 44:  
+      45:  
+      46:s struct PendingResponsesFixture {
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [300000, Script1$_run_closure1@590012e1]
+````
+
+>>> bash
+BUILD_DONE
+>>> [elapsed: 4159ms]
+
+>>> bash
+home/angel/projects/aether-client-cpp/build-test/tests/run/Development/test-server-connection
+Unable to find executable: /home/angel/projects/aether-client-cpp/build-test/tests/run/test-server-connection
+30/30 Test #30: test-server-connection ................***Not Run   0.00 sec
+
+0% tests passed, 30 tests failed out of 30
+
+Total Test time (real) =   0.01 sec
+
+The following tests FAILED:
+	  1 - ae-misc-test-types (Not Run)
+	  2 - test-reflect (Not Run)
+	  3 - test-domain-visitor (Not Run)
+	  4 - test-meta (Not Run)
+	  5 - test-format (Not Run)
+	  6 - test-serialization (Not Run)
+	  7 - test-tele (Not Run)
+	  8 - test-ptr (Not Run)
+	  9 - test-object-system (Not Run)
+	 10 - test_executors_any_waiter_h (Not Run)
+	 11 - test_executors_for_range_h (Not Run)
+	 12 - test_types_iterator_h (Not Run)
+	 13 - test-types (Not Run)
+	 14 - test-api-protocol (Not Run)
+	 15 - test-api-protocol-packet (Not Run)
+	 16 - test-api-protocol-method-call (Not Run)
+	 17 - test-api-protocol-request-response (Not Run)
+	 18 - test-api-protocol-pending-responses (Not Run)
+	 19 - test-api-protocol-sender-lifecycle (Not Run)
+	 20 - test-api-protocol-registration (Not Run)
+	 21 - test-prepared-packet (Not Run)
+	 22 - test-actions (Not Run)
+	 23 - test-events (Not Run)
+	 24 - test-transport (Not Run)
+	 25 - test-safe-stream (Not Run)
+	 26 - test-stream (Not Run)
+	 27 - test-domain-storage (Not Run)
+	 28 - test-serial-port (Not Run)
+	 29 - test-tasks (Not Run)
+	 30 - test-server-connection (Not Run)
+Errors while running CTest
+>>> [elapsed: 29ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> bash
+total 28
+drwxrwxr-x 1 angel angel   550 Oct 28 14:11 .
+drwxrwxr-x 1 angel angel   384 Oct 28 14:11 ..
+drwxrwxr-x 1 angel angel   262 Oct 28 14:11 CMakeFiles
+-rw-rw-r-- 1 angel angel  2298 Oct 28 14:11 CTestTestfile.cmake
+-rw-rw-r-- 1 angel angel 15147 Oct 28 14:11 Makefile
+-rw-rw-r-- 1 angel angel  4344 Oct 28 14:11 cmake_install.cmake
+drwxrwxr-x 1 angel angel   172 Oct 28 14:11 generated
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 inline_tests
+drwxrwxr-x 1 angel angel     0 Oct 28 14:11 run
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-actions
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-api-protocol
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-domain-storage
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-events
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-prepared-packet
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-safe-stream
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-serial-port
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-server-connection
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-stream
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 test-tasks
+---
+>>> [elapsed: 36ms]
+
+>>> bash
+... test
+... ae-misc-test-types
+... test-actions
+... test-api-protocol
+... test-api-protocol-method-call
+... test-api-protocol-packet
+... test-api-protocol-pending-responses
+... test-api-protocol-registration
+... test-api-protocol-request-response
+... test-api-protocol-sender-lifecycle
+... test-domain-storage
+... test-domain-visitor
+... test-events
+... test-format
+... test-meta
+... test-object-system
+... test-prepared-packet
+... test-ptr
+... test-reflect
+... test-safe-stream
+... test-serial-port
+... test-serialization
+... test-server-connection
+... test-stream
+... test-tasks
+... test-tele
+... test-transport
+... test-types
+... test_executors_any_waiter_h
+... test_executors_for_range_h
+>>> [elapsed: 420ms]
+
+>>> bash
+total 44
+drwxrwxr-x 1 angel angel   112 Oct 28 14:11 .
+drwxrwxr-x 1 angel angel   550 Oct 28 14:11 ..
+drwxrwxr-x 1 angel angel   552 Oct 28 14:11 CMakeFiles
+-rw-rw-r-- 1 angel angel  3064 Oct 28 14:11 CTestTestfile.cmake
+-rw-rw-r-- 1 angel angel 33288 Oct 28 14:11 Makefile
+-rw-rw-r-- 1 angel angel  1583 Oct 28 14:11 cmake_install.cmake
+>>> [elapsed: 7ms]
+
+>>> bash
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp:133:22: error: invalid use of ‘void’
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp:142:6: error: expected primary-expression before ‘)’ token
+BUILD_DONE
+>>> [elapsed: 91603ms]
+
+>>> (отфильтровано: из 74 строк оставлено 74)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp lines 100 to 170
+    100:.                 .count());
+    101:  
+    102:a         auth_api->Ping(next_ping_hint_ms, rx_window_ms);
+    103:  
+    104:A         AE_TELE_DEBUG(kPingSend,
+    105:"                       "Ping server id {}, expected time {}",
+    106:s                       server_id_, timeout_);
+    107:  
+    108:r         request_start_ = current_time;
+    109:  
+    110:t         timeout_sub_ = ae_context_.scheduler().DelayedTask(
+    111:[             [this]() { PingResponseTimeout(RequestId{}); },
+    112:c             current_time + timeout_);
+    113:}       });
+    114:  
+    115:  
+    116:w   write_sub_ = write_action.status_event().Subscribe([this](auto status) {
+    117:i     if (status == WriteAction::Status::kFail) {
+    118:i       if (state_ != RequestState::kPending) {
+    119:r         return;
+    120:}       }
+    121:A       AE_TELE_ERROR(kPingWriteError, "Ping write error");
+    122:s       state_ = RequestState::kFinished;
+    123:R       ResetRequestSubscriptions();
+    124:r       result_event_.Emit(PingResult{Error{1}});
+    125:}     }
+    126:}   });
+    127:i   if (state_ != RequestState::kPending) {
+    128:w     write_sub_.Reset();
+    129:}   }
+    130:  
+    131:# #  if DEBUG
+    132:c   cc->LoginApiCall([&](ApiContext<LoginApi>& api_call) {
+    133:a     api_call->GetMyIp().Subscribe([&](auto&& res) noexcept {
+    134:i       if (res) {
+    135:a         auto&& ip = std::forward<decltype(res)>(res).value();
+    136:A         AE_TELED_DEBUG("Server id: {}, our public ip: {}:{}, coords: {},{}",
+    137:s                        server_id_, ip.ip, ip.port, ip.latitude, ip.longitude);
+    138:}       } else {
+    139:A         AE_TELED_ERROR("Get my ip request error {}",
+    140:s                        std::forward<decltype(res)>(res).error());
+    141:}       }
+    142:}     });
+    143:}   });
+    144:# #  endif
+    145:} }
+    146:  
+    147:v void Ping::PingResponse(RequestId request_id) {
+    148:a   auto current_time = Now();
+    149:a   auto ping_duration =
+    150:s       std::chrono::duration_cast<Duration>(current_time - request_start_);
+    151:  
+    152:A   AE_TELED_DEBUG("Ping received server id {} request {} duration {}",
+    153:s                  server_id_, request_id, ping_duration);
+    154:i   if (state_ == RequestState::kPending) {
+    155:s     state_ = RequestState::kFinished;
+    156:R     ResetRequestSubscriptions();
+    157:r     result_event_.Emit(PingResult{Ok{ping_duration}});
+    158:}   } else if (state_ == RequestState::kTimedOut) {
+    159:w     wait_result_sub_.Reset();
+    160:s     state_ = RequestState::kFinished;
+    161:r     result_event_.Emit(PingResult{LateDuration{ping_duration}});
+    162:}   }
+    163:} }
+    164:  
+    165:v void Ping::PingResponseError(RequestId request_id, std::int32_t error_code) {
+    166:A   AE_TELE_ERROR(kPingResponseError,
+    167:"                 "Ping error server id {} request {} code {}", server_id_,
+    168:r                 request_id, error_code);
+    169:i   if (state_ == RequestState::kPending) {
+    170:s     state_ = RequestState::kFinished;
+>>> (показано строк: 71 из 202)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+    ...
+      128:w     write_sub_.Reset();
+      129:}   }
+    + 130:  
+      131:  
+      132:# #  if DEBUG
+      133:c   cc->LoginApiCall([&](ApiContext<LoginApi>& api_call) {
+    - 133:a     api_call->GetMyIp().Subscribe([&](auto&& res) noexcept {
+    - 134:i       if (res) {
+    - 135:a         auto&& ip = std::forward<decltype(res)>(res).value();
+    - 136:A         AE_TELED_DEBUG("Server id: {}, our public ip: {}:{}, coords: {},{}",
+    - 137:s                        server_id_, ip.ip, ip.port, ip.latitude, ip.longitude);
+    - 138:}       } else {
+    - 139:A         AE_TELED_ERROR("Get my ip request error {}",
+    - 140:s                        std::forward<decltype(res)>(res).error());
+    - 141:}       }
+    - 142:}     });
+    + 134:a     api_call->GetMyIp();
+      135:}   });
+    + 136:# #  endif
+    + 137:  
+      138:# #  endif
+      139:} }
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+    ...
+      136:# #  endif
+      137:  
+    - 138:# #  endif
+      138:} }
+      139:  
+
+>>> bash
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp:94:14: error: no matching function for call to ‘ae::ApiPacker::Pack(ae::MessageId)’
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp:95:14: error: no matching function for call to ‘ae::ApiPacker::Pack(int32_t)’
+BUILD_DONE
+>>> [elapsed: 202611ms]
+
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-packet.cpp
+>>> No matches found for: ApiPacker|packer
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/assert_packet.h
+    43:v void AssertPacketEntry(A& a, T const& t) {
+    50:v void AssertPacketEntry(A& a, Skip<T> const&) {
+    56:v void AssertPacket(std::vector<std::uint8_t> const& data, Args const&... args) {
+    61:a       ae::VectorBuffer<ae::PackedSize>{
+    65:(   (AssertPacketEntry(archive, args), ...);
+>>> Found 5 matches.
+
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/api_protocol.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_internal_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_message.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_packer.h
+    30:c class ApiPacker {
+    32:e   explicit ApiPacker(DataBuffer& data);
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_parser.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_promise.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_list.h
+    32:v   virtual void Pack(ApiPacker& packer) && = 0;
+    46:v   void Pack(ApiPacker& packer) && override {
+    102:A     ApiPacker packer{buffer};
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_reader.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/request_id.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/sub_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/make_api_call_sender.h
+>>> Found 5 matches.
+
+>>> (отфильтровано: из 55 строк оставлено 55)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_packer.h
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_PACKER_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_PACKER_H_
+    19:  
+    20:# #include <cassert>
+    21:  
+    22:# #include "aether-miscpp/serialization/binary_archive.h"
+    23:  
+    24:# #include "aether/types/data_buffer.h"
+    25:  
+    26:# #include "aether/api_protocol/details/api_message.h"
+    27:  
+    28:n namespace ae {
+    29:/ // Packing API messages to raw data buffer
+    30:c class ApiPacker {
+    31:p  public:
+    32:e   explicit ApiPacker(DataBuffer& data);
+    33:  
+    34:t   template <typename Message>
+    35:v   void Pack(MessageId message_id, Message const& msg) {
+    36:a     auto res = archive.Save(message_id);
+    37:i     if (!res) {
+    38:a       assert(false && "Message id didn't saved");
+    39:r       return;
+    40:}     }
+    41:r     res = archive.Save(msg);
+    42:i     if (!res) {
+    43:a       assert(false && "Message didn't saved");
+    44:r       return;
+    45:}     }
+    46:}   }
+    47:  
+    48:p  private:
+    49:s   seri::BinaryArchive<MessageBuffer> archive;
+    50:} };
+    51:} }  // namespace ae
+    52:  
+    53:# #endif  // AETHER_API_PROTOCOL_DETAILS_API_PACKER_H_
+
+>>> (отфильтровано: из 80 строк оставлено 80)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_parser.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_PARSER_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_PARSER_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <limits>
+    22:  
+    23:# #include "aether-miscpp/misc/defer.h"
+    24:  
+    25:# #include "aether/types/data_buffer.h"
+    26:  
+    27:# #include "aether/api_protocol/details/api_internal_context.h"
+    28:# #include "aether/api_protocol/details/api_message.h"
+    29:# #include "aether/api_protocol/details/packet_reader.h"
+    30:  
+    31:n namespace ae {
+    32:c class ProtocolContext;
+    33:/ // Parsing raw data buffer to API messages
+    34:c class ApiParser {
+    35:p  public:
+    36:c   class ServerApiContextImpl final : public ServerApiContext {
+    37:p    public:
+    38:S     ServerApiContextImpl(ProtocolContext& pc, DataBuffer const& buffer);
+    39:P     PacketReader& reader() override;
+    40:P     ProtocolContext& protocol_context() override;
+    41:  
+    42:p    private:
+    43:P     ProtocolContext& protocol_context_;
+    44:P     PacketReader reader_;
+    45:}   };
+    46:  
+    47:A   ApiParser(ProtocolContext& protocol_context_, DataBuffer const& data);
+    48:  
+    49:/   /**
+    50:*    * \brief Parse api class
+    51:*    */
+    52:t   template <typename Api>
+    53:b   bool Parse(Api& api_class) {
+    54:a     api_class.set_server_context(server_context_);
+    55:a     ae_defer[&] { api_class.reset_server_context(); };
+    56:a     auto& reader = server_context_.reader();
+    57:  
+    58:w     while (!reader.canceled() && !reader.eof()) {
+    59:a       auto msg_id = reader.TryExtract<MessageId>();
+    60:i       if (!msg_id) {
+    61:r         reader.Cancel();
+    62:a         assert(false && "message_id didn't loaded");
+    63:r         return false;
+    64:}       }
+    65:i       if (!api_class.LoadMethod(*msg_id)) {
+    66:r         return false;
+    67:}       }
+    68:}     }
+    69:r     return reader.eof() && !reader.canceled();
+    70:}   }
+    71:  
+    72:p  private:
+    73:S   ServerApiContextImpl server_context_;
+    74:} };
+    75:  
+    76:} }  // namespace ae
+    77:  
+    78:# #endif  // AETHER_API_PROTOCOL_DETAILS_API_PARSER_H_
+
+>>> (отфильтровано: из 31 строк оставлено 20)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp lines 88 to 115
+    88:r     response_value = v;
+    89:r     response_received = true;
+    90:}   });
+    91:  
+    92:D   DataBuffer response;
+    93:A   ApiPacker packer{response};
+    94:p   packer.Pack(MessageId{3});
+    95:p   packer.Pack(std::int32_t{78});
+    96:  
+    97:a   auto parser = ApiParser{fxtr.protocol_context, response};
+    98:T   TEST_ASSERT_TRUE(parser.Parse(client_api));
+    99:T   TEST_ASSERT_TRUE(response_received);
+    100:T   TEST_ASSERT_EQUAL(78, response_value);
+    101:} }
+    102:  
+    103:v void test_TruncatedPushResponseIsRejected() {
+    104:R   RequestResponseFixture fxtr;
+    105:a   auto client_api = ClientResponseApi{fxtr.event_system};
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp
+    ...
+      42:e   explicit ClientResponseApi(EventSystem& event_system)
+      43::       : response{event_system} {}
+    + 44:  
+    + 45:s struct IntMessage {
+    + 46:s   std::int32_t value;
+    + 47:A   AE_REFLECT_MEMBERS(value)
+    + 48:} };
+      49:  
+      50:v   void Request() override { ClientMethod<&ResponseApi::Request>(); }
+    ...
+      97:D   DataBuffer response;
+      98:A   ApiPacker packer{response};
+    - 94:p   packer.Pack(MessageId{3});
+    - 95:p   packer.Pack(std::int32_t{78});
+    + 99:p   packer.Pack(MessageId{3}, IntMessage{78});
+      100:  
+      101:a   auto parser = ApiParser{fxtr.protocol_context, response};
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp
+    ...
+      43::       : response{event_system} {}
+      44:  
+    - 45:s struct IntMessage {
+    - 46:s   std::int32_t value;
+    - 47:A   AE_REFLECT_MEMBERS(value)
+    - 48:} };
+    + 45:  
+      46:  
+      47:v   void Request() override { ClientMethod<&ResponseApi::Request>(); }
+
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp lines 27 to 31
+    27:  
+    28:n namespace ae::test_api_protocol_request_response {
+    29:  
+    30:c class ResponseApi : public DeclareApi<ResponseApi> {
+    31:p  public:
+>>> (показано строк: 5 из 127)
+>>> [API ERROR] insertBefore(verified) -> Верификация не пройдена: строка 29 пуста, ожидался символ 'c'
+ for path: /home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpptimestamp: 1793168409419
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp
+    ...
+      27:  
+      28:n namespace ae::test_api_protocol_request_response {
+    + 29:  
+    + 30:s struct IntMessage {
+    + 31:s   std::int32_t value;
+    + 32:A   AE_REFLECT_MEMBERS(value)
+    + 33:} };
+    + 34:  
+      35:  
+      36:c class ResponseApi : public DeclareApi<ResponseApi> {
+
+>>> bash
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:69:50: error: expected class-name before ‘{’ token
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:74:17: error: ‘Status’ has not been declared
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:72:9: error: class ‘ae::test_api_protocol_sender_lifecycle::TestWriteAction’ does not have any field named ‘WriteAction’
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:74:34: error: ‘SetStatus’ was not declared in this scope; did you mean ‘setstate’?
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:96:3: error: ‘WriteAction’ does not name a type; did you mean ‘TestWriteAction’?
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:103:22: error: ‘WriteAction’ has not been declared; did you mean ‘TestWriteAction’?
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:103:42: error: expected ‘,’ or ‘...’ before ‘status’
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:105:28: error: ‘status’ was not declared in this scope; did you mean ‘Status’?
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:148:18: error: ‘WriteFailed’ has not been declared
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-sender-lifecycle.cpp:148:8: error: ‘void ae::test_api_protocol_sender_lifecycle::Receiver::set_error(int) const &&’ cannot be overloaded with ‘void ae::test_api_protocol_sender_lifecycle::Receiver::set_error(int32_t) const &&’
+BUILD_DONE
+>>> [elapsed: 4574ms]
+[subtask fixTestApiProtocol] ERROR: subtask exceeded MAX_ITERATIONS

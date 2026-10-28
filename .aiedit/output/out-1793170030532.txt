@@ -1,0 +1,1037 @@
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] tests/test-api-protocol/test-request-response.cpp
+[DIR]  tests
+[DIR]  tests/test-api-protocol
+>>> (итог: 2 директорий, 1 файлов)
+
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] build-test/tests/run/test-api-protocol
+[FILE] build-test/tests/run/test-api-protocol-method-call
+[FILE] build-test/tests/run/test-api-protocol-packet
+[FILE] build-test/tests/run/test-api-protocol-pending-responses
+[FILE] build-test/tests/run/test-api-protocol-registration
+[FILE] build-test/tests/run/test-api-protocol-request-response
+[FILE] build-test/tests/run/test-api-protocol-sender-lifecycle
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/CMakeDirectoryInformation.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/progress.marks
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/DependInfo.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/build.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/cmake_clean.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/compiler_depend.internal
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/compiler_depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/compiler_depend.ts
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/flags.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/link.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/link.txt
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/progress.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/suite-main.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/suite-main.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/test-method-call.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/test-method-call.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/DependInfo.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/build.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/cmake_clean.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/compiler_depend.internal
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/compiler_depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/compiler_depend.ts
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/flags.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/link.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/link.txt
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/progress.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/suite-main.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/suite-main.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/test-packet.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/test-packet.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/DependInfo.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/build.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/cmake_clean.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/compiler_depend.internal
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/compiler_depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/compiler_depend.ts
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/flags.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/link.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/link.txt
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/progress.make
+>>> (итог: 14 директорий, 137 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 8 директорий, 5 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 3 директорий, 1 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 9 директорий, 27 файлов)
+
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/CMakeDirectoryInformation.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/progress.marks
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/DependInfo.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/build.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/cmake_clean.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/compiler_depend.internal
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/compiler_depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/compiler_depend.ts
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/flags.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/link.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/link.txt
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/progress.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/suite-main.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/suite-main.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/test-method-call.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-method-call.dir/test-method-call.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/DependInfo.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/build.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/cmake_clean.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/compiler_depend.internal
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/compiler_depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/compiler_depend.ts
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/flags.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/link.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/link.txt
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/progress.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/suite-main.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/suite-main.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/test-packet.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-packet.dir/test-packet.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/DependInfo.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/build.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/cmake_clean.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/compiler_depend.internal
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/compiler_depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/compiler_depend.ts
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/depend.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/flags.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/link.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/link.txt
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/progress.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/suite-main.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/suite-main.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/test-pending-responses.cpp.o
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-pending-responses.dir/test-pending-responses.cpp.o.d
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-registration.dir/DependInfo.cmake
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-registration.dir/build.make
+[FILE] build-test/tests/test-api-protocol/CMakeFiles/test-api-protocol-registration.dir/cmake_clean.cmake
+>>> (итог: 13 директорий, 130 файлов)
+>>> findFiles
+aether-client-c /home/angel/projects/aether-client-c
+>>> (итог: 2 директорий, 1 файлов)
+aether /home/angel/projects/aether
+>>> (итог: 147 директорий, 77 файлов)
+aether-client-java /home/angel/projects/aether-client-java
+>>> (итог: 38 директорий, 11 файлов)
+client-ts /home/angel/projects/client-ts
+>>> (итог: 7 директорий, 1 файлов)
+aiedit /home/angel/projects/aiedit
+>>> (итог: 9 директорий, 32 файлов)
+alipgroup /home/angel/projects/alipgroup
+>>> (итог: 34 директорий, 95 файлов)
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 183 директорий, 404 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 9 директорий, 27 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 3 директорий, 1 файлов)
+
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] tests/test-api-protocol/main.cpp
+[FILE] tests/test-api-protocol/suite-main.cpp
+[FILE] tests/test-api-protocol/test-method-call.cpp
+[FILE] tests/test-api-protocol/test-packet.cpp
+[FILE] tests/test-api-protocol/test-pending-responses.cpp
+[FILE] tests/test-api-protocol/test-registration.cpp
+[FILE] tests/test-api-protocol/test-request-response.cpp
+[FILE] tests/test-api-protocol/test-sender-lifecycle.cpp
+[DIR]  tests
+[DIR]  tests/test-api-protocol
+>>> (итог: 2 директорий, 8 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] tests/test-api-protocol/test-method-call.cpp
+[DIR]  tests
+[DIR]  tests/test-api-protocol
+>>> (итог: 2 директорий, 1 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] aether/api_protocol/details/api_context.h
+[DIR]  aether
+[DIR]  aether/api_protocol
+[DIR]  aether/api_protocol/details
+>>> (итог: 3 директорий, 1 файлов)
+>>> findFiles
+>>> [API ERROR]: Path not found: */src/*api-protocol*timestamp: 1793169836105
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp
+    1:  
+    2:/ /*
+    3:*  * Copyright 2026 Aethernet Inc.
+    4:*  *
+    5:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    6:*  * you may not use this file except in compliance with the License.
+    7:*  * You may obtain a copy of the License at
+    8:*  *
+    9:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    10:*  *
+    11:*  * Unless required by applicable law or agreed to in writing, software
+    12:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    13:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    14:*  * See the License for the specific language governing permissions and
+    15:*  * limitations under the License.
+    16:*  */
+    17:  
+    18:# #include <unity.h>
+    19:  
+    20:# #include <cstdint>
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:# #include "aether/tasks/manual_task_scheduler.h"
+    25:  
+    26:# #include "assert_packet.h"
+    27:  
+    28:n namespace ae::test_api_protocol_request_response {
+    29:  
+    30:s struct IntMessage {
+    31:s   std::int32_t value;
+    32:A   AE_REFLECT_MEMBERS(value)
+    33:} };
+    34:  
+    35:  
+    36:c class ResponseApi : public DeclareApi<ResponseApi> {
+    37:p  public:
+    38:v   virtual ~ResponseApi() = default;
+    39:  
+    40:v   virtual void Request() = 0;
+    41:v   virtual void OnResponse(std::int32_t value) = 0;
+    42:  
+    43:A   API_LIST(METHOD(2, Request), METHOD(3, OnResponse))
+    44:} };
+    45:  
+    46:c class ClientResponseApi final : public ResponseApi {
+    47:p  public:
+    48:e   explicit ClientResponseApi(EventSystem& event_system)
+    49::       : response{event_system} {}
+    50:  
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/main.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp lines 1 to 200
+    1:  
+    2:/ /*
+    3:*  * Copyright 2026 Aethernet Inc.
+    4:*  *
+    5:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    6:*  * you may not use this file except in compliance with the License.
+    7:*  * You may obtain a copy of the License at
+    8:*  *
+    9:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    10:*  *
+    11:*  * Unless required by applicable law or agreed to in writing, software
+    12:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    13:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    14:*  * See the License for the specific language governing permissions and
+    15:*  * limitations under the License.
+    16:*  */
+    17:  
+    18:# #include <unity.h>
+    19:  
+    20:# #include <cstdint>
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:# #include "aether/tasks/manual_task_scheduler.h"
+    25:  
+    26:# #include "assert_packet.h"
+    27:  
+    28:n namespace ae::test_api_protocol_request_response {
+    29:  
+    30:s struct IntMessage {
+    31:s   std::int32_t value;
+    32:A   AE_REFLECT_MEMBERS(value)
+    33:} };
+    34:  
+    35:  
+    36:c class ResponseApi : public DeclareApi<ResponseApi> {
+    37:p  public:
+    38:v   virtual ~ResponseApi() = default;
+    39:  
+    40:v   virtual void Request() = 0;
+    41:v   virtual void OnResponse(std::int32_t value) = 0;
+    42:  
+    43:A   API_LIST(METHOD(2, Request), METHOD(3, OnResponse))
+    44:} };
+    45:  
+    46:c class ClientResponseApi final : public ResponseApi {
+    47:p  public:
+    48:e   explicit ClientResponseApi(EventSystem& event_system)
+    49::       : response{event_system} {}
+    50:  
+>>> (показано строк: 133 из 133)
+
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp lines 40 to 133
+    40:v   virtual void Request() = 0;
+    41:v   virtual void OnResponse(std::int32_t value) = 0;
+    42:  
+    43:A   API_LIST(METHOD(2, Request), METHOD(3, OnResponse))
+    44:} };
+    45:  
+    46:c class ClientResponseApi final : public ResponseApi {
+    47:p  public:
+    48:e   explicit ClientResponseApi(EventSystem& event_system)
+    49::       : response{event_system} {}
+    50:  
+    51:  
+    52:  
+    53:v   void Request() override { ClientMethod<&ResponseApi::Request>(); }
+    54:  
+    55:v   void OnResponse(std::int32_t value) override { response.Emit(value); }
+    56:  
+    57:E   Event<void(std::int32_t)> response;
+    58:} };
+    59:  
+    60:c class ServerResponseApi final : public ResponseApi {
+    61:p  public:
+    62:e   explicit ServerResponseApi(EventSystem& event_system)
+    63::       : request{event_system} {}
+    64:  
+    65:v   void Request() override { request.Emit(); }
+    66:  
+    67:v   void OnResponse(std::int32_t) override {}
+    68:  
+    69:E   Event<void()> request;
+    70:} };
+    71:  
+    72:s struct RequestResponseFixture {
+    73:E   EventSystem event_system;
+    74:T   TaskScheduler scheduler;
+    75:P   ProtocolContext protocol_context{scheduler, event_system};
+    76:} };
+    77:  
+    78:v void test_RequestSendsWithoutRequestId() {
+    79:R   RequestResponseFixture fxtr;
+    80:a   auto client_api = ClientResponseApi{fxtr.event_system};
+    81:a   auto client_context = ApiContext{client_api, fxtr.protocol_context};
+    82:  
+    83:c   client_context->Request();
+    84:  
+    85:D   DataBuffer request = std::move(client_context);
+    86:A   AssertPacket(request, MessageId{2});
+    87:} }
+    88:  
+    89:v void test_PushResponseIsDeliveredToClientEvent() {
+>>> (показано строк: 94 из 133)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h lines 1 to 200
+>>> (показано строк: 112 из 112)
+>>> view
+>>> Selector is ambiguous. Found 43 files: /home/angel/projects/aether-client-cpp/examples/a_b_message_exchange/main.cpp, /home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/main.cpp, /home/angel/projects/aether-client-cpp/examples/cloud/main.cpp, /home/angel/projects/aether-client-cpp/examples/message_server/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-actions/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-api-protocol/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-domain-storage/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-events/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-prepared-packet/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-safe-stream/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-serial-port/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-server-connection/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-stream/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-tasks/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-transport/main.cpp, /home/angel/projects/aether-client-cpp/tests/test-types/main.cpp, /home/angel/projects/aether-client-cpp/tools/registrator/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/ae-numeric/af99/tests/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-miscpp/c27d/tests/test-domain-visitor/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-miscpp/c27d/tests/test-format/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-miscpp/c27d/tests/test-meta/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-miscpp/c27d/tests/test-reflect/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-miscpp/c27d/tests/test-serialization/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-miscpp/c27d/tests/test-types/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-objects/72b9/tests/test-object-system/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/aether-objects/72b9/tests/test-ptr/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/etl/5dce/examples/ArmTimerCallbacks - C++/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/etl/5dce/examples/platformio/src/main.cpp, /home/angel/projects/aether-client-cpp/build-test/cpm.cache/etl/5dce/test/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_git_revision-custom-prefix/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_git_revision-dirty/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_git_revision-embed/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_git_revision-no-git/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_git_revision-simple/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_version-absolute/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_version-all-zeroes/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_version-custom-prefix/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_version-leading-zeroes/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/cmake/write_version-relative/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/export/write_language-multiple-nested-enables/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/test/add-no-cuda-toolkit/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/test/no_add-with-cpp-handler-from-docs/main.cpp, /home/angel/projects/aether-client-cpp/build-test/_deps/rapids-cmake-src/testing/test/no_add-with-no-resource-spec/main.cpp>>> Use a more specific selector or use view() to view all files.timestamp: 1793169881718
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-request-response.cpp lines 89 to 133
+    89:v void test_PushResponseIsDeliveredToClientEvent() {
+    90:R   RequestResponseFixture fxtr;
+    91:a   auto client_api = ClientResponseApi{fxtr.event_system};
+    92:  
+    93:a   auto response_value = std::int32_t{0};
+    94:a   auto response_received = false;
+    95:S   Subscription subscription = client_api.response.Subscribe([&](std::int32_t v) {
+    96:r     response_value = v;
+    97:r     response_received = true;
+    98:}   });
+    99:  
+    100:D   DataBuffer response;
+    101:A   ApiPacker packer{response};
+    102:p   packer.Pack(MessageId{3}, IntMessage{78});
+    103:  
+    104:a   auto parser = ApiParser{fxtr.protocol_context, response};
+    105:T   TEST_ASSERT_TRUE(parser.Parse(client_api));
+    106:T   TEST_ASSERT_TRUE(response_received);
+    107:T   TEST_ASSERT_EQUAL(78, response_value);
+    108:} }
+    109:  
+    110:v void test_TruncatedPushResponseIsRejected() {
+    111:R   RequestResponseFixture fxtr;
+    112:a   auto client_api = ClientResponseApi{fxtr.event_system};
+    113:  
+    114:D   DataBuffer malformed_packet = DataBuffer{2};
+    115:a   auto parser = ApiParser{fxtr.protocol_context, malformed_packet};
+    116:T   TEST_ASSERT_FALSE(parser.Parse(client_api));
+    117:} }
+    118:  
+    119:/ // TODO(push-model): The old request/response tests (SendError wire format,
+    120:/ // promise completion, etc.) are removed because request_id and ApiPromise
+    121:/ // no longer exist in the push model.
+    122:  
+    123:} }  // namespace ae::test_api_protocol_request_response
+    124:  
+    125:i int test_api_protocol_request_response() {
+    126:U   UNITY_BEGIN();
+    127:u   using namespace ae::test_api_protocol_request_response;  // NOLINT
+    128:  
+    129:R   RUN_TEST(test_RequestSendsWithoutRequestId);
+    130:R   RUN_TEST(test_PushResponseIsDeliveredToClientEvent);
+    131:R   RUN_TEST(test_TruncatedPushResponseIsRejected);
+    132:r   return UNITY_END();
+    133:} }
+>>> (показано строк: 45 из 133)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 1 to 200
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+>>> (показано строк: 200 из 215)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h lines 1 to 150
+>>> (показано строк: 112 из 112)
+
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 1 to 215
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include <string>
+    20:# #include <utility>
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:# #include "aether/tasks/manual_task_scheduler.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "assert_packet.h"
+    29:  
+    30:n namespace ae::test_api_protocol_method_call {
+    31:  
+    32:s struct Number {
+    33:A   AE_REFLECT_MEMBERS(value)
+    34:i   int value;
+    35:} };
+    36:  
+    37:c class ApiLevel1 : public ae::DeclareApi<ApiLevel1> {
+    38:p  public:
+    39:v   virtual ~ApiLevel1() = default;
+    40:  
+    41:v   virtual void Method3(float a) = 0;
+    42:  
+    43:A   API_LIST(METHOD(3, Method3))
+    44:} };
+    45:  
+    46:c class ApiLevel0 : public ae::DeclareApi<ApiLevel0> {
+    47:p  public:
+    48:v   virtual ~ApiLevel0() = default;
+    49:  
+    50:v   virtual void Method3(int a, std::string const& b) = 0;
+>>> (показано строк: 215 из 215)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h lines 1 to 112
+>>> (показано строк: 112 из 112)
+
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 50 to 215
+    50:v   virtual void Method3(int a, std::string const& b) = 0;
+    51:v   virtual void Method4(int a) = 0;
+    52:v   virtual void Method6(int a, ae::SubApi<ApiLevel1> sub_api) = 0;
+    53:  
+    54:A   API_LIST(METHOD(3, Method3), METHOD(4, Method4), METHOD(6, Method6))
+    55:} };
+    56:  
+    57:n namespace client {
+    58:c class ApiLevel1 : public test_api_protocol_method_call::ApiLevel1 {
+    59:p  public:
+    60:v   void Method3(float a) override {
+    61:C     ClientMethod<&test_api_protocol_method_call::ApiLevel1::Method3>(a);
+    62:}   }
+    63:} };
+    64:  
+    65:c class ApiLevel0 : public test_api_protocol_method_call::ApiLevel0 {
+    66:p  public:
+    67:v   void Method3(int a, std::string const& b) override {
+    68:C     ClientMethod<&test_api_protocol_method_call::ApiLevel0::Method3>(a, b);
+    69:}   }
+    70:  
+    71:v   void Method4(int a) override {
+    72:C     ClientMethod<&test_api_protocol_method_call::ApiLevel0::Method4>(a);
+    73:}   }
+    74:  
+    75:v   void Method6(
+    76:i       int a,
+    77:a       ae::SubApi<test_api_protocol_method_call::ApiLevel1> sub_api) override {
+    78:C     ClientMethod<&test_api_protocol_method_call::ApiLevel0::Method6>(
+    79:a         a, std::move(sub_api)(level1, client_context()));
+    80:}   }
+    81:  
+    82:A   ApiLevel1 level1;
+    83:} };
+    84:} }  // namespace client
+    85:  
+    86:n namespace server {
+    87:c class ApiLevel1 : public test_api_protocol_method_call::ApiLevel1 {
+    88:p  public:
+    89:e   explicit ApiLevel1(ae::EventSystem& es) : on_method3{es} {}
+    90:  
+    91:v   void Method3(float a) override { on_method3.Emit(a); }
+    92:  
+    93:a   ae::Event<void(float)> on_method3;
+    94:} };
+    95:  
+    96:c class ApiLevel0 : public test_api_protocol_method_call::ApiLevel0 {
+    97:p  public:
+    98:e   explicit ApiLevel0(ae::EventSystem& es)
+    99::       : on_method3{es}, on_method4{es}, on_method6{es}, level1{es} {}
+>>> (показано строк: 166 из 215)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h lines 1 to 150
+>>> (показано строк: 112 из 112)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_CONTEXT_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_CONTEXT_H_
+    19:  
+    20:# #include <utility>
+    21:  
+    22:# #include "aether/common.h"
+    23:# #include "aether/config.h"
+    24:  
+    25:# #include "aether/api_protocol/details/api_class_declare.h"
+    26:# #include "aether/api_protocol/details/packet_list.h"
+    27:  
+    28:n namespace ae {
+    29:  
+    30:s static inline constexpr std::size_t kMaxApiCallPerApiContext =
+    31:A     AE_API_PROTOCOL_MAX_API_CALL_PER_CONTEXT;
+    32:  
+    33:/ /**
+    34:*  * \brief Api method call context.
+    35:*  * Wrapper for api class. Pointer to TApi return through proxy object which
+    36:*  * setting the context.
+    37:*  * Methods called in one context form one packet.
+    38:*  * The referenced API and ProtocolContext, when provided, must outlive this
+    39:*  * context, its active call proxy, and every synchronous call or Pack().
+    40:*  */
+    41:t template <DeclaredApi Api>
+    42:c class ApiContext {
+    43:p  public:
+    44:s   struct ClientApiContextImpl : public ClientApiContext {
+    45:p    public:
+    46:C     ClientApiContextImpl() = default;
+    47:e     explicit ClientApiContextImpl(ProtocolContext& pc)
+    48::         : protocol_context_{&pc} {}
+    49:  
+    50:I     IPacketList& packet_list() override { return packet_list_; }
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 100 to 215
+>>> (показано строк: 116 из 215)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h lines 50 to 112
+    50:I     IPacketList& packet_list() override { return packet_list_; }
+    51:P     ProtocolContext& protocol_context() override {
+    52:a       assert(protocol_context_ != nullptr &&
+    53:"              "Protocol context requested but it's null");
+    54:r       return *protocol_context_;
+    55:}     }
+    56:  
+    57:u     using PacketList =
+    58:d         decltype(Api::template MakePacketList<kMaxApiCallPerApiContext>());
+    59:P     PacketList packet_list_;
+    60:P     ProtocolContext* protocol_context_{nullptr};
+    61:}   };
+    62:  
+    63:/   // Push and pop client api context for an API method call. The context and
+    64:/   // referenced API must outlive the returned proxy.
+    65:s   struct ApiCallProxy {
+    66:A     ApiCallProxy(Api& api, ClientApiContextImpl& context_impl) : api_{&api} {
+    67:a       api_->set_client_context(context_impl);
+    68:}     }
+    69:~     ~ApiCallProxy() { api_->reset_client_context(); }
+    70:  
+    71:[     [[nodiscard]] Api* operator->() { return api_; }
+    72:  
+    73:p    private:
+    74:A     Api* api_;
+    75:}   };
+    76:  
+    77:/   /**
+    78:*    * \brief Api context for simple method calls
+    79:*    */
+    80:e   explicit ApiContext(Api& api) : api_{&api}, context_impl_{} {}
+    81:/   /**
+    82:*    * \brief Api context with shared protocol context
+    83:*    */
+    84:A   ApiContext(Api& api, ProtocolContext& pc) : api_{&api}, context_impl_{pc} {}
+    85:  
+    86:A   ApiContext(ApiContext const&) = delete;
+    87:A   ApiContext& operator=(ApiContext const&) = delete;
+    88:A   ApiContext(ApiContext&&) = delete;
+    89:A   ApiContext& operator=(ApiContext&&) = delete;
+    90:  
+    91:/   // return the object setting the context of the api method call
+    92:[   [[nodiscard]] ApiCallProxy operator->() {
+    93:r     return ApiCallProxy{*api_, context_impl_};
+    94:}   }
+    95:  
+    96:/   // Pack is terminal. Reusing or repacking this context is unsupported.
+    97:[   [[nodiscard]] DataBuffer Pack() && {
+    98:r     return std::move(context_impl_.packet_list_).Pack();
+    99:}   }
+>>> (показано строк: 63 из 112)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 100 to 215
+>>> (показано строк: 116 из 215)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h lines 96 to 112
+    96:/   // Pack is terminal. Reusing or repacking this context is unsupported.
+    97:[   [[nodiscard]] DataBuffer Pack() && {
+    98:r     return std::move(context_impl_.packet_list_).Pack();
+    99:}   }
+    100:  
+    101:o   operator DataBuffer() &&  // NOLINT (*explicit*)
+    102:{   {
+    103:r     return std::move(*this).Pack();
+    104:}   }
+    105:  
+    106:p  private:
+    107:A   Api* api_;
+    108:C   ClientApiContextImpl context_impl_;
+    109:} };
+    110:} }  // namespace ae
+    111:  
+    112:# #endif  // AETHER_API_PROTOCOL_DETAILS_API_CONTEXT_H_
+>>> (показано строк: 17 из 112)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:# #include <string>
+    20:# #include <utility>
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:# #include "aether/tasks/manual_task_scheduler.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "assert_packet.h"
+    29:  
+    30:n namespace ae::test_api_protocol_method_call {
+    31:  
+    32:s struct Number {
+    33:A   AE_REFLECT_MEMBERS(value)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 330 to 400
+    330:I   InvokeApi<RegMethod>(self, server_context);
+    331:} }
+    332:  
+    333:  
+    334:t template <typename Api>
+    335:b bool DeclareApi<Api>::ServerDispatchMethods(DeclareApi& self,
+    336:S                                             ServerApiContext& server_context,
+    337:M                                             MessageId id) {
+    338:a   auto dispatcher = [&]<typename... Regs>(TypeList<Regs...>) {
+    339:b     bool res = (((id == Regs::kMessageId)
+    340:?                  ? (ServerInvokeMethod<Regs>(self, server_context)),
+    341:t                  true : false) ||
+    342:.                 ...);
+    343:r     return res;
+    344:}   };
+    345:r   return dispatcher(decltype(Api::template ApiList<Api>()){});
+    346:} }
+    347:  
+    348:t template <typename Api>
+    349:t template <auto method, typename... Args>
+    350:d decltype(auto) DeclareApi<Api>::CallClientMethod(
+    351:C     ClientApiContext& client_api_context, Args&&... args) {
+    352:u   using Reg = decltype(api_class_declate_internal::FindRegByMethod<method>(
+    353:A       Api::template ApiList<Api>()));
+    354:s   static_assert(
+    355:!       !std::is_same_v<Reg, api_class_declate_internal::NullRegMethod>);
+    356:  
+    357:u   using Trait = api_class_declate_internal::MessageTrait<Reg::kMethod>;
+    358:u   using AeTrait = api_class_declate_internal::ApiMessageTrait<Reg>;
+    359:a   auto& packet_list = client_api_context.packet_list();
+    360:  
+    361:  
+    362:p   packet_list.Push(typename AeTrait::message_type{
+    363:t       typename Trait::message_type{std::forward<Args>(args)...}});
+    364:  
+    365:} }
+    366:  
+    367:t template <typename Api>
+    368:t template <auto method, typename... Args>
+    369:d decltype(auto) DeclareApi<Api>::ClientMethod(Args&&... args) {
+    370:a   assert(client_context_ != nullptr && "Call client api without context");
+    371:r   return CallClientMethod<method>(*client_context_,
+    372:s                                   std::forward<Args>(args)...);
+    373:} }
+    374:  
+    375:t template <typename Api>
+    376:b bool DeclareApi<Api>::LoadMethod(MessageId id) {
+    377:a   assert(server_context_ != nullptr && "Load method without context");
+    378:r   return ServerDispatchMethods(*this, *server_context_, id);
+    379:} }
+>>> (показано строк: 55 из 384)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 1 to 130
+>>> (показано строк: 130 из 384)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 100 to 215
+>>> (показано строк: 116 из 215)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/main.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 100 to 215
+    100:  
+    101:v   void Method3(int a, std::string const& b) override { on_method3.Emit(a, b); }
+    102:  
+    103:v   void Method4(int a) override {
+    104:o     on_method4.Emit(a);
+    105:}   }
+    106:  
+    107:v   void Method6(
+    108:i       int a,
+    109:a       ae::SubApi<test_api_protocol_method_call::ApiLevel1> sub_api) override {
+    110:o     on_method6.Emit(a);
+    111:a     auto buff = std::move(sub_api).buffer();
+    112:a     auto parser = ae::ApiParser{server_context().protocol_context(), buff};
+    113:p     parser.Parse(level1);
+    114:}   }
+    115:  
+    116:a   ae::Event<void(int a, std::string const& b)> on_method3;
+    117:a   ae::Event<void(int a)> on_method4;
+    118:a   ae::Event<void(int a)> on_method6;
+    119:A   ApiLevel1 level1;
+    120:} };
+    121:  
+    122:} }  // namespace server
+    123:  
+    124:s struct MethodCallFixture {
+    125:a   ae::EventSystem event_system;
+    126:a   ae::TaskScheduler scheduler;
+    127:a   ae::ProtocolContext protocol_context{scheduler, event_system};
+    128:} };
+    129:  
+    130:  
+    131:v void test_ReturnResult() {
+    132:M   MethodCallFixture fxtr;
+    133:  
+    134:a   auto client_level0 = client::ApiLevel0{};
+    135:a   auto call_context = ae::ApiContext{client_level0, fxtr.protocol_context};
+    136:  
+    137:c   call_context->Method4(42);
+    138:  
+    139:a   ae::DataBuffer packet = std::move(call_context);
+    140:A   AssertPacket(packet, ae::MessageId{4}, int{42});
+    141:  
+    142:b   bool level0_method4_called = false;
+    143:  
+    144:a   auto server_level0 = server::ApiLevel0{fxtr.event_system};
+    145:  
+    146:s   server_level0.on_method4.Subscribe([&](int a) {
+    147:l     level0_method4_called = true;
+    148:T     TEST_ASSERT_EQUAL(42, a);
+    149:}   });
+>>> (показано строк: 116 из 215)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 1 to 130
+>>> (показано строк: 130 из 384)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 200 to 330
+>>> (показано строк: 131 из 384)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 1 to 200
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <type_traits>
+    22:# #include <utility>
+    23:  
+    24:# #include "aether-miscpp/meta/type_list.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "aether/api_protocol/details/api_internal_context.h"
+    29:# #include "aether/api_protocol/details/api_message.h"
+    30:# #include "aether/api_protocol/details/api_parser.h"
+    31:# #include "aether/api_protocol/details/api_promise.h"
+    32:# #include "aether/api_protocol/details/packet_list.h"
+    33:# #include "aether/api_protocol/details/request_id.h"
+    34:# #include "aether/api_protocol/details/return_result_api.h"
+    35:  
+    36:n namespace ae {
+    37:t template <typename Api>
+    38:c class SubApi;
+    39:  
+    40:n namespace api_class_declate_internal {
+    41:t template <auto method1, auto method2>
+    42:s struct AreMethodsSame : std::false_type {};
+    43:t template <auto method>
+    44:s struct AreMethodsSame<method, method> : std::true_type {};
+    45:  
+    46:t template <auto m1, auto m2>
+    47:s static constexpr inline auto AreMethodsSame_v = AreMethodsSame<m1, m2>::value;
+    48:  
+    49:s struct NullRegMethod {};
+    50:  
+>>> (показано строк: 200 из 384)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/test-method-call.cpp lines 130 to 215
+>>> (показано строк: 86 из 215)
+
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+    259:v   void set_client_context(ClientApiContext& context) {
+    260:c     client_context_ = &context;
+    262:v   void reset_client_context() { client_context_ = nullptr; }
+    264:a     assert(client_context_ != nullptr && "Context is null");
+    265:r     return *client_context_;
+    278:C   ClientApiContext* client_context_ = nullptr;
+    370:a   assert(client_context_ != nullptr && "Call client api without context");
+    371:r   return CallClientMethod<method>(*client_context_,
+>>> Found 8 matches.
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+    191:c class DeclareApi {
+>>> Found 1 matches.
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 60 to 200
+    60:t template <MessageId message_id, auto method>
+    61:s struct IsRegMethod<RegMethod<message_id, method>> : std::true_type {};
+    62:  
+    63:t template <typename RegMethods>
+    64:s struct ApiMessageIdsValid;
+    65:  
+    66:t template <>
+    67:s struct ApiMessageIdsValid<TypeList<>> : std::true_type {};
+    68:  
+    69:t template <typename RegMethod, typename... Rest>
+    70:s struct ApiMessageIdsValid<TypeList<RegMethod, Rest...>>
+    71::     : std::bool_constant<
+    72:(           ((RegMethod::kMessageId != Rest::kMessageId) && ...) &&
+    73:(           (RegMethod::kMessageId != ReturnResultApi::kSendResult) &&
+    74:(           (RegMethod::kMessageId != ReturnResultApi::kSendError) &&
+    75:A           ApiMessageIdsValid<TypeList<Rest...>>::value> {};
+    76:  
+    77:t template <typename... RegMethods>
+    78:c consteval bool AreApiMessageIdsValid(TypeList<RegMethods...>) {
+    79:r   return ApiMessageIdsValid<TypeList<RegMethods...>>::value;
+    80:} }
+    81:  
+    82:/ /**
+    83:*  * Replace actual argument type to types usable for generating a message.
+    84:*  * const refs a rvalues replace to plain type.
+    85:*  * SubApi calls replaces to DataBuffer.
+    86:*  */
+    87:t template <typename T>
+    88:s struct ArgsReplace {
+    89:u   using type = T;
+    90:} };
+    91:  
+    92:t template <typename T>
+    93:s struct ArgsReplace<T const&> : ArgsReplace<T> {};
+    94:  
+    95:t template <typename T>
+    96:s struct ArgsReplace<T&&> : ArgsReplace<T> {};
+    97:  
+    98:t template <typename T>
+    99:s struct ArgsReplace<SubApi<T>> {
+    100:u   using type = DataBuffer;
+>>> (показано строк: 141 из 384)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_internal_context.h
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_INTERNAL_DETAILS_CONTEXT_H_
+    18:# #define AETHER_API_INTERNAL_DETAILS_CONTEXT_H_
+    19:  
+    20:# #include "aether/api_protocol/details/request_id.h"
+    21:  
+    22:n namespace ae {
+    23:c class IPacketList;
+    24:c class PacketReader;
+    25:c class ProtocolContext;
+    26:  
+    27:c class ClientApiContext {
+    28:p  public:
+    29:v   virtual IPacketList& packet_list() = 0;
+    30:v   virtual ProtocolContext& protocol_context() = 0;
+    31:  
+    32:p  protected:
+    33:~   ~ClientApiContext() = default;
+    34:} };
+    35:  
+    36:c class ServerApiContext {
+    37:p  public:
+    38:v   virtual PacketReader& reader() = 0;
+    39:v   virtual ProtocolContext& protocol_context() = 0;
+    40:  
+    41:/   /// Request Id installed in context of every method with return value
+    42:v   void SetRequestId(RequestId id) { id_ = id; }
+    43:R   RequestId request_id() const { return id_; }
+    44:  
+    45:p  protected:
+    46:~   ~ServerApiContext() = default;
+    47:R   RequestId id_{};
+    48:} };
+    49:} }  // namespace ae
+    50:  
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 240 to 290
+>>> (показано строк: 51 из 384)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 191 to 285
+    191:c class DeclareApi {
+    192:f   friend Api;
+    193:  
+    194:p  private:
+    195:D   DeclareApi() = default;
+    196:~   ~DeclareApi() = default;
+    197:  
+    198:t   template <typename RegMethod>
+    199:r     requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    200:s   static void InvokeReturnResultApi(ServerApiContext& server_context);
+    201:  
+    202:t   template <typename RegMethod>
+    203:r     requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    204:s   static void InvokeApi(DeclareApi& self, ServerApiContext& server_context);
+    205:  
+    206:/   /**
+    207:*    * \brief Invoke registered method
+    208:*    */
+    209:t   template <typename RegMethod>
+    210:r     requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    211:s   static void ServerInvokeMethod(DeclareApi& self,
+    212:S                                  ServerApiContext& server_context);
+    213:  
+    214:s   static bool ServerDispatchMethods(DeclareApi& self,
+    215:S                                     ServerApiContext& server_context,
+    216:M                                     MessageId id);
+    217:  
+    218:p  public:
+    219:u   using api_concept = Api;
+    220:/   /**
+    221:*    * \brief Make a packet list type suitable for current Api class method
+    222:*    * list
+    223:*    */
+    224:t   template <std::size_t MaxCapacity>
+    225:s   static consteval auto MakePacketList() {
+    226:r     return api_class_declate_internal::GenPacketListForApi<MaxCapacity>(
+    227:A         Api::template ApiList<Api>());
+    228:}   }
+    229:  
+    230:/   /**
+    231:*    * \brief Call client's api meothod.
+    232:*    * The method must be one of registered api methods in ApiList \see API_LIST
+    233:*    */
+    234:t   template <auto method, typename... Args>
+    235:s   static decltype(auto) CallClientMethod(ClientApiContext& client_api_context,
+    236:A                                          Args&&... args);
+    237:  
+    238:/   /**
+    239:*    * \brief Call client's api method.
+    240:*    * Returns the same as client's method returns
+>>> (показано строк: 95 из 384)

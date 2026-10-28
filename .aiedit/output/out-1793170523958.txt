@@ -1,0 +1,200 @@
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] tests/test-api-protocol/CMakeLists.txt
+[DIR]  tests
+[DIR]  tests/test-api-protocol
+>>> (итог: 2 директорий, 1 файлов)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/CMakeLists.txt
+    1:# # Copyright 2024 Aethernet Inc.
+    2:# #
+    3:# # Licensed under the Apache License, Version 2.0 (the "License");
+    4:# # you may not use this file except in compliance with the License.
+    5:# # You may obtain a copy of the License at
+    6:# #
+    7:# #     http://www.apache.org/licenses/LICENSE-2.0
+    8:# #
+    9:# # Unless required by applicable law or agreed to in writing, software
+    10:# # distributed under the License is distributed on an "AS IS" BASIS,
+    11:# # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    12:# # See the License for the specific language governing permissions and
+    13:# # limitations under the License.
+    14:  
+    15:c cmake_minimum_required( VERSION 3.16 )
+    16:  
+    17:s set(test_api_protocol_suites
+    18:p   packet
+    19:m   method-call
+    20:r   request-response
+    21:p   pending-responses
+    22:s   sender-lifecycle
+    23:r   registration
+    24:) )
+    25:  
+    26:s set(test_srcs
+    27:m   main.cpp
+    28:t   test-packet.cpp
+    29:t   test-method-call.cpp
+    30:t   test-request-response.cpp
+    31:t   test-pending-responses.cpp
+    32:t   test-sender-lifecycle.cpp
+    33:t   test-registration.cpp
+    34:) )
+    35:  
+    36:i if(NOT CM_PLATFORM)
+    37:  
+    38:p   project(test-api-protocol LANGUAGES CXX)
+    39:  
+    40:a   add_executable(${PROJECT_NAME})
+    41:t   target_sources(${PROJECT_NAME} PRIVATE ${test_srcs})
+    42:#   # for aether
+    43:t   target_link_libraries(${PROJECT_NAME} PRIVATE aether unity gcem etl)
+    44:  
+    45:a   add_test(NAME ${PROJECT_NAME} COMMAND $<TARGET_FILE:${PROJECT_NAME}>)
+    46:  
+    47:f   foreach(suite IN LISTS test_api_protocol_suites)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 5 директорий, 7 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 5 директорий, 25 файлов)
+
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/CMakeLists.txt lines 47 to 120
+    47:f   foreach(suite IN LISTS test_api_protocol_suites)
+    48:s     string(REPLACE "-" "_" suite_entry ${suite})
+    49:s     set(suite_target "${PROJECT_NAME}-${suite}")
+    50:  
+    51:a     add_executable(${suite_target} suite-main.cpp "test-${suite}.cpp")
+    52:t     target_compile_definitions(
+    53:$       ${suite_target}
+    54:P       PRIVATE API_PROTOCOL_SUITE=test_api_protocol_${suite_entry}
+    55:)     )
+    56:t     target_link_libraries(${suite_target} PRIVATE aether unity gcem etl)
+    57:  
+    58:a     add_test(NAME ${suite_target} COMMAND $<TARGET_FILE:${suite_target}>)
+    59:e   endforeach()
+    60:e else()
+    61:m   message(WARNING "Not implemented for ${CM_PLATFORM}")
+    62:e endif()
+>>> (показано строк: 16 из 62)
+>>> view
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/main.cpp lines 1 to 150
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include <unity.h>
+    18:  
+    19:v void setUp() {}
+    20:v void tearDown() {}
+    21:  
+    22:e extern int test_api_protocol_method_call();
+    23:e extern int test_api_protocol_packet();
+    24:e extern int test_api_protocol_pending_responses();
+    25:e extern int test_api_protocol_registration();
+    26:e extern int test_api_protocol_request_response();
+    27:e extern int test_api_protocol_sender_lifecycle();
+    28:  
+    29:i int main() {
+    30:i   int res = 0;
+    31:r   res += test_api_protocol_packet();
+    32:r   res += test_api_protocol_method_call();
+    33:r   res += test_api_protocol_request_response();
+    34:r   res += test_api_protocol_pending_responses();
+>>> (показано строк: 39 из 39)
+
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/api_protocol.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_internal_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_message.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_packer.cpp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_packer.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_parser.cpp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_parser.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_promise.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_list.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_reader.cpp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_reader.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/request_id.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/sub_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.cpp
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+    283:c concept DeclaredApi =
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/make_api_call_sender.h
+/home/angel/projects/aether-client-cpp/build-test/CMakeFiles/aether.dir/aether/api_protocol/details/packet_reader.cpp.o.d
+/home/angel/projects/aether-client-cpp/build-test/CMakeFiles/aether.dir/aether/api_protocol/details/api_parser.cpp.o.d
+/home/angel/projects/aether-client-cpp/build-test/CMakeFiles/aether.dir/aether/api_protocol/details/api_packer.cpp.o.d
+/home/angel/projects/aether-client-cpp/build-test/CMakeFiles/aether.dir/aether/api_protocol/details/protocol_context.cpp.o.d
+>>> [ERROR] type: UnmappableCharacterException
+>>> [ERROR] message: Input length = 1
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 283 to 340
+    283:c concept DeclaredApi =
+    284:r     requires { std::is_void_v<std::void_t<typename T::api_concept>>; };
+    285:  
+    286:t template <typename Api>
+    287:t template <typename RegMethod>
+    288:r   requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    289:v void DeclareApi<Api>::InvokeReturnResultApi(ServerApiContext& server_context) {
+    290:i   if constexpr (std::is_same_v<ReturnResultApi::RegSendResult, RegMethod>) {
+    291:R     ReturnResultApi::SendResultImpl(server_context);
+    292:}   } else {
+    293:R     ReturnResultApi::SendErrorImpl(server_context);
+    294:}   }
+    295:} }
+    296:  
+    297:t template <typename Api>
+    298:t template <typename RegMethod>
+    299:r   requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    300:v void DeclareApi<Api>::InvokeApi(DeclareApi& self,
+    301:S                                 ServerApiContext& server_context) {
+    302:u   using Trait = api_class_declate_internal::MessageTrait<RegMethod::kMethod>;
+    303:/   // message to read
+    304:u   using M = TypeListToTemplate_t<GenericMessage, typename Trait::args_list>;
+    305:a   auto& reader = server_context.reader();
+    306:a   auto invoker = [&]<typename... Args>(Args&&... args) {
+    307:/     // Invoke the api class method with extracted arguments
+    308:r     return (static_cast<Api&>(self).*
+    309:R             RegMethod::kMethod)(std::forward<Args>(args)...);
+    310:}   };
+    311:  
+    312:a   auto m = reader.TryExtract<M>();
+    313:i   if (!m) {
+    314:r     reader.Cancel();
+    315:r     return;
+    316:}   }
+    317:s     std::apply(invoker, m->fields);
+    318:} }
+    319:  
+    320:  
+    321:/ /**
+    322:*  * \brief Invoke registered method
+    323:*  */
+    324:t template <typename Api>
+    325:t template <typename RegMethod>
+    326:r   requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    327:  
+    328:v void DeclareApi<Api>::ServerInvokeMethod(DeclareApi& self,
+    329:S                                          ServerApiContext& server_context) {
+    330:I   InvokeApi<RegMethod>(self, server_context);
+    331:} }
+    332:  
+>>> (показано строк: 58 из 384)

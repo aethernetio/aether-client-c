@@ -1,0 +1,391 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: '>' @ line 1, column 1.    >>> [ERROR] Модель разбила скрипт на несколько markdown-блоков. Весь Groovy-скрипт должен быть в ОДНОМ блоке ```groovy ... ``` без разрывов и пояснений между командами.    ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h lines 0 to 300
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> (показано строк: 94 из 94)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 0 to 300
+>>> (показано строк: 213 из 213)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 0 to 213
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:  
+    28:  
+    29:# #  include "aether/crypto.h"
+    30:# #  include "aether/crypto/crypto_definitions.h"
+    31:# #  include "aether/crypto/sign.h"
+    32:# #  include "aether/executors/executors.h"
+    33:  
+    34:# #  include "aether/registration/proof_of_work.h"
+    35:# #  include "aether/registration/registration_crypto_provider.h"
+    36:  
+    37:# #  include "aether/ae_actions/ae_actions_tele.h"
+    38:  
+    39:n namespace ae {
+    40:  
+    41:R Registration::Registration(AeContext const& ae_context,
+    42:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    43:U                            Uid parent_uid)
+    44::     : Action{ae_context},
+    45:a       ae_context_{ae_context},
+    46:p       parent_uid_{std::move(parent_uid)},
+    47:p       protocol_context_{ae_context_},
+    48:r       root_crypto_provider_{},
+    49:g       global_crypto_provider_{},
+    50:c       client_root_api_{*root_crypto_provider_.decryptor(),
+>>> (показано строк: 213 из 213)
+
+>>> (отфильтровано: из 215 строк оставлено 215)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:  
+    28:  
+    29:# #  include "aether/crypto.h"
+    30:# #  include "aether/crypto/crypto_definitions.h"
+    31:# #  include "aether/crypto/sign.h"
+    32:# #  include "aether/executors/executors.h"
+    33:  
+    34:# #  include "aether/registration/proof_of_work.h"
+    35:# #  include "aether/registration/registration_crypto_provider.h"
+    36:  
+    37:# #  include "aether/ae_actions/ae_actions_tele.h"
+    38:  
+    39:n namespace ae {
+    40:  
+    41:R Registration::Registration(AeContext const& ae_context,
+    42:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    43:U                            Uid parent_uid)
+    44::     : Action{ae_context},
+    45:a       ae_context_{ae_context},
+    46:p       parent_uid_{std::move(parent_uid)},
+    47:p       protocol_context_{ae_context_},
+    48:r       root_crypto_provider_{},
+    49:g       global_crypto_provider_{},
+    50:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    51:*                        *global_crypto_provider_.decryptor()},
+    52:s       server_reg_root_api_{*root_crypto_provider_.encryptor(),
+    53:*                            *global_crypto_provider_.encryptor()},
+    54:r       root_server_select_stream_{ae_context_, reg_cloud},
+    55:/       // TODO: add configuration
+    56:r       response_timeout_{std::chrono::seconds(20)},
+    57:s       sign_pk_{Crypto::ptr{ae_context_.aether().crypto}
+    58:-                    ->signs_pk_[kDefaultSignatureMethod]},
+    59:r       registration_event_{ae_context_} {
+    60:A   AE_TELE_INFO(RegisterStarted);
+    61:  
+    62:/   // parent uid must not be empty
+    63:a   assert(!parent_uid_.empty());
+    64:  
+    65:I   InitConnection();
+    66:R   Run();
+    67:} }
+    68:  
+    69:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    70:  
+    71:R Registration::RegistrationEvent const& Registration::registration() {
+    72:r   return registration_event_;
+    73:} }
+    74:  
+    75:v void Registration::InitConnection() {
+    76:A   AE_TELED_DEBUG("Registration::InitConnection");
+    77:  
+    78:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    79:/     // Reinit connection and start registration from the beginning
+    80:/     // TODO: make async_waiter_ stop and start get keys again
+    81:A     AE_TELED_ERROR("Server changed");
+    82:}   });
+    83:  
+    84:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    85:A     AE_TELED_ERROR("Link Error, Registration failed");
+    86:/     // TODO: make async_waiter_ stop with error
+    87:}   });
+    88:  
+    89:/   // Connect parser for out data
+    90:r   root_server_select_stream_.out_data_event().Subscribe(
+    91:[       [this](auto const& data) {
+    92:a         auto parser = ApiParser{protocol_context_, data};
+    93:p         parser.Parse(client_root_api_);
+    94:}       });
+    95:} }
+    96:  
+    97:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    98:  
+    99:  
+    100:a auto Registration::GetKeys() {
+    101:A   AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    102:s   server_reg_root_api_.GetPublicKey(kDefaultCryptoLibProfile);
+    103:r     return;
+    104:} }
+    105:  
+    106:  
+    107:  
+    108:a auto Registration::RequestPowParams() {
+    109:A   AE_TELE_INFO(RegisterRequestPowParams, "Request proof of work params");
+    110:s   server_reg_root_api_.Enter(
+    111:k       kDefaultCryptoLibProfile,
+    112:S       SubApi{[this](ApiContext<ServerRegistrationApi>& server_api) {
+    113:s         server_api->SetReturnKey(root_crypto_provider_.GetDecryptionKey());
+    114:s         server_api->RequestProofOfWorkData(parent_uid_, PowMethod::kBCryptCrc32);
+    115:}       }});
+    116:r     return;
+    117:} }
+    118:  
+    119:  
+    120:  
+    121:a auto Registration::MakeRegistration() {
+    122:A   AE_TELE_INFO(RegisterMakeRegistration, "Make registration");
+    123:  
+    124:a   auto proofs = ProofOfWork::ComputeProofOfWork(
+    125:p       pow_params_.pool_size, pow_params_.salt, pow_params_.password_suffix,
+    126:p       pow_params_.max_hash_value);
+    127:  
+    128:A   AE_TELE_DEBUG(RegisterKeysGenerated, "Global Pk: {}:{}, Masterkey: {}:{}",
+    129:a                 aether_global_key_.Index(), aether_global_key_, master_key_.Index(),
+    130:m                 master_key_);
+    131:  
+    132:s   server_reg_root_api_.Enter(
+    133:k       kDefaultCryptoLibProfile,
+    134:S       SubApi{[this, proofs =
+    135:s                         std::move(proofs)](ApiContext<ServerRegistrationApi>& server_api) mutable {
+    136:s         server_api->Registration(
+    137:p             pow_params_.salt, pow_params_.password_suffix, std::move(proofs),
+    138:p             parent_uid_, [this](ApiContext<GlobalRegServerApi>& global_api) {
+    139:g               global_api->SetMasterKey(master_key_);
+    140:g               global_api->Finish();
+    141:}             });
+    142:}       }});
+    143:r     return;
+    144:} }
+    145:  
+    146:  
+    147:  
+    148:a auto Registration::ResolveCloud() {
+    149:A   AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]", client_cloud_);
+    150:s   server_reg_root_api_.Enter(kDefaultCryptoLibProfile,
+    151:[       [this](ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    152:s         server_api->ResolveServers(client_cloud_);
+    153:}       });
+    154:r     return;
+    155:} }
+    156:  
+    157:  
+    158:C ClientConfig Registration::OnCloudResolved(
+    159:s     std::vector<ServerDescriptor> const& servers) {
+    160:A   AE_TELE_INFO(RegisterResolveCloudResponse);
+    161:  
+    162:C   ClientConfig client_config{
+    163:.       .parent_uid = parent_uid_,
+    164:.       .uid = client_uid_,
+    165:.       .ephemeral_uid = ephemeral_uid_,
+    166:.       .master_key = master_key_,
+    167:.       .cloud = {},
+    168:}   };
+    169:  
+    170:s   std::vector<Server::ptr> server_objects;
+    171:s   server_objects.reserve(servers.size());
+    172:  
+    173:f   for (const auto& description : servers) {
+    174:s     std::vector<Endpoint> endpoints;
+    175:f     for (auto const& ip : description.ips) {
+    176:f       for (auto const& pp : ip.protocol_and_ports) {
+    177:e         endpoints.emplace_back(Endpoint{{ip.ip, pp.port}, pp.protocol});
+    178:}       }
+    179:}     }
+    180:A     AE_TELED_DEBUG("Got server {} with endpoints {}", description.server_id,
+    181:e                    endpoints);
+    182:c     client_config.cloud.emplace_back(
+    183:S         ServerConfig{description.server_id, std::move(endpoints)});
+    184:}   }
+    185:  
+    186:/   // sort cloud by order of client_cloud_
+    187:s   std::sort(std::begin(client_config.cloud), std::end(client_config.cloud),
+    188:[             [this](auto const& left, auto const& right) {
+    189:a               auto left_order = std::find(std::begin(client_cloud_),
+    190:s                                           std::end(client_cloud_), left.id);
+    191:a               auto right_order = std::find(std::begin(client_cloud_),
+    192:s                                            std::end(client_cloud_), right.id);
+    193:r               return left_order < right_order;
+    194:}             });
+    195:  
+    196:A   AE_TELE_DEBUG(RegisterClientRegistered,
+    197:"                 "Client registered:\n>>>>>>>>>>>>>>>\n{}\n<<<<<<<<<<<<<<<",
+    198:c                 client_config);
+    199:  
+    200:r   return client_config;
+    201:} }
+    202:  
+    203:  
+    204:  
+    205:v void Registration::Run() {
+    206:G   GetKeys();
+    207:R   RequestPowParams();
+    208:M   MakeRegistration();
+    209:R   ResolveCloud();
+    210:} }
+    211:} }  // namespace ae
+    212:  
+    213:# #endif
+[subtask finalizeCppRegistration] ERROR: subtask produced no groovy block

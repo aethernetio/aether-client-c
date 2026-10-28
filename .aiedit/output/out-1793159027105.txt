@@ -1,0 +1,108 @@
+>>> commit
+=== Git commit for /home/angel/projects/aether-client-c ===
+[main 0efef94] refactor(api): stub consumers without promises
+
+ 2 files changed, 3204 insertions(+)
+
+ create mode 100644 .aiedit/output/out-1793158076127.txt
+
+ create mode 100644 .aiedit/output/out-1793158858719.txt
+
+=== Git commit for /home/angel/projects/aether ===
+No changes to commit.
+=== Git commit for /home/angel/projects/aether-client-java ===
+No changes to commit.
+=== Git commit for /home/angel/projects/client-ts ===
+No changes to commit.
+=== Git commit for /home/angel/projects/aiedit ===
+No changes to commit.
+=== Git commit for /tmp/aether-c-client-server-generated ===
+=== Git commit for /tmp/aether-c-adsl-generated ===
+=== Git commit for /home/angel/projects/alipgroup ===
+No changes to commit.
+=== Git commit for /home/angel/projects/aether-client-cpp ===
+[main e6e3b22b] refactor(api): stub consumers without promises
+
+ 939 files changed, 60480 insertions(+), 194 deletions(-)
+
+ create mode 100644 build-test/Makefile
+
+ create mode 100644 build-test/_deps/ae-numeric-build/Makefile
+
+ create mode 100644 build-test/_deps/ae-numeric-build/cmake_install.cmake
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/CMakeLists.txt
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/Makefile
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-build
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-configure
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-done
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-download
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-gitclone-lastrun.txt
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-gitinfo.txt
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-install
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-mkdir
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-patch
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-patch-info.txt
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-test
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/src/ae-numeric-populate-stamp/ae-numeric-populate-update-info.txt
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/tmp/ae-numeric-populate-cfgcmd.txt
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/tmp/ae-numeric-populate-gitclone.cmake
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/tmp/ae-numeric-populate-gitupdate.cmake
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/ae-numeric-populate-prefix/tmp/ae-numeric-populate-mkdirs.cmake
+
+ create mode 100644 build-test/_deps/ae-numeric-subbuild/cmake_install.cmake
+
+ create mode 100644 build-test/_deps/aether-miscpp-build/Makefile
+
+ create mode 100644 build-test/_deps/aether-miscpp-build/cmake_install.cmake
+
+ create mode 100644 build-test/_deps/aether-miscpp-subbuild/CMakeLists.txt
+
+ create mode 100644 build-test/_deps/aether-miscpp-subbuild/Makefile
+
+ create mode 100644 build-test/_deps/aether-miscpp-subbuild/aether-miscpp-populate-prefix/src/aether-miscpp-populate-stamp/aether-miscpp-populate-build
+
+ create mode 100644 build-test/_deps/aether-miscpp-subbuild/aether-miscpp-populate-prefix/src/aether-miscpp-populate-stamp/aether-miscpp-populate-configure
+
+ create mode 100644 build-test/_deps/aether-miscpp-subbuild/aether-miscpp-populate-prefix/src/aether-miscpp-populate-stamp/aether-miscpp-populate-done
+
+ create mode 100644 build-test/_deps/aether-miscpp-subbuild/aether-miscpp-populate-prefix/src/aether-miscpp-populate-stamp/aether-miscpp-populate-download
+... (вывод обрезан лимитом 63 строк)
+>>> bash
+>>> [elapsed: 25ms]
+
+[subtask rewriteConsumers] 
+<b>Этап завершён. Коммит сделан.</b><br><br>
+<b>Хэш коммита:</b> <code>e6e3b22b</code> — «refactor(api): stub consumers without promises»<br><br>
+<b>Изменённые файлы (потребители API):</b>
+<ul>
+<li><code>aether/registration/registration.cpp</code> — GetKeys/RequestPowParams/MakeRegistration/ResolveCloud переписаны с <code>make_api_call</code>+<code>ApiPromise</code> на прямые void-вызовы API (<code>GetPublicKey</code>, <code>Enter</code>, <code>RequestProofOfWorkData</code>, <code>Registration</code>, <code>Finish</code>, <code>ResolveServers</code>). <code>Run()</code> упрощён до последовательного вызова шагов. Убран <code>#include make_api_call_sender.h</code>.</li>
+<li><code>aether/work_cloud_api/client_api/client_api_unsafe.h</code> — удалён дублированный хвост файла (была синтаксическая ошибка «#endif without #if» из предыдущего коммита).</li>
+<li><code>aether/api_protocol/details/protocol_context.h</code> — удалена лишняя закрывающая скобка класса.</li>
+<li><code>build-test/</code> — каталог сборки (инфраструктурные файлы CMake).</li>
+</ul>
+<b>Статус сборки:</b> конфигурация CMake прошла успешно. <b>Сборка <code>--target aether</code> пока НЕ чистая.</b> Причины — повреждения в ядре, уже находившиеся в коммитах <code>5f22e539</code>/<code>3900e69e</code>/<code>73253acb</code> (не мои правки): сборка на <code>HEAD</code> до моих изменений (через stash) дала 660 ошибок, то есть ядро сломано ещё до этого этапа.<br><br>
+<b>Остающиеся ошибки (ядро):</b>
+<ul>
+<li><code>api_class_declare.h</code> — <code>api_class_declate_internal</code> не объявлен в шаблонах после правок ядра (сломан заголовок/порядок объявлений, «too many template-parameter-lists», «expected declaration before '}' token»).</li>
+<li><code>return_result_api.h</code> — <code>ProtocolContext</code> не имеет <code>SetSendResultResponse</code>/<code>SetSendErrorResponse</code> (удалены в <code>protocol_context.cpp</code> в коммите <code>5f22e539</code>, но заголовок/вызовы остались).</li>
+<li><code>ping.cpp</code>/<code>check_access_for_send_message.cpp</code> — всё ещё на <code>ApiPromise</code>/<code>RequestId</code>, а тип <code>RequestId</code> удалён ядром.</li>
+</ul>
+<b>Итог:</b> потребители в <code>registration.cpp</code> переведены на прямые void-вызовы. Чтобы добить «зелёную» сборку, следующим шагом нужно починить ядро (<code>api_class_declare.h</code>, <code>protocol_context.h/.cpp</code>, <code>return_result_api.h</code> — согласовать удаление <code>RequestId</code>/<code>ApiPromise</code>) и затем переписать <code>ping.cpp</code> и <code>check_access</code> на события. Это отдельная задача — текущий этап требовал только сдвинуть правки потребителей и закоммитить.

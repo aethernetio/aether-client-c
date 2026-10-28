@@ -1,0 +1,910 @@
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> (отфильтровано: из 218 строк оставлено 218)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:  
+    28:  
+    29:# #  include "aether/crypto.h"
+    30:# #  include "aether/crypto/crypto_definitions.h"
+    31:# #  include "aether/crypto/sign.h"
+    32:# #  include "aether/executors/executors.h"
+    33:  
+    34:# #  include "aether/registration/proof_of_work.h"
+    35:# #  include "aether/registration/registration_crypto_provider.h"
+    36:  
+    37:# #  include "aether/ae_actions/ae_actions_tele.h"
+    38:  
+    39:n namespace ae {
+    40:  
+    41:R Registration::Registration(AeContext const& ae_context,
+    42:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    43:U                            Uid parent_uid)
+    44::     : Action{ae_context},
+    45:a       ae_context_{ae_context},
+    46:p       parent_uid_{std::move(parent_uid)},
+    47:p       protocol_context_{ae_context_},
+    48:r       root_crypto_provider_{},
+    49:g       global_crypto_provider_{},
+    50:  
+    51:c       client_root_api_{ae_context_.event_system(),
+    52:*                        *root_crypto_provider_.decryptor(),
+    53:*                        *global_crypto_provider_.decryptor()},
+    54:  
+    55:s       server_reg_root_api_{*root_crypto_provider_.encryptor(),
+    56:*                            *global_crypto_provider_.encryptor()},
+    57:r       root_server_select_stream_{ae_context_, reg_cloud},
+    58:/       // TODO: add configuration
+    59:r       response_timeout_{std::chrono::seconds(20)},
+    60:s       sign_pk_{Crypto::ptr{ae_context_.aether().crypto}
+    61:-                    ->signs_pk_[kDefaultSignatureMethod]},
+    62:r       registration_event_{ae_context_} {
+    63:A   AE_TELE_INFO(RegisterStarted);
+    64:  
+    65:/   // parent uid must not be empty
+    66:a   assert(!parent_uid_.empty());
+    67:  
+    68:I   InitConnection();
+    69:R   Run();
+    70:} }
+    71:  
+    72:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    73:  
+    74:R Registration::RegistrationEvent const& Registration::registration() {
+    75:r   return registration_event_;
+    76:} }
+    77:  
+    78:v void Registration::InitConnection() {
+    79:A   AE_TELED_DEBUG("Registration::InitConnection");
+    80:  
+    81:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    82:/     // Reinit connection and start registration from the beginning
+    83:/     // TODO: make async_waiter_ stop and start get keys again
+    84:A     AE_TELED_ERROR("Server changed");
+    85:}   });
+    86:  
+    87:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    88:A     AE_TELED_ERROR("Link Error, Registration failed");
+    89:/     // TODO: make async_waiter_ stop with error
+    90:}   });
+    91:  
+    92:/   // Connect parser for out data
+    93:r   root_server_select_stream_.out_data_event().Subscribe(
+    94:[       [this](auto const& data) {
+    95:a         auto parser = ApiParser{protocol_context_, data};
+    96:p         parser.Parse(client_root_api_);
+    97:}       });
+    98:} }
+    99:  
+    100:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    101:  
+    102:  
+    103:a auto Registration::GetKeys() {
+    104:A   AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    105:s   server_reg_root_api_.GetPublicKey(kDefaultCryptoLibProfile);
+    106:r     return;
+    107:} }
+    108:  
+    109:  
+    110:  
+    111:a auto Registration::RequestPowParams() {
+    112:A   AE_TELE_INFO(RegisterRequestPowParams, "Request proof of work params");
+    113:s   server_reg_root_api_.Enter(
+    114:k       kDefaultCryptoLibProfile,
+    115:S       SubApi{[this](ApiContext<ServerRegistrationApi>& server_api) {
+    116:s         server_api->SetReturnKey(root_crypto_provider_.GetDecryptionKey());
+    117:s         server_api->RequestProofOfWorkData(parent_uid_, PowMethod::kBCryptCrc32);
+    118:}       }});
+    119:r     return;
+    120:} }
+    121:  
+    122:  
+    123:  
+    124:a auto Registration::MakeRegistration() {
+    125:A   AE_TELE_INFO(RegisterMakeRegistration, "Make registration");
+    126:  
+    127:a   auto proofs = ProofOfWork::ComputeProofOfWork(
+    128:p       pow_params_.pool_size, pow_params_.salt, pow_params_.password_suffix,
+    129:p       pow_params_.max_hash_value);
+    130:  
+    131:A   AE_TELE_DEBUG(RegisterKeysGenerated, "Global Pk: {}:{}, Masterkey: {}:{}",
+    132:a                 aether_global_key_.Index(), aether_global_key_, master_key_.Index(),
+    133:m                 master_key_);
+    134:  
+    135:s   server_reg_root_api_.Enter(
+    136:k       kDefaultCryptoLibProfile,
+    137:S       SubApi{[this, proofs =
+    138:s                         std::move(proofs)](ApiContext<ServerRegistrationApi>& server_api) mutable {
+    139:s         server_api->Registration(
+    140:p             pow_params_.salt, pow_params_.password_suffix, std::move(proofs),
+    141:p             parent_uid_, [this](ApiContext<GlobalRegServerApi>& global_api) {
+    142:g               global_api->SetMasterKey(master_key_);
+    143:g               global_api->Finish();
+    144:}             });
+    145:}       }});
+    146:r     return;
+    147:} }
+    148:  
+    149:  
+    150:  
+    151:a auto Registration::ResolveCloud() {
+    152:A   AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]", client_cloud_);
+    153:s   server_reg_root_api_.Enter(kDefaultCryptoLibProfile,
+    154:[       [this](ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    155:s         server_api->ResolveServers(client_cloud_);
+    156:}       });
+    157:r     return;
+    158:} }
+    159:  
+    160:  
+    161:C ClientConfig Registration::OnCloudResolved(
+    162:s     std::vector<ServerDescriptor> const& servers) {
+    163:A   AE_TELE_INFO(RegisterResolveCloudResponse);
+    164:  
+    165:C   ClientConfig client_config{
+    166:.       .parent_uid = parent_uid_,
+    167:.       .uid = client_uid_,
+    168:.       .ephemeral_uid = ephemeral_uid_,
+    169:.       .master_key = master_key_,
+    170:.       .cloud = {},
+    171:}   };
+    172:  
+    173:s   std::vector<Server::ptr> server_objects;
+    174:s   server_objects.reserve(servers.size());
+    175:  
+    176:f   for (const auto& description : servers) {
+    177:s     std::vector<Endpoint> endpoints;
+    178:f     for (auto const& ip : description.ips) {
+    179:f       for (auto const& pp : ip.protocol_and_ports) {
+    180:e         endpoints.emplace_back(Endpoint{{ip.ip, pp.port}, pp.protocol});
+    181:}       }
+    182:}     }
+    183:A     AE_TELED_DEBUG("Got server {} with endpoints {}", description.server_id,
+    184:e                    endpoints);
+    185:c     client_config.cloud.emplace_back(
+    186:S         ServerConfig{description.server_id, std::move(endpoints)});
+    187:}   }
+    188:  
+    189:/   // sort cloud by order of client_cloud_
+    190:s   std::sort(std::begin(client_config.cloud), std::end(client_config.cloud),
+    191:[             [this](auto const& left, auto const& right) {
+    192:a               auto left_order = std::find(std::begin(client_cloud_),
+    193:s                                           std::end(client_cloud_), left.id);
+    194:a               auto right_order = std::find(std::begin(client_cloud_),
+    195:s                                            std::end(client_cloud_), right.id);
+    196:r               return left_order < right_order;
+    197:}             });
+    198:  
+    199:A   AE_TELE_DEBUG(RegisterClientRegistered,
+    200:"                 "Client registered:\n>>>>>>>>>>>>>>>\n{}\n<<<<<<<<<<<<<<<",
+    201:c                 client_config);
+    202:  
+    203:r   return client_config;
+    204:} }
+    205:  
+    206:  
+    207:  
+    208:v void Registration::Run() {
+    209:G   GetKeys();
+    210:R   RequestPowParams();
+    211:M   MakeRegistration();
+    212:R   ResolveCloud();
+    213:} }
+    214:} }  // namespace ae
+    215:  
+    216:# #endif
+>>> (отфильтровано: из 95 строк оставлено 95)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_EVENTS_EVENTS_H_
+    18:# #define AETHER_EVENTS_EVENTS_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:/ // IWYU pragma: begin_exports
+    23:# #include "aether/events/details/event_handler.h"
+    24:# #include "aether/events/details/event_multi_subscription.h"
+    25:# #include "aether/events/details/event_object.h"
+    26:# #include "aether/events/details/event_subscription.h"
+    27:# #include "aether/events/details/event_system.h"
+    28:# #include "aether/events/details/generic_event_handler.h"
+    29:/ // IWYU pragma: end_exports
+    30:  
+    31:n namespace ae {
+    32:/ /**
+    33:*  * \brief Maximum number of simultaneously registered events.
+    34:*  *
+    35:*  * The default EventSystem has independent fixed capacities for event keys and
+    36:*  * handlers. Event construction fails fast when this capacity is exhausted.
+    37:*  */
+    38:s static constexpr inline std::size_t kEventsCapacity =
+    39:s     static_cast<std::size_t>(AE_EVENTS_MAX_COUNT);
+    40:/ /** \brief Maximum number of handlers in the default EventSystem pool. */
+    41:s static constexpr inline std::size_t kEventsHandlerCapacity =
+    42:s     static_cast<std::size_t>(AE_EVENTS_MAX_COUNT * 1.2);
+    43:/ /** \brief Maximum user-provided handler size in the default handler pool. */
+    44:s static constexpr inline std::size_t kEventHandlerMaxSize =
+    45:s     static_cast<std::size_t>(AE_EVENT_HANDLER_MAX_SIZE);
+    46:/ /** \brief Required alignment for user-provided handlers in the default pool. */
+    47:s static constexpr inline std::size_t kEventHandlerAlign =
+    48:s     static_cast<std::size_t>(AE_EVENT_HANDLER_ALIGN);
+    49:  
+    50:/ /** \brief The fixed-capacity event system used by the public event types. */
+    51:u using EventSystem =
+    52:e     events::EventSystem<kEventsCapacity, kEventsHandlerCapacity,
+    53:k                         kEventHandlerMaxSize, kEventHandlerAlign>;
+    54:  
+    55:/ /**
+    56:*  * \brief A multicast event backed by the default EventSystem.
+    57:*  *
+    58:*  * Emit() synchronously invokes a snapshot of eligible handlers. A by-value
+    59:*  * argument must be copyable; each handler receives its own equivalent copy.
+    60:*  * Reference arguments remain references during synchronous dispatch, so all
+    61:*  * handlers observe the same object and must not retain its reference. Rvalue
+    62:*  * reference arguments and move-only by-value arguments are unsupported.
+    63:*  */
+    64:t template <typename Signature>
+    65:u using Event = events::EventObject<EventSystem, Signature>;
+    66:  
+    67:/ /**
+    68:*  * \brief A lightweight, non-RAII handler registration.
+    69:*  *
+    70:*  * Discarding this token does not unsubscribe the handler. Transfer each token
+    71:*  * returned by Subscribe() to exactly one Subscription or MultiSubscription to
+    72:*  * give the registration an owner. RegEventHandler remains copyable as an
+    73:*  * aggregate, but copies must not be retained by multiple owners; doing so is
+    74:*  * unsupported misuse.
+    75:*  */
+    76:u using RegEventHandler = events::RegHandler<EventSystem>;
+    77:  
+    78:/ /** \brief RAII owner for one event registration. */
+    79:u using Subscription = events::SubscriptionObject<EventSystem>;
+    80:/ /**
+    81:*  * \brief RAII owner for several registrations using dynamic std::vector
+    82:*  * storage.
+    83:*  *
+    84:*  * This compatibility type can allocate while growing. Use
+    85:*  * events::MultiSubscriptionObjectFix when fixed-capacity storage is required.
+    86:*  */
+    87:u using MultiSubscription = events::MultiSubscriptionObjectDyn<EventSystem>;
+    88:  
+    89:u using events::EventContext;
+    90:  
+    91:} }  // namespace ae
+    92:  
+    93:# #endif  // AETHER_EVENTS_EVENTS_H_
+>>> (отфильтровано: из 77 строк оставлено 77)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    18:# #define AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    19:  
+    20:  
+    21:# #include "aether/config.h"
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #include "aether/api_protocol/api_protocol.h"
+    25:# #include "aether/crypto/icrypto_provider.h"
+    26:# #include "aether/crypto/signed_key.h"
+    27:# #include "aether/events/events.h"
+    28:# #include "aether/types/server_id.h"
+    29:# #include "aether/types/uid.h"
+    30:  
+    31:# #include "aether/registration/api/client_reg_api_safe.h"
+    32:# #include "aether/registration/api/global_reg_client_api.h"
+    33:# #include "aether/registration/api/server_registration_api.h"
+    34:# #include "aether/work_cloud_api/server_descriptor.h"
+    35:#   #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    36:  
+    37:n namespace ae {
+    38:  
+    39:  
+    40:c class ClientRegRootApi final : public DeclareApi<ClientRegRootApi> {
+    41:p public:
+    42:E   EventSystem& event_system_;
+    43:p  public:
+    44:e   explicit ClientRegRootApi(EventSystem& event_system,
+    45:I                             IDecryptProvider& root_decrypt_provider,
+    46:I                             IDecryptProvider& global_decrypt_provider);
+    47:  
+    48:v   void Enter(SubApi<ClientRegApiSafe> sub_api);
+    49:v   void EnterGlobal(SubApi<GlobalRegClientApi> sub_api);
+    50:  
+    51:E   Event<void(SignedKey)> server_pub_key_event;
+    52:E   Event<void(PowParams)> pow_params_event;
+    53:E   Event<void(RegistrationDirectResult)> registration_direct_event;
+    54:E   Event<void(std::vector<ServerDescriptor>)> resolved_servers_event;
+    55:  
+    56:v   void SendAsymmetricPublicKey(SignedKey key);
+    57:v   void SendPowParams(PowParams params);
+    58:v   void SendRegistrationDirectResult(RegistrationDirectResult result);
+    59:v   void SendResolvedServers(std::vector<ServerDescriptor> servers);
+    60:  
+    61:A   API_LIST(METHOD(3, Enter), METHOD(4, EnterGlobal),
+    62:M            METHOD(70, SendAsymmetricPublicKey), METHOD(67, SendPowParams),
+    63:M            METHOD(66, SendRegistrationDirectResult), METHOD(68, SendResolvedServers))
+    64:  
+    65:p  private:
+    66:I   IDecryptProvider* root_decrypt_provider_;
+    67:I   IDecryptProvider* global_decrypt_provider_;
+    68:  
+    69:C   ClientRegApiSafe client_reg_api_;
+    70:G   GlobalRegClientApi global_reg_client_api_;
+    71:} };
+    72:} }  // namespace ae
+    73:# #endif
+    74:  
+    75:# #endif  // AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/details/event_object.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/details/event_subscription.h
+
+>>> (отфильтровано: из 96 строк оставлено 96)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+    51:p  private:
+    52:v   void InitConnection();
+    53:v   void Restream();
+    54:v   void Run();
+    55:a   auto GetKeys();
+    56:a   auto RequestPowParams();
+    57:a   auto MakeRegistration();
+    58:a   auto ResolveCloud();
+    59:C   ClientConfig OnCloudResolved(std::vector<ServerDescriptor> const& servers);
+    60:  
+    61:A   AeContext ae_context_;
+    62:U   Uid parent_uid_;
+    63:  
+    64:P   ProtocolContext protocol_context_;
+    65:R   RegistrationCryptoProvider root_crypto_provider_;
+    66:R   RegistrationCryptoProvider global_crypto_provider_;
+    67:C   ClientRegRootApi client_root_api_;
+    68:R   RegistrationRootApi server_reg_root_api_;
+    69:R   RootServerSelectStream root_server_select_stream_;
+    70:  
+    71:D   Duration response_timeout_;
+    72:  
+    73:K   Key server_pub_key_;
+    74:K   Key sign_pk_;
+    75:P   PowParams pow_params_;
+    76:K   Key aether_global_key_;
+    77:s   std::vector<ServerId> client_cloud_;
+    78:K   Key master_key_;
+    79:U   Uid client_uid_;
+    80:U   Uid ephemeral_uid_;
+    81:  
+    82:# #  if DEBUG
+    83:S   Subscription get_my_ip_subscription_;
+    84:# #  endif
+    85:  
+    86:s   std::optional<ex::AnyWaiter<ex::set_value_t(ClientConfig),
+    87:e                               ex::set_error_t(int), ex::set_stopped_t()>>
+    88:w       waiter_;
+    89:R   RegistrationEvent registration_event_;
+    90:} };
+    91:} }  // namespace ae
+    92:  
+    93:# #endif
+    94:# #endif  // AETHER_REGISTRATION_REGISTRATION_H_
+>>> (отфильтровано: из 153 строк оставлено 153)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/details/event_object.h
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_EVENTS_DETAILS_EVENT_OBJECT_H_
+    18:# #define AETHER_EVENTS_DETAILS_EVENT_OBJECT_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <concepts>
+    22:# #include <cstdlib>
+    23:# #include <type_traits>
+    24:# #include <utility>
+    25:  
+    26:# #include "aether/events/details/event_registered_handler.h"
+    27:# #include "aether/events/details/event_system.h"
+    28:# #include "aether/events/details/generic_event_handler.h"
+    29:  
+    30:n namespace ae::events {
+    31:t template <typename T>
+    32:c concept EventContext = requires(T const& t) {
+    33:{   { t.event_system() } -> EventSystemConcept;
+    34:} };
+    35:  
+    36:/ /**
+    37:*  * \brief The event object stored in class.
+    38:*  * The event emitted using this object.
+    39:*  * The subscription added also to this object.
+    40:*  * Event object must be initialized with suitable event context or reference to
+    41:*  * event system. The event system must outlive this object and all of its
+    42:*  * subscriptions. Construction and subscription fail fast if their fixed
+    43:*  * capacities are exhausted. Multicast payloads passed by value must be
+    44:*  * copyable because every handler receives a separate copy. Reference payloads
+    45:*  * are shared synchronously by all handlers; handlers must not retain them.
+    46:*  * Move-only by-value payloads and rvalue-reference payloads are unsupported.
+    47:*  */
+    48:t template <EventSystemConcept Es, typename Signature>
+    49:c class EventObject;
+    50:  
+    51:t template <EventSystemConcept Es, typename... Args>
+    52:c class EventObject<Es, void(Args...)> {
+    53:p  public:
+    54:s   static_assert((!std::is_rvalue_reference_v<Args> && ...),
+    55:"                 "Multicast events do not support T&& parameters");
+    56:s   static_assert(((std::is_reference_v<Args> ||
+    57:s                   std::copy_constructible<std::remove_cvref_t<Args>>) &&
+    58:.                  ...),
+    59:"                 "By-value multicast event parameters must be copyable");
+    60:  
+    61:t   template <EventContext EC>
+    62:e   explicit EventObject(EC const& ec) : EventObject{ec.event_system()} {}
+    63:  
+    64:e   explicit EventObject(Es& es) : es_{&es} {
+    65:a     auto k = es_->RegEvent();
+    66:i     if (!k) {
+    67:a       assert(false && "Event should be registered on construction");
+    68:s       std::abort();
+    69:}     }
+    70:k     key_ = *k;
+    71:}   }
+    72:  
+    73:~   ~EventObject() {
+    74:i     if (es_ != nullptr) {
+    75:e       es_->UnregEvent(key_);
+    76:}     }
+    77:}   }
+    78:  
+    79:/   // no copy, but move
+    80:E   EventObject(EventObject const&) = delete;
+    81:E   EventObject& operator=(EventObject const&) = delete;
+    82:  
+    83:/   // Moving transfers the event registration. The source becomes invalid and
+    84:/   // must not be used except for destruction, assignment, or a validity check.
+    85:E   EventObject(EventObject&& other) noexcept : es_{other.es_}, key_{other.key_} {
+    86:o     other.es_ = nullptr;
+    87:}   }
+    88:E   EventObject& operator=(EventObject&& other) noexcept {
+    89:i     if (this != &other) {
+    90:i       if (es_ != nullptr) {
+    91:e         es_->UnregEvent(key_);
+    92:}       }
+    93:e       es_ = other.es_;
+    94:k       key_ = other.key_;
+    95:o       other.es_ = nullptr;
+    96:}     }
+    97:r     return *this;
+    98:}   }
+    99:  
+    100:/   /**
+    101:*    * \brief Emit this event synchronously with the supplied arguments.
+    102:*    *
+    103:*    * Dispatch uses an event-system snapshot and does not hold its mutex while
+    104:*    * calling handlers. Calling this on a moved-from EventObject violates its
+    105:*    * contract.
+    106:*    */
+    107:v   void Emit(Args... args) {
+    108:a     assert(es_ != nullptr && "EventObject is invalid");
+    109:e     es_->template Invoke<Args...>(key_, args...);
+    110:}   }
+    111:  
+    112:/   /**
+    113:*    * \brief Subscribe a handler and return its non-owning registration token.
+    114:*    *
+    115:*    * The returned RegHandler does not own the subscription. Store it in a
+    116:*    * Subscription or MultiSubscription when the handler must be removed.
+    117:*    * Calling this on a moved-from EventObject violates its contract.
+    118:*    */
+    119:t   template <std::derived_from<Handler<void(Args...)>> T>
+    120:R   RegHandler<Es> Subscribe(T&& handler) const {
+    121:a     assert(es_ != nullptr && "EventObject is invalid");
+    122:a     auto* h = es_->AddHandler(key_, std::forward<T>(handler));
+    123:i     if (h == nullptr) {
+    124:s       std::abort();
+    125:}     }
+    126:r     return RegHandler{
+    127:.         .key = key_,
+    128:.         .h = h,
+    129:.         .es = es_,
+    130:}     };
+    131:}   }
+    132:  
+    133:/   /**
+    134:*    * \brief Make subscription using generic handler from any invocable functor
+    135:*    */
+    136:t   template <std::invocable<Args...> Func>
+    137:R   RegHandler<Es> Subscribe(Func&& func) const {
+    138:r     return Subscribe(
+    139:G         GenericHandler<void(Args...), Func>{std::forward<Func>(func)});
+    140:}   }
+    141:  
+    142:e   explicit operator bool() const { return es_ != nullptr; }
+    143:  
+    144:p  private:
+    145:E   Es* es_{nullptr};
+    146:K   Key key_{};
+    147:} };
+    148:  
+    149:} }  // namespace ae::events
+    150:  
+    151:# #endif  // AETHER_EVENTS_DETAILS_EVENT_OBJECT_H_
+>>> (отфильтровано: из 93 строк оставлено 93)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/details/event_subscription.h
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_EVENTS_DETAILS_EVENT_SUBSCRIPTION_H_
+    18:# #define AETHER_EVENTS_DETAILS_EVENT_SUBSCRIPTION_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <optional>
+    22:# #include <utility>
+    23:  
+    24:# #include "aether/events/details/event_registered_handler.h"
+    25:# #include "aether/events/details/event_system.h"
+    26:  
+    27:n namespace ae::events {
+    28:/ /**
+    29:*  * \brief A RAII object to handle event subscription.
+    30:*  * Removes the event handler on Reset() or destruction.
+    31:*  *
+    32:*  * The event system and event that produced the registration must outlive this
+    33:*  * object. Construction and assignment require a valid RegHandler produced by
+    34:*  * EventObject::Subscribe and transferred to this as its sole owner. Although
+    35:*  * RegHandler is copyable, using copies to give a registration multiple owners
+    36:*  * is unsupported misuse. Reset() does not wait for a callback already
+    37:*  * selected for dispatch.
+    38:*  */
+    39:t template <EventSystemConcept Es>
+    40:c class SubscriptionObject {
+    41:p  public:
+    42:S   SubscriptionObject() = default;
+    43:S   SubscriptionObject(RegHandler<Es> const& re)  // NOLINT(*explicit*)
+    44::       : reg_handler_{re} {
+    45:a     assert(re.es != nullptr && "Registration event system is null");
+    46:a     assert(re.h != nullptr && "Registration handler is null");
+    47:}   }
+    48:  
+    49:S   SubscriptionObject& operator=(RegHandler<Es> const& re) {
+    50:a     assert(re.es != nullptr && "Registration event system is null");
+    51:a     assert(re.h != nullptr && "Registration handler is null");
+    52:R     Reset();
+    53:r     reg_handler_.emplace(re);
+    54:r     return *this;
+    55:}   }
+    56:  
+    57:S   SubscriptionObject(SubscriptionObject const& other) = delete;
+    58:S   SubscriptionObject(SubscriptionObject&& other) noexcept
+    59::       : reg_handler_{std::move(other.reg_handler_)} {
+    60:o     other.reg_handler_.reset();
+    61:}   }
+    62:  
+    63:S   SubscriptionObject& operator=(SubscriptionObject const& other) = delete;
+    64:S   SubscriptionObject& operator=(SubscriptionObject&& other) noexcept {
+    65:i     if (this != &other) {
+    66:R       Reset();
+    67:s       std::swap(reg_handler_, other.reg_handler_);
+    68:}     }
+    69:r     return *this;
+    70:}   }
+    71:  
+    72:~   ~SubscriptionObject() { Reset(); }
+    73:  
+    74:v   void Reset() {
+    75:i     if (reg_handler_) {
+    76:a       assert(reg_handler_->es != nullptr &&
+    77:"              "Registration event system is null");
+    78:a       assert(reg_handler_->h != nullptr && "Registration handler is null");
+    79:r       reg_handler_->es->RemoveHandler(reg_handler_->key, reg_handler_->h);
+    80:r       reg_handler_.reset();
+    81:}     }
+    82:}   }
+    83:  
+    84:e   explicit operator bool() const { return reg_handler_.has_value(); }
+    85:  
+    86:p  private:
+    87:s   std::optional<RegHandler<Es>> reg_handler_;
+    88:} };
+    89:} }  // namespace ae::events
+    90:  
+    91:# #endif  // AETHER_EVENTS_DETAILS_EVENT_SUBSCRIPTION_H_
+
+>>> findRegexp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Path not found: /home/angel/projects/aether-client-cpp/aether
+[subtask cppRegistrationChain] ERROR: subtask produced no groovy block
