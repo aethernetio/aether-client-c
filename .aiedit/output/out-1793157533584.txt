@@ -1,0 +1,901 @@
+>>> bash
+commit 5f22e539ab68781d8ece1097d6c0bc9ae00147e9
+Author: MakProg <makshanov@aethernet.io>
+Date:   Wed Oct 28 10:35:42 2026 +0800
+
+    refactor(api): remove request_id and promise from core
+
+ aether/api_protocol/details/api_class_declare.h  |  66 ++-----
+ aether/api_protocol/details/protocol_context.cpp |  92 +---------
+ aether/api_protocol/details/protocol_context.h   |  59 +-----
+ aether/api_protocol/details/return_result_api.h  |   6 +-
+ aether/api_protocol/make_api_call_sender.h       | 224 +----------------------
+ 5 files changed, 32 insertions(+), 415 deletions(-)
+>>> [elapsed: 9ms]
+>>> bash
+>>> [elapsed: 7ms]
+>>> bash
+aether/server_connections/client_server_connection.cpp:153:      client_api_unsafe_{ae_context.event_system(),
+aether/server_connections/client_server_connection.cpp:195:  return client_api_unsafe_.client_api_safe();
+aether/server_connections/client_server_connection.cpp:204:  [[maybe_unused]] auto res = parser.Parse(client_api_unsafe_);
+aether/server_connections/client_server_connection.h:28:#include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+aether/server_connections/client_server_connection.h:92:  ClientApiUnsafe client_api_unsafe_;
+>>> [elapsed: 9ms]
+
+>>> bash
+commit 3900e69e98d173ac16a65efcf1abad5216d72a1a
+Author: MakProg <makshanov@aethernet.io>
+Date:   Wed Oct 28 10:50:54 2026 +0800
+
+    refactor(api): void registration and work api methods
+
+diff --git a/aether/registration/api/registration_root_api.cpp b/aether/registration/api/registration_root_api.cpp
+index 6247b6b4..2f7c9be3 100644
+--- a/aether/registration/api/registration_root_api.cpp
++++ b/aether/registration/api/registration_root_api.cpp
+@@ -22,10 +22,12 @@ RegistrationRootApi::RegistrationRootApi(IEncryptProvider& root_encrypt,
+                                          IEncryptProvider& global_encrypt)
+     : enc_provider_{&root_encrypt}, server_registration_api_{global_encrypt} {}
+ 
+-ApiPromise<SignedKey> RegistrationRootApi::GetPublicKey(CryptoLib crypto_lib) {
+-  return ClientMethod<&RegistrationRootApi::GetPublicKey>(crypto_lib);
++
++void RegistrationRootApi::GetPublicKey(CryptoLib crypto_lib) {
++  ClientMethod<&RegistrationRootApi::GetPublicKey>(crypto_lib);
+ }
+ 
++
+ void RegistrationRootApi::Enter(CryptoLib crypto_lib,
+                                 SubApi<ServerRegistrationApi> sub_api) {
+   auto server_api_data = enc_provider_->Encrypt(
+@@ -34,9 +36,11 @@ void RegistrationRootApi::Enter(CryptoLib crypto_lib,
+                                             std::move(server_api_data));
+ }
+ 
+-ApiPromise<InfoIp> RegistrationRootApi::GetMyIp() {
+-  return ClientMethod<&RegistrationRootApi::GetMyIp>();
++
++void RegistrationRootApi::GetMyIp() {
++  ClientMethod<&RegistrationRootApi::GetMyIp>();
+ }
+ 
++
+ }  // namespace ae
+-#endif
++#endif
+\ No newline at end of file
+diff --git a/aether/registration/api/registration_root_api.h b/aether/registration/api/registration_root_api.h
+index 26a83777..ed920d76 100644
+--- a/aether/registration/api/registration_root_api.h
++++ b/aether/registration/api/registration_root_api.h
+@@ -35,10 +35,10 @@ class RegistrationRootApi : public DeclareApi<RegistrationRootApi> {
+   RegistrationRootApi(IEncryptProvider& root_encrypt,
+                       IEncryptProvider& global_encrypt);
+ 
+-  ApiPromise<SignedKey> GetPublicKey(CryptoLib crypto_lib);
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 13ms]
+>>> bash
+>>> [elapsed: 9ms]
+
+>>> (отфильтровано: из 82 строк оставлено 82)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+    18:# #define AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <string>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether-miscpp/reflect/reflect.h"
+    28:  
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/icrypto_provider.h"
+    31:# #  include "aether/crypto/key.h"
+    32:# #  include "aether/crypto/signed_key.h"
+    33:# #  include "aether/types/server_id.h"
+    34:# #  include "aether/types/uid.h"
+    35:  
+    36:# #  include "aether/api_protocol/api_protocol.h"
+    37:# #  include "aether/registration/api/global_reg_server_api.h"
+    38:# #  include "aether/work_cloud_api/server_descriptor.h"
+    39:  
+    40:n namespace ae {
+    41:s struct PowParams {
+    42:A   AE_REFLECT_MEMBERS(salt, password_suffix, pool_size, max_hash_value,
+    43:g                      global_key)
+    44:s   std::string salt;
+    45:s   std::string password_suffix;
+    46:s   std::uint8_t pool_size;
+    47:s   std::uint32_t max_hash_value;
+    48:S   SignedKey global_key;
+    49:} };
+    50:  
+    51:c class ServerRegistrationApi : public DeclareApi<ServerRegistrationApi> {
+    52:p  public:
+    53:e   explicit ServerRegistrationApi(IEncryptProvider& encrypt_provider);
+    54:  
+    55:v   void Registration(std::string const& salt, std::string const& password_suffix,
+    56:s                     std::vector<std::uint32_t> const& passwords,
+    57:U                     Uid const& parent_uid_, SubApi<GlobalRegServerApi> sub_api);
+    58:  
+    59:  
+    60:  
+    61:v   void RequestProofOfWorkData(Uid const& parent_id,
+    62:P                                  PowMethod pow_method);
+    63:  
+    64:  
+    65:  
+    66:v   void ResolveServers(std::vector<ServerId> const& servers);
+    67:  
+    68:v   void SetReturnKey(Key const& key);
+    69:  
+    70:A   API_LIST(METHOD(3, Registration), METHOD(4, RequestProofOfWorkData),
+    71:M            METHOD(5, ResolveServers), METHOD(6, SetReturnKey))
+    72:  
+    73:p  private:
+    74:I   IEncryptProvider* encrypt_provider_;
+    75:G   GlobalRegServerApi global_reg_server_api_;
+    76:} };
+    77:} }  // namespace ae
+    78:  
+    79:# #endif
+    80:# #endif  // AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+>>> (отфильтровано: из 54 строк оставлено 54)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_GLOBAL_REG_SERVER_API_H_
+    18:# #define AETHER_REGISTRATION_API_GLOBAL_REG_SERVER_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include <vector>
+    24:  
+    25:# #  include "aether-miscpp/reflect/reflect.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/types/server_id.h"
+    29:# #  include "aether/types/uid.h"
+    30:  
+    31:n namespace ae {
+    32:  
+    33:s struct RegistrationResponse {
+    34:A   AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    35:U   Uid ephemeral_uid;
+    36:U   Uid uid;
+    37:s   std::vector<ServerId> cloud;
+    38:} };
+    39:  
+    40:c class GlobalRegServerApi : public DeclareApi<GlobalRegServerApi> {
+    41:p  public:
+    42:G   GlobalRegServerApi() = default;
+    43:  
+    44:v   void SetMasterKey(Key const& key);
+    45:v void Finish();
+    46:  
+    47:A   API_LIST(METHOD(3, SetMasterKey), METHOD(4, Finish));
+    48:} };
+    49:  
+    50:} }  // namespace ae
+    51:# #endif
+    52:# #endif  // AETHER_REGISTRATION_API_GLOBAL_REG_SERVER_API_H_ */
+>>> (отфильтровано: из 53 строк оставлено 53)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_REGISTRATION_ROOT_API_H_
+    18:# #define AETHER_REGISTRATION_API_REGISTRATION_ROOT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/crypto/crypto_definitions.h"
+    24:# #  include "aether/crypto/icrypto_provider.h"
+    25:# #  include "aether/crypto/signed_key.h"
+    26:  
+    27:# #  include "aether/api_protocol/api_protocol.h"
+    28:# #  include "aether/registration/api/server_registration_api.h"
+    29:# #  include "aether/work_cloud_api/info_ip.h"
+    30:  
+    31:n namespace ae {
+    32:  
+    33:c class RegistrationRootApi : public DeclareApi<RegistrationRootApi> {
+    34:p  public:
+    35:R   RegistrationRootApi(IEncryptProvider& root_encrypt,
+    36:I                       IEncryptProvider& global_encrypt);
+    37:  
+    38:v void GetPublicKey(CryptoLib crypto_lib);
+    39:v   void Enter(CryptoLib crypto_lib, SubApi<ServerRegistrationApi> sub_api);
+    40:  
+    41:v void GetMyIp();
+    42:  
+    43:A   API_LIST(METHOD(3, GetPublicKey), METHOD(4, Enter), METHOD(6, GetMyIp))
+    44:  
+    45:p  private:
+    46:I   IEncryptProvider* enc_provider_;
+    47:S   ServerRegistrationApi server_registration_api_;
+    48:} };
+    49:} }  // namespace ae
+    50:# #endif
+    51:# #endif  // AETHER_REGISTRATION_API_REGISTRATION_ROOT_API_H_
+>>> bash
+aether/registration/api/global_reg_server_api.h:33:struct RegistrationResponse {
+>>> [elapsed: 4ms]
+
+>>> (отфильтровано: из 99 строк оставлено 99)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/server_connections/server_connection.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_SERVER_CONNECTIONS_SERVER_CONNECTION_H_
+    18:# #define AETHER_SERVER_CONNECTIONS_SERVER_CONNECTION_H_
+    19:  
+    20:# #include <memory>
+    21:# #include <optional>
+    22:# #include <vector>
+    23:  
+    24:# #include "aether-objects/ptr/ptr.h"
+    25:# #include "aether-objects/ptr/ptr_view.h"
+    26:# #include "aether/ae_context.h"
+    27:# #include "aether/events/events.h"
+    28:  
+    29:# #include "aether/server_connections/channel_select_action.h"
+    30:# #include "aether/stream_api/istream.h"
+    31:  
+    32:n namespace ae {
+    33:c class Server;
+    34:c class Channel;
+    35:  
+    36:s struct ChannelEntry {
+    37:P   PtrView<Channel> channel;
+    38:b   bool failed = false;
+    39:} };
+    40:  
+    41:c class ServerConnection final : public ByteIStream {
+    42:p  public:
+    43:u   using ServerErrorEvent = Event<void()>;
+    44:u   using ChannelChangedEvent = Event<void()>;
+    45:  
+    46:S   ServerConnection(AeContext const& ae_context, Ptr<Server> const& server);
+    47:  
+    48:W   WriteAction& Write(DataBuffer&& in_data) override;
+    49:S   StreamUpdateEvent const& stream_update_event() override;
+    50:S   StreamInfo stream_info() const override;
+    51:O   OutDataEvent const& out_data_event() override;
+    52:v   void Restream() override;
+    53:  
+    54:S   ServerErrorEvent const& server_error_event();
+    55:C   ChannelChangedEvent const& channel_changed_event();
+    56:  
+    57:P   Ptr<Channel> current_channel() const;
+    58:  
+    59:p  private:
+    60:f   friend struct ServerConnectionTestAccess;
+    61:  
+    62:v   void InitChannels();
+    63:/   // return top not failed channel or null if nothing was selected
+    64:C   ChannelEntry* TopChannel();
+    65:v   void SelectChannel();
+    66:v   void DeferSelectChannel();
+    67:v   void ChannelUpdated(ChannelEntry& new_channel,
+    68:s                       std::unique_ptr<ByteIStream>&& stream);
+    69:v   void ChannelBuildFailed(ChannelEntry& attempted_channel);
+    70:  
+    71:v   void ServerError();
+    72:v   void ChannelError();
+    73:v   void DeferServerError();
+    74:  
+    75:v   void OnRead(DataBuffer const& data);
+    76:  
+    77:A   AeContext ae_context_;
+    78:P   PtrView<Server> server_;
+    79:  
+    80:b   bool full_connected_;
+    81:C   ChannelEntry* top_channel_;
+    82:s   std::unique_ptr<ByteIStream> stream_;
+    83:s   std::vector<ChannelEntry> channels_;
+    84:s   std::optional<ChannelSelectAction> channel_select_action_;
+    85:  
+    86:S   StreamInfo stream_info_;
+    87:O   OutDataEvent out_data_event_;
+    88:S   StreamUpdateEvent stream_update_event_;
+    89:S   ServerErrorEvent server_error_;
+    90:C   ChannelChangedEvent channel_changed_;
+    91:S   Subscription channel_stream_update_sub_;
+    92:S   Subscription channel_stream_out_data_sub_;
+    93:T   TaskSubscription defer_sub_;
+    94:} };
+    95:} }  // namespace ae
+    96:  
+    97:# #endif  // AETHER_SERVER_CONNECTIONS_SERVER_CONNECTION_H_
+>>> bash
+aether/registration/api/client_reg_api_unsafe.cpp:21:ClientRegRootApi::ClientRegRootApi(IDecryptProvider& root_decrypt_provider,
+aether/registration/api/client_reg_api_unsafe.cpp:26:void ClientRegRootApi::Enter(SubApi<ClientRegApiSafe> sub_api) {
+aether/registration/api/client_reg_api_unsafe.cpp:33:void ClientRegRootApi::EnterGlobal(SubApi<GlobalRegClientApi> sub_api) {
+aether/registration/api/client_reg_api_unsafe.h:30:class ClientRegRootApi final : public DeclareApi<ClientRegRootApi> {
+aether/registration/api/client_reg_api_unsafe.h:32:  explicit ClientRegRootApi(IDecryptProvider& root_decrypt_provider,
+aether/registration/registration.cpp:92:        parser.Parse(client_root_api_);
+aether/registration/registration.h:67:  ClientRegRootApi client_root_api_;
+aether/server_connections/client_server_connection.cpp:204:  [[maybe_unused]] auto res = parser.Parse(client_api_unsafe_);
+>>> [elapsed: 17ms]
+>>> bash
+aether/server_connections/server_connection.h:41:class ServerConnection final : public ByteIStream {
+aether/server_connections/server_connection.cpp:32:ServerConnection::ServerConnection(AeContext const& ae_context,
+>>> [elapsed: 6ms]
+
+>>> bash
+                    request_id);
+        }
+
+        return
+            fail(
+                client,
+                AETHER_ERR_PROTOCOL);
+    }
+
+    return
+        reader.failed
+            ? fail(
+                  client,
+                  AETHER_ERR_PROTOCOL)
+            : AETHER_OK;
+}
+
+
+
+
+static aether_status_t handle_registration_rx(
+    aether_client_t *client,
+    const uint8_t *data,
+    size_t length) {
+
+    reader_t reader = {
+        data,
+        length,
+        0u,
+        false
+    };
+
+    while (!reader.failed &&
+           reader.pos <
+               reader.length) {
+
+
+size_t frame_start =
+            reader.pos;
+
+
+
+
+        uint8_t command = r_u8(&reader);
+
+
+
+
+        if (command == CMD_RESULT ||
+            command == 70u) {
+>>> [elapsed: 5ms]
+>>> bash
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 5ms]
+
+>>> bash
+    };
+
+    while (!reader.failed &&
+           reader.pos <
+               reader.length) {
+
+
+size_t frame_start =
+            reader.pos;
+
+
+
+
+        uint8_t command = r_u8(&reader);
+
+
+
+
+        if (command == CMD_RESULT ||
+            command == 70u) {
+
+
+            if (!parse_signed_key(
+                    &reader,
+                    client,
+                    &client->registration_server_key)) {
+
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            if (!verify_signed_key(
+                    client,
+                    &client->registration_server_key)) {
+
+                return
+                    fail_with_origin(
+                        client,
+                        AETHER_ERR_CRYPTO,
+                        AETHER_ERROR_ORIGIN_TRUST);
+            }
+
+
+            if (client->state ==
+                AETHER_STATE_SERVER_RESOLVING) {
+
+                if (client->config.crypto
+                            ->random_symmetric_key(
+>>> [elapsed: 4ms]
+>>> bash
+>>> [elapsed: 4ms]
+
+>>> bash
+231 /tmp/reg_rx.txt
+>>> [elapsed: 11ms]
+>>> (отфильтровано: из 233 строк оставлено 233)
+>>> view
+/tmp/reg_rx.txt
+    1:s static aether_status_t handle_registration_rx(
+    2:a     aether_client_t *client,
+    3:c     const uint8_t *data,
+    4:s     size_t length) {
+    5:  
+    6:r     reader_t reader = {
+    7:d         data,
+    8:l         length,
+    9:0         0u,
+    10:f         false
+    11:}     };
+    12:  
+    13:w     while (!reader.failed &&
+    14:r            reader.pos <
+    15:r                reader.length) {
+    16:  
+    17:  
+    18:s size_t frame_start =
+    19:r             reader.pos;
+    20:  
+    21:  
+    22:  
+    23:  
+    24:u         uint8_t command = r_u8(&reader);
+    25:  
+    26:  
+    27:  
+    28:  
+    29:i         if (command == CMD_RESULT ||
+    30:c             command == 70u) {
+    31:  
+    32:  
+    33:i             if (!parse_signed_key(
+    34:&                     &reader,
+    35:c                     client,
+    36:&                     &client->registration_server_key)) {
+    37:  
+    38:r                 return
+    39:f                     fail(
+    40:c                         client,
+    41:A                         AETHER_ERR_PROTOCOL);
+    42:}             }
+    43:  
+    44:i             if (!verify_signed_key(
+    45:c                     client,
+    46:&                     &client->registration_server_key)) {
+    47:  
+    48:r                 return
+    49:f                     fail_with_origin(
+    50:c                         client,
+    51:A                         AETHER_ERR_CRYPTO,
+    52:A                         AETHER_ERROR_ORIGIN_TRUST);
+    53:}             }
+    54:  
+    55:  
+    56:i             if (client->state ==
+    57:A                 AETHER_STATE_SERVER_RESOLVING) {
+    58:  
+    59:i                 if (client->config.crypto
+    60:-                             ->random_symmetric_key(
+    61:c                         client->config.crypto_ctx,
+    62:c                         client->temp_key,
+    63:c                         client->config.crypto
+    64:-                             ->profile.symmetric_key_bytes) !=
+    65:A                     AETHER_OK) {
+    66:  
+    67:r                     return
+    68:f                         fail(
+    69:c                             client,
+    70:A                             AETHER_ERR_CRYPTO);
+    71:}                 }
+    72:  
+    73:  
+    74:  
+    75:  
+    76:  
+    77:  
+    78:  
+    79:  
+    80:r                 return
+    81:s                     send_resolve_servers(
+    82:c                         client);
+    83:  
+    84:  
+    85:  
+    86:  
+    87:  
+    88:  
+    89:  
+    90:}             }
+    91:  
+    92:  
+    93:  
+    94:i             if (client->state ==
+    95:A                 AETHER_STATE_RECOVERY_WAIT_SERVER_KEY) {
+    96:  
+    97:i                 if (client->config.crypto
+    98:-                             ->random_symmetric_key(
+    99:c                         client->config.crypto_ctx,
+    100:c                         client->temp_key,
+    101:c                         client->config.crypto
+    102:-                             ->profile.symmetric_key_bytes) !=
+    103:A                     AETHER_OK) {
+    104:  
+    105:r                     return
+    106:f                         fail(
+    107:c                             client,
+    108:A                             AETHER_ERR_CRYPTO);
+    109:}                 }
+    110:  
+    111:  
+    112:i                 if (!client->recovery_key_pending) {
+    113:i                     if (client->config.crypto
+    114:-                                 ->random_symmetric_key(
+    115:c                             client->config.crypto_ctx,
+    116:c                             client->pending_recovery_key,
+    117:c                             client->config.crypto
+    118:-                                 ->profile.symmetric_key_bytes) !=
+    119:A                         AETHER_OK) {
+    120:  
+    121:r                         return
+    122:f                             fail(
+    123:c                                 client,
+    124:A                                 AETHER_ERR_CRYPTO);
+    125:}                     }
+    126:  
+    127:c                     client->recovery_key_pending =
+    128:t                         true;
+    129:  
+    130:i                     if (save_state(client) !=
+    131:A                         AETHER_OK) {
+    132:  
+    133:c                         client->recovery_key_pending =
+    134:f                             false;
+    135:  
+    136:m                         memset(
+    137:c                             client->pending_recovery_key,
+    138:0                             0,
+    139:s                             sizeof(client->pending_recovery_key));
+    140:  
+    141:r                         return
+    142:f                             fail(
+    143:c                                 client,
+    144:A                                 AETHER_ERR_STORAGE);
+    145:}                     }
+    146:}                 }
+    147:  
+    148:  
+    149:r                 return
+    150:s                     send_recovery_request(
+    151:c                         client);
+    152:}             }
+    153:  
+    154:  
+    155:  
+    156:i             if (client->config.crypto
+    157:-                         ->random_symmetric_key(
+    158:c                     client->config.crypto_ctx,
+    159:c                     client->temp_key,
+    160:c                     client->config.crypto
+    161:-                         ->profile.symmetric_key_bytes) !=
+    162:A                     AETHER_OK ||
+    163:c                 client->config.crypto
+    164:-                         ->random_symmetric_key(
+    165:c                     client->config.crypto_ctx,
+    166:c                     client->master_key,
+    167:c                     client->config.crypto
+    168:-                         ->profile.symmetric_key_bytes) !=
+    169:A                     AETHER_OK) {
+    170:  
+    171:r                 return
+    172:f                     fail(
+    173:c                         client,
+    174:A                         AETHER_ERR_CRYPTO);
+    175:}             }
+    176:  
+    177:r             return
+    178:s                 send_pow_request(
+    179:c                     client);
+    180:  
+    181:}         }
+    182:  
+    183:  
+    184:  
+    185:  
+    186:i         if (command == 66u) {
+    187:  
+    188:  
+    189:c             client->alias = r_uuid(&reader);
+    190:c             client->uid = r_uuid(&reader);
+    191:  
+    192:u             uint64_t cloud_count = r_pack(&reader);
+    193:i             if (reader.failed || cloud_count > AETHER_MAX_SERVERS) {
+    194:r                 return fail(client, AETHER_ERR_PROTOCOL);
+    195:}             }
+    196:  
+    197:c             client->cloud_count = (uint8_t)cloud_count;
+    198:  
+    199:  
+    200:f             for (uint8_t i = 0u; i < client->cloud_count; ++i) {
+    201:c                 client->cloud_sids[i] = r_i16le(&reader);
+    202:}             }
+    203:i             if (reader.failed) {
+    204:r                 return fail(client, AETHER_ERR_PROTOCOL);
+    205:}             }
+    206:  
+    207:  
+    208:  
+    209:  
+    210:  
+    211:c             client->registered = true;
+    212:i             if (save_state(client) != AETHER_OK) {
+    213:r                 return fail(client, AETHER_ERR_STORAGE);
+    214:}             }
+    215:  
+    216:a             aether_event_t event;
+    217:m             memset(&event, 0, sizeof(event));
+    218:e             event.type = AETHER_EVENT_REGISTERED;
+    219:e             event.as.registered.uid = client->uid;
+    220:e             event.as.registered.alias = client->alias;
+    221:e             emit_event(client, &event);
+    222:  
+    223:r             return send_resolve_servers(client);
+    224:}         }
+    225:  
+    226:  
+    227:i         if (command == 67u) {
+    228:(             (void)r_uuid(&reader);
+    229:a             aether_status_t status = handle_pow_response(client, &reader);
+    230:  
+    231:i             if (status != AETHER_OK) {
+
+>>> (отфильтровано: из 2 строк оставлено 2)
+>>> view
+>>> [API ERROR]: Path not found: /tmp/reg_rx.txt
+>>> bash
+            if (status != AETHER_OK) {
+                return status;
+            }
+            continue;
+        }
+
+
+
+
+
+        if (command ==
+            CMD_ERROR) {
+
+            uint32_t request_id =
+                r_u32le(&reader);
+
+            if (reader.failed) {
+                return
+                    fail(
+                        client,
+                        AETHER_ERR_PROTOCOL);
+            }
+
+            return
+                fail_remote(
+                    client,
+                    request_id);
+        }
+
+
+aether_reg_unsafe_frame_t frame = {
+            0
+        };
+
+        size_t consumed =
+            0u;
+
+        aether_status_t decode_status =
+            aether_generated_reg_unsafe_decode(
+                &frame,
+                reader.data +
+>>> [elapsed: 4ms]
+>>> bash
+                if (reader.failed) {
+                    return
+                        fail(
+                            client,
+                            AETHER_ERR_PROTOCOL);
+                }
+
+
+                client->registered =
+>>> [elapsed: 3ms]
+
+>>> (отфильтровано: из 35 строк оставлено 35)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    18:# #define AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:  
+    25:n namespace ae {
+    26:c class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+    27:p  public:
+    28:/   // Here only return result api implemented, which is default
+    29:A   API_LIST()
+    30:} };
+    31:} }  // namespace ae
+    32:# #endif
+    33:# #endif  // AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+>>> (отфильтровано: из 2 строк оставлено 2)
+>>> view
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.cpp
+>>> bash
+aether/registration/api/client_reg_api_safe.h:27:class ClientRegApiSafe final : public DeclareApi<ClientRegApiSafe> {
+aether/registration/api/client_reg_api_unsafe.cpp:17:#include "aether/registration/api/client_reg_api_unsafe.h"
+aether/registration/api/client_reg_api_unsafe.cpp:26:void ClientRegRootApi::Enter(SubApi<ClientRegApiSafe> sub_api) {
+aether/registration/api/client_reg_api_unsafe.cpp:30:  parser.Parse(client_reg_api_);
+aether/registration/api/client_reg_api_unsafe.cpp:33:void ClientRegRootApi::EnterGlobal(SubApi<GlobalRegClientApi> sub_api) {
+aether/registration/api/client_reg_api_unsafe.h:26:#  include "aether/registration/api/client_reg_api_safe.h"
+aether/registration/api/client_reg_api_unsafe.h:35:  void Enter(SubApi<ClientRegApiSafe> sub_api);
+aether/registration/api/client_reg_api_unsafe.h:36:  void EnterGlobal(SubApi<GlobalRegClientApi> sub_api);
+aether/registration/api/client_reg_api_unsafe.h:38:  API_LIST(METHOD(3, Enter), METHOD(4, EnterGlobal));
+aether/registration/api/client_reg_api_unsafe.h:44:  ClientRegApiSafe client_reg_api_;
+aether/registration/api/client_reg_api_unsafe.h:45:  GlobalRegClientApi global_reg_client_api_;
+aether/registration/api/global_reg_client_api.h:26:class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+aether/registration/registration.h:34:#  include "aether/registration/api/client_reg_api_unsafe.h"
+>>> [elapsed: 6ms]
+>>> bash
+grep: aether/registration/api/client_reg_api_safe.cpp: Нет такого файла или каталога
+grep: aether/registration/api/global_reg_client_api.cpp: Нет такого файла или каталога
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 2
+>>> [elapsed: 2ms]
+
+>>> bash
+17:typedef struct {
+>>> [elapsed: 7ms]
+>>> bash
+
+#ifndef AETHER_REG_UNSAFE_LOCAL_H
+#define AETHER_REG_UNSAFE_LOCAL_H
+
+#include "aether_client.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
+    AETHER_REG_UNSAFE_FRAME_ENTER = 1,
+    AETHER_REG_UNSAFE_FRAME_ENTER_GLOBAL = 2
+} aether_reg_unsafe_frame_kind_t;
+
+
+typedef struct {
+    aether_reg_unsafe_frame_kind_t kind;
+    const uint8_t *data;
+    size_t length;
+} aether_reg_unsafe_frame_t;
+
+
+aether_status_t aether_generated_reg_unsafe_decode(
+    aether_reg_unsafe_frame_t *frame,
+    const uint8_t *data,
+    size_t length,
+    size_t *consumed);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+>>> [elapsed: 2ms]
+[subtask rewriteConsumers] ERROR: subtask produced no groovy block

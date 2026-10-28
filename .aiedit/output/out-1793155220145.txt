@@ -1,0 +1,1649 @@
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_CLIENT_REG_API_SAFE_H_
+    18:# #define AETHER_REGISTRATION_API_CLIENT_REG_API_SAFE_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include "aether/api_protocol/api_protocol.h"
+    25:  
+    26:n namespace ae {
+    27:c class ClientRegApiSafe final : public DeclareApi<ClientRegApiSafe> {
+    28:p  public:
+    29:/   // Here only return result api implemented, which is default
+    30:A   API_LIST()
+    31:} };
+    32:} }  // namespace ae
+    33:  
+    34:# #endif
+    35:# #endif  // AETHER_REGISTRATION_API_CLIENT_REG_API_SAFE_H_
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.cpp
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.cpp
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.cpp
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.cpp
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/client.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/crypto/signed_key.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/server_descriptor.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_REGISTRATION_ROOT_API_H_
+    18:# #define AETHER_REGISTRATION_API_REGISTRATION_ROOT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/crypto/crypto_definitions.h"
+    24:# #  include "aether/crypto/icrypto_provider.h"
+    25:# #  include "aether/crypto/signed_key.h"
+    26:  
+    27:# #  include "aether/api_protocol/api_protocol.h"
+    28:# #  include "aether/registration/api/server_registration_api.h"
+    29:# #  include "aether/work_cloud_api/info_ip.h"
+    30:  
+    31:n namespace ae {
+    32:  
+    33:c class RegistrationRootApi : public DeclareApi<RegistrationRootApi> {
+    34:p  public:
+    35:R   RegistrationRootApi(IEncryptProvider& root_encrypt,
+    36:I                       IEncryptProvider& global_encrypt);
+    37:  
+    38:A   ApiPromise<SignedKey> GetPublicKey(CryptoLib crypto_lib);
+    39:v   void Enter(CryptoLib crypto_lib, SubApi<ServerRegistrationApi> sub_api);
+    40:  
+    41:A   ApiPromise<InfoIp> GetMyIp();
+    42:  
+    43:A   API_LIST(METHOD(3, GetPublicKey), METHOD(4, Enter), METHOD(6, GetMyIp))
+    44:  
+    45:p  private:
+    46:I   IEncryptProvider* enc_provider_;
+    47:S   ServerRegistrationApi server_registration_api_;
+    48:} };
+    49:} }  // namespace ae
+    50:# #endif
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/api/registration_root_api.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:n namespace ae {
+    21:R RegistrationRootApi::RegistrationRootApi(IEncryptProvider& root_encrypt,
+    22:I                                          IEncryptProvider& global_encrypt)
+    23::     : enc_provider_{&root_encrypt}, server_registration_api_{global_encrypt} {}
+    24:  
+    25:A ApiPromise<SignedKey> RegistrationRootApi::GetPublicKey(CryptoLib crypto_lib) {
+    26:r   return ClientMethod<&RegistrationRootApi::GetPublicKey>(crypto_lib);
+    27:} }
+    28:  
+    29:v void RegistrationRootApi::Enter(CryptoLib crypto_lib,
+    30:S                                 SubApi<ServerRegistrationApi> sub_api) {
+    31:a   auto server_api_data = enc_provider_->Encrypt(
+    32:s       std::move(sub_api)(server_registration_api_, client_context()));
+    33:C   ClientMethod<&RegistrationRootApi::Enter>(crypto_lib,
+    34:s                                             std::move(server_api_data));
+    35:} }
+    36:  
+    37:A ApiPromise<InfoIp> RegistrationRootApi::GetMyIp() {
+    38:r   return ClientMethod<&RegistrationRootApi::GetMyIp>();
+    39:} }
+    40:  
+    41:} }  // namespace ae
+    42:# #endif
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+    18:# #define AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <string>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether-miscpp/reflect/reflect.h"
+    28:  
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/icrypto_provider.h"
+    31:# #  include "aether/crypto/key.h"
+    32:# #  include "aether/crypto/signed_key.h"
+    33:# #  include "aether/types/server_id.h"
+    34:# #  include "aether/types/uid.h"
+    35:  
+    36:# #  include "aether/api_protocol/api_protocol.h"
+    37:# #  include "aether/registration/api/global_reg_server_api.h"
+    38:# #  include "aether/work_cloud_api/server_descriptor.h"
+    39:  
+    40:n namespace ae {
+    41:s struct PowParams {
+    42:A   AE_REFLECT_MEMBERS(salt, password_suffix, pool_size, max_hash_value,
+    43:g                      global_key)
+    44:s   std::string salt;
+    45:s   std::string password_suffix;
+    46:s   std::uint8_t pool_size;
+    47:s   std::uint32_t max_hash_value;
+    48:S   SignedKey global_key;
+    49:} };
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h lines 50 to 120
+    50:  
+    51:c class ServerRegistrationApi : public DeclareApi<ServerRegistrationApi> {
+    52:p  public:
+    53:e   explicit ServerRegistrationApi(IEncryptProvider& encrypt_provider);
+    54:  
+    55:v   void Registration(std::string const& salt, std::string const& password_suffix,
+    56:s                     std::vector<std::uint32_t> const& passwords,
+    57:U                     Uid const& parent_uid_, SubApi<GlobalRegServerApi> sub_api);
+    58:  
+    59:A   ApiPromise<PowParams> RequestProofOfWorkData(Uid const& parent_id,
+    60:P                                                PowMethod pow_method);
+    61:  
+    62:A   ApiPromise<std::vector<ServerDescriptor>> ResolveServers(
+    63:s       std::vector<ServerId> const& servers);
+    64:  
+    65:v   void SetReturnKey(Key const& key);
+    66:  
+    67:A   API_LIST(METHOD(3, Registration), METHOD(4, RequestProofOfWorkData),
+    68:M            METHOD(5, ResolveServers), METHOD(6, SetReturnKey))
+    69:  
+    70:p  private:
+    71:I   IEncryptProvider* encrypt_provider_;
+    72:G   GlobalRegServerApi global_reg_server_api_;
+    73:} };
+    74:} }  // namespace ae
+    75:  
+    76:# #endif
+    77:# #endif  // AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+>>> (показано строк: 28 из 77)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/api/server_registration_api.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:n namespace ae {
+    22:S ServerRegistrationApi::ServerRegistrationApi(IEncryptProvider& encrypt_provider)
+    23::     : encrypt_provider_{&encrypt_provider}, global_reg_server_api_{} {}
+    24:  
+    25:v void ServerRegistrationApi::Registration(
+    26:s     std::string const& salt, std::string const& password_suffix,
+    27:s     std::vector<std::uint32_t> const& passwords, Uid const& parent_uid_,
+    28:S     SubApi<GlobalRegServerApi> sub_api) {
+    29:a   auto gr_data = encrypt_provider_->Encrypt(
+    30:s       std::move(sub_api)(global_reg_server_api_, client_context()));
+    31:C   ClientMethod<&ServerRegistrationApi::Registration>(
+    32:s       salt, password_suffix, passwords, parent_uid_, std::move(gr_data));
+    33:} }
+    34:  
+    35:A ApiPromise<PowParams> ServerRegistrationApi::RequestProofOfWorkData(
+    36:U     Uid const& parent_id, PowMethod pow_method) {
+    37:r   return ClientMethod<&ServerRegistrationApi::RequestProofOfWorkData>(
+    38:p       parent_id, pow_method);
+    39:} }
+    40:  
+    41:A ApiPromise<std::vector<ServerDescriptor>> ServerRegistrationApi::ResolveServers(
+    42:s     std::vector<ServerId> const& servers) {
+    43:r   return ClientMethod<&ServerRegistrationApi::ResolveServers>(servers);
+    44:} }
+    45:  
+    46:v void ServerRegistrationApi::SetReturnKey(Key const& key) {
+    47:C   ClientMethod<&ServerRegistrationApi::SetReturnKey>(key);
+    48:} }
+    49:  
+    50:} }  // namespace ae
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_GLOBAL_REG_SERVER_API_H_
+    18:# #define AETHER_REGISTRATION_API_GLOBAL_REG_SERVER_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include <vector>
+    24:  
+    25:# #  include "aether-miscpp/reflect/reflect.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/types/server_id.h"
+    29:# #  include "aether/types/uid.h"
+    30:  
+    31:n namespace ae {
+    32:  
+    33:s struct RegistrationResponse {
+    34:A   AE_REFLECT_MEMBERS(ephemeral_uid, uid, cloud)
+    35:U   Uid ephemeral_uid;
+    36:U   Uid uid;
+    37:s   std::vector<ServerId> cloud;
+    38:} };
+    39:  
+    40:c class GlobalRegServerApi : public DeclareApi<GlobalRegServerApi> {
+    41:p  public:
+    42:G   GlobalRegServerApi() = default;
+    43:  
+    44:v   void SetMasterKey(Key const& key);
+    45:A   ApiPromise<RegistrationResponse> Finish();
+    46:  
+    47:A   API_LIST(METHOD(3, SetMasterKey), METHOD(4, Finish));
+    48:} };
+    49:  
+    50:} }  // namespace ae
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/api/global_reg_server_api.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:n namespace ae {
+    21:v void GlobalRegServerApi::SetMasterKey(Key const& key) {
+    22:C   ClientMethod<&GlobalRegServerApi::SetMasterKey>(key);
+    23:} }
+    24:  
+    25:A ApiPromise<RegistrationResponse> GlobalRegServerApi::Finish() {
+    26:r   return ClientMethod<&GlobalRegServerApi::Finish>();
+    27:} }
+    28:} }  // namespace ae
+    29:# #endif
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_WORK_SERVER_API_LOGIN_API_H_
+    18:# #define AETHER_WORK_CLOUD_API_WORK_SERVER_API_LOGIN_API_H_
+    19:  
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:# #include "aether/crypto/icrypto_provider.h"
+    22:# #include "aether/types/uid.h"
+    23:  
+    24:# #include "aether/work_cloud_api/info_ip.h"
+    25:# #include "aether/work_cloud_api/work_server_api/authorized_api.h"
+    26:  
+    27:n namespace ae {
+    28:c class LoginApi : public DeclareApi<LoginApi> {
+    29:p  public:
+    30:e   explicit LoginApi(IEncryptProvider& encrypt_provider);
+    31:  
+    32:v   void LoginByUid(Uid const& uid, SubApi<AuthorizedApi> sub_api);
+    33:v   void LoginByAlias(Uid const& alias, SubApi<AuthorizedApi> sub_api);
+    34:A   ApiPromise<InfoIp> GetMyIp();
+    35:  
+    36:A   API_LIST(METHOD(4, LoginByUid), METHOD(5, LoginByAlias), METHOD(6, GetMyIp))
+    37:  
+    38:A   AuthorizedApi& authorized_api() { return auth_api_; }
+    39:  
+    40:p  private:
+    41:I   IEncryptProvider* encrypt_provider_;
+    42:A   AuthorizedApi auth_api_;
+    43:} };
+    44:} }  // namespace ae
+    45:  
+    46:# #endif  // AETHER_WORK_CLOUD_API_WORK_SERVER_API_LOGIN_API_H_
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/client.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/work_server_api/login_api.h"
+    18:  
+    19:# #include "aether/tele.h"
+    20:  
+    21:n namespace ae {
+    22:L LoginApi::LoginApi(IEncryptProvider& encrypt_provider)
+    23::     : encrypt_provider_{&encrypt_provider}, auth_api_{} {}
+    24:  
+    25:v void LoginApi::LoginByUid(Uid const& uid, SubApi<AuthorizedApi> sub_api) {
+    26:a   auto auth_data = std::move(sub_api)(auth_api_, client_context());
+    27:A   AE_TELED_DEBUG("Login by uid {} data [{}]", uid, auth_data);
+    28:a   auto enc_data = encrypt_provider_->Encrypt(auth_data);
+    29:C   ClientMethod<&LoginApi::LoginByAlias>(uid, std::move(enc_data));
+    30:} }
+    31:  
+    32:v void LoginApi::LoginByAlias(Uid const& alias, SubApi<AuthorizedApi> sub_api) {
+    33:a   auto auth_data = std::move(sub_api)(auth_api_, client_context());
+    34:A   AE_TELED_DEBUG("Login by alias {} data [{}]", alias, auth_data);
+    35:a   auto enc_data = encrypt_provider_->Encrypt(auth_data);
+    36:C   ClientMethod<&LoginApi::LoginByAlias>(alias, std::move(enc_data));
+    37:} }
+    38:  
+    39:A ApiPromise<InfoIp> LoginApi::GetMyIp() {
+    40:r   return ClientMethod<&LoginApi::GetMyIp>();
+    41:} }
+    42:} }  // namespace ae
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_WORK_SERVER_API_AUTHORIZED_API_H_
+    18:# #define AETHER_WORK_CLOUD_API_WORK_SERVER_API_AUTHORIZED_API_H_
+    19:  
+    20:# #include <vector>
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/types/server_id.h"
+    24:# #include "aether/types/uid.h"
+    25:  
+    26:# #include "aether/work_cloud_api/ae_message.h"
+    27:# #include "aether/work_cloud_api/cloud_configs.h"
+    28:# #include "aether/work_cloud_api/telemetric.h"
+    29:  
+    30:n namespace ae {
+    31:  
+    32:c class AuthorizedApi : public DeclareApi<AuthorizedApi> {
+    33:p  public:
+    34:A   AuthorizedApi() = default;
+    35:  
+    36:A   ApiPromise<void> Ping(std::uint64_t next_connect_ms_duration,
+    37:s                         std::uint64_t rx_window_ms);
+    38:v   void SendMessage(AeMessage const& message);
+    39:v   void SendMessages(std::vector<AeMessage> const& messages);
+    40:A   ApiPromise<void> CheckAccessForSendMessage(Uid const& uid);
+    41:v   void ResolveServer(std::vector<ServerId> const& sids);
+    42:v   void ResolveClouds(std::vector<Uid> const& uids);
+    43:  
+    44:v   void SendTelemetry(Telemetric const& telemetric);
+    45:  
+    46:v   void ReportAppliedConfigs(std::vector<AppliedConfig> const& configs);
+    47:  
+    48:A   API_LIST(METHOD(4, Ping), METHOD(6, SendMessage), METHOD(7, SendMessages),
+    49:M            METHOD(11, CheckAccessForSendMessage), METHOD(12, ResolveServer),
+    50:M            METHOD(13, ResolveClouds), METHOD(18, SendTelemetry),
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.h lines 50 to 100
+    50:M            METHOD(13, ResolveClouds), METHOD(18, SendTelemetry),
+    51:M            METHOD(38, ReportAppliedConfigs))
+    52:} };
+    53:} }  // namespace ae
+    54:  
+    55:# #endif  // AETHER_WORK_CLOUD_API_WORK_SERVER_API_AUTHORIZED_API_H_
+>>> (показано строк: 6 из 55)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/work_server_api/authorized_api.h"
+    18:  
+    19:n namespace ae {
+    20:A ApiPromise<void> AuthorizedApi::Ping(std::uint64_t next_connect_ms_duration,
+    21:s                                      std::uint64_t rx_window_ms) {
+    22:r   return ClientMethod<&AuthorizedApi::Ping>(next_connect_ms_duration,
+    23:r                                             rx_window_ms);
+    24:} }
+    25:v void AuthorizedApi::SendMessage(AeMessage const& message) {
+    26:C   ClientMethod<&AuthorizedApi::SendMessage>(message);
+    27:} }
+    28:v void AuthorizedApi::SendMessages(std::vector<AeMessage> const& messages) {
+    29:C   ClientMethod<&AuthorizedApi::SendMessages>(messages);
+    30:} }
+    31:A ApiPromise<void> AuthorizedApi::CheckAccessForSendMessage(Uid const& uid) {
+    32:r   return ClientMethod<&AuthorizedApi::CheckAccessForSendMessage>(uid);
+    33:} }
+    34:v void AuthorizedApi::ResolveServer(std::vector<ServerId> const& sids) {
+    35:C   ClientMethod<&AuthorizedApi::ResolveServer>(sids);
+    36:} }
+    37:v void AuthorizedApi::ResolveClouds(std::vector<Uid> const& uids) {
+    38:C   ClientMethod<&AuthorizedApi::ResolveClouds>(uids);
+    39:} }
+    40:  
+    41:v void AuthorizedApi::SendTelemetry(Telemetric const& telemetric) {
+    42:C   ClientMethod<&AuthorizedApi::SendTelemetry>(telemetric);
+    43:} }
+    44:  
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:# #include "aether/crypto/icrypto_provider.h"
+    22:  
+    23:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    24:  
+    25:n namespace ae {
+    26:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    27:p  public:
+    28:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    29:I                            IDecryptProvider& decrypt_provider);
+    30:  
+    31:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+    32:  
+    33:R   ReturnResultApi return_result;
+    34:  
+    35:A   API_LIST(METHOD(4, SendSafeApiData))
+    36:  
+    37:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    38:  
+    39:p  private:
+    40:I   IDecryptProvider* decrypt_provider_;
+    41:C   ClientApiSafe client_safe_api_;
+    42:} };
+    43:} }  // namespace ae
+    44:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    19:  
+    20:# #include "aether/types/uid.h"
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:  
+    25:# #include "aether/work_cloud_api/ae_message.h"
+    26:# #include "aether/work_cloud_api/cloud_configs.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:  
+    29:n namespace ae {
+    30:s struct AccessGroup {
+    31:A   AE_REFLECT_MEMBERS(owner, id, data);
+    32:U   Uid owner;
+    33:s   std::uint64_t id;
+    34:D   DataBuffer data;
+    35:} };
+    36:  
+    37:s struct AccessCheckResult {
+    38:A   AE_REFLECT_MEMBERS(source_uid, target_uid, has_access);
+    39:U   Uid source_uid;
+    40:U   Uid target_uid;
+    41:b   bool has_access;
+    42:} };
+    43:  
+    44:c class ClientApiSafe : public DeclareApi<ClientApiSafe> {
+    45:p  public:
+    46:e   explicit ClientApiSafe(EventSystem& event_system);
+    47:  
+    48:v   void ChangeParent(Uid const& uid);
+    49:v   void ChangeAlias(Uid const& uid);
+    50:v   void NewChildren(std::vector<Uid> const& uids);
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h lines 44 to 120
+    44:c class ClientApiSafe : public DeclareApi<ClientApiSafe> {
+    45:p  public:
+    46:e   explicit ClientApiSafe(EventSystem& event_system);
+    47:  
+    48:v   void ChangeParent(Uid const& uid);
+    49:v   void ChangeAlias(Uid const& uid);
+    50:v   void NewChildren(std::vector<Uid> const& uids);
+    51:v   void SendMessages(std::vector<AeMessage> const& messages);
+    52:  
+    53:v   void SendServerDescriptor(ServerDescriptor const& server_descriptor);
+    54:v   void SendServerDescriptors(
+    55:s       std::vector<ServerDescriptor> const& server_descriptors);
+    56:v   void SendCloud(Uid const& uid, CloudDescriptor const& cloud);
+    57:v   void SendClouds(std::vector<UidAndCloudDescriptor> const& clouds);
+    58:  
+    59:v   void RequestTelemetry();
+    60:  
+    61:v   void SendAccessGroups(std::vector<AccessGroup> const& access_group);
+    62:v   void SendAccessGroupForClient(Uid const& uid,
+    63:s                                 std::vector<std::uint64_t> const& groups);
+    64:v   void AddItemsToAccessGroup(std::uint64_t id, std::vector<Uid> const& groups);
+    65:v   void RemoveItemsFromAccessGroup(std::uint64_t id,
+    66:s                                   std::vector<Uid> const& groups);
+    67:v   void AddAccessGroupsToClient(Uid const& uid,
+    68:s                                std::vector<std::uint64_t> const& groups);
+    69:v   void RemoveAccessGroupsFromClient(Uid const& uid,
+    70:s                                     std::vector<std::uint64_t> const& groups);
+    71:v   void SendAllAccessedClients(Uid const& uid,
+    72:s                               std::vector<Uid> const& accessed_clients);
+    73:v   void SendAccessCheckResults(std::vector<AccessCheckResult> const& results);
+    74:v   void SendMessage(AeMessage const& message);
+    75:  
+    76:v   void SendCLoudConfig(std::vector<CloudConfig> const& configs);
+    77:  
+    78:R   ReturnResultApi return_result;
+    79:  
+    80:A   API_LIST(METHOD(3, ChangeParent), METHOD(4, ChangeAlias),
+    81:M            METHOD(5, NewChildren), METHOD(6, SendMessages),
+    82:M            METHOD(7, SendServerDescriptor), METHOD(8, SendServerDescriptors),
+    83:M            METHOD(9, SendCloud), METHOD(10, SendClouds),
+    84:M            METHOD(11, RequestTelemetry), METHOD(12, SendAccessGroups),
+    85:M            METHOD(13, SendAccessGroupForClient),
+    86:M            METHOD(14, AddItemsToAccessGroup),
+    87:M            METHOD(15, RemoveItemsFromAccessGroup),
+    88:M            METHOD(16, AddAccessGroupsToClient),
+    89:M            METHOD(17, RemoveAccessGroupsFromClient),
+    90:M            METHOD(18, SendAllAccessedClients),
+    91:M            METHOD(19, SendAccessCheckResults), METHOD(20, SendMessage),
+    92:M            METHOD(21, SendCLoudConfig));
+    93:  
+>>> (показано строк: 69 из 112)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.cpp lines 0 to 100
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    18:  
+    19:# #include <cassert>
+    20:  
+    21:# #include "aether/api_protocol/api_protocol.h"
+    22:  
+    23:# #include "aether/tele.h"
+    24:  
+    25:n namespace ae {
+    26:  
+    27:C ClientApiSafe::ClientApiSafe(EventSystem& event_system)
+    28::     : send_message_event_{event_system},
+    29:s       send_server_descriptor_event_{event_system},
+    30:s       send_cloud_event_{event_system},
+    31:r       request_telemetry_event_{event_system},
+    32:s       send_cloud_configs_{event_system} {}
+    33:  
+    34:v void ClientApiSafe::ChangeParent([[maybe_unused]] Uid const& uid) {
+    35:A   AE_TELED_DEBUG("ChangeParent");
+    36:} }
+    37:  
+    38:v void ClientApiSafe::ChangeAlias([[maybe_unused]] Uid const& uid) {
+    39:A   AE_TELED_DEBUG("ChangeAlias");
+    40:} }
+    41:  
+    42:v void ClientApiSafe::NewChildren([[maybe_unused]] std::vector<Uid> const& uids) {
+    43:A   AE_TELED_DEBUG("NewChildren");
+    44:} }
+    45:  
+    46:v void ClientApiSafe::SendMessages(std::vector<AeMessage> const& messages) {
+    47:f   for (auto const& msg : messages) {
+    48:s     send_message_event_.Emit(msg);
+    49:}   }
+    50:} }
+>>> (показано строк: 100 из 125)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h lines 90 to 115
+    90:M            METHOD(18, SendAllAccessedClients),
+    91:M            METHOD(19, SendAccessCheckResults), METHOD(20, SendMessage),
+    92:M            METHOD(21, SendCLoudConfig));
+    93:  
+    94:a   auto const& send_message_event() { return send_message_event_; }
+    95:a   auto const& send_cloud_event() { return send_cloud_event_; }
+    96:a   auto const& send_server_descriptor_event() {
+    97:r     return send_server_descriptor_event_;
+    98:}   }
+    99:a   auto const& request_telemetry_event() { return request_telemetry_event_; }
+    100:a   auto const& send_cloud_configs() { return send_cloud_configs_; }
+    101:  
+    102:p  private:
+    103:E   Event<void(AeMessage const& message)> send_message_event_;
+    104:E   Event<void(ServerDescriptor const& server_descriptor)>
+    105:s       send_server_descriptor_event_;
+    106:E   Event<void(Uid const& uid, CloudDescriptor const& cloud)> send_cloud_event_;
+    107:E   Event<void()> request_telemetry_event_;
+    108:E   Event<void(std::vector<CloudConfig> const& configs)> send_cloud_configs_;
+    109:} };
+    110:} }  // namespace ae
+    111:  
+    112:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+>>> (показано строк: 23 из 112)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.cpp lines 100 to 130
+    100:} }
+    101:v void ClientApiSafe::RemoveAccessGroupsFromClient(
+    102:[     [[maybe_unused]] Uid const& uid,
+    103:[     [[maybe_unused]] std::vector<std::uint64_t> const& groups) {
+    104:A   AE_TELED_DEBUG("RemoveAccessGroupsFromClient");
+    105:} }
+    106:v void ClientApiSafe::SendAllAccessedClients(
+    107:[     [[maybe_unused]] Uid const& uid,
+    108:[     [[maybe_unused]] std::vector<Uid> const& accessed_clients) {
+    109:A   AE_TELED_DEBUG("SendAllAccessedClients");
+    110:} }
+    111:v void ClientApiSafe::SendAccessCheckResults(
+    112:[     [[maybe_unused]] std::vector<AccessCheckResult> const& results) {
+    113:A   AE_TELED_DEBUG("SendAccessCheckResults");
+    114:} }
+    115:  
+    116:v void ClientApiSafe::SendMessage(AeMessage const& msg) {
+    117:s   send_message_event_.Emit(msg);
+    118:} }
+    119:  
+    120:v void ClientApiSafe::SendCLoudConfig(std::vector<CloudConfig> const& configs) {
+    121:A   AE_TELED_DEBUG("Received cloud configs count {}", configs.size());
+    122:s   send_cloud_configs_.Emit(configs);
+    123:} }
+    124:  
+    125:} }  // namespace ae
+>>> (показано строк: 26 из 125)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp lines 0 to 100
+    1:/ /*
+>>> (показано строк: 36 из 36)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    18:  
+    19:# #include "aether/tele.h"
+    20:  
+    21:n namespace ae {
+    22:C ClientApiUnsafe::ClientApiUnsafe(EventSystem& event_system,
+    23:I                                  IDecryptProvider& decrypt_provider)
+    24::     : decrypt_provider_{&decrypt_provider}, client_safe_api_{event_system} {}
+    25:  
+    26:v void ClientApiUnsafe::SendSafeApiData(SubApi<ClientApiSafe> sub_api) {
+    27:a   auto unsafe_data = decrypt_provider_->Decrypt(std::move(sub_api).buffer());
+    28:A   AE_TELED_DEBUG("Client api unsafe data {}", unsafe_data);
+    29:  
+    30:a   auto parser = ApiParser{server_context().protocol_context(), unsafe_data};
+    31:/   // not fully parsed
+    32:i   if (!parser.Parse(client_safe_api_)) {
+    33:s     server_context().reader().Cancel();
+    34:}   }
+    35:} }
+    36:} }  // namespace ae
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/client.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/crypto/signed_key.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/server_descriptor.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 0 to 200
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/api_protocol/make_api_call_sender.h"
+    28:# #  include "aether/crypto.h"
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/sign.h"
+    31:# #  include "aether/executors/executors.h"
+    32:  
+    33:# #  include "aether/registration/proof_of_work.h"
+    34:# #  include "aether/registration/registration_crypto_provider.h"
+    35:  
+    36:# #  include "aether/ae_actions/ae_actions_tele.h"
+    37:  
+    38:n namespace ae {
+    39:  
+    40:R Registration::Registration(AeContext const& ae_context,
+    41:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    42:U                            Uid parent_uid)
+    43::     : Action{ae_context},
+    44:a       ae_context_{ae_context},
+    45:p       parent_uid_{std::move(parent_uid)},
+    46:p       protocol_context_{ae_context_},
+    47:r       root_crypto_provider_{},
+    48:g       global_crypto_provider_{},
+    49:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    50:*                        *global_crypto_provider_.decryptor()},
+>>> (показано строк: 200 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 200 to 343
+    200:m                              master_key_.Index(), master_key_);
+    201:  
+    202:A                ApiPromise<RegistrationResponse> promise;
+    203:a                api_call->Enter(
+    204:k                    kDefaultCryptoLibProfile,
+    205:S                    SubApi{[this, &promise, &proofs](
+    206:A                               ApiContext<ServerRegistrationApi>& server_api) {
+    207:s                      server_api->Registration(
+    208:p                          pow_params_.salt, pow_params_.password_suffix, proofs,
+    209:p                          parent_uid_,
+    210:[                          [this, &promise](
+    211:A                              ApiContext<GlobalRegServerApi>& global_api) {
+    212:/                            // set master key and wait for confirmation
+    213:g                            global_api->SetMasterKey(master_key_);
+    214:p                            promise = global_api->Finish();
+    215:}                          });
+    216:}                    }});
+    217:r                return promise;
+    218:}              }) |
+    219:e          ex::then([this](auto&& reg_info) noexcept {
+    220:A            AE_TELE_INFO(RegisterRegistrationConfirmed,
+    221:"                         "Registration confirmed");
+    222:c            client_uid_ = reg_info.uid;
+    223:e            ephemeral_uid_ = reg_info.ephemeral_uid;
+    224:c            client_cloud_ = std::move(reg_info.cloud);
+    225:a            assert(!client_cloud_.empty() && "Client's cloud is empty");
+    226:}          });
+    227:} }
+    228:  
+    229:a auto Registration::ResolveCloud() {
+    230:r   return make_api_call(
+    231:s              server_reg_root_api_, protocol_context_,
+    232:r              root_server_select_stream_,
+    233:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    234:A                AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]",
+    235:c                             client_cloud_);
+    236:  
+    237:A                ApiPromise<std::vector<ServerDescriptor>> promise;
+    238:a                api_call->Enter(
+    239:k                    kDefaultCryptoLibProfile,
+    240:[                    [this, &promise](
+    241:A                        ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    242:p                      promise = server_api->ResolveServers(client_cloud_);
+    243:}                    });
+    244:r                return promise;
+    245:}              }) |
+    246:e          ex::then([this](auto&& servers) noexcept {
+    247:r            return OnCloudResolved(servers);
+    248:}          });
+    249:} }
+>>> (показано строк: 144 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 0 to 200
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/api_protocol/make_api_call_sender.h"
+    28:# #  include "aether/crypto.h"
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/sign.h"
+    31:# #  include "aether/executors/executors.h"
+    32:  
+    33:# #  include "aether/registration/proof_of_work.h"
+    34:# #  include "aether/registration/registration_crypto_provider.h"
+    35:  
+    36:# #  include "aether/ae_actions/ae_actions_tele.h"
+    37:  
+    38:n namespace ae {
+    39:  
+    40:R Registration::Registration(AeContext const& ae_context,
+    41:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    42:U                            Uid parent_uid)
+    43::     : Action{ae_context},
+    44:a       ae_context_{ae_context},
+    45:p       parent_uid_{std::move(parent_uid)},
+    46:p       protocol_context_{ae_context_},
+    47:r       root_crypto_provider_{},
+    48:g       global_crypto_provider_{},
+    49:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    50:*                        *global_crypto_provider_.decryptor()},
+>>> (показано строк: 200 из 343)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/client.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 50 to 200
+    50:*                        *global_crypto_provider_.decryptor()},
+    51:s       server_reg_root_api_{*root_crypto_provider_.encryptor(),
+    52:*                            *global_crypto_provider_.encryptor()},
+    53:r       root_server_select_stream_{ae_context_, reg_cloud},
+    54:/       // TODO: add configuration
+    55:r       response_timeout_{std::chrono::seconds(20)},
+    56:s       sign_pk_{Crypto::ptr{ae_context_.aether().crypto}
+    57:-                    ->signs_pk_[kDefaultSignatureMethod]},
+    58:r       registration_event_{ae_context_} {
+    59:A   AE_TELE_INFO(RegisterStarted);
+    60:  
+    61:/   // parent uid must not be empty
+    62:a   assert(!parent_uid_.empty());
+    63:  
+    64:I   InitConnection();
+    65:R   Run();
+    66:} }
+    67:  
+    68:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    69:  
+    70:R Registration::RegistrationEvent const& Registration::registration() {
+    71:r   return registration_event_;
+    72:} }
+    73:  
+    74:v void Registration::InitConnection() {
+    75:A   AE_TELED_DEBUG("Registration::InitConnection");
+    76:  
+    77:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    78:/     // Reinit connection and start registration from the beginning
+    79:/     // TODO: make async_waiter_ stop and start get keys again
+    80:A     AE_TELED_ERROR("Server changed");
+    81:}   });
+    82:  
+    83:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    84:A     AE_TELED_ERROR("Link Error, Registration failed");
+    85:/     // TODO: make async_waiter_ stop with error
+    86:}   });
+    87:  
+    88:/   // Connect parser for out data
+    89:r   root_server_select_stream_.out_data_event().Subscribe(
+    90:[       [this](auto const& data) {
+    91:a         auto parser = ApiParser{protocol_context_, data};
+    92:p         parser.Parse(client_root_api_);
+    93:}       });
+    94:} }
+    95:  
+    96:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    97:  
+    98:a auto Registration::GetKeys() {
+    99:r   return make_api_call(
+>>> (показано строк: 151 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/client.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    18:# #define AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:  
+    25:n namespace ae {
+    26:c class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+    27:p  public:
+    28:/   // Here only return result api implemented, which is default
+    29:A   API_LIST()
+    30:} };
+    31:} }  // namespace ae
+    32:# #endif
+    33:# #endif  // AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/client.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h lines 40 to 100
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+    51:p  private:
+    52:v   void InitConnection();
+    53:v   void Restream();
+    54:v   void Run();
+    55:a   auto GetKeys();
+    56:a   auto RequestPowParams();
+    57:a   auto MakeRegistration();
+    58:a   auto ResolveCloud();
+    59:C   ClientConfig OnCloudResolved(std::vector<ServerDescriptor> const& servers);
+    60:  
+    61:A   AeContext ae_context_;
+    62:U   Uid parent_uid_;
+    63:  
+    64:P   ProtocolContext protocol_context_;
+    65:R   RegistrationCryptoProvider root_crypto_provider_;
+    66:R   RegistrationCryptoProvider global_crypto_provider_;
+    67:C   ClientRegRootApi client_root_api_;
+    68:R   RegistrationRootApi server_reg_root_api_;
+    69:R   RootServerSelectStream root_server_select_stream_;
+    70:  
+    71:D   Duration response_timeout_;
+    72:  
+    73:K   Key server_pub_key_;
+    74:K   Key sign_pk_;
+    75:P   PowParams pow_params_;
+    76:K   Key aether_global_key_;
+    77:s   std::vector<ServerId> client_cloud_;
+    78:K   Key master_key_;
+    79:U   Uid client_uid_;
+    80:U   Uid ephemeral_uid_;
+    81:  
+    82:# #  if DEBUG
+    83:S   Subscription get_my_ip_subscription_;
+    84:# #  endif
+    85:  
+    86:s   std::optional<ex::AnyWaiter<ex::set_value_t(ClientConfig),
+    87:e                               ex::set_error_t(int), ex::set_stopped_t()>>
+    88:w       waiter_;
+    89:R   RegistrationEvent registration_event_;
+>>> (показано строк: 55 из 94)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_EVENTS_EVENTS_H_
+    18:# #define AETHER_EVENTS_EVENTS_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:/ // IWYU pragma: begin_exports
+    23:# #include "aether/events/details/event_handler.h"
+    24:# #include "aether/events/details/event_multi_subscription.h"
+    25:# #include "aether/events/details/event_object.h"
+    26:# #include "aether/events/details/event_subscription.h"
+    27:# #include "aether/events/details/event_system.h"
+    28:# #include "aether/events/details/generic_event_handler.h"
+    29:/ // IWYU pragma: end_exports
+    30:  
+    31:n namespace ae {
+    32:/ /**
+    33:*  * \brief Maximum number of simultaneously registered events.
+    34:*  *
+    35:*  * The default EventSystem has independent fixed capacities for event keys and
+    36:*  * handlers. Event construction fails fast when this capacity is exhausted.
+    37:*  */
+    38:s static constexpr inline std::size_t kEventsCapacity =
+    39:s     static_cast<std::size_t>(AE_EVENTS_MAX_COUNT);
+    40:/ /** \brief Maximum number of handlers in the default EventSystem pool. */
+    41:s static constexpr inline std::size_t kEventsHandlerCapacity =
+    42:s     static_cast<std::size_t>(AE_EVENTS_MAX_COUNT * 1.2);
+    43:/ /** \brief Maximum user-provided handler size in the default handler pool. */
+    44:s static constexpr inline std::size_t kEventHandlerMaxSize =
+    45:s     static_cast<std::size_t>(AE_EVENT_HANDLER_MAX_SIZE);
+    46:/ /** \brief Required alignment for user-provided handlers in the default pool. */
+    47:s static constexpr inline std::size_t kEventHandlerAlign =
+    48:s     static_cast<std::size_t>(AE_EVENT_HANDLER_ALIGN);
+    49:  
+    50:/ /** \brief The fixed-capacity event system used by the public event types. */
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: 'просмотр.' @ line 1, column 20.    продолжим просмотр.                       ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    18:# #define AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:# #if AE_SUPPORT_REGISTRATION
+    22:  
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:# #  include "aether/crypto/icrypto_provider.h"
+    25:  
+    26:# #  include "aether/registration/api/client_reg_api_safe.h"
+    27:# #  include "aether/registration/api/global_reg_client_api.h"
+    28:  
+    29:n namespace ae {
+    30:c class ClientRegRootApi final : public DeclareApi<ClientRegRootApi> {
+    31:p  public:
+    32:e   explicit ClientRegRootApi(IDecryptProvider& root_decrypt_provider,
+    33:I                             IDecryptProvider& global_decrypt_provider);
+    34:  
+    35:v   void Enter(SubApi<ClientRegApiSafe> sub_api);
+    36:v   void EnterGlobal(SubApi<GlobalRegClientApi> sub_api);
+    37:  
+    38:A   API_LIST(METHOD(3, Enter), METHOD(4, EnterGlobal));
+    39:  
+    40:p  private:
+    41:I   IDecryptProvider* root_decrypt_provider_;
+    42:I   IDecryptProvider* global_decrypt_provider_;
+    43:  
+    44:C   ClientRegApiSafe client_reg_api_;
+    45:G   GlobalRegClientApi global_reg_client_api_;
+    46:} };
+    47:} }  // namespace ae
+    48:# #endif
+    49:  
+    50:# #endif  // AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.h
+>>> view
+>>> [API ERROR]: Path not found: /home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.cpptimestamp: 1793155213636
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/api/client_reg_api_unsafe.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:n namespace ae {
+    21:C ClientRegRootApi::ClientRegRootApi(IDecryptProvider& root_decrypt_provider,
+    22:I                                    IDecryptProvider& global_decrypt_provider)
+    23::     : root_decrypt_provider_{&root_decrypt_provider},
+    24:g       global_decrypt_provider_{&global_decrypt_provider} {}
+    25:  
+    26:v void ClientRegRootApi::Enter(SubApi<ClientRegApiSafe> sub_api) {
+    27:a   auto unsafe_data =
+    28:r       root_decrypt_provider_->Decrypt(std::move(sub_api).buffer());
+    29:a   auto parser = ApiParser{server_context().protocol_context(), unsafe_data};
+    30:p   parser.Parse(client_reg_api_);
+    31:} }
+    32:  
+    33:v void ClientRegRootApi::EnterGlobal(SubApi<GlobalRegClientApi> sub_api) {
+    34:a   auto unsafe_data =
+    35:g       global_decrypt_provider_->Decrypt(std::move(sub_api).buffer());
+    36:a   auto parser = ApiParser{server_context().protocol_context(), unsafe_data};
+    37:p   parser.Parse(global_reg_client_api_);
+    38:} }
+    39:  
+    40:} }  // namespace ae
+    41:# #endif
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/client.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/crypto/signed_key.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/server_descriptor.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 98 to 343
+    98:a auto Registration::GetKeys() {
+    99:r   return make_api_call(
+    100:s              server_reg_root_api_, protocol_context_,
+    101:r              root_server_select_stream_,
+    102:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    103:A                AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    104:a                auto promise = api_call->GetPublicKey(kDefaultCryptoLibProfile);
+    105:# #  if DEBUG
+    106:/                // For debug, call also for get my ip method to print our public
+    107:/                // ip visible to registration server
+    108:g                get_my_ip_subscription_ =
+    109:a                    api_call->GetMyIp().Subscribe([](auto&& res) {
+    110:i                      if (res) {
+    111:a                        auto& iip = res.value();
+    112:A                        AE_TELED_INFO(
+    113:"                            "Registration our public ip: {}:{}, coords: {},{}",
+    114:i                            iip.ip, iip.port, iip.latitude, iip.longitude);
+    115:}                      } else {
+    116:A                        AE_TELED_ERROR("Get my ip failed");
+    117:}                      }
+    118:}                    });
+    119:# #  endif
+    120:r                return promise;
+    121:}              }) |
+    122:e          ex::let_value([this](auto&& signed_key) noexcept {
+    123:r            return ex::create<ex::set_value_t(), ex::set_error_t(std::int32_t)>(
+    124:[                [this, signed_key = std::forward<decltype(signed_key)>(
+    125:s                           signed_key)](auto& ctx) mutable noexcept {
+    126:i                  if (!CryptoSignVerify(signed_key.sign, signed_key.key,
+    127:s                                        sign_pk_)) {
+    128:A                    AE_TELE_ERROR(RegisterGetKeysVerificationFailed,
+    129:"                                  "Sign verification failed");
+    130:e                    ex::set_error(std::move(ctx.receiver), std::int32_t{1});
+    131:r                    return;
+    132:}                  }
+    133:s                  server_pub_key_ = std::move(signed_key.key);
+    134:r                  root_crypto_provider_.SetEncryptionKey(server_pub_key_);
+    135:A                  AE_TELED_INFO("Key received");
+    136:e                  ex::set_value(std::move(ctx.receiver));
+    137:}                });
+    138:}          });
+    139:} }
+    140:  
+    141:a auto Registration::RequestPowParams() {
+    142:r   return make_api_call(
+    143:s              server_reg_root_api_, protocol_context_,
+    144:r              root_server_select_stream_,
+    145:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    146:A                AE_TELE_INFO(RegisterRequestPowParams,
+    147:"                             "Request proof of work params");
+>>> (показано строк: 246 из 343)

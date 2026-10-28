@@ -1,0 +1,2784 @@
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    19:  
+    20:# #include "aether/types/uid.h"
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:  
+    25:# #include "aether/work_cloud_api/ae_message.h"
+    26:# #include "aether/work_cloud_api/cloud_configs.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:  
+    29:n namespace ae {
+    30:s struct AccessGroup {
+    31:A   AE_REFLECT_MEMBERS(owner, id, data);
+    32:U   Uid owner;
+    33:s   std::uint64_t id;
+    34:D   DataBuffer data;
+    35:} };
+    36:  
+    37:s struct AccessCheckResult {
+    38:A   AE_REFLECT_MEMBERS(source_uid, target_uid, has_access);
+    39:U   Uid source_uid;
+    40:U   Uid target_uid;
+    41:b   bool has_access;
+    42:} };
+    43:  
+    44:c class ClientApiSafe : public DeclareApi<ClientApiSafe> {
+    45:p  public:
+    46:e   explicit ClientApiSafe(EventSystem& event_system);
+    47:  
+    48:v   void ChangeParent(Uid const& uid);
+    49:v   void ChangeAlias(Uid const& uid);
+    50:v   void NewChildren(std::vector<Uid> const& uids);
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:# #include "aether/crypto/icrypto_provider.h"
+    22:  
+    23:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    24:  
+    25:n namespace ae {
+    26:c class ClientApiUnsafe : public DeclareApi<ClientApiUnsafe> {
+    27:p  public:
+    28:e   explicit ClientApiUnsafe(EventSystem& event_system,
+    29:I                            IDecryptProvider& decrypt_provider);
+    30:  
+    31:v   void SendSafeApiData(SubApi<ClientApiSafe> sub_api);
+    32:  
+    33:R   ReturnResultApi return_result;
+    34:  
+    35:A   API_LIST(METHOD(4, SendSafeApiData))
+    36:  
+    37:C   ClientApiSafe& client_api_safe() { return client_safe_api_; }
+    38:  
+    39:p  private:
+    40:I   IDecryptProvider* decrypt_provider_;
+    41:C   ClientApiSafe client_safe_api_;
+    42:} };
+    43:} }  // namespace ae
+    44:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_UNSAFE_H_
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.cpp
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    18:  
+    19:# #include "aether/tele.h"
+    20:  
+    21:n namespace ae {
+    22:C ClientApiUnsafe::ClientApiUnsafe(EventSystem& event_system,
+    23:I                                  IDecryptProvider& decrypt_provider)
+    24::     : decrypt_provider_{&decrypt_provider}, client_safe_api_{event_system} {}
+    25:  
+    26:v void ClientApiUnsafe::SendSafeApiData(SubApi<ClientApiSafe> sub_api) {
+    27:a   auto unsafe_data = decrypt_provider_->Decrypt(std::move(sub_api).buffer());
+    28:A   AE_TELED_DEBUG("Client api unsafe data {}", unsafe_data);
+    29:  
+    30:a   auto parser = ApiParser{server_context().protocol_context(), unsafe_data};
+    31:/   // not fully parsed
+    32:i   if (!parser.Parse(client_safe_api_)) {
+    33:s     server_context().reader().Cancel();
+    34:}   }
+    35:} }
+    36:} }  // namespace ae
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    18:  
+    19:# #include <cassert>
+    20:  
+    21:# #include "aether/api_protocol/api_protocol.h"
+    22:  
+    23:# #include "aether/tele.h"
+    24:  
+    25:n namespace ae {
+    26:  
+    27:C ClientApiSafe::ClientApiSafe(EventSystem& event_system)
+    28::     : send_message_event_{event_system},
+    29:s       send_server_descriptor_event_{event_system},
+    30:s       send_cloud_event_{event_system},
+    31:r       request_telemetry_event_{event_system},
+    32:s       send_cloud_configs_{event_system} {}
+    33:  
+    34:v void ClientApiSafe::ChangeParent([[maybe_unused]] Uid const& uid) {
+    35:A   AE_TELED_DEBUG("ChangeParent");
+    36:} }
+    37:  
+    38:v void ClientApiSafe::ChangeAlias([[maybe_unused]] Uid const& uid) {
+    39:A   AE_TELED_DEBUG("ChangeAlias");
+    40:} }
+    41:  
+    42:v void ClientApiSafe::NewChildren([[maybe_unused]] std::vector<Uid> const& uids) {
+    43:A   AE_TELED_DEBUG("NewChildren");
+    44:} }
+    45:  
+    46:v void ClientApiSafe::SendMessages(std::vector<AeMessage> const& messages) {
+    47:f   for (auto const& msg : messages) {
+    48:s     send_message_event_.Emit(msg);
+    49:}   }
+    50:} }
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_CLIENT_REG_API_SAFE_H_
+    18:# #define AETHER_REGISTRATION_API_CLIENT_REG_API_SAFE_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include "aether/api_protocol/api_protocol.h"
+    25:  
+    26:n namespace ae {
+    27:c class ClientRegApiSafe final : public DeclareApi<ClientRegApiSafe> {
+    28:p  public:
+    29:/   // Here only return result api implemented, which is default
+    30:A   API_LIST()
+    31:} };
+    32:} }  // namespace ae
+    33:  
+    34:# #endif
+    35:# #endif  // AETHER_REGISTRATION_API_CLIENT_REG_API_SAFE_H_
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h
+    1:/ /*
+    2:*  * Copyright 2025 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    18:# #define AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:# #if AE_SUPPORT_REGISTRATION
+    22:  
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:# #  include "aether/crypto/icrypto_provider.h"
+    25:  
+    26:# #  include "aether/registration/api/client_reg_api_safe.h"
+    27:# #  include "aether/registration/api/global_reg_client_api.h"
+    28:  
+    29:n namespace ae {
+    30:c class ClientRegRootApi final : public DeclareApi<ClientRegRootApi> {
+    31:p  public:
+    32:e   explicit ClientRegRootApi(IDecryptProvider& root_decrypt_provider,
+    33:I                             IDecryptProvider& global_decrypt_provider);
+    34:  
+    35:v   void Enter(SubApi<ClientRegApiSafe> sub_api);
+    36:v   void EnterGlobal(SubApi<GlobalRegClientApi> sub_api);
+    37:  
+    38:A   API_LIST(METHOD(3, Enter), METHOD(4, EnterGlobal));
+    39:  
+    40:p  private:
+    41:I   IDecryptProvider* root_decrypt_provider_;
+    42:I   IDecryptProvider* global_decrypt_provider_;
+    43:  
+    44:C   ClientRegApiSafe client_reg_api_;
+    45:G   GlobalRegClientApi global_reg_client_api_;
+    46:} };
+    47:} }  // namespace ae
+    48:# #endif
+    49:  
+    50:# #endif  // AETHER_REGISTRATION_API_CLIENT_REG_API_UNSAFE_H_
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    19:  
+    20:# #include "aether/types/uid.h"
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:  
+    25:# #include "aether/work_cloud_api/ae_message.h"
+    26:# #include "aether/work_cloud_api/cloud_configs.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:  
+    29:n namespace ae {
+    30:s struct AccessGroup {
+    31:A   AE_REFLECT_MEMBERS(owner, id, data);
+    32:U   Uid owner;
+    33:s   std::uint64_t id;
+    34:D   DataBuffer data;
+    35:} };
+    36:  
+    37:s struct AccessCheckResult {
+    38:A   AE_REFLECT_MEMBERS(source_uid, target_uid, has_access);
+    39:U   Uid source_uid;
+    40:U   Uid target_uid;
+    41:b   bool has_access;
+    42:} };
+    43:  
+    44:c class ClientApiSafe : public DeclareApi<ClientApiSafe> {
+    45:p  public:
+    46:e   explicit ClientApiSafe(EventSystem& event_system);
+    47:  
+    48:v   void ChangeParent(Uid const& uid);
+    49:v   void ChangeAlias(Uid const& uid);
+    50:v   void NewChildren(std::vector<Uid> const& uids);
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h lines 44 to 200
+    44:c class ClientApiSafe : public DeclareApi<ClientApiSafe> {
+    45:p  public:
+    46:e   explicit ClientApiSafe(EventSystem& event_system);
+    47:  
+    48:v   void ChangeParent(Uid const& uid);
+    49:v   void ChangeAlias(Uid const& uid);
+    50:v   void NewChildren(std::vector<Uid> const& uids);
+    51:v   void SendMessages(std::vector<AeMessage> const& messages);
+    52:  
+    53:v   void SendServerDescriptor(ServerDescriptor const& server_descriptor);
+    54:v   void SendServerDescriptors(
+    55:s       std::vector<ServerDescriptor> const& server_descriptors);
+    56:v   void SendCloud(Uid const& uid, CloudDescriptor const& cloud);
+    57:v   void SendClouds(std::vector<UidAndCloudDescriptor> const& clouds);
+    58:  
+    59:v   void RequestTelemetry();
+    60:  
+    61:v   void SendAccessGroups(std::vector<AccessGroup> const& access_group);
+    62:v   void SendAccessGroupForClient(Uid const& uid,
+    63:s                                 std::vector<std::uint64_t> const& groups);
+    64:v   void AddItemsToAccessGroup(std::uint64_t id, std::vector<Uid> const& groups);
+    65:v   void RemoveItemsFromAccessGroup(std::uint64_t id,
+    66:s                                   std::vector<Uid> const& groups);
+    67:v   void AddAccessGroupsToClient(Uid const& uid,
+    68:s                                std::vector<std::uint64_t> const& groups);
+    69:v   void RemoveAccessGroupsFromClient(Uid const& uid,
+    70:s                                     std::vector<std::uint64_t> const& groups);
+    71:v   void SendAllAccessedClients(Uid const& uid,
+    72:s                               std::vector<Uid> const& accessed_clients);
+    73:v   void SendAccessCheckResults(std::vector<AccessCheckResult> const& results);
+    74:v   void SendMessage(AeMessage const& message);
+    75:  
+    76:v   void SendCLoudConfig(std::vector<CloudConfig> const& configs);
+    77:  
+    78:R   ReturnResultApi return_result;
+    79:  
+    80:A   API_LIST(METHOD(3, ChangeParent), METHOD(4, ChangeAlias),
+    81:M            METHOD(5, NewChildren), METHOD(6, SendMessages),
+    82:M            METHOD(7, SendServerDescriptor), METHOD(8, SendServerDescriptors),
+    83:M            METHOD(9, SendCloud), METHOD(10, SendClouds),
+    84:M            METHOD(11, RequestTelemetry), METHOD(12, SendAccessGroups),
+    85:M            METHOD(13, SendAccessGroupForClient),
+    86:M            METHOD(14, AddItemsToAccessGroup),
+    87:M            METHOD(15, RemoveItemsFromAccessGroup),
+    88:M            METHOD(16, AddAccessGroupsToClient),
+    89:M            METHOD(17, RemoveAccessGroupsFromClient),
+    90:M            METHOD(18, SendAllAccessedClients),
+    91:M            METHOD(19, SendAccessCheckResults), METHOD(20, SendMessage),
+    92:M            METHOD(21, SendCLoudConfig));
+    93:  
+>>> (показано строк: 69 из 112)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    18:# #define AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+    19:  
+    20:# #include "aether/types/uid.h"
+    21:  
+    22:# #include "aether/api_protocol/api_protocol.h"
+    23:# #include "aether/events/events.h"
+    24:  
+    25:# #include "aether/work_cloud_api/ae_message.h"
+    26:# #include "aether/work_cloud_api/cloud_configs.h"
+    27:# #include "aether/work_cloud_api/server_descriptor.h"
+    28:  
+    29:n namespace ae {
+    30:s struct AccessGroup {
+    31:A   AE_REFLECT_MEMBERS(owner, id, data);
+    32:U   Uid owner;
+    33:s   std::uint64_t id;
+    34:D   DataBuffer data;
+    35:} };
+    36:  
+    37:s struct AccessCheckResult {
+    38:A   AE_REFLECT_MEMBERS(source_uid, target_uid, has_access);
+    39:U   Uid source_uid;
+    40:U   Uid target_uid;
+    41:b   bool has_access;
+    42:} };
+    43:  
+    44:c class ClientApiSafe : public DeclareApi<ClientApiSafe> {
+    45:p  public:
+    46:e   explicit ClientApiSafe(EventSystem& event_system);
+    47:  
+    48:v   void ChangeParent(Uid const& uid);
+    49:v   void ChangeAlias(Uid const& uid);
+    50:v   void NewChildren(std::vector<Uid> const& uids);
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h lines 90 to 120
+    90:M            METHOD(18, SendAllAccessedClients),
+    91:M            METHOD(19, SendAccessCheckResults), METHOD(20, SendMessage),
+    92:M            METHOD(21, SendCLoudConfig));
+    93:  
+    94:a   auto const& send_message_event() { return send_message_event_; }
+    95:a   auto const& send_cloud_event() { return send_cloud_event_; }
+    96:a   auto const& send_server_descriptor_event() {
+    97:r     return send_server_descriptor_event_;
+    98:}   }
+    99:a   auto const& request_telemetry_event() { return request_telemetry_event_; }
+    100:a   auto const& send_cloud_configs() { return send_cloud_configs_; }
+    101:  
+    102:p  private:
+    103:E   Event<void(AeMessage const& message)> send_message_event_;
+    104:E   Event<void(ServerDescriptor const& server_descriptor)>
+    105:s       send_server_descriptor_event_;
+    106:E   Event<void(Uid const& uid, CloudDescriptor const& cloud)> send_cloud_event_;
+    107:E   Event<void()> request_telemetry_event_;
+    108:E   Event<void(std::vector<CloudConfig> const& configs)> send_cloud_configs_;
+    109:} };
+    110:} }  // namespace ae
+    111:  
+    112:# #endif  // AETHER_WORK_CLOUD_API_CLIENT_API_CLIENT_API_SAFE_H_
+>>> (показано строк: 23 из 112)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    18:# #define AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/api_protocol/api_protocol.h"
+    24:  
+    25:n namespace ae {
+    26:c class GlobalRegClientApi : public DeclareApi<GlobalRegClientApi> {
+    27:p  public:
+    28:/   // Here only return result api implemented, which is default
+    29:A   API_LIST()
+    30:} };
+    31:} }  // namespace ae
+    32:# #endif
+    33:# #endif  // AETHER_REGISTRATION_API_GLOBAL_REG_CLIENT_API_H_
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/server_connections/client_server_connection.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/server_connections/client_server_connection.h"
+    18:  
+    19:# #include "aether/aether.h"
+    20:# #include "aether/api_protocol/api_protocol.h"
+    21:# #include "aether/client.h"
+    22:# #include "aether/crypto/ikey_provider.h"
+    23:# #include "aether/crypto/sync_crypto_provider.h"
+    24:# #include "aether/server.h"
+    25:# #include "aether/stream_api/api_call_adapter.h"
+    26:  
+    27:# #include "aether/tele.h"
+    28:  
+    29:n namespace ae {
+    30:n namespace client_server_connection_internal {
+    31:c class ClientKeyProvider : public ISyncKeyProvider {
+    32:p  public:
+    33:e   explicit ClientKeyProvider(Ptr<Client> const& client, ServerId server_id)
+    34::       : client_{client}, server_id_{server_id} {}
+    35:  
+    36:C   CryptoNonce const& Nonce() const override {
+    37:a     auto client_ptr = client_.Lock();
+    38:a     assert(client_ptr);
+    39:a     auto* server_key = client_ptr->server_state(server_id_);
+    40:a     assert(server_key);
+    41:s     server_key->Next();
+    42:r     return server_key->nonce();
+    43:}   }
+    44:  
+    45:p  protected:
+    46:P   PtrView<Client> client_;
+    47:S   ServerId server_id_;
+    48:} };
+    49:  
+    50:c class ClientEncryptKeyProvider : public ClientKeyProvider {
+
+>>> findRegexp
+/home/angel/projects/aether-client-c/include/aether_platform.h
+/home/angel/projects/aether-client-c/include/aether_rx.h
+/home/angel/projects/aether-client-c/include/aether_send_future.h
+/home/angel/projects/aether-client-c/include/aether_messages.h
+/home/angel/projects/aether-client-c/include/aether_credentials.h
+/home/angel/projects/aether-client-c/include/aether_lan.h
+/home/angel/projects/aether-client-c/include/aether_transport_server.h
+/home/angel/projects/aether-client-c/include/aether_transport.h
+/home/angel/projects/aether-client-c/include/aether_meta_runtime.h
+/home/angel/projects/aether-client-c/include/aether_client_app.h
+/home/angel/projects/aether-client-c/include/aether_registration.h
+/home/angel/projects/aether-client-c/include/aether_peer_uap.h
+/home/angel/projects/aether-client-c/include/aether_client.h
+/home/angel/projects/aether-client-c/include/aether_crypto_registry.h
+/home/angel/projects/aether-client-c/include/aether_peer_identity.h
+/home/angel/projects/aether-client-c/include/aether_dataio.h
+/home/angel/projects/aether-client-c/include/aether_peer.h
+/home/angel/projects/aether-client-c/include/aether.h
+/home/angel/projects/aether-client-c/src/generated/aether_api.h
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_enter.h
+/home/angel/projects/aether-client-c/src/generated/aether_reg_unsafe_local.h
+/home/angel/projects/aether-client-c/src/generated/aether_reg_root_key.h
+/home/angel/projects/aether-client-c/src/generated/aether_reg_safe.h
+/home/angel/projects/aether-client-c/src/aether_lan_codec.h
+/home/angel/projects/aether-client-c/src/aether_lan_cert.h
+/home/angel/projects/aether-client-c/src/aether_internal.h
+/home/angel/projects/aether-client-c/src/aether_client_internal.h
+/home/angel/projects/aether-client-c/src/aether_hydrogen.h
+/home/angel/projects/aether-client-c/tests/aether_test_crypto_hydrogen.h
+/home/angel/projects/aether-client-c/tests/p2p_test_support.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/hydrogen.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/gimli-core/portable.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/gimli-core/sse2.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/avr.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/ch32.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/chibios.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/esp32.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/linux_kernel.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/mbed.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/nrf52832.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/particle.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/riot.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/rtthread.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/stm32.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/unix.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/wasi.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/windows.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random/zephyr.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/common.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/core.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/gimli-core.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/hash.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/hydrogen_p.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/kdf.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/kx.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/pwhash.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/random.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/secretbox.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/sign.h
+/home/angel/projects/aether-client-c/third_party/libhydrogen/impl/x25519.h
+/home/angel/projects/aether-client-c/esp32-size/aether_psa_crypto_config.h
+/home/angel/projects/aether-client-c/platform/esp32/aether_crypto_p256_aes_gcm.h
+/home/angel/projects/aether-client-c/platform/esp32/aether_esp32_wifi.h
+/home/angel/projects/aether-client-c/platform/esp32/aether_platform_esp32.h
+/home/angel/projects/aether-client-c/platform/posix/aether_posix_transport.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/include/adslc.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/adsl_project_internal.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-struct/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-values/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-enum/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-intpack/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nested/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-arrays/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-hierarchy/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-result-rpc/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-stream-builder/stream_builder_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-stream-builder/stream_builder_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-stream-builder/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-method/response_method_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-method/response_method_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-ping/response_method_ping_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-ping/response_method_ping_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-describe/response_method_describe_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-response-describe/response_method_describe_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-collapsible/collapsible_fields_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-collapsible/collapsible_fields_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-collapsible/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-static-struct-array/static_struct_array_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-static-struct-array/static_struct_array_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-static-struct-array/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/nullable_api_params_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/nullable_api_params_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/nullable_api_params_local.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-nullable-api/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-calculate/typed_throws_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-calculate/typed_throws_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-notify/typed_throws_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-typed-throws-notify/typed_throws_response.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-tiered-int/tiered_int_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-tiered-int/tiered_int_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-tiered-int/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-recursive-struct/recursive_struct_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-recursive-struct/recursive_struct_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/generated-recursive-struct/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-emitter-hardening-output/boundary-ok/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_001_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_001_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_002_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/res_002_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-output/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/pending_res_001_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/pending_res_001_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/a_uses_item_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/a_uses_item_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/b_defines_item_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/b_defines_item_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/g_defines_base_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/g_defines_base_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/h_extends_base_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/h_extends_base_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/i_holds_external_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/i_holds_external_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/d_defines_base_api_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/d_defines_base_api_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/e_inherits_base_api_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/e_inherits_base_api_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/j_uses_external_array_types.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-cross-module-pending-output/j_uses_external_array_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-tz1/test-unified-types-output/aether_api.h
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/build-test/test-emitter-hardening-output/boundary-ok/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-include-output/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-include-output/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-stream-builder/stream_builder_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-stream-builder/stream_builder_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-stage2-partial/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-stream-builder/stream_builder_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-stream-builder/stream_builder_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-method/response_method_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-method/response_method_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/test-adsl-output/invalid_direct_by_value_cycle_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/test-adsl-output/invalid_mutual_by_value_cycle_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/test-adsl-output/invalid_fixed_array_by_value_cycle_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-ping/response_method_ping_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-ping/response_method_ping_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-describe/response_method_describe_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-response-describe/response_method_describe_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-collapsible/collapsible_fields_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-collapsible/collapsible_fields_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-static-struct-array/static_struct_array_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-static-struct-array/static_struct_array_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable-api/nullable_api_params_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable-api/nullable_api_params_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-nullable-api/nullable_api_params_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-calculate/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-calculate/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-notify/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-typed-throws-notify/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-tiered-int/tiered_int_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-tiered-int/tiered_int_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-recursive-struct/recursive_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator/generated-recursive-struct/recursive_struct_api.h
+/home/angel/projects/aether-client-c/examples/thermometer/include/thermometer_secrets.example.h
+/home/angel/projects/aether-client-c/examples/thermometer/include/thermometer_secrets.h
+/home/angel/projects/aether-client-c/examples/echo/include/echo_secrets.example.h
+/home/angel/projects/aether-client-c/examples/echo/include/echo_secrets.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated/temperature_sensor_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated/temperature_sensor_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-struct/include_root_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-struct/include_root_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-struct/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-values/value_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-values/value_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-values/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-enum/enum_types_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-enum/enum_types_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-enum/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-intpack/int_pack_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-intpack/int_pack_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-intpack/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nested/nested_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nested/nested_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nested/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable/nullable_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable/nullable_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-arrays/arrays_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-arrays/arrays_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-arrays/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-hierarchy/hierarchy_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-hierarchy/hierarchy_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-hierarchy/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-result-rpc/result_rpc_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-result-rpc/result_rpc_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-result-rpc/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-stream-builder/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-local-dispatch/local_dispatch_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-local-dispatch/local_dispatch_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-method/response_method_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-method/response_method_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-ping/response_method_ping_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-ping/response_method_ping_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-describe/response_method_describe_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-response-describe/response_method_describe_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-adsl-output/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-collapsible/collapsible_fields_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-collapsible/collapsible_fields_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-collapsible/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-static-struct-array/static_struct_array_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-static-struct-array/static_struct_array_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-static-struct-array/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/nullable_api_params_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/nullable_api_params_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/nullable_api_params_local.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-nullable-api/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-calculate/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-calculate/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-notify/typed_throws_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-typed-throws-notify/typed_throws_response.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-tiered-int/tiered_int_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-tiered-int/tiered_int_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-tiered-int/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-recursive-struct/recursive_struct_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-recursive-struct/recursive_struct_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/generated-recursive-struct/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/a_uses_item_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/a_uses_item_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/b_defines_item_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/b_defines_item_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/g_defines_base_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/g_defines_base_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/h_extends_base_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/h_extends_base_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/i_holds_external_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/i_holds_external_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/d_defines_base_api_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/d_defines_base_api_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/e_inherits_base_api_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/e_inherits_base_api_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/j_uses_external_array_types.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-pending-output/j_uses_external_array_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-cross-module-output/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-emitter-hardening-output/boundary-ok/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/test-unified-types-output/aether_api.h
+/home/angel/projects/aether-client-c/build-adsl-generator-release/TemperatureSensor/aether_api.h
+/home/angel/projects/aether-client-cpp/aether/access_points/access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/ethernet_access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/filter_endpoints.h
+/home/angel/projects/aether-client-cpp/aether/access_points/lora_module_access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/modem_access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/wifi_access_point.h
+/home/angel/projects/aether-client-cpp/aether/actions/action.h
+/home/angel/projects/aether-client-cpp/aether/actions/action_context.h
+/home/angel/projects/aether-client-cpp/aether/actions/action_pool.h
+/home/angel/projects/aether-client-cpp/aether/actions/actions_queue.h
+/home/angel/projects/aether-client-cpp/aether/actions/repeatable_task.h
+/home/angel/projects/aether-client-cpp/aether/adapter_registry.h
+/home/angel/projects/aether-client-cpp/aether/adapters/adapter.h
+/home/angel/projects/aether-client-cpp/aether/adapters/adapter_tele.h
+/home/angel/projects/aether-client-cpp/aether/adapters/ethernet.h
+/home/angel/projects/aether-client-cpp/aether/adapters/lora_module_adapter.h
+/home/angel/projects/aether-client-cpp/aether/adapters/modem_adapter.h
+/home/angel/projects/aether-client-cpp/aether/adapters/parent_lora_module.h
+/home/angel/projects/aether-client-cpp/aether/adapters/parent_modem.h
+/home/angel/projects/aether-client-cpp/aether/adapters/parent_wifi.h
+/home/angel/projects/aether-client-cpp/aether/adapters/proxy.h
+/home/angel/projects/aether-client-cpp/aether/adapters/wifi_adapter.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ae_actions_tele.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/get_servers.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/select_client.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/telemetry.h
+/home/angel/projects/aether-client-cpp/aether/ae_context.h
+/home/angel/projects/aether-client-cpp/aether/aether.h
+/home/angel/projects/aether-client-cpp/aether/aether_app.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/aether_capi.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_conf.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_errors.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_types.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_uid.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/extern_c.h
+/home/angel/projects/aether-client-cpp/aether/aether_tele.h
+/home/angel/projects/aether-client-cpp/aether/all.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/api_protocol.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_internal_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_message.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_packer.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_parser.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_promise.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_list.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_reader.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/request_id.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/sub_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/make_api_call_sender.h
+/home/angel/projects/aether-client-cpp/aether/capi.h
+/home/angel/projects/aether-client-cpp/aether/channels/channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/channel_statistics.h
+/home/angel/projects/aether-client-cpp/aether/channels/channels_types.h
+/home/angel/projects/aether-client-cpp/aether/channels/ethernet_channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/ethernet_transport_factory.h
+/home/angel/projects/aether-client-cpp/aether/channels/lora_module_channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/modem_channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/wifi_channel.h
+/home/angel/projects/aether-client-cpp/aether/client.h
+/home/angel/projects/aether-client-cpp/aether/client_connectivity_policy.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/client_messages_tele.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_message_stream.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_message_stream_manager.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_port_handle.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_safe_message_stream.h
+/home/angel/projects/aether-client-cpp/aether/clock.h
+/home/angel/projects/aether-client-cpp/aether/cloud.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_callbacks.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_connections_tele.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_request.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_server_connection.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_server_connections.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_subscription.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/ping_cloud_servers.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/request_policy.h
+/home/angel/projects/aether-client-cpp/aether/common.h
+/home/angel/projects/aether-client-cpp/aether/config.h
+/home/angel/projects/aether-client-cpp/aether/config_consts.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/client_cloud_manager.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/get_cloud_action.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/get_cloud_aether.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/server_connection_manager.h
+/home/angel/projects/aether-client-cpp/aether/crypto.h
+/home/angel/projects/aether-client-cpp/aether/crypto/async_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/crypto_definitions.h
+/home/angel/projects/aether-client-cpp/aether/crypto/crypto_nonce.h
+/home/angel/projects/aether-client-cpp/aether/crypto/hydrogen/hydro_async_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/hydrogen/hydro_sync_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/icrypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/ikey_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/key.h
+/home/angel/projects/aether-client-cpp/aether/crypto/key_gen.h
+/home/angel/projects/aether-client-cpp/aether/crypto/sign.h
+/home/angel/projects/aether-client-cpp/aether/crypto/signed_key.h
+    29:s struct SignedKey {
+/home/angel/projects/aether-client-cpp/aether/crypto/sodium/sodium_async_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/sodium/sodium_sync_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/sync_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/dns/dns_c_ares.h
+/home/angel/projects/aether-client-cpp/aether/dns/dns_resolve.h
+/home/angel/projects/aether-client-cpp/aether/dns/dns_tele.h
+/home/angel/projects/aether-client-cpp/aether/dns/esp32_dns_resolve.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/domain_storage_factory.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/domain_storage_tele.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/registrar_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/spifs_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/static_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/static_object_types.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/sync_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/env.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_handler.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_handler_map.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_key_registry.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_multi_subscription.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_object.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_registered_handler.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_subscription.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_system.h
+/home/angel/projects/aether-client-cpp/aether/events/details/generic_event_handler.h
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+/home/angel/projects/aether-client-cpp/aether/executors/action_wait_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/any_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/any_waiter.h
+/home/angel/projects/aether-client-cpp/aether/executors/async_context.h
+/home/angel/projects/aether-client-cpp/aether/executors/async_waiter.h
+/home/angel/projects/aether-client-cpp/aether/executors/event_wait_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/executors.h
+/home/angel/projects/aether-client-cpp/aether/executors/for_range.h
+/home/angel/projects/aether-client-cpp/aether/executors/make_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/scheduler_on_tasks.h
+/home/angel/projects/aether-client-cpp/aether/executors/sync_waiter.h
+/home/angel/projects/aether-client-cpp/aether/executors/waiter_traits.h
+/home/angel/projects/aether-client-cpp/aether/executors/with_timeout.h
+/home/angel/projects/aether-client-cpp/aether/gateway_api/gateway_api.h
+/home/angel/projects/aether-client-cpp/aether/gateway_api/server_endpoints.h
+/home/angel/projects/aether-client-cpp/aether/global_ids.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/dx_smart_lr02_lm.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/ebyte_e22_lm.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/ilora_module_driver.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/lora_module_driver_types.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/lora_module_factory.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/lora_modules_tele.h
+/home/angel/projects/aether-client-cpp/aether/memory.h
+/home/angel/projects/aether-client-cpp/aether/modems/bg95_at_modem.h
+/home/angel/projects/aether-client-cpp/aether/modems/imodem_driver.h
+/home/angel/projects/aether-client-cpp/aether/modems/modem_driver_types.h
+/home/angel/projects/aether-client-cpp/aether/modems/modem_factory.h
+/home/angel/projects/aether-client-cpp/aether/modems/modems_tele.h
+/home/angel/projects/aether-client-cpp/aether/modems/sim7070_at_modem.h
+/home/angel/projects/aether-client-cpp/aether/modems/thingy91x_at_modem.h
+/home/angel/projects/aether-client-cpp/aether/obj/component_factory.h
+/home/angel/projects/aether-client-cpp/aether/poller/epoll_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/freertos_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/kqueue_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/poller_tele.h
+/home/angel/projects/aether-client-cpp/aether/poller/poller_types.h
+/home/angel/projects/aether-client-cpp/aether/poller/unix_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/win_poller.h
+/home/angel/projects/aether-client-cpp/aether/prepared_packet/packet_encoder.h
+/home/angel/projects/aether-client-cpp/aether/prepared_packet/prepared_block.h
+/home/angel/projects/aether-client-cpp/aether/prepared_packet/prepared_send_message.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/proof_of_work.h
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+/home/angel/projects/aether-client-cpp/aether/registration/registration_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/registration/root_server_select_stream.h
+/home/angel/projects/aether-client-cpp/aether/registration_cloud.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/circular_buffer.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/receiving_chunk_list.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_api.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_data_message.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_recv_action.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_send_action.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/sending_chunk_list.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/safe_stream.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/safe_stream_config.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_buffer.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_dispatcher.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_listener.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_request.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_stage.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_support.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/esp32_serial_port.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/iserial_port.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/serial_port_factory.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/serial_port_types.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/serial_ports_tele.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/unix_serial_port.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/win_serial_port.h
+/home/angel/projects/aether-client-cpp/aether/server.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/channel_select_action.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/client_server_connection.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/iserver_connection_factory.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/server_connection.h
+/home/angel/projects/aether-client-cpp/aether/server_keys.h
+/home/angel/projects/aether-client-cpp/aether/socket_initializer.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/api_call_adapter.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/gate_trait.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/istream.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/sized_packet_gate.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/tied_gates.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/generic_task.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/manual_task_scheduler.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task_manager.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task_queues.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task_subsctiption.h
+/home/angel/projects/aether-client-cpp/aether/tasks/manual_task_scheduler.h
+/home/angel/projects/aether-client-cpp/aether/tele.h
+/home/angel/projects/aether-client-cpp/aether/tele_compile_options.h
+/home/angel/projects/aether-client-cpp/aether/tele_statistics.h
+/home/angel/projects/aether-client-cpp/aether/transport/data_packet_collector.h
+/home/angel/projects/aether-client-cpp/aether/transport/gateway/gateway_device.h
+/home/angel/projects/aether-client-cpp/aether/transport/gateway/gateway_transport.h
+/home/angel/projects/aether-client-cpp/aether/transport/modems/modem_transport.h
+/home/angel/projects/aether-client-cpp/aether/transport/packet_queue_manager.h
+/home/angel/projects/aether-client-cpp/aether/transport/packet_send_action.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/get_sock_addr.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/isocket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_cb_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_cb_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_get_addr.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/unix_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/unix_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/unix_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/win_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/win_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/win_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/tcp/tcp.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/udp/udp.h
+/home/angel/projects/aether-client-cpp/aether/transport/transport_tele.h
+/home/angel/projects/aether-client-cpp/aether/type_traits.h
+/home/angel/projects/aether-client-cpp/aether/types/address.h
+/home/angel/projects/aether-client-cpp/aether/types/address_parser.h
+/home/angel/projects/aether-client-cpp/aether/types/client_config.h
+/home/angel/projects/aether-client-cpp/aether/types/client_id.h
+/home/angel/projects/aether-client-cpp/aether/types/data_buffer.h
+/home/angel/projects/aether-client-cpp/aether/types/iterator.h
+/home/angel/projects/aether-client-cpp/aether/types/literal_array.h
+/home/angel/projects/aether-client-cpp/aether/types/nullable_type.h
+/home/angel/projects/aether-client-cpp/aether/types/packed_size.h
+/home/angel/projects/aether-client-cpp/aether/types/ring_index.h
+/home/angel/projects/aether-client-cpp/aether/types/server_config.h
+/home/angel/projects/aether-client-cpp/aether/types/server_id.h
+/home/angel/projects/aether-client-cpp/aether/types/span.h
+/home/angel/projects/aether-client-cpp/aether/types/state_machine.h
+/home/angel/projects/aether-client-cpp/aether/types/static_map.h
+/home/angel/projects/aether-client-cpp/aether/types/statistic_counter.h
+/home/angel/projects/aether-client-cpp/aether/types/uid.h
+/home/angel/projects/aether-client-cpp/aether/types/variant_type.h
+/home/angel/projects/aether-client-cpp/aether/vector_buffer.h
+/home/angel/projects/aether-client-cpp/aether/warning_disable.h
+/home/angel/projects/aether-client-cpp/aether/wifi/esp_wifi_driver.h
+/home/angel/projects/aether-client-cpp/aether/wifi/wifi_driver.h
+/home/angel/projects/aether-client-cpp/aether/wifi/wifi_driver_factory.h
+/home/angel/projects/aether-client-cpp/aether/wifi/wifi_driver_types.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/ae_message.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/cloud_configs.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/info_ip.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/server_descriptor.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/telemetric.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.h
+/home/angel/projects/aether-client-cpp/aether/write_action/buffer_write.h
+/home/angel/projects/aether-client-cpp/aether/write_action/done_write_action.h
+/home/angel/projects/aether-client-cpp/aether/write_action/failed_write_action.h
+/home/angel/projects/aether-client-cpp/aether/write_action/write_action.h
+/home/angel/projects/aether-client-cpp/config/user_config_android_smoke.h
+/home/angel/projects/aether-client-cpp/config/user_config_hydrogen.h
+/home/angel/projects/aether-client-cpp/config/user_config_modem.h
+/home/angel/projects/aether-client-cpp/config/user_config_optimized.h
+/home/angel/projects/aether-client-cpp/config/user_config_sodium.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/api/bench_delays_api.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/delay_statistics.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/receiver.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/send_message_delays_manager.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/sender.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/statistics_write.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/time_table.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/timed_receiver.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_message_delays/timed_sender.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_messages_bandwidth/common/bandwidth.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_messages_bandwidth/common/bandwidth_api.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_messages_bandwidth/common/test_action.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_messages_bandwidth/receiver/message_receiver.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_messages_bandwidth/receiver/receiver.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_messages_bandwidth/sender/message_sender.h
+/home/angel/projects/aether-client-cpp/examples/benches/send_messages_bandwidth/sender/sender.h
+/home/angel/projects/aether-client-cpp/examples/common/aether_construct.h
+/home/angel/projects/aether-client-cpp/examples/common/aether_construct_esp_wifi.h
+/home/angel/projects/aether-client-cpp/examples/common/aether_construct_ethernet.h
+/home/angel/projects/aether-client-cpp/examples/common/aether_construct_lora_module.h
+/home/angel/projects/aether-client-cpp/examples/common/aether_construct_modem.h
+/home/angel/projects/aether-client-cpp/tests/benchmarking.h
+/home/angel/projects/aether-client-cpp/tests/inline_tests/tests/crc.h
+/home/angel/projects/aether-client-cpp/tests/inline_tests/tests/inline.h
+/home/angel/projects/aether-client-cpp/tests/sanitizer_checks.h
+/home/angel/projects/aether-client-cpp/tests/test-api-protocol/assert_packet.h
+/home/angel/projects/aether-client-cpp/tests/test-safe-stream/mock_bad_streams.h
+/home/angel/projects/aether-client-cpp/tests/test-safe-stream/stream-test-ctx.h
+/home/angel/projects/aether-client-cpp/tests/test-serial-port/mock-at-observer.h
+/home/angel/projects/aether-client-cpp/tests/test-serial-port/mock-serial-port.h
+/home/angel/projects/aether-client-cpp/tests/test-serial-port/mock-test-context.h
+/home/angel/projects/aether-client-cpp/tests/test-stream/mock_read_stream.h
+/home/angel/projects/aether-client-cpp/tests/test-stream/mock_write_stream.h
+/home/angel/projects/aether-client-cpp/tests/test-stream/to_data_buffer.h
+/home/angel/projects/aether-client-cpp/third_party/libbcrypt_unit_tests/libbcrypt_unit_tests.h
+/home/angel/projects/aether-client-cpp/third_party/libbcrypt_unit_tests/unit_tests_runner.h
+/home/angel/projects/aether-client-cpp/third_party/libhydrogen_unit_tests/libhydrogen_unit_tests.h
+/home/angel/projects/aether-client-cpp/third_party/libhydrogen_unit_tests/unit_tests_runner.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/cmptest.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_unit_tests.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_aead_aegis128l.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_aead_aegis256.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_aead_aes256gcm.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_aead_aes256gcm2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_aead_chacha20poly1305.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_aead_chacha20poly13052.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_aead_xchacha20poly1305.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_auth.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_auth2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_auth3.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_auth5.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_auth6.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_auth7.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box7.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box8.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box_easy.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box_easy2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box_seal.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_box_seed.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_chacha20.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_codecs.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core1.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core3.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core4.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core5.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core6.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core_ed25519.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core_ed25519_h2c.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_core_ristretto255.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_ed25519_convert.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_generichash.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_generichash2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_generichash3.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_hash.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_hash3.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_kdf.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_kdf_hkdf.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_keygen.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_kx.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_metamorphic.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_misuse.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_onetimeauth.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_onetimeauth2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_onetimeauth7.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_pwhash_argon2i.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_pwhash_argon2id.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_pwhash_scrypt.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_pwhash_scrypt_ll.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_randombytes.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult5.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult6.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult7.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult8.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult_ed25519.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_scalarmult_ristretto255.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_secretbox.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_secretbox2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_secretbox7.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_secretbox8.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_secretbox_easy.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_secretbox_easy2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_secretstream_xchacha20poly1305.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_shorthash.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_sign.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_sign2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_siphashx24.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_sodium_utils.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_sodium_utils2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_sodium_utils3.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_sodium_version.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_stream.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_stream2.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_stream3.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_stream4.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_verify1.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/libsodium_ut_xchacha20.h
+/home/angel/projects/aether-client-cpp/third_party/libsodium_unit_tests/unit_tests_runner.h
+/home/angel/projects/aether-client-cpp/tools/registrator/register_wifi.h
+/home/angel/projects/aether-client-cpp/tools/registrator/registrator_action.h
+/home/angel/projects/aether-client-cpp/tools/registrator/registrator_config.h
+>>> Found 1 matches.
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <type_traits>
+    22:# #include <utility>
+    23:  
+    24:# #include "aether-miscpp/meta/type_list.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "aether/api_protocol/details/api_internal_context.h"
+    29:# #include "aether/api_protocol/details/api_message.h"
+    30:# #include "aether/api_protocol/details/api_parser.h"
+    31:# #include "aether/api_protocol/details/api_promise.h"
+    32:# #include "aether/api_protocol/details/packet_list.h"
+    33:# #include "aether/api_protocol/details/request_id.h"
+    34:# #include "aether/api_protocol/details/return_result_api.h"
+    35:  
+    36:n namespace ae {
+    37:t template <typename Api>
+    38:c class SubApi;
+    39:  
+    40:n namespace api_class_declate_internal {
+    41:t template <auto method1, auto method2>
+    42:s struct AreMethodsSame : std::false_type {};
+    43:t template <auto method>
+    44:s struct AreMethodsSame<method, method> : std::true_type {};
+    45:  
+    46:t template <auto m1, auto m2>
+    47:s static constexpr inline auto AreMethodsSame_v = AreMethodsSame<m1, m2>::value;
+    48:  
+    49:s struct NullRegMethod {};
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/api_protocol/make_api_call_sender.h"
+    28:# #  include "aether/crypto.h"
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/sign.h"
+    31:# #  include "aether/executors/executors.h"
+    32:  
+    33:# #  include "aether/registration/proof_of_work.h"
+    34:# #  include "aether/registration/registration_crypto_provider.h"
+    35:  
+    36:# #  include "aether/ae_actions/ae_actions_tele.h"
+    37:  
+    38:n namespace ae {
+    39:  
+    40:R Registration::Registration(AeContext const& ae_context,
+    41:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    42:U                            Uid parent_uid)
+    43::     : Action{ae_context},
+    44:a       ae_context_{ae_context},
+    45:p       parent_uid_{std::move(parent_uid)},
+    46:p       protocol_context_{ae_context_},
+    47:r       root_crypto_provider_{},
+    48:g       global_crypto_provider_{},
+    49:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    50:*                        *global_crypto_provider_.decryptor()},
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 1 to 200
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/registration/registration.h"
+    18:  
+    19:# #if AE_SUPPORT_REGISTRATION
+    20:  
+    21:# #  include <cstdint>
+    22:# #  include <utility>
+    23:  
+    24:# #  include "aether-miscpp/misc/override.h"
+    25:# #  include "aether/aether.h"
+    26:# #  include "aether/api_protocol/api_protocol.h"
+    27:# #  include "aether/api_protocol/make_api_call_sender.h"
+    28:# #  include "aether/crypto.h"
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/sign.h"
+    31:# #  include "aether/executors/executors.h"
+    32:  
+    33:# #  include "aether/registration/proof_of_work.h"
+    34:# #  include "aether/registration/registration_crypto_provider.h"
+    35:  
+    36:# #  include "aether/ae_actions/ae_actions_tele.h"
+    37:  
+    38:n namespace ae {
+    39:  
+    40:R Registration::Registration(AeContext const& ae_context,
+    41:P                            Ptr<RegistrationCloud> const& reg_cloud,
+    42:U                            Uid parent_uid)
+    43::     : Action{ae_context},
+    44:a       ae_context_{ae_context},
+    45:p       parent_uid_{std::move(parent_uid)},
+    46:p       protocol_context_{ae_context_},
+    47:r       root_crypto_provider_{},
+    48:g       global_crypto_provider_{},
+    49:c       client_root_api_{*root_crypto_provider_.decryptor(),
+    50:*                        *global_crypto_provider_.decryptor()},
+>>> (показано строк: 200 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 50 to 343
+    50:*                        *global_crypto_provider_.decryptor()},
+    51:s       server_reg_root_api_{*root_crypto_provider_.encryptor(),
+    52:*                            *global_crypto_provider_.encryptor()},
+    53:r       root_server_select_stream_{ae_context_, reg_cloud},
+    54:/       // TODO: add configuration
+    55:r       response_timeout_{std::chrono::seconds(20)},
+    56:s       sign_pk_{Crypto::ptr{ae_context_.aether().crypto}
+    57:-                    ->signs_pk_[kDefaultSignatureMethod]},
+    58:r       registration_event_{ae_context_} {
+    59:A   AE_TELE_INFO(RegisterStarted);
+    60:  
+    61:/   // parent uid must not be empty
+    62:a   assert(!parent_uid_.empty());
+    63:  
+    64:I   InitConnection();
+    65:R   Run();
+    66:} }
+    67:  
+    68:R Registration::~Registration() { AE_TELED_DEBUG("~Registration"); }
+    69:  
+    70:R Registration::RegistrationEvent const& Registration::registration() {
+    71:r   return registration_event_;
+    72:} }
+    73:  
+    74:v void Registration::InitConnection() {
+    75:A   AE_TELED_DEBUG("Registration::InitConnection");
+    76:  
+    77:r   root_server_select_stream_.server_changed_event().Subscribe([]() {
+    78:/     // Reinit connection and start registration from the beginning
+    79:/     // TODO: make async_waiter_ stop and start get keys again
+    80:A     AE_TELED_ERROR("Server changed");
+    81:}   });
+    82:  
+    83:r   root_server_select_stream_.cloud_error_event().Subscribe([]() {
+    84:A     AE_TELED_ERROR("Link Error, Registration failed");
+    85:/     // TODO: make async_waiter_ stop with error
+    86:}   });
+    87:  
+    88:/   // Connect parser for out data
+    89:r   root_server_select_stream_.out_data_event().Subscribe(
+    90:[       [this](auto const& data) {
+    91:a         auto parser = ApiParser{protocol_context_, data};
+    92:p         parser.Parse(client_root_api_);
+    93:}       });
+    94:} }
+    95:  
+    96:v void Registration::Restream() { root_server_select_stream_.Restream(); }
+    97:  
+    98:a auto Registration::GetKeys() {
+    99:r   return make_api_call(
+>>> (показано строк: 294 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 98 to 343
+    98:a auto Registration::GetKeys() {
+    99:r   return make_api_call(
+    100:s              server_reg_root_api_, protocol_context_,
+    101:r              root_server_select_stream_,
+    102:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    103:A                AE_TELE_INFO(RegisterGetKeys, "GetKeys");
+    104:a                auto promise = api_call->GetPublicKey(kDefaultCryptoLibProfile);
+    105:# #  if DEBUG
+    106:/                // For debug, call also for get my ip method to print our public
+    107:/                // ip visible to registration server
+    108:g                get_my_ip_subscription_ =
+    109:a                    api_call->GetMyIp().Subscribe([](auto&& res) {
+    110:i                      if (res) {
+    111:a                        auto& iip = res.value();
+    112:A                        AE_TELED_INFO(
+    113:"                            "Registration our public ip: {}:{}, coords: {},{}",
+    114:i                            iip.ip, iip.port, iip.latitude, iip.longitude);
+    115:}                      } else {
+    116:A                        AE_TELED_ERROR("Get my ip failed");
+    117:}                      }
+    118:}                    });
+    119:# #  endif
+    120:r                return promise;
+    121:}              }) |
+    122:e          ex::let_value([this](auto&& signed_key) noexcept {
+    123:r            return ex::create<ex::set_value_t(), ex::set_error_t(std::int32_t)>(
+    124:[                [this, signed_key = std::forward<decltype(signed_key)>(
+    125:s                           signed_key)](auto& ctx) mutable noexcept {
+    126:i                  if (!CryptoSignVerify(signed_key.sign, signed_key.key,
+    127:s                                        sign_pk_)) {
+    128:A                    AE_TELE_ERROR(RegisterGetKeysVerificationFailed,
+    129:"                                  "Sign verification failed");
+    130:e                    ex::set_error(std::move(ctx.receiver), std::int32_t{1});
+    131:r                    return;
+    132:}                  }
+    133:s                  server_pub_key_ = std::move(signed_key.key);
+    134:r                  root_crypto_provider_.SetEncryptionKey(server_pub_key_);
+    135:A                  AE_TELED_INFO("Key received");
+    136:e                  ex::set_value(std::move(ctx.receiver));
+    137:}                });
+    138:}          });
+    139:} }
+    140:  
+    141:a auto Registration::RequestPowParams() {
+    142:r   return make_api_call(
+    143:s              server_reg_root_api_, protocol_context_,
+    144:r              root_server_select_stream_,
+    145:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    146:A                AE_TELE_INFO(RegisterRequestPowParams,
+    147:"                             "Request proof of work params");
+>>> (показано строк: 246 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 140 to 343
+    140:  
+    141:a auto Registration::RequestPowParams() {
+    142:r   return make_api_call(
+    143:s              server_reg_root_api_, protocol_context_,
+    144:r              root_server_select_stream_,
+    145:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    146:A                AE_TELE_INFO(RegisterRequestPowParams,
+    147:"                             "Request proof of work params");
+    148:A                ApiPromise<PowParams> promise;
+    149:a                api_call->Enter(
+    150:k                    kDefaultCryptoLibProfile,
+    151:[                    [&promise,
+    152:t                     this](ApiContext<ServerRegistrationApi>& server_api) {
+    153:s                      server_api->SetReturnKey(
+    154:r                          root_crypto_provider_.GetDecryptionKey());
+    155:p                      promise = server_api->RequestProofOfWorkData(
+    156:p                          parent_uid_, PowMethod::kBCryptCrc32);
+    157:}                    });
+    158:r                return promise;
+    159:}              }) |
+    160:e          ex::let_value([this](auto&& pow_params) noexcept {
+    161:r            return ex::create<ex::set_value_t(), ex::set_error_t(std::int32_t)>(
+    162:[                [this, pow_params = std::forward<decltype(pow_params)>(
+    163:p                           pow_params)](auto& ctx) mutable noexcept {
+    164:i                  if (!CryptoSignVerify(pow_params.global_key.sign,
+    165:p                                        pow_params.global_key.key, sign_pk_)) {
+    166:A                    AE_TELE_ERROR(
+    167:R                        RegisterPowParamsVerificationFailed,
+    168:"                        "Proof of work params sign verification failed");
+    169:e                    ex::set_error(std::move(ctx.receiver), std::int32_t{2});
+    170:r                    return;
+    171:}                  }
+    172:  
+    173:a                  aether_global_key_ = pow_params.global_key.key;
+    174:p                  pow_params_.salt = pow_params.salt;
+    175:p                  pow_params_.max_hash_value = pow_params.max_hash_value;
+    176:p                  pow_params_.password_suffix = pow_params.password_suffix;
+    177:p                  pow_params_.pool_size = pow_params.pool_size;
+    178:g                  global_crypto_provider_.SetEncryptionKey(aether_global_key_);
+    179:m                  master_key_ = global_crypto_provider_.GetDecryptionKey();
+    180:e                  ex::set_value(std::move(ctx.receiver));
+    181:}                });
+    182:}          });
+    183:} }
+    184:  
+    185:a auto Registration::MakeRegistration() {
+    186:r   return make_api_call(
+    187:s              server_reg_root_api_, protocol_context_,
+    188:r              root_server_select_stream_,
+    189:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+>>> (показано строк: 204 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 185 to 343
+    185:a auto Registration::MakeRegistration() {
+    186:r   return make_api_call(
+    187:s              server_reg_root_api_, protocol_context_,
+    188:r              root_server_select_stream_,
+    189:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    190:A                AE_TELE_INFO(RegisterMakeRegistration, "Make registration");
+    191:  
+    192:/                // Proof calculation
+    193:a                auto proofs = ProofOfWork::ComputeProofOfWork(
+    194:p                    pow_params_.pool_size, pow_params_.salt,
+    195:p                    pow_params_.password_suffix, pow_params_.max_hash_value);
+    196:  
+    197:A                AE_TELE_DEBUG(RegisterKeysGenerated,
+    198:"                              "Global Pk: {}:{}, Masterkey: {}:{}",
+    199:a                              aether_global_key_.Index(), aether_global_key_,
+    200:m                              master_key_.Index(), master_key_);
+    201:  
+    202:A                ApiPromise<RegistrationResponse> promise;
+    203:a                api_call->Enter(
+    204:k                    kDefaultCryptoLibProfile,
+    205:S                    SubApi{[this, &promise, &proofs](
+    206:A                               ApiContext<ServerRegistrationApi>& server_api) {
+    207:s                      server_api->Registration(
+    208:p                          pow_params_.salt, pow_params_.password_suffix, proofs,
+    209:p                          parent_uid_,
+    210:[                          [this, &promise](
+    211:A                              ApiContext<GlobalRegServerApi>& global_api) {
+    212:/                            // set master key and wait for confirmation
+    213:g                            global_api->SetMasterKey(master_key_);
+    214:p                            promise = global_api->Finish();
+    215:}                          });
+    216:}                    }});
+    217:r                return promise;
+    218:}              }) |
+    219:e          ex::then([this](auto&& reg_info) noexcept {
+    220:A            AE_TELE_INFO(RegisterRegistrationConfirmed,
+    221:"                         "Registration confirmed");
+    222:c            client_uid_ = reg_info.uid;
+    223:e            ephemeral_uid_ = reg_info.ephemeral_uid;
+    224:c            client_cloud_ = std::move(reg_info.cloud);
+    225:a            assert(!client_cloud_.empty() && "Client's cloud is empty");
+    226:}          });
+    227:} }
+    228:  
+    229:a auto Registration::ResolveCloud() {
+    230:r   return make_api_call(
+    231:s              server_reg_root_api_, protocol_context_,
+    232:r              root_server_select_stream_,
+    233:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    234:A                AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]",
+>>> (показано строк: 159 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 229 to 343
+    229:a auto Registration::ResolveCloud() {
+    230:r   return make_api_call(
+    231:s              server_reg_root_api_, protocol_context_,
+    232:r              root_server_select_stream_,
+    233:[              [this](ApiContext<RegistrationRootApi>& api_call) {
+    234:A                AE_TELE_INFO(RegisterResolveCloud, "Resolve cloud as [{}]",
+    235:c                             client_cloud_);
+    236:  
+    237:A                ApiPromise<std::vector<ServerDescriptor>> promise;
+    238:a                api_call->Enter(
+    239:k                    kDefaultCryptoLibProfile,
+    240:[                    [this, &promise](
+    241:A                        ApiContext<ServerRegistrationApi>& server_api) noexcept {
+    242:p                      promise = server_api->ResolveServers(client_cloud_);
+    243:}                    });
+    244:r                return promise;
+    245:}              }) |
+    246:e          ex::then([this](auto&& servers) noexcept {
+    247:r            return OnCloudResolved(servers);
+    248:}          });
+    249:} }
+    250:  
+    251:C ClientConfig Registration::OnCloudResolved(
+    252:s     std::vector<ServerDescriptor> const& servers) {
+    253:A   AE_TELE_INFO(RegisterResolveCloudResponse);
+    254:  
+    255:C   ClientConfig client_config{
+    256:.       .parent_uid = parent_uid_,
+    257:.       .uid = client_uid_,
+    258:.       .ephemeral_uid = ephemeral_uid_,
+    259:.       .master_key = master_key_,
+    260:.       .cloud = {},
+    261:}   };
+    262:  
+    263:s   std::vector<Server::ptr> server_objects;
+    264:s   server_objects.reserve(servers.size());
+    265:  
+    266:f   for (const auto& description : servers) {
+    267:s     std::vector<Endpoint> endpoints;
+    268:f     for (auto const& ip : description.ips) {
+    269:f       for (auto const& pp : ip.protocol_and_ports) {
+    270:e         endpoints.emplace_back(Endpoint{{ip.ip, pp.port}, pp.protocol});
+    271:}       }
+    272:}     }
+    273:A     AE_TELED_DEBUG("Got server {} with endpoints {}", description.server_id,
+    274:e                    endpoints);
+    275:c     client_config.cloud.emplace_back(
+    276:S         ServerConfig{description.server_id, std::move(endpoints)});
+    277:}   }
+    278:  
+>>> (показано строк: 115 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/server_connections/client_server_connection.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_SERVER_CONNECTIONS_CLIENT_SERVER_CONNECTION_H_
+    18:# #define AETHER_SERVER_CONNECTIONS_CLIENT_SERVER_CONNECTION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #include "aether/ae_context.h"
+    23:# #include "aether/common.h"
+    24:# #include "aether/crypto/icrypto_provider.h"
+    25:# #include "aether/write_action/buffer_write.h"
+    26:  
+    27:# #include "aether/work_cloud_api/client_api/client_api_safe.h"
+    28:# #include "aether/work_cloud_api/client_api/client_api_unsafe.h"
+    29:# #include "aether/work_cloud_api/work_server_api/authorized_api.h"
+    30:# #include "aether/work_cloud_api/work_server_api/login_api.h"
+    31:  
+    32:# #include "aether/server_connections/server_connection.h"
+    33:  
+    34:n namespace ae {
+    35:c class Client;
+    36:c class Server;
+    37:c class Channel;
+    38:  
+    39:n namespace client_server_connection_internal {
+    40:s static constexpr auto kBufferCapacity = AE_SERVER_CONNECTION_BUFFER_CAPACITY;
+    41:  
+    42:c class BufferedServerConnection : public ByteIStream {
+    43:p  public:
+    44:u   using Buffer = BufferWrite<DataBuffer, kBufferCapacity>;
+    45:  
+    46:B   BufferedServerConnection(AeContext const& ae_context,
+    47:P                            Ptr<Server> const& server);
+    48:  
+    49:W   WriteAction& Write(DataBuffer&& in_data) override;
+    50:S   StreamUpdateEvent const& stream_update_event() override;
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/server_connections/client_server_connection.cpp lines 50 to 100
+    50:c class ClientEncryptKeyProvider : public ClientKeyProvider {
+    51:p  public:
+    52:u   using ClientKeyProvider::ClientKeyProvider;
+    53:  
+    54:K   Key GetKey() const override {
+    55:a     auto client_ptr = client_.Lock();
+    56:a     assert(client_ptr);
+    57:a     auto const* server_key = client_ptr->server_state(server_id_);
+    58:a     assert(server_key);
+    59:  
+    60:r     return server_key->client_to_server();
+    61:}   }
+    62:} };
+    63:  
+    64:c class ClientDecryptKeyProvider : public ClientKeyProvider {
+    65:p  public:
+    66:u   using ClientKeyProvider::ClientKeyProvider;
+    67:  
+    68:K   Key GetKey() const override {
+    69:a     auto client_ptr = client_.Lock();
+    70:a     assert(client_ptr);
+    71:a     auto const* server_key = client_ptr->server_state(server_id_);
+    72:a     assert(server_key);
+    73:  
+    74:r     return server_key->server_to_client();
+    75:}   }
+    76:} };
+    77:  
+    78:c class ClientCryptoProvider final : public ICryptoProvider {
+    79:p  public:
+    80:C   ClientCryptoProvider(Ptr<Client> const& client, ServerId server_id)
+    81::       : encryptor_{std::make_unique<ClientEncryptKeyProvider>(client,
+    82:s                                                               server_id)},
+    83:d         decryptor_{
+    84:s             std::make_unique<ClientDecryptKeyProvider>(client, server_id)} {}
+    85:  
+    86:I   IEncryptProvider* encryptor() override { return &encryptor_; }
+    87:I   IDecryptProvider* decryptor() override { return &decryptor_; }
+    88:  
+    89:p  private:
+    90:S   SyncEncryptProvider encryptor_;
+    91:S   SyncDecryptProvider decryptor_;
+    92:} };
+    93:  
+    94:B BufferedServerConnection::BufferedServerConnection(AeContext const& ae_context,
+    95:P                                                    Ptr<Server> const& server)
+    96::     : buffer_write{ae_context,
+    97:[                    [&](DataBuffer&& in_data) -> WriteAction* {
+    98:i                      if (server_connection.stream_info().is_writable) {
+    99:r                        return &server_connection.Write(std::move(in_data));
+>>> (показано строк: 51 из 208)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/server_connections/client_server_connection.cpp lines 150 to 210
+    150:c           client_server_connection_internal::ClientCryptoProvider>(
+    151:c           client, server->server_id)},
+    152:p       protocol_context_{ae_context},
+    153:c       client_api_unsafe_{ae_context.event_system(),
+    154:*                          *crypto_provider_->decryptor()},
+    155:l       login_api_{*crypto_provider_->encryptor()},
+    156:s       server_connection_{ae_context_, server} {
+    157:A   AE_TELED_DEBUG("Client server connection from {}:e-{} to {}", uid_,
+    158:e                  ephemeral_uid_, server->server_id);
+    159:  
+    160:s   server_connection_.out_data_event().Subscribe(
+    161:M       MethodPtr<&ClientServerConnection::OutData>{this});
+    162:} }
+    163:  
+    164:C ClientServerConnection::~ClientServerConnection() {
+    165:a   auto server = server_.Lock();
+    166:a   assert(server);
+    167:A   AE_TELED_DEBUG("Destroy client server connection from {}:e-{} to {}", uid_,
+    168:e                  ephemeral_uid_, server->server_id);
+    169:} }
+    170:  
+    171:v void ClientServerConnection::Restream() { server_connection_.Restream(); }
+    172:  
+    173:S StreamInfo ClientServerConnection::stream_info() const {
+    174:r   return server_connection_.stream_info();
+    175:} }
+    176:  
+    177:B ByteIStream::StreamUpdateEvent const&
+    178:C ClientServerConnection::stream_update_event() {
+    179:r   return server_connection_.stream_update_event();
+    180:} }
+    181:  
+    182:W WriteAction& ClientServerConnection::LoginApiCall(SubApi<LoginApi> login_api) {
+    183:a   auto packet = std::move(login_api)(ApiContext{login_api_, protocol_context_});
+    184:r   return server_connection_.Write(std::move(packet));
+    185:} }
+    186:  
+    187:W WriteAction& ClientServerConnection::AuthorizedApiCall(
+    188:S     SubApi<AuthorizedApi> auth_api) {
+    189:a   auto api_call = ApiContext{login_api_, protocol_context_};
+    190:a   api_call->LoginByAlias(ephemeral_uid_, std::move(auth_api));
+    191:r   return server_connection_.Write(std::move(api_call));
+    192:} }
+    193:  
+    194:C ClientApiSafe& ClientServerConnection::client_safe_api() {
+    195:r   return client_api_unsafe_.client_api_safe();
+    196:} }
+    197:  
+    198:S ServerConnection& ClientServerConnection::server_connection() {
+    199:r   return server_connection_.server_connection;
+>>> (показано строк: 59 из 208)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+    18:# #define AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <string>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether-miscpp/reflect/reflect.h"
+    28:  
+    29:# #  include "aether/crypto/crypto_definitions.h"
+    30:# #  include "aether/crypto/icrypto_provider.h"
+    31:# #  include "aether/crypto/key.h"
+    32:# #  include "aether/crypto/signed_key.h"
+    33:# #  include "aether/types/server_id.h"
+    34:# #  include "aether/types/uid.h"
+    35:  
+    36:# #  include "aether/api_protocol/api_protocol.h"
+    37:# #  include "aether/registration/api/global_reg_server_api.h"
+    38:# #  include "aether/work_cloud_api/server_descriptor.h"
+    39:  
+    40:n namespace ae {
+    41:s struct PowParams {
+    42:A   AE_REFLECT_MEMBERS(salt, password_suffix, pool_size, max_hash_value,
+    43:g                      global_key)
+    44:s   std::string salt;
+    45:s   std::string password_suffix;
+    46:s   std::uint8_t pool_size;
+    47:s   std::uint32_t max_hash_value;
+    48:S   SignedKey global_key;
+    49:} };
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/api_protocol.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_API_PROTOCOL_H_
+    18:# #define AETHER_API_PROTOCOL_API_PROTOCOL_H_
+    19:  
+    20:/ // IWYU pragma: begin_exports
+    21:# #include "aether/api_protocol/details/api_class_declare.h"
+    22:# #include "aether/api_protocol/details/api_context.h"
+    23:# #include "aether/api_protocol/details/api_message.h"
+    24:# #include "aether/api_protocol/details/api_packer.h"
+    25:# #include "aether/api_protocol/details/api_parser.h"
+    26:# #include "aether/api_protocol/details/api_promise.h"
+    27:# #include "aether/api_protocol/details/protocol_context.h"
+    28:# #include "aether/api_protocol/details/request_id.h"
+    29:# #include "aether/api_protocol/details/sub_api.h"
+    30:/ // IWYU pragma: end_exports
+    31:  
+    32:# #endif  // AETHER_API_PROTOCOL_API_PROTOCOL_H_ */
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 1 to 300
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <type_traits>
+    22:# #include <utility>
+    23:  
+    24:# #include "aether-miscpp/meta/type_list.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "aether/api_protocol/details/api_internal_context.h"
+    29:# #include "aether/api_protocol/details/api_message.h"
+    30:# #include "aether/api_protocol/details/api_parser.h"
+    31:# #include "aether/api_protocol/details/api_promise.h"
+    32:# #include "aether/api_protocol/details/packet_list.h"
+    33:# #include "aether/api_protocol/details/request_id.h"
+    34:# #include "aether/api_protocol/details/return_result_api.h"
+    35:  
+    36:n namespace ae {
+    37:t template <typename Api>
+    38:c class SubApi;
+    39:  
+    40:n namespace api_class_declate_internal {
+    41:t template <auto method1, auto method2>
+    42:s struct AreMethodsSame : std::false_type {};
+    43:t template <auto method>
+    44:s struct AreMethodsSame<method, method> : std::true_type {};
+    45:  
+    46:t template <auto m1, auto m2>
+    47:s static constexpr inline auto AreMethodsSame_v = AreMethodsSame<m1, m2>::value;
+    48:  
+    49:s struct NullRegMethod {};
+    50:  
+>>> (показано строк: 300 из 402)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 278 to 343
+    278:  
+    279:/   // sort cloud by order of client_cloud_
+    280:s   std::sort(std::begin(client_config.cloud), std::end(client_config.cloud),
+    281:[             [this](auto const& left, auto const& right) {
+    282:a               auto left_order = std::find(std::begin(client_cloud_),
+    283:s                                           std::end(client_cloud_), left.id);
+    284:a               auto right_order = std::find(std::begin(client_cloud_),
+    285:s                                            std::end(client_cloud_), right.id);
+    286:r               return left_order < right_order;
+    287:}             });
+    288:  
+    289:A   AE_TELE_DEBUG(RegisterClientRegistered,
+    290:"                 "Client registered:\n>>>>>>>>>>>>>>>\n{}\n<<<<<<<<<<<<<<<",
+    291:c                 client_config);
+    292:  
+    293:r   return client_config;
+    294:} }
+    295:  
+    296:v void Registration::Run() {
+    297:a   auto s =
+    298:/       // try to get keys a few times
+    299:e       ex::for_range(Range{0, 4},
+    300:[                     [&](auto) {
+    301:r                       return GetKeys() |
+    302:e                              ex::with_timeout(ae_context_, response_timeout_) |
+    303:e                              ex::upon_error(Override{
+    304:[                                  [&](ex::TimeoutError) {
+    305:A                                    AE_TELE_WARNING(RegisterWaitKeysTimeout,
+    306:"                                                    "WaitKeys timeout");
+    307:R                                    Restream();
+    308:r                                    return ex::for_continue;
+    309:}                                  },
+    310:[                                  [&](auto&&...) noexcept {
+    311:R                                    Restream();
+    312:r                                    return ex::for_continue;
+    313:}                                  }});
+    314:}                     }) |
+    315:e       ex::let_stopped(
+    316:[           [&]() noexcept { return ex::just_error(std::int32_t{1}); }) |
+    317:/       // perform the rest of the registration process
+    318:e       ex::let_value([&]() noexcept { return RequestPowParams(); }) |
+    319:e       ex::let_value([&]() noexcept { return MakeRegistration(); }) |
+    320:e       ex::let_value([&]() noexcept { return ResolveCloud(); }) |
+    321:e       ex::let_error(Override{
+    322:[           [&](std::int32_t e) noexcept {
+    323:A             AE_TELED_ERROR("Registration failed with error code: {}", e);
+    324:r             return ex::just_error(e);
+    325:}           },
+    326:[           [&](WriteFailed) noexcept {
+    327:A             AE_TELED_ERROR("Registration failed with write error");
+>>> (показано строк: 66 из 343)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 50 to 402
+    50:  
+    51:t template <MessageId message_id, auto method>
+    52:s struct RegMethod {
+    53:s   static constexpr auto kMessageId = message_id;
+    54:s   static constexpr auto kMethod = method;
+    55:} };
+    56:  
+    57:t template <typename T>
+    58:s struct IsRegMethod : std::false_type {};
+    59:  
+    60:t template <MessageId message_id, auto method>
+    61:s struct IsRegMethod<RegMethod<message_id, method>> : std::true_type {};
+    62:  
+    63:t template <typename RegMethods>
+    64:s struct ApiMessageIdsValid;
+    65:  
+    66:t template <>
+    67:s struct ApiMessageIdsValid<TypeList<>> : std::true_type {};
+    68:  
+    69:t template <typename RegMethod, typename... Rest>
+    70:s struct ApiMessageIdsValid<TypeList<RegMethod, Rest...>>
+    71::     : std::bool_constant<
+    72:(           ((RegMethod::kMessageId != Rest::kMessageId) && ...) &&
+    73:(           (RegMethod::kMessageId != ReturnResultApi::kSendResult) &&
+    74:(           (RegMethod::kMessageId != ReturnResultApi::kSendError) &&
+    75:A           ApiMessageIdsValid<TypeList<Rest...>>::value> {};
+    76:  
+    77:t template <typename... RegMethods>
+    78:c consteval bool AreApiMessageIdsValid(TypeList<RegMethods...>) {
+    79:r   return ApiMessageIdsValid<TypeList<RegMethods...>>::value;
+    80:} }
+    81:  
+    82:/ /**
+    83:*  * Replace actual argument type to types usable for generating a message.
+    84:*  * const refs a rvalues replace to plain type.
+    85:*  * SubApi calls replaces to DataBuffer.
+    86:*  */
+    87:t template <typename T>
+    88:s struct ArgsReplace {
+    89:u   using type = T;
+    90:} };
+    91:  
+    92:t template <typename T>
+    93:s struct ArgsReplace<T const&> : ArgsReplace<T> {};
+    94:  
+    95:t template <typename T>
+    96:s struct ArgsReplace<T&&> : ArgsReplace<T> {};
+    97:  
+    98:t template <typename T>
+    99:s struct ArgsReplace<SubApi<T>> {
+>>> (показано строк: 353 из 402)
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: ',' @ line 1, column 61.    ние. Мне нужно увидеть registration.h целиком, events.h, файлы потреби                                                 ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_REGISTRATION_H_
+    18:# #define AETHER_REGISTRATION_REGISTRATION_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:  
+    24:# #  include <optional>
+    25:# #  include <vector>
+    26:  
+    27:# #  include "aether/crypto/key.h"
+    28:# #  include "aether/events/events.h"
+    29:# #  include "aether/executors/executors.h"
+    30:# #  include "aether/types/client_config.h"
+    31:# #  include "aether/types/server_id.h"
+    32:# #  include "aether/types/uid.h"
+    33:  
+    34:# #  include "aether/registration/api/client_reg_api_unsafe.h"
+    35:# #  include "aether/registration/api/registration_root_api.h"
+    36:# #  include "aether/registration/registration_crypto_provider.h"
+    37:# #  include "aether/registration/root_server_select_stream.h"
+    38:# #  include "aether/registration_cloud.h"
+    39:  
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_EVENTS_EVENTS_H_
+    18:# #define AETHER_EVENTS_EVENTS_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:/ // IWYU pragma: begin_exports
+    23:# #include "aether/events/details/event_handler.h"
+    24:# #include "aether/events/details/event_multi_subscription.h"
+    25:# #include "aether/events/details/event_object.h"
+    26:# #include "aether/events/details/event_subscription.h"
+    27:# #include "aether/events/details/event_system.h"
+    28:# #include "aether/events/details/generic_event_handler.h"
+    29:/ // IWYU pragma: end_exports
+    30:  
+    31:n namespace ae {
+    32:/ /**
+    33:*  * \brief Maximum number of simultaneously registered events.
+    34:*  *
+    35:*  * The default EventSystem has independent fixed capacities for event keys and
+    36:*  * handlers. Event construction fails fast when this capacity is exhausted.
+    37:*  */
+    38:s static constexpr inline std::size_t kEventsCapacity =
+    39:s     static_cast<std::size_t>(AE_EVENTS_MAX_COUNT);
+    40:/ /** \brief Maximum number of handlers in the default EventSystem pool. */
+    41:s static constexpr inline std::size_t kEventsHandlerCapacity =
+    42:s     static_cast<std::size_t>(AE_EVENTS_MAX_COUNT * 1.2);
+    43:/ /** \brief Maximum user-provided handler size in the default handler pool. */
+    44:s static constexpr inline std::size_t kEventHandlerMaxSize =
+    45:s     static_cast<std::size_t>(AE_EVENT_HANDLER_MAX_SIZE);
+    46:/ /** \brief Required alignment for user-provided handlers in the default pool. */
+    47:s static constexpr inline std::size_t kEventHandlerAlign =
+    48:s     static_cast<std::size_t>(AE_EVENT_HANDLER_ALIGN);
+    49:  
+    50:/ /** \brief The fixed-capacity event system used by the public event types. */
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #include "aether/ae_actions/ping.h"
+    18:# #if AE_ENABLE_PING
+    19:  
+    20:# #  include <cassert>
+    21:# #  include <cstdint>
+    22:# #  include <limits>
+    23:# #  include <utility>
+    24:  
+    25:# #  include "aether/cloud_connections/cloud_server_connection.h"
+    26:# #  include "aether/work_cloud_api/work_server_api/authorized_api.h"
+    27:  
+    28:# #  include "aether/ae_actions/ae_actions_tele.h"
+    29:  
+    30:n namespace ae {
+    31:n namespace {
+    32:  
+    33:c constexpr int kPingPromiseEvictedError{-1};
+    34:  
+    35:c constexpr int PromiseErrorCodeToPingErrorCode(
+    36:s     std::uint32_t error_code) noexcept {
+    37:i   if (error_code == std::numeric_limits<std::uint32_t>::max()) {
+    38:r     return kPingPromiseEvictedError;
+    39:}   }
+    40:i   if (error_code <=
+    41:s       static_cast<std::uint32_t>(std::numeric_limits<int>::max())) {
+    42:r     return static_cast<int>(error_code);
+    43:}   }
+    44:r   return kPingPromiseEvictedError;
+    45:} }
+    46:  
+    47:s static_assert(PromiseErrorCodeToPingErrorCode(
+    48:s                   std::numeric_limits<std::uint32_t>::max()) ==
+    49:k               kPingPromiseEvictedError);
+    50:s static_assert(PromiseErrorCodeToPingErrorCode(0) == 0);
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.h
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.h
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp lines 50 to 200
+    50:s static_assert(PromiseErrorCodeToPingErrorCode(0) == 0);
+    51:s static_assert(PromiseErrorCodeToPingErrorCode(static_cast<std::uint32_t>(
+    52:s                   std::numeric_limits<int>::max())) ==
+    53:s               std::numeric_limits<int>::max());
+    54:s static_assert(PromiseErrorCodeToPingErrorCode(
+    55:s                   static_cast<std::uint32_t>(std::numeric_limits<int>::max()) +
+    56:1                   1U) == kPingPromiseEvictedError);
+    57:  
+    58:} }  // namespace
+    59:  
+    60:P Ping::Ping(AeContext const& ae_context,
+    61:C            CloudServerConnection& cloud_server_connection,
+    62:D            Duration next_ping_hint, Duration rx_window, Duration timeout)
+    63::     : ae_context_{ae_context},
+    64:c       cloud_server_connection_{&cloud_server_connection},
+    65:n       next_ping_hint_{next_ping_hint},
+    66:r       rx_window_{rx_window},
+    67:t       timeout_{timeout},
+    68:s       server_id_{cloud_server_connection_->server_id()},
+    69:r       result_event_{ae_context_} {
+    70:A   AE_TELE_INFO(
+    71:k       kPing,
+    72:"       "Ping action created to server id: {}, interval: {:%S}s, rx_window: "
+    73:"       "{:%S}s, timeout: {:%S}s",
+    74:s       server_id_, next_ping_hint_, rx_window_, timeout_);
+    75:} }
+    76:  
+    77:P Ping::ResultEvent const& Ping::result_event() const { return result_event_; }
+    78:  
+    79:v void Ping::Start(TimePoint current_time) {
+    80:a   auto* cc = cloud_server_connection_->client_connection();
+    81:a   assert(cc != nullptr && "Ping::Start requires a client connection");
+    82:a   assert(cc->stream_info().link_state == LinkState::kLinked &&
+    83:"          "Ping::Start requires linked connection");
+    84:a   assert(state_ == RequestState::kCreated &&
+    85:"          "Ping::Start must be called only once");
+    86:i   if (state_ != RequestState::kCreated) {
+    87:r     return;
+    88:}   }
+    89:s   state_ = RequestState::kPending;
+    90:  
+    91:a   auto& write_action = cc->AuthorizedApiCall(
+    92:[       [this, current_time](ApiContext<AuthorizedApi>& auth_api) {
+    93:a         auto next_ping_hint_ms = static_cast<std::uint64_t>(
+    94:s             std::chrono::duration_cast<std::chrono::milliseconds>(
+    95:n                 next_ping_hint_)
+    96:.                 .count());
+    97:a         auto rx_window_ms = static_cast<std::uint64_t>(
+    98:s             std::chrono::duration_cast<std::chrono::milliseconds>(rx_window_)
+    99:.                 .count());
+>>> (показано строк: 151 из 220)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 2 директорий, 1 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 2 директорий, 1 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 1 директорий, 1 файлов)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.cpp lines 100 to 220
+    100:  
+    101:a         auto pong_promise = auth_api->Ping(next_ping_hint_ms, rx_window_ms);
+    102:a         auto req_id = pong_promise.request_id();
+    103:  
+    104:A         AE_TELE_DEBUG(kPingSend,
+    105:"                       "Ping server id {}, request {} expected time {}",
+    106:s                       server_id_, req_id, timeout_);
+    107:  
+    108:r         request_start_ = current_time;
+    109:  
+    110:a         auto wait_result_sub =
+    111:p             pong_promise.Subscribe([this, req_id](auto&& res) {
+    112:i               if (res) {
+    113:P                 PingResponse(req_id);
+    114:}               } else {
+    115:P                 PingResponseError(req_id, res.error());
+    116:}               }
+    117:}             });
+    118:w         wait_result_sub_ = std::move(wait_result_sub);
+    119:  
+    120:t         timeout_sub_ = ae_context_.scheduler().DelayedTask(
+    121:[             [this, req_id]() { PingResponseTimeout(req_id); },
+    122:c             current_time + timeout_);
+    123:i         if (state_ == RequestState::kPending && !timeout_sub_) {
+    124:A           AE_TELE_ERROR(
+    125:k               kPingTimeoutError,
+    126:"               "Ping timeout task allocation failed server id {} request {}",
+    127:s               server_id_, req_id);
+    128:s           state_ = RequestState::kFinished;
+    129:R           ResetRequestSubscriptions();
+    130:r           result_event_.Emit(PingResult{Error{5}});
+    131:}         }
+    132:}       });
+    133:  
+    134:w   write_sub_ = write_action.status_event().Subscribe([this](auto status) {
+    135:i     if (status == WriteAction::Status::kFail) {
+    136:i       if (state_ != RequestState::kPending) {
+    137:r         return;
+    138:}       }
+    139:A       AE_TELE_ERROR(kPingWriteError, "Ping write error");
+    140:s       state_ = RequestState::kFinished;
+    141:R       ResetRequestSubscriptions();
+    142:r       result_event_.Emit(PingResult{Error{1}});
+    143:}     }
+    144:}   });
+    145:i   if (state_ != RequestState::kPending) {
+    146:w     write_sub_.Reset();
+    147:}   }
+    148:  
+    149:# #  if DEBUG
+>>> (показано строк: 121 из 220)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h lines 0 to 200
+>>> (показано строк: 88 из 88)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp lines 0 to 300
+>>> (показано строк: 65 из 65)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.h lines 0 to 200
+>>> (показано строк: 56 из 56)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp lines 0 to 300
+>>> (показано строк: 22 из 22)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.h lines 0 to 200
+>>> (показано строк: 38 из 38)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h lines 1 to 88
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_AE_ACTIONS_PING_H_
+    18:# #define AETHER_AE_ACTIONS_PING_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_ENABLE_PING
+    23:  
+    24:# #  include <variant>
+    25:  
+    26:# #  include "aether-miscpp/types/result.h"
+    27:  
+    28:# #  include "aether/ae_context.h"
+    29:# #  include "aether/api_protocol/api_protocol.h"
+    30:# #  include "aether/clock.h"
+    31:# #  include "aether/common.h"
+    32:# #  include "aether/events/events.h"
+    33:# #  include "aether/tasks/details/task_subsctiption.h"
+    34:# #  include "aether/types/server_id.h"
+    35:  
+    36:n namespace ae {
+    37:c class Channel;
+    38:c class CloudServerConnection;
+    39:  
+    40:c class Ping {
+    41:p  public:
+    42:s   struct LateDuration {
+    43:D     Duration duration;
+    44:}   };
+    45:u   using PingResult = std::variant<Ok<Duration>, LateDuration, Error<int>>;
+    46:u   using ResultEvent = Event<void(PingResult const&)>;
+    47:  
+    48:P   Ping(AeContext const& ae_context,
+    49:C        CloudServerConnection& cloud_server_connection, Duration next_ping_hint,
+    50:D        Duration rx_window, Duration timeout);
+>>> (показано строк: 88 из 88)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.h lines 1 to 56
+>>> (показано строк: 56 из 56)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.cpp lines 1 to 65
+>>> (показано строк: 65 из 65)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.h lines 1 to 38
+>>> (показано строк: 38 из 38)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/work_cloud.cpp lines 1 to 22
+>>> (показано строк: 22 из 22)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 296 to 343
+>>> (показано строк: 48 из 343)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h lines 40 to 120
+>>> (показано строк: 55 из 94)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_AE_ACTIONS_PING_H_
+    18:# #define AETHER_AE_ACTIONS_PING_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_ENABLE_PING
+    23:  
+    24:# #  include <variant>
+    25:  
+    26:# #  include "aether-miscpp/types/result.h"
+    27:  
+    28:# #  include "aether/ae_context.h"
+    29:# #  include "aether/api_protocol/api_protocol.h"
+    30:# #  include "aether/clock.h"
+    31:# #  include "aether/common.h"
+    32:# #  include "aether/events/events.h"
+    33:# #  include "aether/tasks/details/task_subsctiption.h"
+    34:# #  include "aether/types/server_id.h"
+    35:  
+    36:n namespace ae {
+    37:c class Channel;
+    38:c class CloudServerConnection;
+    39:  
+    40:c class Ping {
+    41:p  public:
+    42:s   struct LateDuration {
+    43:D     Duration duration;
+    44:}   };
+    45:u   using PingResult = std::variant<Ok<Duration>, LateDuration, Error<int>>;
+    46:u   using ResultEvent = Event<void(PingResult const&)>;
+    47:  
+    48:P   Ping(AeContext const& ae_context,
+    49:C        CloudServerConnection& cloud_server_connection, Duration next_ping_hint,
+    50:D        Duration rx_window, Duration timeout);
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h lines 50 to 88
+    50:D        Duration rx_window, Duration timeout);
+    51:  
+    52:A   AE_CLASS_NO_COPY_MOVE(Ping);
+    53:  
+    54:R   ResultEvent const& result_event() const;
+    55:  
+    56:v   void Start(TimePoint current_time);
+    57:  
+    58:p  private:
+    59:v   void PingResponse(RequestId request_id);
+    60:v   void PingResponseError(RequestId request_id, std::int32_t error_code);
+    61:v   void PingResponseTimeout(RequestId request_id);
+    62:v   void ResetRequestSubscriptions();
+    63:  
+    64:e   enum class RequestState : char {
+    65:k     kCreated,
+    66:k     kPending,
+    67:k     kTimedOut,
+    68:k     kFinished,
+    69:}   };
+    70:  
+    71:A   AeContext ae_context_;
+    72:C   CloudServerConnection* cloud_server_connection_;
+    73:D   Duration next_ping_hint_;
+    74:D   Duration rx_window_;
+    75:D   Duration timeout_;
+    76:S   ServerId server_id_;
+    77:  
+    78:T   TimePoint request_start_;
+    79:S   Subscription wait_result_sub_;
+    80:T   TaskSubscription timeout_sub_;
+    81:S   Subscription write_sub_;
+    82:  
+    83:R   ResultEvent result_event_;
+    84:R   RequestState state_{RequestState::kCreated};
+    85:} };
+    86:} }  // namespace ae
+    87:# #endif  // AE_ENABLE_PING
+    88:# #endif  // AETHER_AE_ACTIONS_PING_H_
+>>> (показано строк: 39 из 88)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h lines 40 to 94
+    40:n namespace ae {
+    41:c class Registration : Action {
+    42:p  public:
+    43:u   using RegistrationEvent = Event<void(Result<ClientConfig, int>)>;
+    44:  
+    45:R   Registration(AeContext const& ae_context,
+    46:P                Ptr<RegistrationCloud> const& reg_cloud, Uid parent_uid);
+    47:~   ~Registration() override;
+    48:  
+    49:R   RegistrationEvent const& registration();
+    50:  
+>>> (показано строк: 55 из 94)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/registration.cpp lines 296 to 343
+>>> (показано строк: 48 из 343)
+
+>>> bash
+>>> Ambiguous directory path, found 7:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>>   /home/angel/projects/aether-client-cpp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+/*
+ * Copyright 2025 Aethernet Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef AETHER_AE_ACTIONS_CHECK_ACCESS_FOR_SEND_MESSAGE_H_
+#define AETHER_AE_ACTIONS_CHECK_ACCESS_FOR_SEND_MESSAGE_H_
+
+#include "aether-miscpp/types/result.h"
+
+#include "aether/actions/action.h"
+#include "aether/cloud_connections/cloud_request.h"
+#include "aether/cloud_connections/cloud_server_connections.h"
+#include "aether/cloud_connections/request_policy.h"
+#include "aether/common.h"
+#include "aether/events/events.h"
+#include "aether/types/uid.h"
+
+namespace ae {
+class CloudServerConnections;
+class CheckAccessForSendMessage final : public Action {
+ public:
+  struct Success {};
+  using ResultEvent = Event<void(Result<Success, int>)>;
+
+  CheckAccessForSendMessage(AeContext const& ae_context, Uid destination,
+                            CloudServerConnections& cloud_connection,
+                            RequestPolicy::Variant request_policy);
+
+  AE_CLASS_NO_COPY_MOVE(CheckAccessForSendMessage)
+
+  ResultEvent const& result_event() const noexcept;
+
+ private:
+  void ResponseReceived();
+  void ErrorReceived();
+
+  Uid destination_;
+  CloudRequest cloud_request_;
+>>> [elapsed: 12ms]
+>>> bash
+>>> [elapsed: 6ms]
+>>> bash
+>>> [elapsed: 8ms]
+>>> bash
+>>> [elapsed: 8ms]

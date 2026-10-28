@@ -1,0 +1,341 @@
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+    1:/ /*
+    2:*  * Copyright 2024 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_REGISTRATION_API_REGISTRATION_ROOT_API_H_
+    18:# #define AETHER_REGISTRATION_API_REGISTRATION_ROOT_API_H_
+    19:  
+    20:# #include "aether/config.h"
+    21:  
+    22:# #if AE_SUPPORT_REGISTRATION
+    23:# #  include "aether/crypto/crypto_definitions.h"
+    24:# #  include "aether/crypto/icrypto_provider.h"
+    25:# #  include "aether/crypto/signed_key.h"
+    26:  
+    27:# #  include "aether/api_protocol/api_protocol.h"
+    28:# #  include "aether/registration/api/server_registration_api.h"
+    29:# #  include "aether/work_cloud_api/info_ip.h"
+    30:  
+    31:n namespace ae {
+    32:  
+    33:c class RegistrationRootApi : public DeclareApi<RegistrationRootApi> {
+    34:p  public:
+    35:R   RegistrationRootApi(IEncryptProvider& root_encrypt,
+    36:I                       IEncryptProvider& global_encrypt);
+    37:  
+    38:A   ApiPromise<SignedKey> GetPublicKey(CryptoLib crypto_lib);
+    39:v   void Enter(CryptoLib crypto_lib, SubApi<ServerRegistrationApi> sub_api);
+    40:  
+    41:A   ApiPromise<InfoIp> GetMyIp();
+    42:  
+    43:A   API_LIST(METHOD(3, GetPublicKey), METHOD(4, Enter), METHOD(6, GetMyIp))
+    44:  
+    45:p  private:
+    46:I   IEncryptProvider* enc_provider_;
+    47:S   ServerRegistrationApi server_registration_api_;
+    48:} };
+    49:} }  // namespace ae
+    50:# #endif
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.cpp
+
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h lines 36 to 40
+    36:I                       IEncryptProvider& global_encrypt);
+    37:  
+    38:A   ApiPromise<SignedKey> GetPublicKey(CryptoLib crypto_lib);
+    39:v   void Enter(CryptoLib crypto_lib, SubApi<ServerRegistrationApi> sub_api);
+    40:  
+>>> (показано строк: 5 из 51)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 38 начинается с 'A', ожидалось 'p'
+ for path: /home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h lines 39 to 43
+    39:v   void Enter(CryptoLib crypto_lib, SubApi<ServerRegistrationApi> sub_api);
+    40:  
+    41:A   ApiPromise<InfoIp> GetMyIp();
+    42:  
+    43:A   API_LIST(METHOD(3, GetPublicKey), METHOD(4, Enter), METHOD(6, GetMyIp))
+>>> (показано строк: 5 из 51)
+>>> [API ERROR] replace(verified) -> Верификация не пройдена: строка 41 начинается с 'A', ожидалось 'v'
+ for path: /home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.htimestamp: 1793155503475
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+    ...
+      36:I                       IEncryptProvider& global_encrypt);
+      37:  
+    - 38:A   ApiPromise<SignedKey> GetPublicKey(CryptoLib crypto_lib);
+    + 38:v void GetPublicKey(CryptoLib crypto_lib);
+      39:v   void Enter(CryptoLib crypto_lib, SubApi<ServerRegistrationApi> sub_api);
+      40:  
+    - 41:A   ApiPromise<InfoIp> GetMyIp();
+    + 41:v void GetMyIp();
+      42:  
+      43:A   API_LIST(METHOD(3, GetPublicKey), METHOD(4, Enter), METHOD(6, GetMyIp))
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.cpp
+    ...
+      23::     : enc_provider_{&root_encrypt}, server_registration_api_{global_encrypt} {}
+      24:  
+    - 25:A ApiPromise<SignedKey> RegistrationRootApi::GetPublicKey(CryptoLib crypto_lib) {
+    - 26:r   return ClientMethod<&RegistrationRootApi::GetPublicKey>(crypto_lib);
+    + 25:  
+    + 26:v void RegistrationRootApi::GetPublicKey(CryptoLib crypto_lib) {
+    + 27:C   ClientMethod<&RegistrationRootApi::GetPublicKey>(crypto_lib);
+      28:} }
+    + 29:  
+      30:  
+      31:v void RegistrationRootApi::Enter(CryptoLib crypto_lib,
+    ...
+      37:} }
+      38:  
+    - 37:A ApiPromise<InfoIp> RegistrationRootApi::GetMyIp() {
+    - 38:r   return ClientMethod<&RegistrationRootApi::GetMyIp>();
+    + 39:  
+    + 40:v void RegistrationRootApi::GetMyIp() {
+    + 41:C   ClientMethod<&RegistrationRootApi::GetMyIp>();
+      42:} }
+    + 43:  
+      44:  
+      45:} }  // namespace ae
+
+>>> [transaction: success, files: 8]
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+    ...
+      57:U                     Uid const& parent_uid_, SubApi<GlobalRegServerApi> sub_api);
+      58:  
+    - 59:A   ApiPromise<PowParams> RequestProofOfWorkData(Uid const& parent_id,
+    - 60:P                                                PowMethod pow_method);
+      59:  
+    - 62:A   ApiPromise<std::vector<ServerDescriptor>> ResolveServers(
+    - 63:s       std::vector<ServerId> const& servers);
+    + 60:v void RequestProofOfWorkData(Uid const& parent_id,
+    + 61:P                                   PowMethod pow_method);
+    + 62:  
+    + 63:  
+    + 64:v void ResolveServers(std::vector<ServerId> const& servers);
+      65:  
+      66:v   void SetReturnKey(Key const& key);
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.cpp
+    ...
+      37:} }
+      38:  
+    - 39:A ApiPromise<InfoIp> LoginApi::GetMyIp() {
+    - 40:r   return ClientMethod<&LoginApi::GetMyIp>();
+    + 39:  
+    + 40:v void LoginApi::GetMyIp() {
+    + 41:C   ClientMethod<&LoginApi::GetMyIp>();
+      42:} }
+    + 43:  
+      44:} }  // namespace ae
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.cpp
+    ...
+      18:  
+      19:n namespace ae {
+    - 20:A ApiPromise<void> AuthorizedApi::Ping(std::uint64_t next_connect_ms_duration,
+    - 21:s                                      std::uint64_t rx_window_ms) {
+    - 22:r   return ClientMethod<&AuthorizedApi::Ping>(next_connect_ms_duration,
+    - 23:r                                             rx_window_ms);
+    + 20:  
+    + 21:v void AuthorizedApi::Ping(std::uint64_t next_connect_ms_duration,
+    + 22:s                                    std::uint64_t rx_window_ms) {
+    + 23:C   ClientMethod<&AuthorizedApi::Ping>(next_connect_ms_duration,
+    + 24:r                                      rx_window_ms);
+      25:} }
+    + 26:  
+      27:v void AuthorizedApi::SendMessage(AeMessage const& message) {
+      28:C   ClientMethod<&AuthorizedApi::SendMessage>(message);
+    ...
+      31:C   ClientMethod<&AuthorizedApi::SendMessages>(messages);
+      32:} }
+    - 31:A ApiPromise<void> AuthorizedApi::CheckAccessForSendMessage(Uid const& uid) {
+
+>>> diff
+=== Diff for /home/angel/projects/aether-client-c ===
+--- Changed files ---
+ M aiedit_context.yaml
+
+?? .aiedit/output/out-1792701601964.txt
+
+?? .aiedit/output/out-1793153098406.txt
+
+?? .aiedit/output/out-1793153881795.txt
+
+?? .aiedit/output/out-1793154700466.txt
+
+?? .aiedit/output/out-1793154826082.txt
+
+?? .aiedit/output/out-1793155220145.txt
+
+--- Changes ---
+diff --git a/aiedit_context.yaml b/aiedit_context.yaml
+
+index b8d6543..7775781 100644
+
+--- a/aiedit_context.yaml
+
++++ b/aiedit_context.yaml
+
+@@ -7,9 +7,9 @@
+
+     ],
+
+   chat: {
+
+     splitters: {
+
+-      historySplit: 1046,
+
++      historySplit: 712,
+
+       scriptAndLive: 287,
+
+-      verticalSplit: 901
+
++      verticalSplit: 1043
+
+     },
+
+     model: deepseek-v4-flash,
+
+     fontSize: {
+
+@@ -21,14 +21,22 @@
+
+     autoRun: true,
+
+     autoSend: true,
+
+     selected: {
+
+-      root: cleanIncludes
+
++      root.planCppRewrite: '',
+
++      root: implCppPushApis
+
+     },
+
+     subtasks: {
+
++      root.planCppRewrite: [
+
++        research-api-promise
+
++      ]
+
++      ,
+
+       root: [
+
+-        fixClientB,
+
+-        rewriteRegRx,
+
+-        polishCClient,
+
+-        cleanIncludes
+
++        cleanIncludes,
+
++        scanCpp,
+
++        scanCppApi,
+
++        planCppRewrite,
+
++        implCppPush,
+
++        implCppPushCore,
+... (вывод обрезан лимитом 79 строк)
+>>> [ERROR] type: process
+>>> [ERROR] message: Process exited with code: 1
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h lines 50 to 80
+    50:  
+    51:c class ServerRegistrationApi : public DeclareApi<ServerRegistrationApi> {
+    52:p  public:
+    53:e   explicit ServerRegistrationApi(IEncryptProvider& encrypt_provider);
+    54:  
+    55:v   void Registration(std::string const& salt, std::string const& password_suffix,
+    56:s                     std::vector<std::uint32_t> const& passwords,
+    57:U                     Uid const& parent_uid_, SubApi<GlobalRegServerApi> sub_api);
+    58:  
+    59:  
+    60:v void RequestProofOfWorkData(Uid const& parent_id,
+    61:P                                   PowMethod pow_method);
+    62:  
+    63:  
+    64:v void ResolveServers(std::vector<ServerId> const& servers);
+    65:  
+    66:v   void SetReturnKey(Key const& key);
+    67:  
+    68:A   API_LIST(METHOD(3, Registration), METHOD(4, RequestProofOfWorkData),
+    69:M            METHOD(5, ResolveServers), METHOD(6, SetReturnKey))
+    70:  
+    71:p  private:
+    72:I   IEncryptProvider* encrypt_provider_;
+    73:G   GlobalRegServerApi global_reg_server_api_;
+    74:} };
+    75:} }  // namespace ae
+    76:  
+    77:# #endif
+    78:# #endif  // AETHER_REGISTRATION_API_SERVER_REGISTRATION_API_H_
+>>> (показано строк: 29 из 78)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+    ...
+      58:  
+      59:  
+    - 60:v void RequestProofOfWorkData(Uid const& parent_id,
+    - 61:P                                   PowMethod pow_method);
+      60:  
+    + 61:v   void RequestProofOfWorkData(Uid const& parent_id,
+    + 62:P                                  PowMethod pow_method);
+      63:  
+    - 64:v void ResolveServers(std::vector<ServerId> const& servers);
+    + 64:  
+    + 65:  
+    + 66:v   void ResolveServers(std::vector<ServerId> const& servers);
+      67:  
+      68:v   void SetReturnKey(Key const& key);
+
+>>> bash
+>>> Ambiguous directory path, found 7:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>>   /home/angel/projects/aether-client-cpp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [300000, Script1$_run_closure1@117ac238]
+````
+
+>>> bash
+BUILD_DONE
+>>> [elapsed: 43ms]
+[subtask implCppPushApis] ERROR: subtask produced no groovy block

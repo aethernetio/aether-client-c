@@ -1,0 +1,483 @@
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] aether/api_protocol/api_protocol.h
+[FILE] aether/api_protocol/details/api_class_declare.h
+[FILE] aether/api_protocol/details/api_context.h
+[FILE] aether/api_protocol/details/api_internal_context.h
+[FILE] aether/api_protocol/details/api_message.h
+[FILE] aether/api_protocol/details/api_packer.h
+[FILE] aether/api_protocol/details/api_parser.h
+[FILE] aether/api_protocol/details/api_promise.h
+[FILE] aether/api_protocol/details/packet_list.h
+[FILE] aether/api_protocol/details/packet_reader.h
+[FILE] aether/api_protocol/details/protocol_context.h
+[FILE] aether/api_protocol/details/request_id.h
+[FILE] aether/api_protocol/details/return_result_api.h
+[FILE] aether/api_protocol/details/sub_api.h
+[FILE] aether/api_protocol/make_api_call_sender.h
+[DIR]  aether
+[DIR]  aether/api_protocol
+[DIR]  aether/api_protocol/details
+>>> (итог: 3 директорий, 15 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] aether/api_protocol/details/api_class_declare.h
+[FILE] aether/api_protocol/details/api_context.h
+[FILE] aether/api_protocol/details/api_internal_context.h
+[FILE] aether/api_protocol/details/api_message.h
+[FILE] aether/api_protocol/details/api_packer.h
+[FILE] aether/api_protocol/details/api_parser.h
+[FILE] aether/api_protocol/details/api_promise.h
+[FILE] aether/api_protocol/details/packet_list.h
+[FILE] aether/api_protocol/details/packet_reader.h
+[FILE] aether/api_protocol/details/protocol_context.h
+[FILE] aether/api_protocol/details/request_id.h
+[FILE] aether/api_protocol/details/return_result_api.h
+[FILE] aether/api_protocol/details/sub_api.h
+[DIR]  aether
+[DIR]  aether/api_protocol
+[DIR]  aether/api_protocol/details
+>>> (итог: 3 директорий, 13 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] aether/registration/api/client_reg_api_safe.h
+[FILE] aether/registration/api/client_reg_api_unsafe.h
+[FILE] aether/registration/api/global_reg_client_api.h
+[FILE] aether/registration/api/global_reg_server_api.h
+[FILE] aether/registration/api/registration_root_api.h
+[FILE] aether/registration/api/server_registration_api.h
+[DIR]  aether
+[DIR]  aether/registration
+[DIR]  aether/registration/api
+>>> (итог: 3 директорий, 6 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+[FILE] aether/registration/api/client_reg_api_unsafe.cpp
+[FILE] aether/registration/api/global_reg_server_api.cpp
+[FILE] aether/registration/api/registration_root_api.cpp
+[FILE] aether/registration/api/server_registration_api.cpp
+[FILE] aether/registration/proof_of_work.cpp
+[FILE] aether/registration/registration.cpp
+[FILE] aether/registration/registration_crypto_provider.cpp
+>>> (итог: 3 директорий, 8 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 3 директорий, 2 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 3 директорий, 2 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 2 директорий, 5 файлов)
+>>> findFiles
+aether-client-cpp /home/angel/projects/aether-client-cpp
+>>> (итог: 2 директорий, 8 файлов)
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <type_traits>
+    22:# #include <utility>
+    23:  
+    24:# #include "aether-miscpp/meta/type_list.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "aether/api_protocol/details/api_internal_context.h"
+    29:# #include "aether/api_protocol/details/api_message.h"
+    30:# #include "aether/api_protocol/details/api_parser.h"
+    31:# #include "aether/api_protocol/details/api_promise.h"
+    32:# #include "aether/api_protocol/details/packet_list.h"
+    33:# #include "aether/api_protocol/details/request_id.h"
+    34:# #include "aether/api_protocol/details/return_result_api.h"
+    35:  
+    36:n namespace ae {
+    37:t template <typename Api>
+    38:c class SubApi;
+    39:  
+    40:n namespace api_class_declate_internal {
+    41:t template <auto method1, auto method2>
+    42:s struct AreMethodsSame : std::false_type {};
+    43:t template <auto method>
+    44:s struct AreMethodsSame<method, method> : std::true_type {};
+    45:  
+    46:t template <auto m1, auto m2>
+    47:s static constexpr inline auto AreMethodsSame_v = AreMethodsSame<m1, m2>::value;
+    48:  
+    49:s struct NullRegMethod {};
+    50:  
+
+>>> (отфильтровано: из 432 строк оставлено 300)
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+    1:/ /*
+    2:*  * Copyright 2026 Aethernet Inc.
+    3:*  *
+    4:*  * Licensed under the Apache License, Version 2.0 (the "License");
+    5:*  * you may not use this file except in compliance with the License.
+    6:*  * You may obtain a copy of the License at
+    7:*  *
+    8:*  *     http://www.apache.org/licenses/LICENSE-2.0
+    9:*  *
+    10:*  * Unless required by applicable law or agreed to in writing, software
+    11:*  * distributed under the License is distributed on an "AS IS" BASIS,
+    12:*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    13:*  * See the License for the specific language governing permissions and
+    14:*  * limitations under the License.
+    15:*  */
+    16:  
+    17:# #ifndef AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    18:# #define AETHER_API_PROTOCOL_DETAILS_API_CLASS_DECLARE_H_
+    19:  
+    20:# #include <cassert>
+    21:# #include <type_traits>
+    22:# #include <utility>
+    23:  
+    24:# #include "aether-miscpp/meta/type_list.h"
+    25:  
+    26:# #include "aether/types/data_buffer.h"
+    27:  
+    28:# #include "aether/api_protocol/details/api_internal_context.h"
+    29:# #include "aether/api_protocol/details/api_message.h"
+    30:# #include "aether/api_protocol/details/api_parser.h"
+    31:# #include "aether/api_protocol/details/api_promise.h"
+    32:# #include "aether/api_protocol/details/packet_list.h"
+    33:# #include "aether/api_protocol/details/request_id.h"
+    34:# #include "aether/api_protocol/details/return_result_api.h"
+    35:  
+    36:n namespace ae {
+    37:t template <typename Api>
+    38:c class SubApi;
+    39:  
+    40:n namespace api_class_declate_internal {
+    41:t template <auto method1, auto method2>
+    42:s struct AreMethodsSame : std::false_type {};
+    43:t template <auto method>
+    44:s struct AreMethodsSame<method, method> : std::true_type {};
+    45:  
+    46:t template <auto m1, auto m2>
+    47:s static constexpr inline auto AreMethodsSame_v = AreMethodsSame<m1, m2>::value;
+    48:  
+    49:s struct NullRegMethod {};
+    50:  
+    51:t template <MessageId message_id, auto method>
+    52:s struct RegMethod {
+    53:s   static constexpr auto kMessageId = message_id;
+    54:s   static constexpr auto kMethod = method;
+    55:} };
+    56:  
+    57:t template <typename T>
+    58:s struct IsRegMethod : std::false_type {};
+    59:  
+    60:t template <MessageId message_id, auto method>
+    61:s struct IsRegMethod<RegMethod<message_id, method>> : std::true_type {};
+    62:  
+    63:t template <typename RegMethods>
+    64:s struct ApiMessageIdsValid;
+    65:  
+    66:t template <>
+    67:s struct ApiMessageIdsValid<TypeList<>> : std::true_type {};
+    68:  
+    69:t template <typename RegMethod, typename... Rest>
+    70:s struct ApiMessageIdsValid<TypeList<RegMethod, Rest...>>
+    71::     : std::bool_constant<
+    72:(           ((RegMethod::kMessageId != Rest::kMessageId) && ...) &&
+    73:(           (RegMethod::kMessageId != ReturnResultApi::kSendResult) &&
+    74:(           (RegMethod::kMessageId != ReturnResultApi::kSendError) &&
+    75:A           ApiMessageIdsValid<TypeList<Rest...>>::value> {};
+    76:  
+    77:t template <typename... RegMethods>
+    78:c consteval bool AreApiMessageIdsValid(TypeList<RegMethods...>) {
+    79:r   return ApiMessageIdsValid<TypeList<RegMethods...>>::value;
+    80:} }
+    81:  
+    82:/ /**
+    83:*  * Replace actual argument type to types usable for generating a message.
+    84:*  * const refs a rvalues replace to plain type.
+    85:*  * SubApi calls replaces to DataBuffer.
+    86:*  */
+    87:t template <typename T>
+    88:s struct ArgsReplace {
+    89:u   using type = T;
+    90:} };
+    91:  
+    92:t template <typename T>
+    93:s struct ArgsReplace<T const&> : ArgsReplace<T> {};
+    94:  
+    95:t template <typename T>
+    96:s struct ArgsReplace<T&&> : ArgsReplace<T> {};
+    97:  
+    98:t template <typename T>
+    99:s struct ArgsReplace<SubApi<T>> {
+    100:u   using type = DataBuffer;
+    101:} };
+    102:  
+    103:t template <auto method>
+    104:s struct MessageTrait;
+    105:  
+    106:t template <typename C, typename... Args, void (C::*method_prt)(Args...)>
+    107:s struct MessageTrait<method_prt> {
+    108:u   using args_list = TypeList<typename ArgsReplace<Args>::type...>;
+    109:u   using message_type = GenericMessage<typename ArgsReplace<Args>::type...>;
+    110:s   static constexpr bool kReturnValue = false;
+    111:} };
+    112:  
+    113:t template <typename C, typename Ret, typename... Args,
+    114:A           ApiPromise<Ret> (C::*method_prt)(Args...)>
+    115:s struct MessageTrait<method_prt> {
+    116:u   using args_list = TypeList<typename ArgsReplace<Args>::type...>;
+    117:u   using message_type =
+    118:G       GenericMessage<RequestId, typename ArgsReplace<Args>::type...>;
+    119:u   using return_type = Ret;
+    120:s   static constexpr bool kReturnValue = true;
+    121:} };
+    122:  
+    123:t template <typename Reg>
+    124:r   requires(IsRegMethod<Reg>::value)
+    125:s struct ApiMessageTrait {
+    126:u   using message_type =
+    127:A       ApiMessage<Reg::kMessageId,
+    128:t                  typename MessageTrait<Reg::kMethod>::message_type>;
+    129:} };
+    130:  
+    131:/ /**
+    132:*  * \brief Find the registered method by method only.
+    133:*  * Cmpare all registered methods from type list is method same as kMethod.
+    134:*  * If not found return NullRegMethod.
+    135:*  */
+    136:t template <auto method>
+    137:s static consteval auto FindRegByMethod(TypeList<>) {
+    138:r   return NullRegMethod{};
+    139:} }
+    140:  
+    141:t template <auto method, typename Reg, typename... Rest>
+    142:s static consteval auto FindRegByMethod(TypeList<Reg, Rest...>) {
+    143:i   if constexpr (AreMethodsSame<method, Reg::kMethod>::value) {
+    144:r     return Reg{};
+    145:}   } else {
+    146:r     return FindRegByMethod<method>(TypeList<Rest...>{});
+    147:}   }
+    148:} }
+    149:  
+    150:/ /**
+    151:*  * \brief Makes type list for api methods list.
+    152:*  * It obtains the biggest size and alignment from all api messages from
+    153:*  * RegMethods.
+    154:*  */
+    155:t template <std::size_t Capacity, typename... RegMethods>
+    156:s static consteval auto GenPacketListForApi(TypeList<RegMethods...>) {
+    157:a   auto max = [](auto... v) {
+    158:s     std::size_t res{};
+    159:(     ((res = res > v ? res : v), ...);
+    160:r     return res;
+    161:}   };
+    162:  
+    163:c   constexpr auto max_size = max(
+    164:s       sizeof(void*),
+    165:s       sizeof(
+    166:P           PackMessage<typename ApiMessageTrait<RegMethods>::message_type>)...);
+    167:c   constexpr auto max_align = max(
+    168:a       alignof(void*),
+    169:a       alignof(
+    170:P           PackMessage<typename ApiMessageTrait<RegMethods>::message_type>)...);
+    171:  
+    172:r   return PacketList<max_size, max_align, Capacity>{};
+    173:} }
+    174:} }  // namespace api_class_declate_internal
+    175:  
+    176:u using api_class_declate_internal::RegMethod;
+    177:  
+    178:# #define METHOD(id, method) ::ae::RegMethod<id, &SelfType::method>
+    179:  
+    180:# #define API_LIST(...)                                                         \
+    181:t   template <typename SelfType>                                                \
+    182:s   static consteval auto ApiList() -> ::ae::TypeList<__VA_ARGS__> {            \
+    183:s     static_assert(                                                            \
+    184::         ::ae::api_class_declate_internal::AreApiMessageIdsValid(              \
+    185::             ::ae::TypeList<__VA_ARGS__>{}),                                   \
+    186:"         "API message IDs must be unique and cannot use reserved IDs 0 or 1"); \
+    187:r     return {};                                                                \
+    188:}   }
+    189:  
+    190:t template <typename Api>
+    191:c class DeclareApi {
+    192:f   friend Api;
+    193:  
+    194:p  private:
+    195:D   DeclareApi() = default;
+    196:~   ~DeclareApi() = default;
+    197:  
+    198:t   template <typename RegMethod>
+    199:r     requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    200:s   static void InvokeReturnResultApi(ServerApiContext& server_context);
+    201:  
+    202:t   template <typename RegMethod>
+    203:r     requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    204:s   static void InvokeApi(DeclareApi& self, ServerApiContext& server_context);
+    205:  
+    206:/   /**
+    207:*    * \brief Invoke registered method
+    208:*    */
+    209:t   template <typename RegMethod>
+    210:r     requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    211:s   static void ServerInvokeMethod(DeclareApi& self,
+    212:S                                  ServerApiContext& server_context);
+    213:  
+    214:s   static bool ServerDispatchMethods(DeclareApi& self,
+    215:S                                     ServerApiContext& server_context,
+    216:M                                     MessageId id);
+    217:  
+    218:p  public:
+    219:u   using api_concept = Api;
+    220:/   /**
+    221:*    * \brief Make a packet list type suitable for current Api class method
+    222:*    * list
+    223:*    */
+    224:t   template <std::size_t MaxCapacity>
+    225:s   static consteval auto MakePacketList() {
+    226:r     return api_class_declate_internal::GenPacketListForApi<MaxCapacity>(
+    227:A         Api::template ApiList<Api>());
+    228:}   }
+    229:  
+    230:/   /**
+    231:*    * \brief Call client's api meothod.
+    232:*    * The method must be one of registered api methods in ApiList \see API_LIST
+    233:*    */
+    234:t   template <auto method, typename... Args>
+    235:s   static decltype(auto) CallClientMethod(ClientApiContext& client_api_context,
+    236:A                                          Args&&... args);
+    237:  
+    238:/   /**
+    239:*    * \brief Call client's api method.
+    240:*    * Returns the same as client's method returns
+    241:*    */
+    242:t   template <auto method, typename... Args>
+    243:d   decltype(auto) ClientMethod(Args&&... args);
+    244:  
+    245:/   /**
+    246:*    * \brief Load server's api method. Invoke the method with MessageId id and
+    247:*    * return true if invoked, false if not.
+    248:*    */
+    249:b   bool LoadMethod(MessageId id);
+    250:  
+    251:/   // Expose ReturnResultApi's methods
+    252:  
+    253:t   template <typename T>
+    254:v   void SendResult(RequestId id, T&& data);
+    255:  
+    256:v   void SendError(RequestId id, std::uint8_t error_type,
+    257:s                  std::int32_t error_code);
+    258:  
+    259:v   void set_client_context(ClientApiContext& context) {
+    260:c     client_context_ = &context;
+    261:}   }
+    262:v   void reset_client_context() { client_context_ = nullptr; }
+    263:C   ClientApiContext& client_context() {
+    264:a     assert(client_context_ != nullptr && "Context is null");
+    265:r     return *client_context_;
+    266:}   }
+    267:  
+    268:v   void set_server_context(ServerApiContext& context) {
+    269:s     server_context_ = &context;
+    270:}   }
+    271:v   void reset_server_context() { server_context_ = nullptr; }
+    272:S   ServerApiContext& server_context() {
+    273:a     assert(server_context_ != nullptr && "Context is null");
+    274:r     return *server_context_;
+    275:}   }
+    276:  
+    277:p  private:
+    278:C   ClientApiContext* client_context_ = nullptr;
+    279:S   ServerApiContext* server_context_ = nullptr;
+    280:} };
+    281:  
+    282:t template <typename T>
+    283:c concept DeclaredApi =
+    284:r     requires { std::is_void_v<std::void_t<typename T::api_concept>>; };
+    285:  
+    286:t template <typename Api>
+    287:t template <typename RegMethod>
+    288:r   requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    289:v void DeclareApi<Api>::InvokeReturnResultApi(ServerApiContext& server_context) {
+    290:i   if constexpr (std::is_same_v<ReturnResultApi::RegSendResult, RegMethod>) {
+    291:R     ReturnResultApi::SendResultImpl(server_context);
+    292:}   } else {
+    293:R     ReturnResultApi::SendErrorImpl(server_context);
+    294:}   }
+    295:} }
+    296:  
+    297:t template <typename Api>
+    298:t template <typename RegMethod>
+
+>>> view
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h lines 296 to 432
+    296:  
+    297:t template <typename Api>
+    298:t template <typename RegMethod>
+    299:r   requires(api_class_declate_internal::IsRegMethod<RegMethod>::value)
+    300:v void DeclareApi<Api>::InvokeApi(DeclareApi& self,
+    301:S                                 ServerApiContext& server_context) {
+    302:u   using Trait = api_class_declate_internal::MessageTrait<RegMethod::kMethod>;
+    303:/   // message to read
+    304:u   using M = TypeListToTemplate_t<GenericMessage, typename Trait::args_list>;
+    305:a   auto& reader = server_context.reader();
+    306:a   auto invoker = [&]<typename... Args>(Args&&... args) {
+    307:/     // Invoke the api class method with extracted arguments
+    308:r     return (static_cast<Api&>(self).*
+    309:R             RegMethod::kMethod)(std::forward<Args>(args)...);
+    310:}   };
+    311:i   if constexpr (Trait::kReturnValue) {
+    312:/     // setup request id into server method invoke context
+    313:a     auto request_id = reader.TryExtract<RequestId>();
+    314:i     if (!request_id) {
+    315:r       reader.Cancel();
+    316:r       return;
+    317:}     }
+    318:s     server_context.SetRequestId(*request_id);
+    319:a     auto m = reader.TryExtract<M>();
+    320:i     if (!m) {
+    321:r       reader.Cancel();
+    322:r       return;
+    323:}     }
+    324:A     ApiPromise<typename Trait::return_type> promise =
+    325:s         std::apply(invoker, m->fields);
+    326:/     // Currently the server api implementation class responsible for invoke
+    327:/     // SendResult/SendError to actually return vale
+    328:/     // Here it looks impossible
+    329:/     // We need to switch from server method invoke context to client method
+    330:/     // invoke context
+    331:(     (void)promise;
+    332:}   } else {
+    333:a     auto m = reader.TryExtract<M>();
+    334:i     if (!m) {
+    335:r       reader.Cancel();
+    336:r       return;
+    337:}     }
+    338:s     std::apply(invoker, m->fields);
+    339:}   }
+    340:} }
+    341:  
+    342:/ /**
+    343:*  * \brief Invoke registered method
+    344:*  */
+    345:t template <typename Api>
+>>> (показано строк: 135 из 430)

@@ -1,0 +1,288 @@
+>>> findRegexp
+/home/angel/projects/aether-client-cpp/aether/access_points/access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/ethernet_access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/filter_endpoints.h
+/home/angel/projects/aether-client-cpp/aether/access_points/lora_module_access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/modem_access_point.h
+/home/angel/projects/aether-client-cpp/aether/access_points/wifi_access_point.h
+/home/angel/projects/aether-client-cpp/aether/actions/action.h
+/home/angel/projects/aether-client-cpp/aether/actions/action_context.h
+/home/angel/projects/aether-client-cpp/aether/actions/action_pool.h
+/home/angel/projects/aether-client-cpp/aether/actions/actions_queue.h
+/home/angel/projects/aether-client-cpp/aether/actions/repeatable_task.h
+/home/angel/projects/aether-client-cpp/aether/adapters/adapter.h
+/home/angel/projects/aether-client-cpp/aether/adapters/adapter_tele.h
+/home/angel/projects/aether-client-cpp/aether/adapters/ethernet.h
+/home/angel/projects/aether-client-cpp/aether/adapters/lora_module_adapter.h
+/home/angel/projects/aether-client-cpp/aether/adapters/modem_adapter.h
+/home/angel/projects/aether-client-cpp/aether/adapters/parent_lora_module.h
+/home/angel/projects/aether-client-cpp/aether/adapters/parent_modem.h
+/home/angel/projects/aether-client-cpp/aether/adapters/parent_wifi.h
+/home/angel/projects/aether-client-cpp/aether/adapters/proxy.h
+/home/angel/projects/aether-client-cpp/aether/adapters/wifi_adapter.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ae_actions_tele.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/check_access_for_send_message.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/get_servers.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/ping.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/select_client.h
+/home/angel/projects/aether-client-cpp/aether/ae_actions/telemetry.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/aether_capi.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_conf.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_errors.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_types.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/c_uid.h
+/home/angel/projects/aether-client-cpp/aether/aether_c/extern_c.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/api_protocol.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_internal_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_message.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_packer.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_parser.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_promise.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_list.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/packet_reader.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/request_id.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/sub_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/api_class_declare.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/return_result_api.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/details/protocol_context.h
+/home/angel/projects/aether-client-cpp/aether/api_protocol/make_api_call_sender.h
+/home/angel/projects/aether-client-cpp/aether/channels/channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/channel_statistics.h
+/home/angel/projects/aether-client-cpp/aether/channels/channels_types.h
+/home/angel/projects/aether-client-cpp/aether/channels/ethernet_channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/ethernet_transport_factory.h
+/home/angel/projects/aether-client-cpp/aether/channels/lora_module_channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/modem_channel.h
+/home/angel/projects/aether-client-cpp/aether/channels/wifi_channel.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/client_messages_tele.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_message_stream.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_message_stream_manager.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_port_handle.h
+/home/angel/projects/aether-client-cpp/aether/client_messages/p2p_safe_message_stream.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_callbacks.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_connections_tele.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_request.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_server_connection.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_server_connections.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/cloud_subscription.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/ping_cloud_servers.h
+/home/angel/projects/aether-client-cpp/aether/cloud_connections/request_policy.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/client_cloud_manager.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/get_cloud_action.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/get_cloud_aether.h
+/home/angel/projects/aether-client-cpp/aether/connection_manager/server_connection_manager.h
+/home/angel/projects/aether-client-cpp/aether/crypto/async_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/crypto_definitions.h
+/home/angel/projects/aether-client-cpp/aether/crypto/crypto_nonce.h
+/home/angel/projects/aether-client-cpp/aether/crypto/hydrogen/hydro_async_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/hydrogen/hydro_sync_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/icrypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/ikey_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/key.h
+/home/angel/projects/aether-client-cpp/aether/crypto/key_gen.h
+/home/angel/projects/aether-client-cpp/aether/crypto/sign.h
+/home/angel/projects/aether-client-cpp/aether/crypto/signed_key.h
+/home/angel/projects/aether-client-cpp/aether/crypto/sodium/sodium_async_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/sodium/sodium_sync_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/crypto/sync_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/dns/dns_c_ares.h
+/home/angel/projects/aether-client-cpp/aether/dns/dns_resolve.h
+/home/angel/projects/aether-client-cpp/aether/dns/dns_tele.h
+/home/angel/projects/aether-client-cpp/aether/dns/esp32_dns_resolve.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/domain_storage_factory.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/domain_storage_tele.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/registrar_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/spifs_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/static_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/static_object_types.h
+/home/angel/projects/aether-client-cpp/aether/domain_storage/sync_domain_storage.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_handler.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_handler_map.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_key_registry.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_multi_subscription.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_object.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_registered_handler.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_subscription.h
+/home/angel/projects/aether-client-cpp/aether/events/details/event_system.h
+/home/angel/projects/aether-client-cpp/aether/events/details/generic_event_handler.h
+/home/angel/projects/aether-client-cpp/aether/events/events.h
+/home/angel/projects/aether-client-cpp/aether/executors/action_wait_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/any_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/any_waiter.h
+/home/angel/projects/aether-client-cpp/aether/executors/async_context.h
+/home/angel/projects/aether-client-cpp/aether/executors/async_waiter.h
+/home/angel/projects/aether-client-cpp/aether/executors/event_wait_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/executors.h
+/home/angel/projects/aether-client-cpp/aether/executors/for_range.h
+/home/angel/projects/aether-client-cpp/aether/executors/make_sender.h
+/home/angel/projects/aether-client-cpp/aether/executors/scheduler_on_tasks.h
+/home/angel/projects/aether-client-cpp/aether/executors/sync_waiter.h
+/home/angel/projects/aether-client-cpp/aether/executors/waiter_traits.h
+/home/angel/projects/aether-client-cpp/aether/executors/with_timeout.h
+/home/angel/projects/aether-client-cpp/aether/gateway_api/gateway_api.h
+/home/angel/projects/aether-client-cpp/aether/gateway_api/server_endpoints.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/dx_smart_lr02_lm.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/ebyte_e22_lm.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/ilora_module_driver.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/lora_module_driver_types.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/lora_module_factory.h
+/home/angel/projects/aether-client-cpp/aether/lora_modules/lora_modules_tele.h
+/home/angel/projects/aether-client-cpp/aether/modems/bg95_at_modem.h
+/home/angel/projects/aether-client-cpp/aether/modems/imodem_driver.h
+/home/angel/projects/aether-client-cpp/aether/modems/modem_driver_types.h
+/home/angel/projects/aether-client-cpp/aether/modems/modem_factory.h
+/home/angel/projects/aether-client-cpp/aether/modems/modems_tele.h
+/home/angel/projects/aether-client-cpp/aether/modems/sim7070_at_modem.h
+/home/angel/projects/aether-client-cpp/aether/modems/thingy91x_at_modem.h
+/home/angel/projects/aether-client-cpp/aether/obj/component_factory.h
+/home/angel/projects/aether-client-cpp/aether/poller/epoll_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/freertos_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/kqueue_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/poller_tele.h
+/home/angel/projects/aether-client-cpp/aether/poller/poller_types.h
+/home/angel/projects/aether-client-cpp/aether/poller/unix_poller.h
+/home/angel/projects/aether-client-cpp/aether/poller/win_poller.h
+/home/angel/projects/aether-client-cpp/aether/prepared_packet/packet_encoder.h
+/home/angel/projects/aether-client-cpp/aether/prepared_packet/prepared_block.h
+/home/angel/projects/aether-client-cpp/aether/prepared_packet/prepared_send_message.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_safe.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/client_reg_api_unsafe.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_client_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/global_reg_server_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/registration_root_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/api/server_registration_api.h
+/home/angel/projects/aether-client-cpp/aether/registration/proof_of_work.h
+/home/angel/projects/aether-client-cpp/aether/registration/registration.h
+/home/angel/projects/aether-client-cpp/aether/registration/registration_crypto_provider.h
+/home/angel/projects/aether-client-cpp/aether/registration/root_server_select_stream.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/circular_buffer.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/receiving_chunk_list.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_api.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_data_message.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_recv_action.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/safe_stream_send_action.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/details/sending_chunk_list.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/safe_stream.h
+/home/angel/projects/aether-client-cpp/aether/safe_stream/safe_stream_config.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_buffer.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_dispatcher.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_listener.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_request.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_stage.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/at_support/at_support.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/esp32_serial_port.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/iserial_port.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/serial_port_factory.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/serial_port_types.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/serial_ports_tele.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/unix_serial_port.h
+/home/angel/projects/aether-client-cpp/aether/serial_ports/win_serial_port.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/channel_select_action.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/client_server_connection.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/iserver_connection_factory.h
+/home/angel/projects/aether-client-cpp/aether/server_connections/server_connection.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/api_call_adapter.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/gate_trait.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/istream.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/sized_packet_gate.h
+/home/angel/projects/aether-client-cpp/aether/stream_api/tied_gates.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/generic_task.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/manual_task_scheduler.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task_manager.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task_queues.h
+/home/angel/projects/aether-client-cpp/aether/tasks/details/task_subsctiption.h
+/home/angel/projects/aether-client-cpp/aether/tasks/manual_task_scheduler.h
+/home/angel/projects/aether-client-cpp/aether/transport/data_packet_collector.h
+/home/angel/projects/aether-client-cpp/aether/transport/gateway/gateway_device.h
+/home/angel/projects/aether-client-cpp/aether/transport/gateway/gateway_transport.h
+/home/angel/projects/aether-client-cpp/aether/transport/modems/modem_transport.h
+/home/angel/projects/aether-client-cpp/aether/transport/packet_queue_manager.h
+/home/angel/projects/aether-client-cpp/aether/transport/packet_send_action.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/get_sock_addr.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/isocket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_cb_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_cb_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_get_addr.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/lwip_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/unix_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/unix_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/unix_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/win_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/win_tcp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/sockets/win_udp_socket.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/tcp/tcp.h
+/home/angel/projects/aether-client-cpp/aether/transport/system_sockets/udp/udp.h
+/home/angel/projects/aether-client-cpp/aether/transport/transport_tele.h
+/home/angel/projects/aether-client-cpp/aether/types/address.h
+/home/angel/projects/aether-client-cpp/aether/types/address_parser.h
+/home/angel/projects/aether-client-cpp/aether/types/client_config.h
+/home/angel/projects/aether-client-cpp/aether/types/client_id.h
+/home/angel/projects/aether-client-cpp/aether/types/data_buffer.h
+/home/angel/projects/aether-client-cpp/aether/types/iterator.h
+/home/angel/projects/aether-client-cpp/aether/types/literal_array.h
+/home/angel/projects/aether-client-cpp/aether/types/nullable_type.h
+/home/angel/projects/aether-client-cpp/aether/types/packed_size.h
+/home/angel/projects/aether-client-cpp/aether/types/ring_index.h
+/home/angel/projects/aether-client-cpp/aether/types/server_config.h
+/home/angel/projects/aether-client-cpp/aether/types/server_id.h
+/home/angel/projects/aether-client-cpp/aether/types/span.h
+/home/angel/projects/aether-client-cpp/aether/types/state_machine.h
+/home/angel/projects/aether-client-cpp/aether/types/static_map.h
+/home/angel/projects/aether-client-cpp/aether/types/statistic_counter.h
+/home/angel/projects/aether-client-cpp/aether/types/uid.h
+/home/angel/projects/aether-client-cpp/aether/types/variant_type.h
+/home/angel/projects/aether-client-cpp/aether/wifi/esp_wifi_driver.h
+/home/angel/projects/aether-client-cpp/aether/wifi/wifi_driver.h
+/home/angel/projects/aether-client-cpp/aether/wifi/wifi_driver_factory.h
+/home/angel/projects/aether-client-cpp/aether/wifi/wifi_driver_types.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/ae_message.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_safe.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/client_api/client_api_unsafe.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/cloud_configs.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/info_ip.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/server_descriptor.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/telemetric.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/authorized_api.h
+/home/angel/projects/aether-client-cpp/aether/work_cloud_api/work_server_api/login_api.h
+/home/angel/projects/aether-client-cpp/aether/write_action/buffer_write.h
+/home/angel/projects/aether-client-cpp/aether/write_action/done_write_action.h
+/home/angel/projects/aether-client-cpp/aether/write_action/failed_write_action.h
+/home/angel/projects/aether-client-cpp/aether/write_action/write_action.h
+>>> No matches found for: #include "aether/api_protocol/make_api_call_sender.h"
+>>> (отфильтровано: из 244 строк оставлено 30)
+    213:A   Api* api_;
+    214:P   ProtocolContext* protocol_context_;
+    215:S   Stream* stream_;
+    216:F   Fn fn_;
+    217:} };
+    218:  
+    219:s struct MakeApiCall {
+    220:t   template <typename Api, typename Stream, typename Fn>
+    221:a   auto operator()(Api& api, Stream& stream, Fn&& fn) const noexcept
+    222:-       -> Sender<Api, Stream, std::decay_t<Fn>> {
+    223:r     return Sender<Api, Stream, std::decay_t<Fn>>{api, stream,
+    224:s                                                  std::forward<Fn>(fn)};
+    225:}   }
+    226:  
+    227:t   template <typename Api, typename Stream, typename Fn>
+    228:a   auto operator()(Api& api, ProtocolContext& protocol_context, Stream& stream,
+    229:F                   Fn&& fn) const noexcept
+    230:-       -> Sender<Api, Stream, std::decay_t<Fn>> {
+    231:r     return Sender<Api, Stream, std::decay_t<Fn>>{api, protocol_context, stream,
+    232:s                                                  std::forward<Fn>(fn)};
+    233:}   }
+    234:} };
+    235:  
+    236:} }  // namespace make_api_call_sender_internal
+    237:  
+    238:i inline constexpr make_api_call_sender_internal::MakeApiCall make_api_call{};
+    239:  
+    240:} }  // namespace ae
+    241:  
+    242:# #endif  // AETHER_API_PROTOCOL_MAKE_API_CALL_SENDER_H_
+[subtask implCppPushCore] ERROR: subtask produced no groovy block

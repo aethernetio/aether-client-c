@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 1046,
+      historySplit: 514,
       scriptAndLive: 287,
-      verticalSplit: 901
+      verticalSplit: 1043
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -21,14 +21,30 @@
     autoRun: true,
     autoSend: true,
     selected: {
-      root: cleanIncludes
+      root.planCppRewrite: '',
+      root: rewriteConsumers,
+      root.implCppPushEvents: ''
     },
     subtasks: {
+      root.planCppRewrite: [
+        research-api-promise
+      ]
+      ,
       root: [
-        fixClientB,
-        rewriteRegRx,
-        polishCClient,
-        cleanIncludes
+        cleanIncludes,
+        scanCpp,
+        scanCppApi,
+        planCppRewrite,
+        implCppPush,
+        implCppPushCore,
+        implCppPushApis,
+        implCppPushEvents,
+        addPushEvents,
+        rewriteConsumers
+      ]
+      ,
+      root.implCppPushEvents: [
+        push-events-registration
       ]
       
     }
@@ -75,10 +91,10 @@
       validation: true
     },
     window: {
-      x: 1667,
-      width: 1922,
-      y: 1002,
-      height: 1079
+      x: 2204,
+      width: 1506,
+      y: 851,
+      height: 1221
     }
   },
   roots: [
@@ -89,7 +105,8 @@
     /home/angel/projects/aiedit,
     /tmp/aether-c-client-server-generated,
     /tmp/aether-c-adsl-generated,
-    /home/angel/projects/alipgroup
+    /home/angel/projects/alipgroup,
+    /home/angel/projects/aether-client-cpp
   ]
   
 }
