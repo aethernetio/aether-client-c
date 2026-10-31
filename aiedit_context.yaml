@@ -7,9 +7,9 @@
     ],
   chat: {
     splitters: {
-      historySplit: 0,
+      historySplit: 37,
       scriptAndLive: 287,
-      verticalSplit: 145
+      verticalSplit: 88
     },
     model: deepseek-v4-flash,
     fontSize: {
@@ -18,12 +18,12 @@
       history: 19
     },
     reasoningEffort: low,
-    autoRun: true,
-    autoSend: true,
+    autoRun: false,
+    autoSend: false,
     selected: {
       root.cppEventDrivenRegistration: '',
       root.planCppRewrite: '',
-      root: fixEmitterInclude,
+      root: '',
       root.implCppPushEvents: ''
     },
     subtasks: {
@@ -55,7 +55,8 @@
         studyEmitterStreams,
         compareStreamVsPlain,
         genStreamBuilder,
-        fixEmitterInclude
+        fixEmitterInclude,
+        removeReturnsFinalize
       ]
       ,
       root.implCppPushEvents: [
@@ -106,10 +107,10 @@
       validation: true
     },
     window: {
-      x: 3201,
-      width: 293,
-      y: 1957,
-      height: 203
+      x: 3122,
+      width: 372,
+      y: 1894,
+      height: 266
     }
   },
   roots: [

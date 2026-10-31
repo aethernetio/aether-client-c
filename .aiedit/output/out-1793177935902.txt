@@ -1,0 +1,127 @@
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MultipleCompilationErrorsException
+  message: startup failed: Script1.groovy: 1: Unexpected input: 'нужный фрагмент.' @ line 1, column 146.     результат. Сначала посмотрю нужный фрагмент.                                                 ^  1 error 
+````
+
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 2906 to 2910
+    2906:"         "#include \"aether_dataio.h\"\n"
+    2907:"         "         "#include \"aether_meta_runtime.h\"\n"
+    2908:  
+    2909:"         "#include <stdbool.h>\n"
+    2910:"         "#include <stddef.h>\n"
+>>> (показано строк: 5 из 11908)
+
+
+````aiedit
+kind: transaction
+status: rolled-back
+error:
+  type: MissingMethodException
+  message: No signature of method: timeout for class: Script1 is applicable for argument types: (Integer, Script1$_run_closure1) values: [120000, Script1$_run_closure1@4a8ba4e4]
+````
+
+>>> bash
+>>> Ambiguous directory path, found 7:
+>>>   /home/angel/projects/aether-client-c
+>>>   /home/angel/projects/aether
+>>>   /home/angel/projects/aether-client-java
+>>>   /home/angel/projects/client-ts
+>>>   /home/angel/projects/aiedit
+>>>   /home/angel/projects/alipgroup
+>>>   /home/angel/projects/aether-client-cpp
+>>> [ERROR] type: Exception
+>>> [ERROR] message: Ambiguous directory path: .
+>>> [elapsed: 0ms]
+
+>>> bash
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c:2907:20: error: stray ‘#’ in program
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c:2907:20: error: expected ‘)’ before ‘include’
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c:2907:29: error: stray ‘\’ in program
+BUILD_DONE
+>>> [elapsed: 149ms]
+
+>>> view
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c lines 2907 to 2907
+    2907:"         "         "#include \"aether_meta_runtime.h\"\n"
+>>> (показано строк: 1 из 11908)
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+    ...
+      2905:"         "#define AETHER_API_H\n\n"
+      2906:"         "#include \"aether_dataio.h\"\n"
+    - 2907:"         "         "#include \"aether_meta_runtime.h\"\n"
+    + 2907:" "         "#include \"aether_meta_runtime.h\"\n"
+      2908:  
+      2909:"         "#include <stdbool.h>\n"
+
+>>> bash
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c:2907:12: error: stray ‘#’ in program
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c:2907:12: error: expected ‘)’ before ‘include’
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c:2907:21: error: stray ‘\’ in program
+BUILD_DONE
+>>> [elapsed: 121ms]
+
+>>> bash
+        "#include \"aether_dataio.h\"\n"$
+"         "#include \"aether_meta_runtime.h\"\n"$
+>>> [elapsed: 5ms]
+
+>>> bash
+        "#define AETHER_API_H\n\n"$
+        "#include \"aether_dataio.h\"\n"$
+"         "#include \"aether_meta_runtime.h\"\n"$
+$
+        "#include <stdbool.h>\n"$
+        "#include <stddef.h>\n"$
+>>> [elapsed: 4ms]
+
+>>> [transaction: success, files: 1]
+/home/angel/projects/aether-client-c/tools/aether-protocol-c/src/emitter.c
+    ...
+      2905:"         "#define AETHER_API_H\n\n"
+      2906:"         "#include \"aether_dataio.h\"\n"
+    - 2907:" "         "#include \"aether_meta_runtime.h\"\n"
+    + 2907:"         "#include \"aether_meta_runtime.h\"\n"
+      2908:  
+      2909:"         "#include <stdbool.h>\n"
+
+>>> bash
+BUILD_DONE
+>>> [elapsed: 1434ms]
+
+>>> bash
+generated aether_api.h/.c from 1 documents
+---
+In file included from /tmp/sginc/aether_api.c:1:
+/tmp/sginc/aether_api.h:4:10: fatal error: aether_dataio.h: Нет такого файла или каталога
+    4 | #include "aether_dataio.h"
+      |          ^~~~~~~~~~~~~~~~~
+compilation terminated.
+SYNTAX_DONE
+>>> [elapsed: 14ms]
+
+>>> bash
+SYNTAX_DONE
+>>> [elapsed: 12ms]
+
+>>> bash
+a2686ea60b86bc1bd9dc6167a563c2561a122059
+>>> [elapsed: 71ms]
+
+[subtask fixEmitterInclude] 
+<b>Готово.</b> Проблема исправлена.
+
+<b>Коммит:</b> <code>a2686ea60b86bc1bd9dc6167a563c2561a122059</code>
+<code>fix(emitter): include aether_meta_runtime.h in generated api header</code>
+
+<b>Что исправлено:</b> строка 2907 в <code>src/emitter.c</code> — сломанный литерал <code>"         "         "#include \"aether_meta_runtime.h\"\n"</code> (два литерала с потерянной кавычкой) заменён на корректный:
+<pre>"         "#include \"aether_meta_runtime.h\"\n"</pre>
+
+<b>BUILD:</b> BUILD_DONE — без ошибок.
+
+<b>SYNTAX:</b> SYNTAX_DONE — сгенерированный <code>aether_api.c</code> компилируется без ошибок (проверено с <code>-I/home/angel/projects/aether-client-c/include</code>). Ошибки типа <code>unknown type name aether_meta_collapse_queue_t</code> отсутствуют.
