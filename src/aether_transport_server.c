@@ -3,7 +3,7 @@
  * Semantic transport server implementation.
  *
  * Phase 2A backend: the existing Aether server/cloud path through
- * aether_client_app_send_with_id(), which uses the existing
+ * aether_client_app_send_authorized(), which uses the existing
  * ADSL/generated serializer.
  *
  * This implementation does NOT keep its own command queue and does NOT
@@ -116,18 +116,20 @@ static aether_status_t server_send_message(
         return AETHER_ERR_STATE;
     }
 
+
     /*
      * Hand the message directly to the existing generated serializer
-     * path. Its request id is allocated by the core. There is no
-     * intermediate queue and no descriptor storage here.
+     * path. There is no intermediate queue and no descriptor storage here.
      */
+
     aether_status_t status =
-        aether_client_app_send_with_id(
+
+        aether_client_app_send_authorized(
             server->app,
             uid,
             data,
-            length,
-            NULL);
+            length);
+
 
     if (status != AETHER_OK) {
         return status;
@@ -198,7 +200,7 @@ static aether_status_t server_tick(
 
     /*
      * Server transport is synchronous with respect to the platform
-     * transport: send_with_id() has already handed each message to the
+ * transport: send_authorized() has already handed each message to the
      * physical channel. There is nothing further to progress here. The
      * batch simply closes and the listener is invoked.
      */

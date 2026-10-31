@@ -1093,12 +1093,12 @@ aether_status_t aether_client_app_send(
 
 
 
-aether_status_t aether_client_app_send_with_id(
+
+aether_status_t aether_client_app_send_authorized(
     aether_client_app_t *client,
     aether_uuid_t destination,
     const uint8_t *data,
-    size_t length,
-    uint32_t *request_id_out) {
+    size_t length) {
 
     if (client == NULL) {
         return AETHER_ERR_ARGUMENT;
@@ -1109,9 +1109,9 @@ aether_status_t aether_client_app_send_with_id(
             &client->core,
             destination,
             data,
-            length,
-            request_id_out);
+            length);
 }
+
 
 
 bool aether_client_app_is_ready(

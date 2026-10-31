@@ -6,7 +6,7 @@
  * and server-readiness gating.
  *
  * The server transport has no command queue: send_message() goes
- * directly through aether_client_app_send_with_id(), which expects a
+ * directly through aether_client_app_send_authorized(), which expects a
  * fully initialized core (crypto, transport_io). We therefore drive the
  * real lifecycle (aether_init + aether_start), then mark the core as
  * READY to satisfy the transport's server-readiness gate. The

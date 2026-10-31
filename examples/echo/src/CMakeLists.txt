@@ -8,7 +8,6 @@ set(
     "../../../src/aether_rx_first.c"
     "../../../src/aether_rx_all.c"
     "../../../src/aether_rx_adaptive.c"
-    "../../../src/aether_send_future.c"
     "../../../src/aether_messages.c"
 
 "../../../src/aether_transport.c"

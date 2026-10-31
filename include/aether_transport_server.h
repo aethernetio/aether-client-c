@@ -5,7 +5,7 @@
  * Phase 2A: the only route is the existing server/cloud send path. This
  * implementation does NOT keep its own command queue and does NOT store
  * any borrowed {uid, data, size} triples. Each send_message() call goes
- * directly through the existing aether_client_app_send_with_id() path,
+ * directly through the existing aether_client_app_send_authorized() path,
  * which uses the existing ADSL/generated serializer.
  *
  * Borrowed lifetime is a public contract: the caller must keep each

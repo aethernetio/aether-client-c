@@ -62,8 +62,6 @@ typedef struct aether_registration {
 
     aether_signed_key_t global_key;
 
-    uint32_t req_pow;
-    uint32_t req_finish;
 
     uint8_t pow_salt[AETHER_MAX_POW_TEXT];
     size_t pow_salt_len;

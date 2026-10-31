@@ -40,13 +40,11 @@ typedef struct {
     uint8_t last_message[128];
     size_t last_message_len;
     unsigned registered_events;
-    unsigned done_events;
     unsigned errors;
 
     aether_status_t last_error_code;
     aether_error_origin_t last_error_origin;
     aether_state_t last_error_state;
-    uint32_t last_error_request_id;
 
 
     hydro_sign_keypair root_signer;
@@ -54,8 +52,6 @@ typedef struct {
     hydro_kx_keypair global_kx;
 
 
-    unsigned timeout_events;
-    uint32_t last_timeout_request;
 
 } fixture_t;
 
@@ -413,18 +409,11 @@ static void on_event(void *ctx, const aether_event_t *e) {
 
     } else if (e->type==AETHER_EVENT_REGISTERED) {
         f->registered_events++;
-    } else if (e->type==AETHER_EVENT_REQUEST_DONE) {
-        f->done_events++;
-    } else if (e->type==AETHER_EVENT_REQUEST_TIMEOUT) {
-        f->timeout_events++;
-        f->last_timeout_request=e->as.request_timeout.request_id;
-
     } else if (e->type==AETHER_EVENT_ERROR) {
         f->errors++;
         f->last_error_code=e->as.error.code;
         f->last_error_origin=e->as.error.origin;
         f->last_error_state=e->as.error.state;
-        f->last_error_request_id=e->as.error.request_id;
     }
 }
 
@@ -860,8 +849,7 @@ static void test_rejects_untrusted_registration_key(void) {
     uint8_t packet[256];
     size_t p=0u;
 
-    put8(packet,&p,0); /* CMD_RESULT */
-    put32(packet,&p,c.req_server_key);
+    put8(packet,&p,70); /* sendAsymmetricPublicKey */
 
     put_signed_hydrogen_key(
         packet,
@@ -882,7 +870,6 @@ static void test_rejects_untrusted_registration_key(void) {
     assert(f.last_error_code==AETHER_ERR_CRYPTO);
     assert(f.last_error_origin==AETHER_ERROR_ORIGIN_TRUST);
     assert(f.last_error_state==AETHER_STATE_REG_WAIT_SERVER_KEY);
-    assert(f.last_error_request_id==0u);
 
 
     /*
@@ -996,7 +983,6 @@ static void test_work_rx_crypto_error_hands_off_to_business_logic(void) {
     assert(f.last_error_code==AETHER_ERR_CRYPTO);
     assert(f.last_error_origin==AETHER_ERROR_ORIGIN_CRYPTO);
     assert(f.last_error_state==AETHER_STATE_READY);
-    assert(f.last_error_request_id==0u);
 
     assert(f.opens==opens_before);
     assert(f.sends==sends_before);
@@ -1028,78 +1014,11 @@ static void test_work_rx_crypto_error_hands_off_to_business_logic(void) {
 
 
 
-static void test_server_request_error_context(void) {
-    fixture_t f;
-    memset(&f,0,sizeof(f));
-
-    assert(aether_hydrogen_init()==0);
-    hydro_sign_keygen(&f.root_signer);
-
-    aether_client_config_t cfg=config_for(&f);
-    aether_client_t c;
-    aether_client_init(&c,&cfg);
-
-    c.registered=true;
-    c.state=AETHER_STATE_READY;
-
-    const uint8_t payload[]={'x'};
-    aether_uuid_t destination={
-        0x0102030405060708ULL,
-        0x1112131415161718ULL
-    };
-    uint32_t req=0u;
-
-    assert(aether_client_send_message(
-        &c,
-        destination,
-        payload,
-        sizeof(payload),
-        &req)==AETHER_OK);
-
-    assert(req!=0u);
-
-    uint8_t inner[16];
-    size_t q=0u;
-    put8(inner,&q,1u); /* CMD_ERROR */
-    put32(inner,&q,req);
-
-    uint8_t packet[128];
-    size_t p=0u;
-
-    put_encrypted_packet(
-        packet,
-        &p,
-        4u,
-        c.work_rx_key,
-        inner,
-        q);
-
-    unsigned errors_before=f.errors;
-
-
-
-    assert(aether_client_on_rx(
-        &c,
-        AETHER_CHANNEL_WORK,
-        packet,
-        p)==AETHER_OK);
-
-
-
-    assert(c.state==AETHER_STATE_READY);
-    assert(f.errors==errors_before+1u);
-    assert(f.last_error_code==AETHER_ERR_REMOTE);
-    assert(f.last_error_origin==AETHER_ERROR_ORIGIN_REMOTE);
-    assert(f.last_error_state==AETHER_STATE_READY);
-    assert(f.last_error_request_id==req);
-}
-
 
 static void test_full_registration_and_message(void) {
 
     test_rejects_untrusted_registration_key();
     test_work_rx_crypto_error_hands_off_to_business_logic();
-    test_server_request_error_context();
 
     fixture_t f;
     memset(&f,0,sizeof(f));
@@ -1119,12 +1038,11 @@ static void test_full_registration_and_message(void) {
 
     aether_client_on_transport_state(&c,AETHER_CHANNEL_REGISTRATION,true);
     assert(c.state==AETHER_STATE_REG_WAIT_SERVER_KEY);
-    assert(f.packet_len==6 && f.packet[0]==3 && f.packet[5]==1);
+    assert(f.packet_len==2 && f.packet[0]==3 && f.packet[1]==1);
 
 
     uint8_t packet[2048]; size_t p=0;
-    put8(packet,&p,0);
-    put32(packet,&p,c.req_server_key);
+    put8(packet,&p,70);
     put_signed_hydrogen_key(
         packet,&p,f.registration_kx.pk,&f.root_signer);
     assert(aether_client_on_rx(
@@ -1170,10 +1088,6 @@ static void test_full_registration_and_message(void) {
         request_pow_plain_len,
         &request_pow_pos)==4u); /* requestWorkProofData */
 
-    assert(take32(
-        request_pow_plain,
-        request_pow_plain_len,
-        &request_pow_pos)==registration.req_pow);
 
     expect_uuid(
         request_pow_plain,
@@ -1199,7 +1113,6 @@ static void test_full_registration_and_message(void) {
      * establishes the client's timebase rather than treating started_at=0 as
      * an ancient request.
      */
-    uint32_t timed_out_pow_req=registration.req_pow;
     unsigned timeout_opens_before=f.opens;
     unsigned timeout_closes_before=f.closes;
     uint64_t first_monotonic_now=UINT64_C(987654321000);
@@ -1230,15 +1143,13 @@ static void test_full_registration_and_message(void) {
     assert(c.state==AETHER_STATE_REG_WAIT_SERVER_KEY);
 
     p=0;
-    put8(packet,&p,0);
-    put32(packet,&p,c.req_server_key);
+    put8(packet,&p,70);
     put_signed_hydrogen_key(
         packet,&p,f.registration_kx.pk,&f.root_signer);
     assert(aether_client_on_rx(
         &c,AETHER_CHANNEL_REGISTRATION,packet,p)==AETHER_OK);
 
     assert(c.state==AETHER_STATE_REG_WAIT_POW);
-    assert(registration.req_pow!=timed_out_pow_req);
 
 
 
@@ -1247,7 +1158,6 @@ static void test_full_registration_and_message(void) {
     /*
      * Registration transport loss restarts the handshake from the root API.
      */
-    uint32_t old_server_key_req=c.req_server_key;
     unsigned registration_opens_before=f.opens;
 
     aether_client_on_transport_state(&c,AETHER_CHANNEL_REGISTRATION,false);
@@ -1261,8 +1171,7 @@ static void test_full_registration_and_message(void) {
      */
 
     p=0;
-    put8(packet,&p,0);
-    put32(packet,&p,old_server_key_req);
+    put8(packet,&p,70);
     put_signed_hydrogen_key(
         packet,&p,f.registration_kx.pk,&f.root_signer);
     assert(aether_client_on_rx(
@@ -1272,15 +1181,13 @@ static void test_full_registration_and_message(void) {
 
     aether_client_on_transport_state(&c,AETHER_CHANNEL_REGISTRATION,true);
     assert(c.state==AETHER_STATE_REG_WAIT_SERVER_KEY);
-    assert(c.req_server_key!=old_server_key_req);
 
     /*
      * Continue the restarted registration flow with the fresh request id.
      */
 
     p=0;
-    put8(packet,&p,0);
-    put32(packet,&p,c.req_server_key);
+    put8(packet,&p,70);
     put_signed_hydrogen_key(
         packet,&p,f.registration_kx.pk,&f.root_signer);
     assert(aether_client_on_rx(
@@ -1292,19 +1199,17 @@ static void test_full_registration_and_message(void) {
 
 
 
-    p=0;
-    uint8_t pow_plain[512]; size_t q=0;
-    put8(pow_plain,&q,0);
-    put32(pow_plain,&q,registration.req_pow);
-    put_array(pow_plain,&q,(const uint8_t*)"salt",4);
-    put_array(pow_plain,&q,(const uint8_t*)"suffix",6);
-    put8(pow_plain,&q,2);
-    put32(pow_plain,&q,9999);
-    put_signed_hydrogen_key(
-        pow_plain,&q,f.global_kx.pk,&f.root_signer);
 
-    put_encrypted_packet(
-        packet,&p,3,c.temp_key,pow_plain,q);
+    p=0;
+    put8(packet,&p,67);
+    put_uuid(packet,&p,(aether_uuid_t){0,0});
+    put_array(packet,&p,(const uint8_t*)"salt",4);
+    put_array(packet,&p,(const uint8_t*)"suffix",6);
+    put8(packet,&p,2);
+    put32(packet,&p,9999);
+    put_signed_hydrogen_key(
+        packet,&p,f.global_kx.pk,&f.root_signer);
+
 
     assert(aether_client_on_rx(
         &c,AETHER_CHANNEL_REGISTRATION,packet,p)==AETHER_OK);
@@ -1351,10 +1256,6 @@ static void test_full_registration_and_message(void) {
         registration_plain_len,
         &registration_pos)==7u); /* registrationDirect */
 
-    assert(take32(
-        registration_plain,
-        registration_plain_len,
-        &registration_pos)==registration.req_finish);
 
     size_t sent_salt_len=0u;
     const uint8_t *sent_salt=
@@ -1416,17 +1317,14 @@ static void test_full_registration_and_message(void) {
     aether_uuid_t alias={0x0102030405060708ULL,0x1112131415161718ULL};
     aether_uuid_t uid={0x2122232425262728ULL,0x3132333435363738ULL};
 
-    p=0; q=0;
-    put8(pow_plain,&q,0);
-    put32(pow_plain,&q,registration.req_finish);
-    put_uuid(pow_plain,&q,alias);
-    put_uuid(pow_plain,&q,uid);
-    put_pack(pow_plain,&q,1);
-    put16(pow_plain,&q,7);
 
+    p=0;
+    put8(packet,&p,66);
+    put_uuid(packet,&p,alias);
+    put_uuid(packet,&p,uid);
+    put_pack(packet,&p,1);
+    put16(packet,&p,7);
 
-    put_encrypted_packet(
-        packet,&p,3,c.temp_key,pow_plain,q);
 
     unsigned resolve_send_errors_before =
         f.errors;
@@ -1641,8 +1539,10 @@ static void test_full_registration_and_message(void) {
         AETHER_CHANNEL_REGISTRATION);
 
     assert(
+
         recovered.packet_len ==
-        6u);
+        2u);
+
 
     assert(
         recovered.packet[0] ==
@@ -1656,15 +1556,13 @@ static void test_full_registration_and_message(void) {
     size_t recovered_packet_pos =
         0u;
 
+
     put8(
         packet,
         &recovered_packet_pos,
-        0u);
+        70);
 
-    put32(
-        packet,
-        &recovered_packet_pos,
-        recovered_client.req_server_key);
+
 
     put_signed_hydrogen_key(
         packet,
@@ -1729,12 +1627,6 @@ static void test_full_registration_and_message(void) {
             &recovered_resolve_pos) ==
         5u); /* resolveServers */
 
-    assert(
-        take32(
-            recovered_resolve_plain,
-            recovered_resolve_plain_len,
-            &recovered_resolve_pos) ==
-        recovered_client.req_resolve);
 
     assert(
         take_pack(
@@ -1763,35 +1655,27 @@ static void test_full_registration_and_message(void) {
 
 
 
-    p=0; q=0;
-    put8(pow_plain,&q,0); put32(pow_plain,&q,c.req_resolve);
-    put_pack(pow_plain,&q,2);          /* ServerDescriptor[] */
 
-    put16(pow_plain,&q,7);             /* server 0 sid */
-    put_pack(pow_plain,&q,1);
-    put8(pow_plain,&q,1);              /* IPv4 */
-    put8(pow_plain,&q,127); put8(pow_plain,&q,0); put8(pow_plain,&q,0); put8(pow_plain,&q,1);
-    put_pack(pow_plain,&q,1);
-    put8(pow_plain,&q,1);              /* UDP */
-    put16(pow_plain,&q,9011);
+    p=0;
+    put8(packet,&p,68);
+    put_pack(packet,&p,2);          /* ServerDescriptor[] */
+    put16(packet,&p,7);             /* server 0 sid */
+    put_pack(packet,&p,1);
+    put8(packet,&p,1);              /* IPv4 */
+    put8(packet,&p,127); put8(packet,&p,0); put8(packet,&p,0); put8(packet,&p,1);
+    put_pack(packet,&p,1);
+    put8(packet,&p,1);              /* UDP */
+    put16(packet,&p,9011);
+    put_pack(packet,&p,0);           /* signingKeys */
+    put16(packet,&p,8);             /* server 1 sid */
+    put_pack(packet,&p,1);
+    put8(packet,&p,1);              /* IPv4 */
+    put8(packet,&p,127); put8(packet,&p,0); put8(packet,&p,0); put8(packet,&p,2);
+    put_pack(packet,&p,1);
+    put8(packet,&p,1);              /* UDP */
+    put16(packet,&p,9012);
+    put_pack(packet,&p,0);           /* signingKeys */
 
-    put_pack(pow_plain,&q,0);           /* signingKeys */
-
-
-    put16(pow_plain,&q,8);             /* server 1 sid */
-    put_pack(pow_plain,&q,1);
-    put8(pow_plain,&q,1);              /* IPv4 */
-    put8(pow_plain,&q,127); put8(pow_plain,&q,0); put8(pow_plain,&q,0); put8(pow_plain,&q,2);
-    put_pack(pow_plain,&q,1);
-    put8(pow_plain,&q,1);              /* UDP */
-    put16(pow_plain,&q,9012);
-
-    put_pack(pow_plain,&q,0);           /* signingKeys */
-
-
-
-    put_encrypted_packet(
-        packet,&p,3,c.temp_key,pow_plain,q);
 
     assert(aether_client_on_rx(
         &c,AETHER_CHANNEL_REGISTRATION,packet,p)==AETHER_OK);
@@ -1840,54 +1724,13 @@ static void test_full_registration_and_message(void) {
     assert(f.packet_channel==AETHER_CHANNEL_WORK); /* immediate ping */
 
 
-    /*
-     * High-bit request ids belong to mandatory internal work traffic.
-     * Even a delayed ping result must never become application ingress.
-     *
-     * Keep this regression self-contained; the normal message test declares
-     * its own `inner` buffer later in this function.
-     */
-    {
-        uint8_t ping_inner[16];
-        size_t ping_q=0u;
-        uint8_t ping_packet[64];
-        size_t ping_p=0u;
-
-        put8(
-            ping_inner,
-            &ping_q,
-            0);
-
-        put32(
-            ping_inner,
-            &ping_q,
-            UINT32_C(0x80000001));
-
-        put_encrypted_packet(
-            ping_packet,
-            &ping_p,
-            4,
-            c.work_rx_key,
-            ping_inner,
-            ping_q);
-
-        assert(aether_client_on_rx(
-            &c,
-            AETHER_CHANNEL_WORK,
-            ping_packet,
-            ping_p)==AETHER_OK);
-
-        assert(aether_client_ingress(&c)==NULL);
-        assert(!aether_client_rx_active(&c));
-    }
 
 
 
-    uint32_t send_req=0;
     const uint8_t hello[]={'h','i'};
     aether_uuid_t dest={0x4142434445464748ULL,0x5152535455565758ULL};
-    assert(aether_client_send_message(&c,dest,hello,sizeof(hello),&send_req)==AETHER_OK);
-    assert(send_req!=0 && f.packet[0]==5); /* LoginApi.loginByAlias */
+    assert(aether_client_send_message(&c,dest,hello,sizeof(hello))==AETHER_OK);
+    assert(f.packet[0]==5); /* LoginApi.loginByAlias */
 
 
     /*
@@ -1916,7 +1759,6 @@ static void test_full_registration_and_message(void) {
 
     size_t authorized_pos=0u;
     assert(take8(outbound_plain,outbound_plain_len,&authorized_pos)==39u);
-    assert(take32(outbound_plain,outbound_plain_len,&authorized_pos)==send_req);
     expect_uuid(outbound_plain,outbound_plain_len,&authorized_pos,dest);
 
     size_t sent_message_len=0u;
@@ -1940,7 +1782,7 @@ static void test_full_registration_and_message(void) {
      * Work RX now yields one caller-visible ingress item and pins the borrowed
      * transport frame until the parser is resumed.
      */
-    uint8_t inner[128]; q=0;
+    uint8_t inner[128]; size_t q=0;
     aether_uuid_t from={0xa1a2a3a4a5a6a7a8ULL,0xb1b2b3b4b5b6b7b8ULL};
     put8(inner,&q,20);
     put_uuid(inner,&q,from);
@@ -1985,29 +1827,6 @@ static void test_full_registration_and_message(void) {
 
 
 
-    /* Acknowledge sendMessageWithResult over the real work receive key. */
-    q=0;
-    put8(inner,&q,0);
-    put32(inner,&q,send_req);
-    put_encrypted_packet(
-        packet,&p,4,c.work_rx_key,inner,q);
-    assert(aether_client_on_rx(
-        &c,AETHER_CHANNEL_WORK,packet,p)==AETHER_OK);
-
-    const aether_ingress_t *send_result=
-        aether_client_ingress(&c);
-
-    assert(send_result!=NULL);
-    assert(send_result->kind==AETHER_INGRESS_REQUEST_RESULT);
-    assert(send_result->as.request_result.request_id==send_req);
-    assert(send_result->as.request_result.status==AETHER_OK);
-    assert(aether_client_rx_active(&c));
-    assert(f.done_events==0u);
-    assert(f.errors==0u);
-
-    aether_client_consume_ingress(&c);
-    assert(aether_client_ingress(&c)==NULL);
-    assert(!aether_client_rx_active(&c));
 
 
 
@@ -2050,9 +1869,7 @@ static void test_full_registration_and_message(void) {
      * Timeout belongs to caller-owned future state. The core must remain READY
      * and continue transmitting regardless of how many old results are lost.
      */
-    uint32_t lost_req=0;
-    assert(aether_client_send_message(&c,dest,hello,sizeof(hello),&lost_req)==AETHER_OK);
-    assert(lost_req!=0);
+    assert(aether_client_send_message(&c,dest,hello,sizeof(hello))==AETHER_OK);
 
     uint64_t timeout_step=12001u;
 
@@ -2061,11 +1878,8 @@ static void test_full_registration_and_message(void) {
         assert(c.state==AETHER_STATE_READY);
     }
 
-    assert(f.timeout_events==0u);
 
-    uint32_t after_loss_req=0;
-    assert(aether_client_send_message(&c,dest,hello,sizeof(hello),&after_loss_req)==AETHER_OK);
-    assert(after_loss_req!=0);
+    assert(aether_client_send_message(&c,dest,hello,sizeof(hello))==AETHER_OK);
 
 
 
@@ -2220,16 +2034,13 @@ static void test_work_frame_yields_messages_one_by_one(void) {
         9u,8u,7u
     };
 
-    uint32_t reply_request=0u;
 
     assert(aether_client_send_message(
         &c,
         from2,
         reply,
-        sizeof(reply),
-        &reply_request)==AETHER_OK);
+        sizeof(reply))==AETHER_OK);
 
-    assert(reply_request!=0u);
 }
 
 
@@ -2277,8 +2088,7 @@ static void recovery_exchange_server_key(
 
     uint8_t packet[2048];
     size_t p = 0u;
-    put8(packet, &p, 0);
-    put32(packet, &p, c->req_server_key);
+    put8(packet, &p, 70);
     put_signed_hydrogen_key(
         packet, &p, f->registration_kx.pk, &f->root_signer);
 
@@ -2293,8 +2103,7 @@ static aether_status_t recovery_exchange_result(
     aether_uuid_t new_alias) {
     uint8_t plain[1024];
     size_t q = 0u;
-    put8(plain, &q, 0);                       /* CMD_RESULT */
-    put32(plain, &q, c->req_resolve);         /* request id */
+    put8(plain, &q, 69);                      /* sendRecoveredClientState */
     put_uuid(plain, &q, new_alias);
     put_pack(plain, &q, 1);                   /* cloud count */
     put16(plain, &q, 9);                      /* cloud sid */
@@ -3089,8 +2898,7 @@ static void test_cached_servers_exhausted_escalates_to_recovery(void) {
 
     uint8_t packet[2048];
     size_t p = 0u;
-    put8(packet, &p, 0);
-    put32(packet, &p, c.req_server_key);
+    put8(packet, &p, 70);
     put_signed_hydrogen_key(
         packet, &p, f.registration_kx.pk, &f.root_signer);
     assert(aether_client_on_rx(
@@ -3102,8 +2910,7 @@ static void test_cached_servers_exhausted_escalates_to_recovery(void) {
      */
     uint8_t plain[1024];
     size_t q = 0u;
-    put8(plain, &q, 0);
-    put32(plain, &q, c.req_resolve);
+    put8(plain, &q, 68);
     put_pack(plain, &q, 1);                   /* ServerDescriptor[] */
     put16(plain, &q, 7);                      /* sid */
     put_pack(plain, &q, 1);                   /* addresses */
@@ -3128,10 +2935,10 @@ static void test_cached_servers_exhausted_escalates_to_recovery(void) {
     for (int k = 0; k < 64; k++) put8(plain, &q, 6);
 
 
-    uint8_t enc[2048];
-    size_t enc_len = 0u;
-    put_encrypted_packet(
-        enc, &enc_len, 3, c.temp_key, plain, q);
+
+    memcpy(packet, plain, q);
+    size_t enc_len = q;
+
 
 
     /*
@@ -3140,8 +2947,10 @@ static void test_cached_servers_exhausted_escalates_to_recovery(void) {
      */
     f.fail_open_port = 0u;
 
+
     assert(aether_client_on_rx(
-        &c, AETHER_CHANNEL_REGISTRATION, enc, enc_len) == AETHER_OK);
+        &c, AETHER_CHANNEL_REGISTRATION, packet, enc_len) == AETHER_OK);
+
 
     /*
      * The refresh response was consumed: the flag must now be set by core
@@ -3415,8 +3224,7 @@ static void test_server_descriptors_with_signing_keys_stay_aligned(void) {
 
     uint8_t packet[2048];
     size_t p = 0u;
-    put8(packet, &p, 0);
-    put32(packet, &p, c.req_server_key);
+    put8(packet, &p, 70);
     put_signed_hydrogen_key(
         packet, &p, f.registration_kx.pk, &f.root_signer);
     assert(aether_client_on_rx(
@@ -3424,8 +3232,7 @@ static void test_server_descriptors_with_signing_keys_stay_aligned(void) {
 
     uint8_t plain[2048];
     size_t q = 0u;
-    put8(plain, &q, 0);
-    put32(plain, &q, c.req_resolve);
+    put8(plain, &q, 68);
     put_pack(plain, &q, 2);                   /* ServerDescriptor[] */
 
     /* Descriptor 0: sid 7, port 9011, three signing keys. */
@@ -3464,14 +3271,16 @@ static void test_server_descriptors_with_signing_keys_stay_aligned(void) {
     put8(plain, &q, 2);                       /* SignHYDROGEN */
     for (int k = 0; k < 64; k++) put8(plain, &q, 0xB2);
 
-    uint8_t enc[4096];
-    size_t enc_len = 0u;
-    put_encrypted_packet(
-        enc, &enc_len, 3, c.temp_key, plain, q);
+
+    memcpy(packet, plain, q);
+    size_t enc_len = q;
+
 
     f.fail_open_port = 0u;
+
     assert(aether_client_on_rx(
-        &c, AETHER_CHANNEL_REGISTRATION, enc, enc_len) == AETHER_OK);
+        &c, AETHER_CHANNEL_REGISTRATION, packet, enc_len) == AETHER_OK);
+
 
     /*
      * Both descriptors must be decoded: misalignment would leave the second

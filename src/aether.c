@@ -384,12 +384,12 @@ static aether_status_t facade_core_step(
             return AETHER_ERR_UNSUPPORTED;
         }
 
-    } else if (
-        ingress->kind !=
-            AETHER_INGRESS_REQUEST_RESULT) {
+
+    } else {
 
         return AETHER_ERR_UNSUPPORTED;
     }
+
 
     /*
      * Beginner API intentionally owns no send-future state.

@@ -35,7 +35,6 @@ add_library(aether_client STATIC
     src/aether_rx_all.c
     src/aether_rx_adaptive.c
 
-    src/aether_send_future.c
     src/aether_messages.c
     src/aether_transport.c
     src/aether_transport_server.c
@@ -421,38 +420,6 @@ target_link_libraries(
     )
 
 
-    add_executable(
-        aether_send_future_test
-        tests/test_send_future.c
-    )
-
-    target_link_libraries(
-        aether_send_future_test
-        PRIVATE
-            aether_client
-    )
-
-    target_compile_features(
-        aether_send_future_test
-        PRIVATE
-            c_std_11
-    )
-
-    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-        target_compile_options(
-            aether_send_future_test
-            PRIVATE
-                -Wall
-                -Wextra
-                -Wpedantic
-                -Werror
-        )
-    endif()
-
-    add_test(
-        NAME aether_send_future_test
-        COMMAND aether_send_future_test
-    )
 
 
 
@@ -743,4 +710,3 @@ endif()
 
 target_sources(aether_client PRIVATE
 )
-

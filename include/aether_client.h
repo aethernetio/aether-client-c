@@ -263,19 +263,11 @@ typedef struct {
         } message;
 
         struct {
-            uint32_t request_id;
-        } request_done;
-
-        struct {
             aether_status_t code;
             aether_error_origin_t origin;
             aether_state_t state;
-            uint32_t request_id;
         } error;
 
-        struct {
-            uint32_t request_id;
-        } request_timeout;
     } as;
 } aether_event_t;
 
@@ -287,15 +279,13 @@ typedef struct {
  * MESSAGE payload memory is borrowed from aether_client_t and remains valid
  * until aether_client_consume_ingress().
  *
- * REQUEST_RESULT contains only value fields and follows the same bounded
- * one-ingress scheduling rule.
+ *
  *
  * No queue is allocated. The parser stops after one application item.
  */
 typedef enum {
     AETHER_INGRESS_NONE = 0,
-    AETHER_INGRESS_MESSAGE,
-    AETHER_INGRESS_REQUEST_RESULT
+    AETHER_INGRESS_MESSAGE
 } aether_ingress_kind_t;
 
 
@@ -308,10 +298,6 @@ typedef struct {
             aether_bytes_view_t payload;
         } message;
 
-        struct {
-            uint32_t request_id;
-            aether_status_t status;
-        } request_result;
     } as;
 } aether_ingress_t;
 
@@ -687,7 +673,6 @@ struct aether_registration;
     aether_state_t state;
     bool callback_active;
 
-    uint32_t next_request_id;
 
     uint64_t now_ms;
     uint64_t next_ping_at_ms;
@@ -741,8 +726,6 @@ struct aether_registration;
 
     int8_t active_server_index;
 
-    uint32_t req_server_key;
-    uint32_t req_resolve;
     bool topology_refreshed;
 
 
@@ -941,20 +924,18 @@ aether_status_t aether_client_provision_identity(
   aether_channel_t aether_client_rx_channel(
    const aether_client_t *client);
 /*
-- Serialize and send one application message through the READY work channel.
--
-- data is borrowed only for the duration of this call. The generated request ID
-- is written to request_id_out when that pointer is non-NULL.
--
-- Completion, remote error and local timeout can be observed through ingress or
-- through the optional caller-owned send-future component.
-   */
+ * Serialize and send one application message through the READY work channel.
+ *
+ * data is borrowed only for the duration of this call.
+ *
+ * Completion and remote error can be observed through ingress.
+ */
+
   aether_status_t aether_client_send_message(
    aether_client_t *client,
    aether_uuid_t destination,
    const uint8_t *data,
-   size_t length,
-   uint32_t *request_id_out);
+    size_t length);
 /* Return the current protocol state without advancing the client. */
 aether_state_t aether_client_state(
     const aether_client_t *client);

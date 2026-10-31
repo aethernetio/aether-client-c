@@ -363,9 +363,10 @@ aether_status_t aether_work(
  * This is an immediate, zero-extra-state operation. data is borrowed only for
  * this call because the transport consumes/copies it before returning.
  *
- * Applications requiring explicit request-result/timeout tracking can use
- * aether_send_future_t. Bidirectional relationships should normally use
- * aether_peer_t from aether_messages.h.
+
+ * Bidirectional relationships should normally use aether_peer_t from
+ * aether_messages.h.
+
  */
 aether_status_t aether_send_message(
     aether_t *client,

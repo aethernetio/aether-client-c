@@ -223,8 +223,7 @@ aether_status_t aether_client_app_consume_ingress(
 
 
 /*
- * Existing send mechanism remains until completion state is moved to an
- * optional caller-owned future component.
+ * Serialize and send one application message through the READY work channel.
  */
 aether_status_t aether_client_app_send(
     aether_client_app_t *client,
@@ -232,12 +231,13 @@ aether_status_t aether_client_app_send(
     const uint8_t *data,
     size_t length);
 
-aether_status_t aether_client_app_send_with_id(
+
+aether_status_t aether_client_app_send_authorized(
     aether_client_app_t *client,
     aether_uuid_t destination,
     const uint8_t *data,
-    size_t length,
-    uint32_t *request_id_out);
+    size_t length);
+
 
 
 bool aether_client_app_is_ready(

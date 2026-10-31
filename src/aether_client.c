@@ -56,8 +56,6 @@
 
 
 
-#define CMD_RESULT 0u
-#define CMD_ERROR 1u
 
 
 
@@ -184,8 +182,7 @@ static void emit_error(
     aether_client_t *client,
     aether_status_t code,
     aether_error_origin_t origin,
-    aether_state_t state,
-    uint32_t request_id) {
+    aether_state_t state) {
 
     aether_event_t event;
 
@@ -206,8 +203,6 @@ static void emit_error(
     event.as.error.state =
         state;
 
-    event.as.error.request_id =
-        request_id;
 
     emit_event(
         client,
@@ -279,33 +274,12 @@ static aether_status_t fail_with_origin(
         client,
         code,
         origin,
-        source_state,
-        0u);
+        source_state);
 
     return code;
 }
 
 
-static aether_status_t fail_remote(
-    aether_client_t *client,
-    uint32_t request_id) {
-
-    aether_state_t source_state =
-        client->state;
-
-    set_state(
-        client,
-        AETHER_STATE_ERROR);
-
-    emit_error(
-        client,
-        AETHER_ERR_REMOTE,
-        AETHER_ERROR_ORIGIN_REMOTE,
-        source_state,
-        request_id);
-
-    return AETHER_ERR_REMOTE;
-}
 
 
 static aether_status_t fail(
@@ -822,43 +796,6 @@ static aether_uuid_t r_uuid(
 }
 
 
-static uint32_t next_request_id(
-    aether_client_t *client) {
-
-    /*
-     * Bit 31 is permanently reserved for mandatory internal work requests.
-     *
-     * Registration and application requests therefore use only:
-     *
-     *   1 .. 0x7fffffff
-     */
-    const uint32_t normal_max =
-        UINT32_C(0x7fffffff);
-
-    uint32_t current =
-        client->next_request_id &
-        normal_max;
-
-    if (current >=
-        normal_max) {
-
-        current =
-            1u;
-
-    } else {
-        ++current;
-
-        if (current == 0u) {
-            current =
-                1u;
-        }
-    }
-
-    client->next_request_id =
-        current;
-
-    return current;
-}
 
 
 static aether_status_t transport_send(
@@ -2536,9 +2473,6 @@ static aether_status_t send_get_server_key(
         AETHER_STATE_RECOVERY_CONNECTING;
 
 
-    client->req_server_key =
-        next_request_id(
-            client);
 
     size_t packet_length =
         0u;
@@ -2695,9 +2629,6 @@ static aether_status_t send_pow_request(
     aether_client_t *client) {
 
 
-    client->registration->req_pow =
-        next_request_id(
-            client);
 
 
     size_t nested_len =
@@ -2742,9 +2673,6 @@ static aether_status_t send_registration_payload(
     aether_client_t *client) {
 
 
-    client->registration->req_finish =
-        next_request_id(
-            client);
 
 
     size_t nested_len =
@@ -2805,9 +2733,6 @@ static aether_status_t send_recovery_request(
         return AETHER_ERR_STATE;
     }
 
-    client->req_resolve =
-        next_request_id(
-            client);
 
     size_t nested_len =
         0u;
@@ -2870,9 +2795,6 @@ static aether_status_t send_resolve_servers(
                 AETHER_ERR_PROTOCOL);
     }
 
-    client->req_resolve =
-        next_request_id(
-            client);
 
     size_t nested_len =
         0u;
@@ -3090,307 +3012,70 @@ static aether_status_t handle_reg_safe_plain(
 
 
 
-        uint8_t command =
-            r_u8(&reader);
 
-        if (command ==
-            CMD_RESULT) {
+        uint8_t command = r_u8(&reader);
 
-            uint32_t request_id =
-                r_u32le(&reader);
+        if (command == 69u) {
 
+            client->alias = r_uuid(&reader);
 
-            if (client->state ==
-                    AETHER_STATE_REG_WAIT_POW &&
-                request_id ==
-                    client->registration->req_pow) {
+            uint64_t cloud_count = r_pack(&reader);
 
-
-                aether_status_t status =
-                    handle_pow_response(
-                        client,
-                        &reader);
-
-                if (status != AETHER_OK) {
-                    return status;
-                }
-
-
-
-            } else if (
-                client->state ==
-                    AETHER_STATE_REG_WAIT_FINISH &&
-                request_id ==
-                    client->registration->req_finish) {
-
-
-
-                client->alias =
-                    r_uuid(&reader);
-
-                client->uid =
-                    r_uuid(&reader);
-
-                uint64_t cloud_count =
-                    r_pack(&reader);
-
-                if (reader.failed ||
-                    cloud_count > AETHER_MAX_SERVERS) {
-
-                    return
-                        fail(
-                            client,
-                            AETHER_ERR_PROTOCOL);
-                }
-
-                client->cloud_count =
-                    (uint8_t)cloud_count;
-
-                for (uint8_t i = 0u;
-                     i < client->cloud_count;
-                     ++i) {
-
-                    client->cloud_sids[i] =
-                        r_i16le(&reader);
-                }
-
-                if (reader.failed) {
-                    return
-                        fail(
-                            client,
-                            AETHER_ERR_PROTOCOL);
-                }
-
-
-                client->registered =
-                    true;
-
-                /*
-                 * Identity + Cloud must become durable before descriptor
-                 * recovery. ServerDescriptor[] is only a refreshable cache.
-                 */
-                if (save_state(client) !=
-                    AETHER_OK) {
-
-                    return
-                        fail(
-                            client,
-                            AETHER_ERR_STORAGE);
-                }
-
-                aether_event_t event;
-
-                memset(
-                    &event,
-                    0,
-                    sizeof(event));
-
-                event.type =
-                    AETHER_EVENT_REGISTERED;
-
-                event.as.registered.uid =
-                    client->uid;
-
-                event.as.registered.alias =
-                    client->alias;
-
-                emit_event(
-                    client,
-                    &event);
-
-                return
-                    send_resolve_servers(
-                        client);
-
-
-
-
-
-
-            } else if (
-                client->state ==
-                    AETHER_STATE_RECOVERY_WAIT_RESULT &&
-                request_id ==
-                    client->req_resolve) {
-
-                client->alias =
-                    r_uuid(
-                        &reader);
-
-                uint64_t cloud_count =
-                    r_pack(
-                        &reader);
-
-                if (reader.failed ||
-                    cloud_count == 0u ||
-                    cloud_count >
-                        AETHER_MAX_SERVERS) {
-
-                    return
-                        fail(
-                            client,
-                            AETHER_ERR_PROTOCOL);
-                }
-
-                client->cloud_count =
-                    (uint8_t)cloud_count;
-
-                for (uint8_t i = 0u;
-                     i < client->cloud_count;
-                     ++i) {
-
-                    client->cloud_sids[i] =
-                        r_i16le(
-                            &reader);
-                }
-
-                if (reader.failed) {
-                    return
-                        fail(
-                            client,
-                            AETHER_ERR_PROTOCOL);
-                }
-
-                if (!parse_server_array(
-                        &reader,
-                        client)) {
-
-
-
-
-                    return
-                        fail(
-                            client,
-                            AETHER_ERR_PROTOCOL);
-                }
-
-
-                client->topology_refreshed =
-                    false;
-
-
-
-
-
-                /*
-                 * Mark the commit attempt. save_state() serializes this flag,
-                 * so it must be set before persistence. If persistence fails,
-                 * the marker is rolled back below so a retry re-runs recovery
-                 * instead of assuming a committed WORK routing state.
-                 */
-
-
-                uint8_t old_master_key[AETHER_KEY_BYTES];
-
-                memcpy(
-                    old_master_key,
-                    client->master_key,
-                    sizeof(old_master_key));
-
-                uint8_t old_master_key_type =
-                    client->master_key_type;
-
-
-                bool old_registered =
-                    client->registered;
-
-                memcpy(
-                    client->master_key,
-                    client->pending_recovery_key,
-                    sizeof(client->master_key));
-
-                client->master_key_type =
-                    client->config.crypto
-                        ->profile.symmetric_key_type;
-
-
-                client->registered =
-                    true;
-
-                /*
-                 * The committed record must not contain a pending transition.
-                 * Keep the bytes in RAM until persistence succeeds so rollback
-                 * can restore the same retry key if flash save fails.
-                 */
-                client->recovery_key_pending =
-                    false;
-
-                if (save_state(client) !=
-                    AETHER_OK) {
-
-                    client->registered =
-                        old_registered;
-
-                    memcpy(
-                        client->master_key,
-                        old_master_key,
-                        sizeof(client->master_key));
-
-                    client->master_key_type =
-                        old_master_key_type;
-
-
-                    client->recovery_key_pending =
-                        true;
-
-                    return
-                        fail(
-                            client,
-                            AETHER_ERR_STORAGE);
-                }
-
-                memset(
-                    client->pending_recovery_key,
-                    0,
-                    sizeof(client->pending_recovery_key));
-
-
-
-
-
-
-                transport_close(
-                    client,
-                    AETHER_CHANNEL_REGISTRATION);
-
-                return
-                    begin_work(
-                        client);
-
-            } else {
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
+            if (reader.failed ||
+                cloud_count == 0u ||
+                cloud_count > AETHER_MAX_SERVERS) {
+                return fail(client, AETHER_ERR_PROTOCOL);
             }
 
+            client->cloud_count = (uint8_t)cloud_count;
 
-            continue;
-        }
-
-        if (command ==
-            CMD_ERROR) {
-
-            uint32_t request_id =
-                r_u32le(&reader);
-
+            for (uint8_t i = 0u; i < client->cloud_count; ++i) {
+                client->cloud_sids[i] = r_i16le(&reader);
+            }
             if (reader.failed) {
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
+                return fail(client, AETHER_ERR_PROTOCOL);
             }
 
-            return
-                fail_remote(
-                    client,
-                    request_id);
+            if (!parse_server_array(&reader, client)) {
+                return fail(client, AETHER_ERR_PROTOCOL);
+            }
+
+            client->topology_refreshed = false;
+
+            uint8_t old_master_key[AETHER_KEY_BYTES];
+            memcpy(old_master_key, client->master_key, sizeof(old_master_key));
+
+            uint8_t old_master_key_type = client->master_key_type;
+            bool old_registered = client->registered;
+
+            memcpy(client->master_key, client->pending_recovery_key,
+                sizeof(client->master_key));
+
+            client->master_key_type =
+                client->config.crypto->profile.symmetric_key_type;
+
+            client->registered = true;
+            client->recovery_key_pending = false;
+
+            if (save_state(client) != AETHER_OK) {
+                client->registered = old_registered;
+                memcpy(client->master_key, old_master_key,
+                    sizeof(client->master_key));
+                client->master_key_type = old_master_key_type;
+                client->recovery_key_pending = true;
+                return fail(client, AETHER_ERR_STORAGE);
+            }
+
+            memset(client->pending_recovery_key, 0,
+                sizeof(client->pending_recovery_key));
+
+            transport_close(client, AETHER_CHANNEL_REGISTRATION);
+
+            return begin_work(client);
         }
 
-        return
-            fail(
-                client,
-                AETHER_ERR_PROTOCOL);
+        return fail(client, AETHER_ERR_PROTOCOL);
+
     }
 
     return
@@ -3432,8 +3117,7 @@ size_t frame_start =
 
 
 
-        if (command == CMD_RESULT ||
-            command == 70u) {
+        if (command == 70u) {
 
 
             if (!parse_signed_key(
@@ -3644,24 +3328,6 @@ size_t frame_start =
 
 
 
-        if (command ==
-            CMD_ERROR) {
-
-            uint32_t request_id =
-                r_u32le(&reader);
-
-            if (reader.failed) {
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
-
-            return
-                fail_remote(
-                    client,
-                    request_id);
-        }
 
 
 aether_reg_unsafe_frame_t frame = {
@@ -3780,89 +3446,9 @@ static aether_status_t handle_server_resolve_plain(
            reader.pos <
                reader.length) {
 
-        uint8_t command =
-            r_u8(
-                &reader);
-
-        if (command ==
-            CMD_RESULT) {
-
-            uint32_t request_id =
-                r_u32le(
-                    &reader);
-
-            if (request_id !=
-                    client->req_resolve ||
-                client->state !=
-                    AETHER_STATE_SERVER_RESOLVING) {
-
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
-
-            if (!parse_server_array(
-                    &reader,
-                    client)) {
-
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
+        (void)r_u8(&reader);
 
 
-            /*
-             * A resolveServers response is a cheap refresh of the known Cloud,
-             * not authoritative recovery. Remember that it was already used so
-             * that exhausting its result escalates to mandatory recovery.
-             */
-            client->topology_refreshed =
-                true;
-
-
-
-            client->registered =
-                true;
-
-            if (save_state(client) !=
-                AETHER_OK) {
-
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_STORAGE);
-            }
-
-            transport_close(
-                client,
-                AETHER_CHANNEL_REGISTRATION);
-
-            return
-                begin_work(
-                    client);
-        }
-
-        if (command ==
-            CMD_ERROR) {
-
-            uint32_t request_id =
-                r_u32le(
-                    &reader);
-
-            if (reader.failed) {
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
-
-            return
-                fail_remote(
-                    client,
-                    request_id);
-        }
 
         return
             fail(
@@ -3902,44 +3488,27 @@ static aether_status_t handle_server_resolving_rx(
             r_u8(
                 &reader);
 
-        if (command ==
-            CMD_RESULT) {
 
-            uint32_t request_id =
-                r_u32le(
-                    &reader);
 
-            if (request_id !=
-                    client->req_server_key ||
-                client->state !=
-                    AETHER_STATE_SERVER_RESOLVING) {
 
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
+        if (command == 70u) {
 
             if (!parse_signed_key(
                     &reader,
                     client,
                     &client->registration_server_key)) {
 
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
+                return fail(client, AETHER_ERR_PROTOCOL);
             }
 
             if (!verify_signed_key(
                     client,
                     &client->registration_server_key)) {
 
-                return
-                    fail_with_origin(
-                        client,
-                        AETHER_ERR_CRYPTO,
-                        AETHER_ERROR_ORIGIN_TRUST);
+                return fail_with_origin(
+                    client,
+                    AETHER_ERR_CRYPTO,
+                    AETHER_ERROR_ORIGIN_TRUST);
             }
 
             if (client->config.crypto
@@ -3947,18 +3516,12 @@ static aether_status_t handle_server_resolving_rx(
                     client->config.crypto_ctx,
                     client->temp_key,
                     client->config.crypto
-                        ->profile.symmetric_key_bytes) !=
-                AETHER_OK) {
+                        ->profile.symmetric_key_bytes) != AETHER_OK) {
 
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_CRYPTO);
+                return fail(client, AETHER_ERR_CRYPTO);
             }
 
-            return
-                send_resolve_servers(
-                    client);
+            return send_resolve_servers(client);
         }
 
 
@@ -3980,25 +3543,6 @@ static aether_status_t handle_server_resolving_rx(
         }
 
 
-        if (command ==
-            CMD_ERROR) {
-
-            uint32_t request_id =
-                r_u32le(
-                    &reader);
-
-            if (reader.failed) {
-                return
-                    fail(
-                        client,
-                        AETHER_ERR_PROTOCOL);
-            }
-
-            return
-                fail_remote(
-                    client,
-                    request_id);
-        }
 
         aether_reg_unsafe_frame_t frame = {
             0
@@ -4321,16 +3865,6 @@ static aether_status_t send_ping(
         return AETHER_ERR_BUSY;
     }
 
-    /*
-     * Mandatory internal work requests live in the high-bit namespace.
-     *
-     * The low 31 bits still come from the shared monotonic sequence, so
-     * consecutive pings do not reuse one fixed wire request id.
-     */
-    uint32_t request_id =
-        next_request_id(
-            client) |
-        UINT32_C(0x80000000);
 
     writer_t inner = {
         client->tx_plain,
@@ -4343,9 +3877,6 @@ static aether_status_t send_ping(
         &inner,
         AUTH_PING);
 
-    w_u32le(
-        &inner,
-        request_id);
 
     w_i64le(
         &inner,
@@ -4478,104 +4009,7 @@ static aether_status_t resume_client_safe_plain(
         uint8_t command =
             r_u8(&reader);
 
-        if (command ==
-            CMD_RESULT) {
 
-            uint32_t request_id =
-                r_u32le(&reader);
-
-            if (reader.failed) {
-                return AETHER_ERR_PROTOCOL;
-            }
-
-            /*
-             * High-bit request ids are mandatory internal work traffic.
-             * A delayed ping acknowledgement is therefore harmless even after
-             * many later application requests have been issued.
-             */
-            if ((request_id &
-                 UINT32_C(0x80000000)) !=
-                0u) {
-
-                continue;
-            }
-
-            if (client->ingress.kind !=
-                AETHER_INGRESS_NONE) {
-
-                return AETHER_ERR_BUSY;
-            }
-
-            client->ingress.kind =
-                AETHER_INGRESS_REQUEST_RESULT;
-
-            client->ingress.as.request_result.request_id =
-                request_id;
-
-            client->ingress.as.request_result.status =
-                AETHER_OK;
-
-            client->rx_plain_pos =
-                reader.pos;
-
-            return AETHER_OK;
-        }
-
-        if (command ==
-            CMD_ERROR) {
-
-            uint32_t request_id =
-                r_u32le(&reader);
-
-            if (reader.failed) {
-                return AETHER_ERR_PROTOCOL;
-            }
-
-            if ((request_id &
-                 UINT32_C(0x80000000)) !=
-                0u) {
-
-                /*
-                 * Preserve the compatibility diagnostic for mandatory
-                 * internal traffic, but do not publish a send-future result.
-                 */
-                emit_error(
-                    client,
-                    AETHER_ERR_REMOTE,
-                    AETHER_ERROR_ORIGIN_REMOTE,
-                    client->state,
-                    request_id);
-
-                continue;
-            }
-
-            if (client->ingress.kind !=
-                AETHER_INGRESS_NONE) {
-
-                return AETHER_ERR_BUSY;
-            }
-
-            client->ingress.kind =
-                AETHER_INGRESS_REQUEST_RESULT;
-
-            client->ingress.as.request_result.request_id =
-                request_id;
-
-            client->ingress.as.request_result.status =
-                AETHER_ERR_REMOTE;
-
-            emit_error(
-                client,
-                AETHER_ERR_REMOTE,
-                AETHER_ERROR_ORIGIN_REMOTE,
-                client->state,
-                request_id);
-
-            client->rx_plain_pos =
-                reader.pos;
-
-            return AETHER_OK;
-        }
 
         if (command ==
             CLIENT_SAFE_SEND_MESSAGE) {
@@ -5012,11 +4446,6 @@ aether_status_t aether_client_provision_identity(
     client->active_server_index =
         -1;
 
-    client->req_server_key =
-        0u;
-
-    client->req_resolve =
-        0u;
 
     client->next_ping_at_ms =
         0u;
@@ -5374,8 +4803,7 @@ void aether_client_poll(
                 status,
                 error_origin_for_status(
                     status),
-                client->state,
-                0u);
+                client->state);
         }
     }
 }
@@ -5505,8 +4933,7 @@ void aether_client_on_transport_state(
                 status,
                 error_origin_for_status(
                     status),
-                client->state,
-                0u);
+                client->state);
         }
     }
 }
@@ -5754,8 +5181,7 @@ aether_status_t aether_client_send_message(
     aether_client_t *client,
     aether_uuid_t destination,
     const uint8_t *data,
-    size_t length,
-    uint32_t *request_id_out) {
+    size_t length) {
 
     if (client == NULL ||
         (data == NULL &&
@@ -5776,9 +5202,6 @@ aether_status_t aether_client_send_message(
         return AETHER_ERR_STATE;
     }
 
-    uint32_t request_id =
-        next_request_id(
-            client);
 
     csa_message_t message = {
         .uid = destination,
@@ -5808,10 +5231,6 @@ aether_status_t aether_client_send_message(
         return status;
     }
 
-    if (request_id_out != NULL) {
-        *request_id_out =
-            request_id;
-    }
 
     return AETHER_OK;
 }

@@ -126,7 +126,6 @@ void app_main(void) {
 #endif
 
         aether_uuid_t destination = {0u, 0u};
-        uint32_t request_id = 0u;
 
         aether_client_init(
             &aether_size_client,
@@ -163,8 +162,7 @@ void app_main(void) {
             &aether_size_client,
             destination,
             &aether_size_byte,
-            sizeof(aether_size_byte),
-            &request_id
+            sizeof(aether_size_byte)
         );
 
         (void)aether_client_state(
