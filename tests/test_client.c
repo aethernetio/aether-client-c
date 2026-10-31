@@ -3047,23 +3047,22 @@ static aether_status_t canonical_append(
     void *ctx,
     const uint8_t *data,
     size_t length) {
-
     struct acc {
         uint8_t *buf;
         size_t len;
         size_t cap;
     } *a = ctx;
 
-    if (a == NULL || (length != 0u && data == NULL)) {
+    if (a == NULL) {
         return AETHER_ERR_ARGUMENT;
     }
-    if (a->len + length > a->cap) {
+    if (a->cap < length) {
         return AETHER_ERR_OVERFLOW;
     }
     if (length != 0u) {
-        memcpy(a->buf + a->len, data, length);
+        memcpy(a->buf, data, length);
     }
-    a->len += length;
+    a->len = length;
     return AETHER_OK;
 }
 
