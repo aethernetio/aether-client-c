@@ -1006,6 +1006,99 @@ static bool parse_signed_key(
 
 
 
+
+/*
+ * ServerDescriptor.signingKeys is a SignedKey[]. The client does not keep
+ * these keys, but it must consume them: otherwise the cursor stays before
+ * the key array and the next descriptor is parsed from garbage, which the
+ * server reports as a protocol error.
+ *
+ * The wire layout is fixed per key type (common.adsl.yaml): type id byte,
+ * key payload, signature type id byte, signature. Sizing the payload from
+ * the wire id keeps this correct for key types that have no registered
+ * crypto backend (P256_AES_GCM), where parse_signed_key() would bail out.
+ */
+static size_t signed_key_payload_bytes(
+    uint8_t key_type) {
+
+    switch (key_type) {
+
+    case 1u:  /* HydrogenCurvePrivate */
+    case 2u:  /* HydrogenCurvePublic */
+    case 3u:  /* HydrogenSecretBox */
+        return 32u;
+
+    case 4u:  /* HydrogenSignPrivate */
+        return 64u;
+
+    case 5u:  /* HydrogenSignPublic */
+        return 32u;
+
+    case 6u:  /* SodiumChacha20Poly1305 */
+    case 7u:  /* SodiumCurvePrivate */
+    case 8u:  /* SodiumCurvePublic */
+        return 32u;
+
+    case 9u:  /* SodiumSignPrivate */
+        return 64u;
+
+    case 10u: /* SodiumSignPublic */
+    case 11u: /* P256AesGcmSymmetric */
+    case 12u: /* P256AesGcmCurvePrivate */
+        return 32u;
+
+    case 13u: /* P256AesGcmCurvePublic */
+        return 64u;
+
+    case 14u: /* P256AesGcmSignPrivate */
+        return 32u;
+
+    case 15u: /* P256AesGcmSignPublic */
+        return 64u;
+
+    default:
+        return 0u;
+    }
+}
+
+
+static bool skip_signed_key(
+    reader_t *reader) {
+
+    uint8_t key_type =
+        r_u8(reader);
+
+    if (reader->failed) {
+        return false;
+    }
+
+    size_t key_bytes =
+        signed_key_payload_bytes(key_type);
+
+    if (key_bytes == 0u) {
+        reader->failed = true;
+        return false;
+    }
+
+    if (!r_bytes(reader, NULL, key_bytes)) {
+        return false;
+    }
+
+    uint8_t sign_type =
+        r_u8(reader);
+
+    if (reader->failed ||
+        sign_type == 0u ||
+        sign_type > 3u) {
+
+        reader->failed = true;
+        return false;
+    }
+
+    /* SignAE_ED25519 / SignHYDROGEN / SignP256AesGcm all carry 64 bytes. */
+    return r_bytes(reader, NULL, 64u);
+}
+
 static bool verify_signed_key(
     const aether_client_t *client,
     const aether_signed_key_t *key) {
@@ -1394,6 +1487,30 @@ static bool parse_server_descriptor(
             }
         }
     }
+
+
+    /*
+     * signingKeys: SignedKey[]. Consumed even though it is not stored, so
+     * the reader stays aligned with the wire and the next descriptor is
+     * parsed from real data.
+     */
+    uint64_t signing_key_count =
+        r_pack(reader);
+
+    if (reader->failed ||
+        signing_key_count > 16u) {
+        return false;
+    }
+
+    for (uint64_t ki = 0u;
+         ki < signing_key_count;
+         ++ki) {
+
+        if (!skip_signed_key(reader)) {
+            return false;
+        }
+    }
+
 
     if (server != NULL) {
         server->valid =

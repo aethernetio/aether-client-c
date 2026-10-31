@@ -1775,6 +1775,9 @@ static void test_full_registration_and_message(void) {
     put8(pow_plain,&q,1);              /* UDP */
     put16(pow_plain,&q,9011);
 
+    put_pack(pow_plain,&q,0);           /* signingKeys */
+
+
     put16(pow_plain,&q,8);             /* server 1 sid */
     put_pack(pow_plain,&q,1);
     put8(pow_plain,&q,1);              /* IPv4 */
@@ -1782,6 +1785,9 @@ static void test_full_registration_and_message(void) {
     put_pack(pow_plain,&q,1);
     put8(pow_plain,&q,1);              /* UDP */
     put16(pow_plain,&q,9012);
+
+    put_pack(pow_plain,&q,0);           /* signingKeys */
+
 
 
     put_encrypted_packet(
@@ -2301,6 +2307,9 @@ static aether_status_t recovery_exchange_result(
     put_pack(plain, &q, 1);                   /* codecs */
     put8(plain, &q, 1);                       /* UDP */
     put16(plain, &q, 9500);
+
+    put_pack(plain, &q, 0);                   /* signingKeys */
+
 
     uint8_t enc[2048];
     size_t enc_len = 0u;
@@ -3104,6 +3113,21 @@ static void test_cached_servers_exhausted_escalates_to_recovery(void) {
     put8(plain, &q, 1);                       /* UDP */
     put16(plain, &q, 9011);
 
+    put_pack(plain, &q, 3);                   /* signingKeys: 3 keys like production */
+    put8(plain, &q, 5);                       /* key: HydrogenSignPublic */
+    for (int k = 0; k < 32; k++) put8(plain, &q, 1);
+    put8(plain, &q, 2);                       /* sign: SignHYDROGEN */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 2);
+    put8(plain, &q, 2);                       /* key: HydrogenCurvePublic */
+    for (int k = 0; k < 32; k++) put8(plain, &q, 3);
+    put8(plain, &q, 2);                       /* sign: SignHYDROGEN */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 4);
+    put8(plain, &q, 13);                      /* key: P256AesGcmCurvePublic */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 5);
+    put8(plain, &q, 3);                       /* sign: SignP256AesGcm */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 6);
+
+
     uint8_t enc[2048];
     size_t enc_len = 0u;
     put_encrypted_packet(
@@ -3333,6 +3357,135 @@ static void test_recovery_builder_matches_canonical(void) {
 }
 
 
+
+/*
+ * Regression: ServerDescriptor carries a trailing SignedKey[]. The parser
+ * used to stop after coderAndPorts, so with more than one descriptor the
+ * cursor stayed before the key array and every following descriptor was
+ * decoded from garbage (production hit AETHER_ERR_PROTOCOL on
+ * sendResolvedServers with 3 signing keys per descriptor).
+ *
+ * This test sends two descriptors, each with signing keys of types that
+ * include P256_AES_GCM (no registered C backend), and asserts both servers
+ * are decoded with the right ids and ports.
+ */
+static void test_server_descriptors_with_signing_keys_stay_aligned(void) {
+    fixture_t f;
+    memset(&f, 0, sizeof(f));
+    assert(aether_hydrogen_init() == 0);
+    hydro_sign_keygen(&f.root_signer);
+    hydro_kx_keygen(&f.registration_kx);
+
+    aether_client_config_t cfg = config_for(&f);
+    cfg.pow.generate = NULL;
+
+    aether_client_t c;
+    aether_client_init(&c, &cfg);
+
+    c.registered = true;
+    c.state = AETHER_STATE_READY;
+    c.cloud_count = 1u;
+    c.cloud_sids[0] = 7;
+
+    /*
+     * Start from an exhausted cached topology so the resolveServers
+     * response is the only source of descriptors.
+     */
+    c.server_count = 1u;
+    c.active_server_index = -1;
+    c.servers[0].valid = true;
+    c.servers[0].sid = 7;
+    c.servers[0].endpoint.codec = AETHER_CODEC_UDP;
+    c.servers[0].endpoint.address.kind = AETHER_ADDR_IPV4;
+    c.servers[0].endpoint.address.length = 4u;
+    c.servers[0].endpoint.address.bytes[0] = 127u;
+    c.servers[0].endpoint.port = 9011u;
+
+    for (size_t i = 0u; i < AETHER_KEY_BYTES; ++i) {
+        c.master_key[i] = (uint8_t)(0x20u + i);
+    }
+
+    /* Registration channel opens -> getServerKey. */
+    f.fail_open_port = 9011u;
+    aether_client_on_transport_state(&c, AETHER_CHANNEL_WORK, false);
+    assert(c.state == AETHER_STATE_SERVER_RESOLVING);
+
+    aether_client_on_transport_state(
+        &c, AETHER_CHANNEL_REGISTRATION, true);
+
+    uint8_t packet[2048];
+    size_t p = 0u;
+    put8(packet, &p, 0);
+    put32(packet, &p, c.req_server_key);
+    put_signed_hydrogen_key(
+        packet, &p, f.registration_kx.pk, &f.root_signer);
+    assert(aether_client_on_rx(
+        &c, AETHER_CHANNEL_REGISTRATION, packet, p) == AETHER_OK);
+
+    uint8_t plain[2048];
+    size_t q = 0u;
+    put8(plain, &q, 0);
+    put32(plain, &q, c.req_resolve);
+    put_pack(plain, &q, 2);                   /* ServerDescriptor[] */
+
+    /* Descriptor 0: sid 7, port 9011, three signing keys. */
+    put16(plain, &q, 7);
+    put_pack(plain, &q, 1);                   /* addresses */
+    put8(plain, &q, 1);                       /* IPv4 */
+    put8(plain, &q, 127); put8(plain, &q, 0); put8(plain, &q, 0); put8(plain, &q, 1);
+    put_pack(plain, &q, 1);                   /* codecs */
+    put8(plain, &q, 1);                       /* UDP */
+    put16(plain, &q, 9011);
+    put_pack(plain, &q, 3);                   /* signingKeys */
+    put8(plain, &q, 5);                       /* HydrogenSignPublic */
+    for (int k = 0; k < 32; k++) put8(plain, &q, 0xA1);
+    put8(plain, &q, 2);                       /* SignHYDROGEN */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 0xA2);
+    put8(plain, &q, 2);                       /* HydrogenCurvePublic */
+    for (int k = 0; k < 32; k++) put8(plain, &q, 0xA3);
+    put8(plain, &q, 2);                       /* SignHYDROGEN */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 0xA4);
+    put8(plain, &q, 13);                      /* P256AesGcmCurvePublic */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 0xA5);
+    put8(plain, &q, 3);                       /* SignP256AesGcm */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 0xA6);
+
+    /* Descriptor 1: sid 8, port 9012, one signing key. */
+    put16(plain, &q, 8);
+    put_pack(plain, &q, 1);                   /* addresses */
+    put8(plain, &q, 1);                       /* IPv4 */
+    put8(plain, &q, 127); put8(plain, &q, 0); put8(plain, &q, 0); put8(plain, &q, 2);
+    put_pack(plain, &q, 1);                   /* codecs */
+    put8(plain, &q, 1);                       /* UDP */
+    put16(plain, &q, 9012);
+    put_pack(plain, &q, 1);                   /* signingKeys */
+    put8(plain, &q, 5);                       /* HydrogenSignPublic */
+    for (int k = 0; k < 32; k++) put8(plain, &q, 0xB1);
+    put8(plain, &q, 2);                       /* SignHYDROGEN */
+    for (int k = 0; k < 64; k++) put8(plain, &q, 0xB2);
+
+    uint8_t enc[4096];
+    size_t enc_len = 0u;
+    put_encrypted_packet(
+        enc, &enc_len, 3, c.temp_key, plain, q);
+
+    f.fail_open_port = 0u;
+    assert(aether_client_on_rx(
+        &c, AETHER_CHANNEL_REGISTRATION, enc, enc_len) == AETHER_OK);
+
+    /*
+     * Both descriptors must be decoded: misalignment would leave the second
+     * one unparsed or produce wrong ids/ports.
+     */
+    assert(c.server_count == 2u);
+    assert(c.servers[0].sid == 7);
+    assert(c.servers[0].endpoint.port == 9011u);
+    assert(c.servers[1].sid == 8);
+    assert(c.servers[1].endpoint.port == 9012u);
+}
+
+
+
 int main(void) {
     test_work_frame_yields_messages_one_by_one();
     test_full_registration_and_message();
@@ -3341,6 +3494,9 @@ int main(void) {
     test_set_credentials_does_not_overwrite_existing();
     test_caller_credentials_start_enters_recovery();
     test_cached_servers_exhausted_escalates_to_recovery();
+
+    test_server_descriptors_with_signing_keys_stay_aligned();
+
     test_persisted_state_wins_over_caller_candidate();
     test_persisted_identity_empty_cloud_enters_recovery();
     test_recovery_response_updates_routing_not_identity();
